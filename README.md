@@ -15,7 +15,12 @@ pnpm check        # typecheck + tests + migrations + build, comme la CI
 ```
 
 Postgres et Redis sont optionnels en local : sans `DATABASE_URL` / `REDIS_URL`, le serveur démarre et
-les signale comme `disabled` dans `/api/health`. Migrations : `DATABASE_URL=... pnpm --filter @mycelium/server migrate`.
+les signale comme `disabled` dans `/api/health`. Sans Postgres, les parties sont gardées en mémoire et
+perdues au redémarrage du serveur (le navigateur redemande alors un pseudo).
+Migrations : `DATABASE_URL=... pnpm --filter @mycelium/server migrate`.
+
+Tests du stockage Postgres (ignorés sans base) : `TEST_DATABASE_URL=postgres://.../base_jetable pnpm test`
+— la base indiquée est **vidée** au début des tests.
 
 ## Documentation
 
@@ -23,3 +28,4 @@ les signale comme `disabled` dans `/api/health`. Migrations : `DATABASE_URL=... 
 - [`docs/workflow.md`](docs/workflow.md) — branches, protocole de merge, réglages GitHub
 - [`docs/deploy.md`](docs/deploy.md) — prod, staging, mise en place du serveur, secrets
 - [`docs/versioning.md`](docs/versioning.md) — versions et releases
+- [`docs/roadmap.md`](docs/roadmap.md) — jalons de développement

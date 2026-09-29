@@ -55,3 +55,32 @@ export function hexesInRadius(center: Hex, radius: number): Hex[] {
 export function hexKey(h: Hex): string {
   return `${h.q},${h.r}`;
 }
+
+const SQRT3 = Math.sqrt(3);
+
+/** Centre of a pointy-top hex of circumradius `size`, with hex (0,0) at the origin. */
+export function hexToPixel(h: Hex, size = 1): { x: number; y: number } {
+  return { x: size * SQRT3 * (h.q + h.r / 2), y: size * 1.5 * h.r };
+}
+
+/** Hex containing the point (x, y), inverse of `hexToPixel`. */
+export function pixelToHex(x: number, y: number, size = 1): Hex {
+  const q = ((SQRT3 / 3) * x - y / 3) / size;
+  const r = ((2 / 3) * y) / size;
+  return hexRound(q, r);
+}
+
+/** Rounds fractional axial coordinates to the nearest hex (cube rounding). */
+export function hexRound(q: number, r: number): Hex {
+  const s = -q - r;
+  let rq = Math.round(q);
+  let rr = Math.round(r);
+  const rs = Math.round(s);
+  const dq = Math.abs(rq - q);
+  const dr = Math.abs(rr - r);
+  const ds = Math.abs(rs - s);
+  if (dq > dr && dq > ds) rq = -rr - rs;
+  else if (dr > ds) rr = -rq - rs;
+  // `+ 0` turns a possible -0 into 0 so results compare cleanly.
+  return { q: rq + 0, r: rr + 0 };
+}

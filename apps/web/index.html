@@ -2,15 +2,82 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0c0e0a" />
     <title>Mycelium</title>
   </head>
   <body>
-    <main id="app">
-      <h1>Mycelium</h1>
-      <p id="status">Connecting…</p>
-      <p id="version"></p>
-    </main>
+    <div id="map" class="map"></div>
+
+    <header class="topbar">
+      <div class="brand" id="brand"></div>
+      <div class="res">
+        <span class="res-label" data-i18n="res.nutrients"></span>
+        <span class="res-value" id="nutrients">0</span>
+        <span class="res-rate" id="nutrients-rate"></span>
+      </div>
+      <div class="res res-biomass">
+        <span class="res-label" data-i18n="res.biomass"></span>
+        <span class="res-value" id="biomass">0</span>
+        <span class="res-rate" id="biomass-rate"></span>
+      </div>
+      <div class="res res-tiles">
+        <span class="res-label" data-i18n="res.tiles"></span>
+        <span class="res-value" id="tiles">1</span>
+      </div>
+      <div class="topbar-end">
+        <span class="player" id="player-name"></span>
+        <button type="button" class="ghost" id="lang-btn" data-i18n="lang.switch" data-i18n-aria="lang.switchLabel"></button>
+      </div>
+    </header>
+
+    <aside class="panel upgrades" id="upgrades">
+      <h2 data-i18n="upgrades.title"></h2>
+      <ul id="upgrade-list"></ul>
+    </aside>
+
+    <section class="panel tile-panel" id="tile-panel" hidden>
+      <button type="button" class="close" id="tile-close" data-i18n-aria="tile.close">×</button>
+      <h3 id="tile-name"></h3>
+      <p class="tile-status" id="tile-status"></p>
+      <dl>
+        <dt data-i18n="tile.yield"></dt>
+        <dd id="tile-yield"></dd>
+        <dt data-i18n="tile.cost" class="wild-only"></dt>
+        <dd id="tile-cost" class="wild-only"></dd>
+        <dt data-i18n="tile.growth" class="wild-only"></dt>
+        <dd id="tile-growth" class="wild-only"></dd>
+      </dl>
+      <button type="button" class="primary wild-only" id="tile-colonize" data-i18n="tile.colonize"></button>
+    </section>
+
+    <p class="hint" id="hint" data-i18n="tile.hint"></p>
+
+    <div class="map-controls">
+      <button type="button" id="zoom-in" data-i18n-aria="zoom.in">+</button>
+      <button type="button" id="zoom-out" data-i18n-aria="zoom.out">−</button>
+      <button type="button" id="zoom-home" data-i18n-aria="zoom.home">◎</button>
+      <button type="button" id="upgrades-toggle" class="upgrades-toggle" data-i18n-aria="panel.upgrades">⬡</button>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+    <div class="status" id="status" role="status" hidden></div>
+    <footer class="version" id="version"></footer>
+
+    <div class="overlay" id="guest" hidden>
+      <form class="guest-card" id="guest-form" novalidate>
+        <div class="guest-brand" id="guest-brand"></div>
+        <p class="tagline" data-i18n="app.tagline"></p>
+        <h1 data-i18n="guest.title"></h1>
+        <p class="muted" data-i18n="guest.subtitle"></p>
+        <label for="guest-name" data-i18n="guest.nameLabel"></label>
+        <input id="guest-name" name="name" autocomplete="nickname" maxlength="20" required data-i18n-placeholder="guest.namePlaceholder" />
+        <small class="muted" data-i18n="guest.hint"></small>
+        <p class="error" id="guest-error" hidden></p>
+        <button type="submit" class="primary" data-i18n="guest.submit"></button>
+      </form>
+    </div>
+
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

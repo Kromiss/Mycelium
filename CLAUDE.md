@@ -10,6 +10,10 @@ mycélium sur une carte hexagonale à conquérir, avec du PvP, 20 à 30 joueurs 
 wipe chaque semaine ; l'objectif est de finir en tête du classement. Les détails de game design se
 décident avec le propriétaire (Kromiss) : ne pas inventer de règle de jeu sans lui demander.
 
+La référence de game design est **`GDD_Mycelium.md`**, dans les documents du projet Claude « Jeu
+incremental » (outil Projects). Lis-le avant toute tâche de gameplay. Les jalons sont dans
+`docs/roadmap.md`.
+
 ## Stack et arborescence
 
 Monorepo TypeScript, pnpm, Node 22.
@@ -46,6 +50,7 @@ Commandes : `pnpm install`, `pnpm dev:server`, `pnpm dev:web`, et avant toute li
   3. `pnpm check` en local, tout doit être vert ;
   4. `git push origin HEAD:dev` (fast-forward uniquement, jamais de force-push) ;
   5. ouvrir une PR `dev → main`, attendre la CI verte.
+- Tu pousses sur `dev` directement (bypass admin du ruleset). **Jamais sur `main`.**
 - **Merge `dev → main` et déploiement : pas d'autonomie accordée pour l'instant.** Ouvre la PR et
   demande au propriétaire de merger, sauf s'il t'a donné l'autorisation par écrit dans le fil en cours.
   S'il l'accorde de façon permanente, mets à jour cette ligne.

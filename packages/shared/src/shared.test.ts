@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { hex, hexDistance, hexEquals, hexesInRadius, hexKey, hexNeighbors } from "./hex";
-import { parseClientMessage } from "./protocol";
+import { hex, hexDistance, hexEquals, hexesInRadius, hexKey, hexNeighbors, hexToPixel, pixelToHex } from "./hex";
+import { isValidPlayerName, parseClientMessage } from "./protocol";
 
 describe("hex grid", () => {
   it("measures distance in steps", () => {
@@ -28,6 +28,16 @@ describe("hex grid", () => {
     expect(hexEquals(hex(1, 2), hex(1, 2))).toBe(true);
     expect(hexEquals(hex(1, 2), hex(2, 1))).toBe(false);
   });
+
+  it("converts between hexes and pixels", () => {
+    for (const h of hexesInRadius(hex(0, 0), 4)) {
+      const { x, y } = hexToPixel(h, 20);
+      expect(pixelToHex(x, y, 20)).toEqual(h);
+      // Points well inside the hex still map to it.
+      expect(pixelToHex(x + 8, y - 5, 20)).toEqual(h);
+    }
+    expect(hexToPixel(hex(0, 0))).toEqual({ x: 0, y: 0 });
+  });
 });
 
 describe("protocol", () => {
@@ -35,5 +45,27 @@ describe("protocol", () => {
     expect(parseClientMessage('{"type":"ping"}')).toEqual({ type: "ping" });
     expect(parseClientMessage('{"type":"nope"}')).toBeNull();
     expect(parseClientMessage("not json")).toBeNull();
+  });
+
+  it("validates game messages", () => {
+    expect(parseClientMessage('{"type":"auth","token":"abc"}')).toEqual({ type: "auth", token: "abc" });
+    expect(parseClientMessage('{"type":"auth","token":""}')).toBeNull();
+    expect(parseClientMessage('{"type":"colonize","q":1,"r":-2}')).toEqual({ type: "colonize", q: 1, r: -2 });
+    expect(parseClientMessage('{"type":"colonize","q":1.5,"r":0}')).toBeNull();
+    expect(parseClientMessage('{"type":"colonize","q":"1","r":0}')).toBeNull();
+    expect(parseClientMessage('{"type":"buyUpgrade","upgrade":"digestion"}')).toEqual({
+      type: "buyUpgrade",
+      upgrade: "digestion",
+    });
+    expect(parseClientMessage("null")).toBeNull();
+  });
+
+  it("validates player names", () => {
+    expect(isValidPlayerName("Kromiss")).toBe(true);
+    expect(isValidPlayerName("Élodie_42")).toBe(true);
+    expect(isValidPlayerName("ab")).toBe(false);
+    expect(isValidPlayerName("a".repeat(21))).toBe(false);
+    expect(isValidPlayerName("no spaces")).toBe(false);
+    expect(isValidPlayerName("<script>")).toBe(false);
   });
 });

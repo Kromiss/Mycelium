@@ -31,11 +31,11 @@ claude/<tâche> ──► dev ──(PR dev → main)──► main ──► De
 - *Require a pull request before merging* ;
 - *Require status checks to pass* → ajouter le check `check` ;
 - *Block force pushes* et *Restrict deletions* ;
-- *Bypass list* : le propriétaire (Kromiss), pour pouvoir pousser en urgence.
+- *Bypass list* : le rôle **Repository admin** (donc toi), pour pouvoir pousser en urgence.
 
-Avec ce ruleset sur `dev`, le `git push origin HEAD:dev` de l'étape 4 n'est possible que pour les
-comptes en bypass. Si tu veux que Claude puisse pousser sur `dev` directement, ajoute l'app GitHub
-Claude au bypass du ruleset `dev` ; sinon Claude ouvre une PR `claude/<tâche> → dev`.
+Les sessions Claude poussent avec ton compte GitHub : grâce à ce bypass, elles peuvent faire le
+`git push origin HEAD:dev` de l'étape 4 (choix retenu). Techniquement elles pourraient aussi pousser
+sur `main` ; c'est `CLAUDE.md` qui le leur interdit (PR `dev → main` obligatoire, merge par toi).
 
 **Environments** (Settings → Environments) :
 - `production`, restreint à la branche `main` (*Deployment branches → Selected branches → main*).
