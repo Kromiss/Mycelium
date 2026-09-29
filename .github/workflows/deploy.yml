@@ -1,0 +1,130 @@
+name: Deploy
+
+# Every push on main = a production release. Pipeline: CI -> Docker images (GHCR) -> SSH -> deploy/deploy.sh.
+# The SSH step only runs once the repository variable DEPLOY_ENABLED is "true" (see docs/deploy.md).
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# One production deploy at a time, never cancelled half-way.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  images:
+    needs: ci
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+      prefix: ${{ steps.meta.outputs.prefix }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: meta
+        name: Image names
+        run: |
+          echo "prefix=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+          echo "tag=${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push server
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/server.Dockerfile
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.prefix }}/server:${{ steps.meta.outputs.tag }}
+            ${{ steps.meta.outputs.prefix }}/server:main
+          cache-from: type=gha,scope=server
+          cache-to: type=gha,scope=server,mode=max
+
+      - name: Build and push web
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/web.Dockerfile
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.prefix }}/web:${{ steps.meta.outputs.tag }}
+            ${{ steps.meta.outputs.prefix }}/web:main
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,scope=web,mode=max
+
+  deploy:
+    needs: images
+    if: vars.DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: production
+      url: ${{ vars.PRODUCTION_URL }}
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: SSH setup
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+      - name: Deploy
+        env:
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          USER_NAME: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          PORT: ${{ secrets.DEPLOY_PORT || '22' }}
+          TAG: ${{ needs.images.outputs.tag }}
+          PREFIX: ${{ needs.images.outputs.prefix }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # shellcheck disable=SC2029 # variables are meant to expand on the runner
+          set -euo pipefail
+          SSH_OPTS=(-i ~/.ssh/deploy_key -p "$PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes)
+          TARGET="$USER_NAME@$HOST"
+
+          # Ship the deploy scripts and compose files (they live in the repo, not on the server).
+          scp -i ~/.ssh/deploy_key -P "$PORT" -o BatchMode=yes \
+            deploy/docker-compose.yml deploy/docker-compose.prod.yml \
+            deploy/common.sh deploy/deploy.sh deploy/deploy-staging.sh \
+            "$TARGET:$DEPLOY_PATH/"
+
+          # Short-lived registry login: the workflow token expires with the job.
+          printf '%s' "$GH_TOKEN" | ssh "${SSH_OPTS[@]}" "$TARGET" "docker login ghcr.io -u '${{ github.actor }}' --password-stdin"
+          set +e
+          ssh "${SSH_OPTS[@]}" "$TARGET" "cd '$DEPLOY_PATH' && chmod +x *.sh && ./deploy.sh '$TAG' '$PREFIX'"
+          rc=$?
+          set -e
+          ssh "${SSH_OPTS[@]}" "$TARGET" "docker logout ghcr.io" || true
+          exit $rc
+
+      - name: Clean up key
+        if: always()
+        run: rm -f ~/.ssh/deploy_key
