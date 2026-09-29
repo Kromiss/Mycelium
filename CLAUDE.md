@@ -10,6 +10,10 @@ mycélium sur une carte hexagonale à conquérir, avec du PvP, 20 à 30 joueurs 
 wipe chaque semaine ; l'objectif est de finir en tête du classement. Les détails de game design se
 décident avec le propriétaire (Kromiss) : ne pas inventer de règle de jeu sans lui demander.
 
+La référence de game design est **`GDD_Mycelium.md`**, dans les documents du projet Claude « Jeu
+incremental » (outil Projects). Lis-le avant toute tâche de gameplay. Les jalons sont dans
+`docs/roadmap.md`.
+
 ## Stack et arborescence
 
 Monorepo TypeScript, pnpm, Node 22.
