@@ -1,67 +1,82 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { advance, colonize, goOffline, moveHeart, newGame } from "@mycelium/shared";
+import { advanceForest, joinForest, newForest, resolveBorders } from "@mycelium/shared";
 import path from "node:path";
 import pg from "pg";
 import { migrate } from "./migrate";
-import { NameTakenError, PgStore } from "./store";
+import { MemoryStore, NameTakenError, PgStore, type GameStore } from "./store";
 
-// Runs only when a throwaway database is provided, e.g.
+// The Postgres store runs only when a throwaway database is provided, e.g.
 // TEST_DATABASE_URL=postgres://localhost/mycelium_test pnpm --filter @mycelium/server test
+// (the database is wiped first). The memory store always runs the same contract.
 const url = process.env.TEST_DATABASE_URL;
+const T0 = Date.UTC(2026, 9, 5, 12);
 
-describe.skipIf(!url)("PgStore", () => {
-  let pool: pg.Pool;
-  let store: PgStore;
+let pool: pg.Pool | undefined;
 
-  beforeAll(async () => {
-    const admin = new pg.Client({ connectionString: url });
-    await admin.connect();
-    await admin.query("drop schema public cascade; create schema public;");
-    await admin.end();
-    await migrate(url!, path.resolve(__dirname, "../migrations"));
-    pool = new pg.Pool({ connectionString: url });
-    store = new PgStore(pool);
+beforeAll(async () => {
+  if (!url) return;
+  const admin = new pg.Client({ connectionString: url });
+  await admin.connect();
+  await admin.query("drop schema public cascade; create schema public;");
+  await admin.end();
+  await migrate(url, path.resolve(__dirname, "../migrations"));
+  pool = new pg.Pool({ connectionString: url });
+});
+
+afterAll(async () => {
+  await pool?.end();
+});
+
+const stores: Array<[string, () => GameStore]> = [["memory", () => new MemoryStore()]];
+if (url) stores.push(["postgres", () => new PgStore(pool!)]);
+
+describe.each(stores)("%s store", (_name, make) => {
+  it("creates accounts with unique names and finds them", async () => {
+    const store = make();
+    const a = await store.createAccount(`Alice${_name}`, "hash");
+    expect(await store.findAccountByName(`alice${_name}`)).toEqual(a);
+    await expect(store.createAccount(`ALICE${_name}`, "x")).rejects.toBeInstanceOf(NameTakenError);
+    await store.setPassword(a.id, "other");
+    expect((await store.findAccountByName(`Alice${_name}`))?.passwordHash).toBe("other");
   });
 
-  afterAll(async () => {
-    await pool?.end();
+  it("opens and closes sessions", async () => {
+    const store = make();
+    const a = await store.createAccount(`Bob${_name}`, "hash");
+    await store.createSession(a.id, `tok-${_name}`);
+    expect((await store.findAccountBySession(`tok-${_name}`))?.id).toBe(a.id);
+    await store.deleteSession(`tok-${_name}`);
+    expect(await store.findAccountBySession(`tok-${_name}`)).toBeNull();
   });
 
-  it("stores a new guest and loads the exact same game", async () => {
-    const t0 = Date.UTC(2026, 8, 29, 12);
-    const game = newGame(123456789, t0);
-    const player = await store.createGuest("PgSpore", "hash-1", game);
-    expect(await store.findPlayerByToken("hash-1")).toEqual(player);
-    expect(await store.findPlayerByToken("hash-2")).toBeNull();
-    expect(await store.loadGame(player.id)).toEqual(game);
-  });
+  it("saves and reloads a whole forest", async () => {
+    const store = make();
+    const forest = newForest(99, T0, 4);
+    const record = await store.createForest(forest);
+    const a = await store.createAccount(`Cleo${_name}`, "hash");
+    const b = await store.createAccount(`Dan${_name}`, null, true);
+    joinForest(forest, a.id, T0);
+    joinForest(forest, b.id, T0);
+    advanceForest(forest, T0 + 3_600_000);
+    const pa = forest.players.get(a.id)!;
+    pa.queue.push({ q: 0, r: 0 });
+    pa.trophies = 2;
+    const someTile = [...forest.tiles.values()].find((t) => t.owner === a.id)!;
+    someTile.capture = { by: b.id, progress: 0.25 };
+    resolveBorders(forest, 5_000, T0 + 3_600_000);
+    await store.saveForest(record.id, forest);
 
-  it("refuses a taken name, case-insensitively", async () => {
-    await expect(store.createGuest("pgspore", "hash-3", newGame(1, 0))).rejects.toBeInstanceOf(NameTakenError);
-  });
-
-  it("saves resources, upgrades and colonised tiles", async () => {
-    const t0 = Date.UTC(2026, 8, 29, 13);
-    const game = newGame(42, t0);
-    const player = await store.createGuest("PgSaver", "hash-4", game);
-    advance(game, t0 + 60_000);
-    expect(colonize(game, { q: 0, r: 1 }, t0 + 60_000).ok).toBe(true);
-    game.upgrades.digestion = 3;
-    await store.saveGame(player.id, game);
-    expect(await store.loadGame(player.id)).toEqual(game);
-
-    colonize(game, { q: 0, r: 2 }, t0 + 60_000);
-    advance(game, t0 + 600_000);
-    expect(moveHeart(game, { q: 0, r: 1 }, t0 + 600_000).ok).toBe(true);
-    game.nutrients = 0; // Keep the next tiles waiting in the queue.
-    colonize(game, { q: 0, r: 3 }, t0 + 600_000);
-    colonize(game, { q: 0, r: 4 }, t0 + 600_000);
-    goOffline(game, t0 + 600_000);
-    await store.saveGame(player.id, game);
-    const loaded = await store.loadGame(player.id);
-    expect(loaded).toEqual(game);
-    expect(loaded!.tiles.get("0,1")!.growthEndsAt).toBeNull();
-    expect(loaded!.tiles.get("0,1")!.exhaustion).toBeGreaterThan(0);
-    expect(loaded!.queue.length).toBeGreaterThan(0);
+    expect(await store.listForests()).toContainEqual(record);
+    const loaded = (await store.loadForest(record.id))!;
+    expect(loaded.record).toEqual(record);
+    expect([...loaded.members.values()].map((m) => m.name).sort()).toEqual([`Cleo${_name}`, `Dan${_name}`].sort());
+    expect(loaded.members.get(b.id)?.isBot).toBe(true);
+    expect(loaded.forest.tiles).toEqual(forest.tiles);
+    expect(loaded.forest.spawns).toEqual(forest.spawns);
+    for (const [id, p] of forest.players) {
+      const q = loaded.forest.players.get(id)!;
+      expect(q.tiles).toBe(loaded.forest.tiles);
+      expect({ ...q, tiles: null }).toEqual({ ...p, tiles: null });
+    }
   });
 });

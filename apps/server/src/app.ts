@@ -1,9 +1,9 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
-import type { GuestRequest, HealthReport, PlayerInfo, ServerMessage } from "@mycelium/shared";
+import type { AuthError, Credentials, HealthReport, PlayerInfo, ServerMessage } from "@mycelium/shared";
 import { parseClientMessage } from "@mycelium/shared";
 import { WebSocketServer, type WebSocket } from "ws";
 import { APP_VERSION } from "./config";
-import { GameService, type GameClient } from "./game-service";
+import { ForestService, type GameClient } from "./forest-service";
 import { MemoryStore } from "./store";
 
 /** A dependency the health endpoint pings. `undefined` means not configured. */
@@ -13,7 +13,7 @@ export interface AppDeps {
   probes: Record<string, HealthProbe>;
   startedAt?: number;
   /** Game simulation; defaults to an in-memory one (tests, local dev without Postgres). */
-  game?: GameService;
+  game?: ForestService;
 }
 
 export async function buildHealthReport(deps: AppDeps): Promise<HealthReport> {
@@ -44,7 +44,7 @@ export async function buildHealthReport(deps: AppDeps): Promise<HealthReport> {
 
 export function createApp(deps: AppDeps): Server {
   const startedAt = deps.startedAt ?? Date.now();
-  const game = deps.game ?? new GameService(new MemoryStore());
+  const game = deps.game ?? new ForestService(new MemoryStore());
   const server = createServer((req, res) => {
     handleHttp(req, res, { ...deps, startedAt }, game).catch((err: unknown) => {
       console.error("[http]", err);
@@ -65,28 +65,65 @@ export function createApp(deps: AppDeps): Server {
   return server;
 }
 
-async function handleHttp(req: IncomingMessage, res: ServerResponse, deps: AppDeps, game: GameService): Promise<void> {
+const AUTH_STATUS: Record<AuthError, number> = {
+  invalid_name: 400,
+  weak_password: 400,
+  name_taken: 409,
+  wrong_credentials: 401,
+  too_many_attempts: 429,
+};
+
+async function handleHttp(req: IncomingMessage, res: ServerResponse, deps: AppDeps, game: ForestService): Promise<void> {
   if (req.method === "GET" && req.url === "/api/health") {
     const report = await buildHealthReport(deps);
     sendJson(res, report.status === "ok" ? 200 : 503, report);
     return;
   }
-  if (req.method === "POST" && req.url === "/api/guest") {
-    const body = await readJson(req, 1024);
-    const name = (body as Partial<GuestRequest> | null)?.name;
-    if (typeof name !== "string") {
+  if (req.method === "POST" && (req.url === "/api/register" || req.url === "/api/login")) {
+    const body = (await readJson(req, 1024)) as Partial<Credentials> | null;
+    if (typeof body?.name !== "string" || typeof body.password !== "string") {
       sendJson(res, 400, { error: "invalid_name" });
       return;
     }
-    const result = await game.createGuest(name);
-    if (result.ok) sendJson(res, 201, result.response);
-    else sendJson(res, result.error === "name_taken" ? 409 : 400, { error: result.error });
+    const result =
+      req.url === "/api/register"
+        ? await game.register(body.name, body.password)
+        : await game.login(body.name, body.password, req.socket.remoteAddress ?? "");
+    if (result.ok) sendJson(res, req.url === "/api/register" ? 201 : 200, result.session);
+    else sendJson(res, AUTH_STATUS[result.error], { error: result.error });
+    return;
+  }
+  if (req.method === "POST" && req.url === "/api/password") {
+    const token = bearer(req);
+    const body = (await readJson(req, 1024)) as { password?: unknown } | null;
+    if (!token || typeof body?.password !== "string") {
+      sendJson(res, 401, { error: "unauthorized" });
+      return;
+    }
+    const result = await game.setPassword(token, body.password);
+    const status = { ok: 204, unauthorized: 401, weak_password: 400, already_set: 409 }[result];
+    if (status === 204) {
+      res.writeHead(204).end();
+      return;
+    }
+    sendJson(res, status, { error: result });
+    return;
+  }
+  if (req.method === "POST" && req.url === "/api/logout") {
+    const token = bearer(req);
+    if (token) await game.logout(token);
+    res.writeHead(204).end();
     return;
   }
   sendJson(res, 404, { error: "not_found" });
 }
 
-function onConnection(ws: WebSocket, game: GameService): void {
+function bearer(req: IncomingMessage): string | null {
+  const m = /^Bearer (\S{1,200})$/.exec(req.headers.authorization ?? "");
+  return m?.[1] ?? null;
+}
+
+function onConnection(ws: WebSocket, game: ForestService): void {
   const client: GameClient = { send: (msg) => send(ws, msg) };
   let player: PlayerInfo | null = null;
   let authenticating = false;
