@@ -37,8 +37,10 @@ des points de départ à équilibrer, centralisés dans `packages/shared`.
 
 ## M1 — Proto solo (0.2.0) — GDD §15.1
 
-✅ Décidé : terrains du proto = **Humus, Litière de feuilles, Bois mort**.
-🔸 Décisions : les **5 améliorations** du proto ; identité joueur minimale (invité + pseudo suffit ?).
+✅ Décidé : terrains du proto = **Humus, Litière de feuilles, Bois mort** ; améliorations = **Digestion
+accrue, Croissance des hyphes, Expansion économe, Conversion en biomasse, Décomposeur de bois**
+(détail dans le GDD §14).
+🔸 Décision : identité joueur minimale (invité + pseudo suffit ?).
 
 - Générateur de carte hexagonale depuis une **graine** (§2.1), déterministe et testé. Pour le proto, une
   carte simple suffit : la forme finale dépend de la décision sur les secteurs (M3).
