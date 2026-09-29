@@ -3,6 +3,13 @@ import {
   buyUpgrade,
   cloneGame,
   colonize,
+  conversionRate,
+  goOffline,
+  goOnline,
+  moveHeart,
+  ownedCount,
+  unqueue,
+  type AwaySummary,
   isValidPlayerName,
   newGame,
   randomSeed,
@@ -73,7 +80,7 @@ export class GameService {
     clearInterval(this.timer);
     this.timer = undefined;
     for (const entry of this.active.values()) {
-      advance(entry.game, this.now());
+      goOffline(entry.game, this.now());
       this.save(entry);
     }
     await Promise.all([...this.active.values()].map((e) => e.saving));
@@ -100,9 +107,12 @@ export class GameService {
   async attach(player: PlayerInfo, client: GameClient): Promise<boolean> {
     const entry = await this.load(player);
     if (!entry) return false;
+    const now = this.now();
+    let away: AwaySummary | undefined;
+    if (entry.clients.size === 0) away = this.comeBack(entry.game, now);
+    else advance(entry.game, now);
     entry.clients.add(client);
-    advance(entry.game, this.now());
-    client.send({ type: "ready", player: entry.player, game: toSnapshot(entry.game), serverTime: this.now() });
+    client.send({ type: "ready", player: entry.player, game: toSnapshot(entry.game), serverTime: now, away });
     return true;
   }
 
@@ -111,7 +121,7 @@ export class GameService {
     const entry = this.active.get(playerId);
     if (!entry || !entry.clients.delete(client)) return;
     if (entry.clients.size > 0) return;
-    advance(entry.game, this.now());
+    goOffline(entry.game, this.now());
     this.save(entry);
     await entry.saving;
     // A new client may have arrived while saving.
@@ -120,6 +130,14 @@ export class GameService {
 
   colonize(playerId: string, q: number, r: number, client: GameClient): void {
     this.act(playerId, client, (game, now) => colonize(game, { q, r }, now));
+  }
+
+  unqueue(playerId: string, q: number, r: number, client: GameClient): void {
+    this.act(playerId, client, (game) => unqueue(game, { q, r }));
+  }
+
+  moveHeart(playerId: string, q: number, r: number, client: GameClient): void {
+    this.act(playerId, client, (game, now) => moveHeart(game, { q, r }, now));
   }
 
   buyUpgrade(playerId: string, upgrade: string, client: GameClient): void {
@@ -139,6 +157,23 @@ export class GameService {
   /** For tests and diagnostics. */
   activeGame(playerId: string): GameState | undefined {
     return this.active.get(playerId)?.game;
+  }
+
+  /** Catches up the offline time (GDD §9) and switches back to full production. */
+  private comeBack(game: GameState, now: number): AwaySummary | undefined {
+    const since = game.lastSeenAt;
+    const biomass = game.biomass;
+    const tiles = ownedCount(game);
+    goOnline(game, now);
+    if (since === null || now <= since) return undefined;
+    // No upgrade can be bought while away, so the conversion rate is constant over the absence.
+    const gained = game.biomass - biomass;
+    return {
+      awayMs: now - since,
+      nutrients: gained / conversionRate(game.upgrades),
+      biomass: gained,
+      colonized: ownedCount(game) - tiles,
+    };
   }
 
   private act(
@@ -183,6 +218,8 @@ export class GameService {
         .loadGame(player.id)
         .then((game) => {
           if (!game) return null;
+          // Saved while online (e.g. the server stopped abruptly): count the absence from the last save.
+          game.lastSeenAt ??= game.updatedAt;
           const entry: ActiveGame = { player, game, clients: new Set(), saving: Promise.resolve() };
           this.active.set(player.id, entry);
           return entry;

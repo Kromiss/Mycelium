@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { advance, colonize, newGame } from "@mycelium/shared";
+import { advance, colonize, goOffline, moveHeart, newGame } from "@mycelium/shared";
 import path from "node:path";
 import pg from "pg";
 import { migrate } from "./migrate";
@@ -50,10 +50,18 @@ describe.skipIf(!url)("PgStore", () => {
     await store.saveGame(player.id, game);
     expect(await store.loadGame(player.id)).toEqual(game);
 
+    colonize(game, { q: 0, r: 2 }, t0 + 60_000);
     advance(game, t0 + 600_000);
+    expect(moveHeart(game, { q: 0, r: 1 }, t0 + 600_000).ok).toBe(true);
+    game.nutrients = 0; // Keep the next tiles waiting in the queue.
+    colonize(game, { q: 0, r: 3 }, t0 + 600_000);
+    colonize(game, { q: 0, r: 4 }, t0 + 600_000);
+    goOffline(game, t0 + 600_000);
     await store.saveGame(player.id, game);
     const loaded = await store.loadGame(player.id);
     expect(loaded).toEqual(game);
     expect(loaded!.tiles.get("0,1")!.growthEndsAt).toBeNull();
+    expect(loaded!.tiles.get("0,1")!.exhaustion).toBeGreaterThan(0);
+    expect(loaded!.queue.length).toBeGreaterThan(0);
   });
 });

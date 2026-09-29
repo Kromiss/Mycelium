@@ -122,6 +122,14 @@ function onConnection(ws: WebSocket, game: GameService): void {
         if (!player) return send(ws, { type: "actionError", error: "not_authenticated" });
         game.colonize(player.id, msg.q, msg.r, client);
         return;
+      case "unqueue":
+        if (!player) return send(ws, { type: "actionError", error: "not_authenticated" });
+        game.unqueue(player.id, msg.q, msg.r, client);
+        return;
+      case "moveHeart":
+        if (!player) return send(ws, { type: "actionError", error: "not_authenticated" });
+        game.moveHeart(player.id, msg.q, msg.r, client);
+        return;
       case "buyUpgrade":
         if (!player) return send(ws, { type: "actionError", error: "not_authenticated" });
         game.buyUpgrade(player.id, msg.upgrade, client);

@@ -64,9 +64,12 @@ interface PlayerRow {
   radius: number;
   heart_q: number;
   heart_r: number;
+  heart_moved_at: Date | null;
   nutrients: number;
   biomass: number;
   upgrades: Record<string, number>;
+  queue: Array<{ q: number; r: number }>;
+  last_seen_at: Date | null;
   updated_at: Date;
 }
 
@@ -77,9 +80,14 @@ interface HexRow {
   owner_id: string | null;
   growth_ends_at: Date | null;
   growth_started_at: Date | null;
+  exhaustion: number;
+  disconnected_since: Date | null;
 }
 
-/** PostgreSQL store (tables from migrations 0001 and 0002). */
+const toDate = (ms: number | null) => (ms === null ? null : new Date(ms));
+const toMs = (d: Date | null) => (d === null ? null : d.getTime());
+
+/** PostgreSQL store (tables from migrations 0001 to 0004). */
 export class PgStore implements GameStore {
   constructor(private readonly pool: pg.Pool) {}
 
@@ -95,37 +103,24 @@ export class PgStore implements GameStore {
       );
       const worldId = world.rows[0]!.id;
       const player = await client.query<{ id: string }>(
-        `insert into players (name, token_hash, world_id, heart_q, heart_r, nutrients, biomass, upgrades, updated_at)
-         values ($1, $2, $3, $4, $5, $6, $7, $8, $9) returning id`,
-        [
-          name,
-          tokenHash,
-          worldId,
-          game.heart.q,
-          game.heart.r,
-          game.nutrients,
-          game.biomass,
-          JSON.stringify(game.upgrades),
-          new Date(game.updatedAt),
-        ],
+        "insert into players (name, token_hash, world_id) values ($1, $2, $3) returning id",
+        [name, tokenHash, worldId],
       );
       const playerId = player.rows[0]!.id;
       const tiles = [...game.tiles.values()];
       await client.query(
-        `insert into hex (world_id, q, r, terrain, owner_id, reserve, growth_ends_at)
-         select $1, t.q, t.r, t.terrain, t.owner_id, t.reserve, t.growth_ends_at
-         from unnest($2::int[], $3::int[], $4::text[], $5::uuid[], $6::float8[], $7::timestamptz[])
-           as t(q, r, terrain, owner_id, reserve, growth_ends_at)`,
+        `insert into hex (world_id, q, r, terrain, reserve)
+         select $1, t.q, t.r, t.terrain, t.reserve
+         from unnest($2::int[], $3::int[], $4::text[], $5::float8[]) as t(q, r, terrain, reserve)`,
         [
           worldId,
           tiles.map((t) => t.q),
           tiles.map((t) => t.r),
           tiles.map((t) => t.terrain),
-          tiles.map((t) => (t.owned ? playerId : null)),
           tiles.map((t) => TERRAIN_STATS[t.terrain].reserve),
-          tiles.map((t) => (t.growthEndsAt === null ? null : new Date(t.growthEndsAt))),
         ],
       );
+      await writeGame(client, playerId, game);
       await client.query("commit");
       return { id: playerId, name };
     } catch (err) {
@@ -145,69 +140,55 @@ export class PgStore implements GameStore {
 
   async loadGame(playerId: string): Promise<GameState | null> {
     const res = await this.pool.query<PlayerRow>(
-      `select p.id, p.name, p.world_id, w.seed, w.radius, p.heart_q, p.heart_r, p.nutrients, p.biomass,
-              p.upgrades, p.updated_at
+      `select p.id, p.name, p.world_id, w.seed, w.radius, p.heart_q, p.heart_r, p.heart_moved_at, p.nutrients,
+              p.biomass, p.upgrades, p.queue, p.last_seen_at, p.updated_at
        from players p join worlds w on w.id = p.world_id where p.id = $1`,
       [playerId],
     );
     const row = res.rows[0];
     if (!row) return null;
     const hexes = await this.pool.query<HexRow>(
-      "select q, r, terrain, owner_id, growth_ends_at, growth_started_at from hex where world_id = $1",
+      `select q, r, terrain, owner_id, growth_ends_at, growth_started_at, exhaustion, disconnected_since
+       from hex where world_id = $1`,
       [row.world_id],
     );
     const tiles = new Map<string, Tile>();
     for (const h of hexes.rows) {
+      const mine = h.owner_id === playerId;
       tiles.set(hexKey(h), {
         q: h.q,
         r: h.r,
         terrain: h.terrain,
-        owned: h.owner_id === playerId,
-        growthEndsAt: h.owner_id === playerId && h.growth_ends_at ? h.growth_ends_at.getTime() : null,
-        growthStartedAt:
-          h.owner_id === playerId && h.growth_ends_at && h.growth_started_at ? h.growth_started_at.getTime() : null,
+        owned: mine,
+        growthEndsAt: mine ? toMs(h.growth_ends_at) : null,
+        growthStartedAt: mine && h.growth_ends_at ? toMs(h.growth_started_at) : null,
+        exhaustion: h.exhaustion,
+        disconnectedSince: mine ? toMs(h.disconnected_since) : null,
       });
     }
+    const queue = Array.isArray(row.queue)
+      ? row.queue.filter((h) => Number.isInteger(h?.q) && Number.isInteger(h?.r)).map((h) => ({ q: h.q, r: h.r }))
+      : [];
     return {
       seed: Number(row.seed),
       radius: row.radius,
       heart: { q: row.heart_q, r: row.heart_r },
+      heartMovedAt: toMs(row.heart_moved_at),
       nutrients: row.nutrients,
       biomass: row.biomass,
       upgrades: normalizeUpgrades(row.upgrades),
+      queue,
+      lastSeenAt: toMs(row.last_seen_at),
       tiles,
       updatedAt: row.updated_at.getTime(),
     };
   }
 
   async saveGame(playerId: string, game: GameState): Promise<void> {
-    const owned = [...game.tiles.values()].filter((t) => t.owned);
     const client = await this.pool.connect();
     try {
       await client.query("begin");
-      const res = await client.query<{ world_id: string }>(
-        `update players set nutrients = $2, biomass = $3, upgrades = $4, updated_at = $5
-         where id = $1 returning world_id`,
-        [playerId, game.nutrients, game.biomass, JSON.stringify(game.upgrades), new Date(game.updatedAt)],
-      );
-      const worldId = res.rows[0]?.world_id;
-      if (worldId) {
-        // Tiles are never lost in M1, so updating the owned ones is enough.
-        await client.query(
-          `update hex set owner_id = $2, growth_ends_at = t.growth_ends_at, growth_started_at = t.growth_started_at
-           from unnest($3::int[], $4::int[], $5::timestamptz[], $6::timestamptz[])
-             as t(q, r, growth_ends_at, growth_started_at)
-           where hex.world_id = $1 and hex.q = t.q and hex.r = t.r`,
-          [
-            worldId,
-            playerId,
-            owned.map((t) => t.q),
-            owned.map((t) => t.r),
-            owned.map((t) => (t.growthEndsAt === null ? null : new Date(t.growthEndsAt))),
-            owned.map((t) => (t.growthStartedAt === null ? null : new Date(t.growthStartedAt))),
-          ],
-        );
-      }
+      await writeGame(client, playerId, game);
       await client.query("commit");
     } catch (err) {
       await client.query("rollback");
@@ -216,4 +197,48 @@ export class PgStore implements GameStore {
       client.release();
     }
   }
+}
+
+/** Writes the player's resources and every tile of their world (M2 changes tiles beyond ownership). */
+async function writeGame(client: pg.PoolClient, playerId: string, game: GameState): Promise<void> {
+  const res = await client.query<{ world_id: string }>(
+    `update players set heart_q = $2, heart_r = $3, heart_moved_at = $4, nutrients = $5, biomass = $6,
+            upgrades = $7, queue = $8, last_seen_at = $9, updated_at = $10
+     where id = $1 returning world_id`,
+    [
+      playerId,
+      game.heart.q,
+      game.heart.r,
+      toDate(game.heartMovedAt),
+      game.nutrients,
+      game.biomass,
+      JSON.stringify(game.upgrades),
+      JSON.stringify(game.queue),
+      toDate(game.lastSeenAt),
+      new Date(game.updatedAt),
+    ],
+  );
+  const worldId = res.rows[0]?.world_id;
+  if (!worldId) return;
+  const tiles = [...game.tiles.values()];
+  await client.query(
+    `update hex set terrain = t.terrain, owner_id = t.owner_id, growth_ends_at = t.growth_ends_at,
+            growth_started_at = t.growth_started_at, exhaustion = t.exhaustion,
+            disconnected_since = t.disconnected_since
+     from unnest($2::int[], $3::int[], $4::text[], $5::uuid[], $6::timestamptz[], $7::timestamptz[],
+                 $8::float8[], $9::timestamptz[])
+       as t(q, r, terrain, owner_id, growth_ends_at, growth_started_at, exhaustion, disconnected_since)
+     where hex.world_id = $1 and hex.q = t.q and hex.r = t.r`,
+    [
+      worldId,
+      tiles.map((t) => t.q),
+      tiles.map((t) => t.r),
+      tiles.map((t) => t.terrain),
+      tiles.map((t) => (t.owned ? playerId : null)),
+      tiles.map((t) => toDate(t.growthEndsAt)),
+      tiles.map((t) => toDate(t.growthStartedAt)),
+      tiles.map((t) => t.exhaustion),
+      tiles.map((t) => toDate(t.disconnectedSince)),
+    ],
+  );
 }

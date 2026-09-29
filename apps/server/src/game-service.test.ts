@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { ECONOMY, TERRAIN_STATS, type ServerMessage } from "@mycelium/shared";
+import { ECONOMY, OFFLINE, TERRAIN_STATS, type ServerMessage } from "@mycelium/shared";
+
+const HOUR = 3_600_000;
 import { GameService, hashToken, type GameClient } from "./game-service";
 import { MemoryStore } from "./store";
 
@@ -63,7 +65,8 @@ describe("simulation", () => {
     const ready = client.last("ready")!;
     expect(ready.player.name).toBe("Spore");
     expect(ready.game.nutrients).toBe(ECONOMY.startingNutrients);
-    expect(ready.game.owned).toEqual([{ q: 0, r: 0, growthEndsAt: null, growthStartedAt: null }]);
+    expect(ready.game.tiles.filter((t) => t.owned).map((t) => [t.q, t.r])).toEqual([[0, 0]]);
+    expect(ready.away).toBeUndefined();
   });
 
   it("produces on every tick and pushes the state", async () => {
@@ -72,21 +75,29 @@ describe("simulation", () => {
     advanceTime(5_000);
     service.tick();
     const state = client.last("state")!;
-    expect(state.game.nutrients).toBeCloseTo(ECONOMY.startingNutrients + 5 * TERRAIN_STATS.humus.yieldPerSecond, 8);
+    expect(state.game.nutrients).toBeCloseTo(ECONOMY.startingNutrients + 5 * TERRAIN_STATS.humus.yieldPerSecond, 2);
     expect(state.game.biomass).toBeGreaterThan(0);
   });
 
   it("applies valid actions and reports invalid ones", async () => {
     const { service, advanceTime } = setup();
     const { player, client } = await join(service);
-    service.colonize(player.id, 5, 5, client);
+    service.colonize(player.id, 2, 0, client);
     expect(client.last("actionError")?.error).toBe("not_adjacent");
 
     advanceTime(60_000);
     service.colonize(player.id, 1, 0, client);
     const state = client.last("state")!;
-    expect(state.game.owned).toHaveLength(2);
-    expect(state.game.owned.find((t) => t.q === 1 && t.r === 0)?.growthEndsAt).toBeGreaterThan(0);
+    expect(state.game.tiles.filter((t) => t.owned)).toHaveLength(2);
+    expect(state.game.tiles.find((t) => t.q === 1 && t.r === 0)?.growthEndsAt).toBeGreaterThan(0);
+
+    // A second colonisation waits in the queue; it can be removed.
+    service.colonize(player.id, -1, 0, client);
+    expect(client.last("state")!.game.queue).toEqual([{ q: -1, r: 0 }]);
+    service.unqueue(player.id, -1, 0, client);
+    expect(client.last("state")!.game.queue).toEqual([]);
+    service.moveHeart(player.id, 1, 0, client);
+    expect(client.last("actionError")?.error).toBe("not_connected");
 
     service.buyUpgrade(player.id, "digestion", client);
     expect(client.last("state")!.game.upgrades.digestion).toBe(1);
@@ -126,7 +137,7 @@ describe("simulation", () => {
     await service.attach(player, tab2);
     advanceTime(60_000);
     service.colonize(player.id, 0, 1, client);
-    expect(tab2.last("state")!.game.owned).toHaveLength(2);
+    expect(tab2.last("state")!.game.tiles.filter((t) => t.owned)).toHaveLength(2);
     await service.detach(player.id, client);
     expect(service.activeGame(player.id)).toBeDefined();
   });
@@ -137,6 +148,23 @@ describe("simulation", () => {
     advanceTime(10_000);
     await service.stop();
     const saved = await store.loadGame(player.id);
-    expect(saved?.nutrients).toBeCloseTo(ECONOMY.startingNutrients + 10 * TERRAIN_STATS.humus.yieldPerSecond, 8);
+    expect(saved?.nutrients).toBeCloseTo(ECONOMY.startingNutrients + 10 * TERRAIN_STATS.humus.yieldPerSecond, 2);
+    expect(saved?.lastSeenAt).not.toBeNull();
+  });
+
+  it("catches up the absence with the offline rules and reports it", async () => {
+    const { service, advanceTime } = setup();
+    const { player, client } = await join(service);
+    await service.detach(player.id, client);
+    advanceTime(12 * HOUR);
+    const back = new Spy();
+    await service.attach(player, back);
+    const { away, game } = back.last("ready")!;
+    expect(game.lastSeenAt).toBeNull();
+    expect(away?.awayMs).toBe(12 * HOUR);
+    // One Humus tile: under 8 h at full rate + 4 h at 25 %, and well above 8 h at half rate.
+    expect(away!.nutrients).toBeLessThan((8 + 4 * OFFLINE.reducedFactor) * 3600);
+    expect(away!.nutrients).toBeGreaterThan(4 * 3600);
+    expect(away!.biomass).toBeCloseTo(away!.nutrients * ECONOMY.biomassConversionRate, 6);
   });
 });

@@ -144,7 +144,7 @@ describe("game over websocket", () => {
     const again = await reloaded.next("ready");
     expect(again.game.seed).toBe(ready.game.seed);
     expect(again.game.terrain).toBe(ready.game.terrain);
-    expect(again.game.owned).toEqual(ready.game.owned);
+    expect(again.game.tiles.map((t) => [t.q, t.r, t.owned])).toEqual(ready.game.tiles.map((t) => [t.q, t.r, t.owned]));
     expect(again.game.nutrients).toBeGreaterThanOrEqual(ready.game.nutrients);
     reloaded.ws.close();
   });
