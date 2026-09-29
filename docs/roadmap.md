@@ -12,7 +12,7 @@ des points de départ à équilibrer, centralisés dans `packages/shared`.
 | Jalon | Version | GDD §15 | Objectif | Statut |
 |---|---|---|---|---|
 | M0 Fondations | 0.1.0 | — | Dépôt, CI, pipeline de déploiement | ✅ (VPS reporté) |
-| M1 Proto solo | 0.2.0 | étape 1 | Une carte, coloniser, produire, s'améliorer | à faire |
+| M1 Proto solo | 0.2.0 | étape 1 | Une carte, coloniser, produire, s'améliorer | ✅ |
 | M2 Réseau & transport | 0.3.0 | étape 2 | Cœur, pertes, épuisement, hors-ligne | à faire |
 | M3 Multijoueur minimal | 0.4.0 | étape 3 | Forêt partagée, frontières, classement | à faire |
 | M4 Saison | 0.5.0 | étape 4 | Semaine, phases journalières, wipe | à faire |
@@ -55,6 +55,17 @@ de passe ni d'e-mail ; vrais comptes en M3).
 
 **Terminé quand** : en solo, on colonise, on produit et on achète des améliorations sur une carte
 générée ; recharger la page retrouve exactement le même état.
+
+Livré en 0.2.0. Choix de réalisation à valider en équilibrage (tous dans `packages/shared/src/balance.ts`) :
+- valeurs provisoires : rendements, coûts de base, temps de pousse et réserves des 3 terrains, carte de
+  rayon 10, 10 nutriments de départ, taux de conversion 10 %, coûts de base des améliorations ;
+- une seule colonisation en pousse à la fois (la file d'expansion arrive en M2) ;
+- la Biomasse s'ajoute en parallèle des Nutriments (`production × taux`), sans les consommer ;
+- les réductions (Croissance des hyphes, Expansion économe) se composent (`0,92^niv`, `0,95^niv`),
+  les bonus (Digestion, Conversion, Décomposeur) s'additionnent ;
+- en l'absence du joueur, la production continue à 100 % jusqu'à son retour ; la règle hors-ligne
+  du GDD (100 % pendant 8 h puis décroissance) arrive en M2 ;
+- pas de brouillard en solo (prévu en M3).
 
 ## M2 — Réseau & transport (0.3.0) — GDD §15.2
 
