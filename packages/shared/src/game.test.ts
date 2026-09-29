@@ -27,6 +27,8 @@ import {
   networkHops,
   newGame,
   productionRate,
+  rest,
+  SOLO_PLAYER,
   tileProduction,
   tileYield,
   transportLoss,
@@ -52,23 +54,25 @@ const tileAt = (s: GameState, h: Hex) => s.tiles.get(hexKey(h))!;
 
 /** Makes tiles colonised instantly (no growth, no cost). */
 function own(s: GameState, ...hexes: Hex[]): void {
-  for (const h of hexes) tileAt(s, h).owned = true;
+  for (const h of hexes) tileAt(s, h).owner = SOLO_PLAYER;
 }
 
 describe("new game", () => {
   it("owns only the start tile and has the starting nutrients", () => {
     const s = newGame(5, T0);
-    const owned = [...s.tiles.values()].filter((t) => t.owned);
+    const owned = [...s.tiles.values()].filter((t) => t.owner === SOLO_PLAYER);
     expect(owned).toEqual([
       {
         q: 0,
         r: 0,
         terrain: "humus",
-        owned: true,
+        owner: SOLO_PLAYER,
         growthEndsAt: null,
         growthStartedAt: null,
         exhaustion: 0,
         disconnectedSince: null,
+        capture: null,
+        reservedFor: null,
       },
     ]);
     expect(s.nutrients).toBe(ECONOMY.startingNutrients);
@@ -173,18 +177,18 @@ describe("colonisation and queue", () => {
     expect(tileAt(s, hex(1, 0)).growthEndsAt).toBeNull();
     expect(tileAt(s, hex(2, 0)).growthEndsAt).toBe(T0 + 2 * d);
     advance(s, T0 + 3 * d);
-    expect([hex(1, 0), hex(2, 0), hex(-1, 0)].every((h) => tileAt(s, h).owned)).toBe(true);
+    expect([hex(1, 0), hex(2, 0), hex(-1, 0)].every((h) => tileAt(s, h).owner === SOLO_PLAYER)).toBe(true);
     expect(s.queue).toEqual([]);
   });
 
   it("waits for nutrients, retrying on the 5 s grid", () => {
     const s = game("humus", 0);
     colonize(s, hex(1, 0), T0);
-    expect(tileAt(s, hex(1, 0)).owned).toBe(false);
+    expect(tileAt(s, hex(1, 0)).owner).toBeNull();
     const cost = colonizationCost(s, tileAt(s, hex(1, 0)));
     advance(s, T0 + 60_000);
     const t = tileAt(s, hex(1, 0));
-    expect(t.owned).toBe(true);
+    expect(t.owner).toBe(SOLO_PLAYER);
     // Affordable after ~cost seconds at 1/s, started at the next multiple of 5 s.
     const started = t.growthEndsAt! - growthDurationMs("humus", s.upgrades);
     expect(started % 5_000).toBe(0);
@@ -205,8 +209,8 @@ describe("colonisation and queue", () => {
     expect(unqueue(s, hex(2, 0))).toEqual({ ok: false, error: "not_queued" });
     advance(s, T0 + HOUR);
     // (3, 0) and (4, 0) were planned behind (2, 0): dropped when their turn came.
-    expect(tileAt(s, hex(3, 0)).owned).toBe(false);
-    expect(tileAt(s, hex(0, 4)).owned).toBe(true);
+    expect(tileAt(s, hex(3, 0)).owner).toBeNull();
+    expect(tileAt(s, hex(0, 4)).owner).toBe(SOLO_PLAYER);
     expect(s.queue).toEqual([]);
   });
 
@@ -240,13 +244,13 @@ describe("network and transport", () => {
     const s = game("humus");
     own(s, hex(1, 0), hex(2, 0), hex(3, 0));
     // Cut the link at (1, 0) by hand (no player can do it before M3).
-    tileAt(s, hex(1, 0)).owned = false;
+    tileAt(s, hex(1, 0)).owner = null;
     advance(s, T0 + 1_000);
     expect(tileProduction(s, tileAt(s, hex(3, 0)))).toBe(0);
     expect(tileAt(s, hex(3, 0)).disconnectedSince).toBe(T0);
     advance(s, T0 + TRANSPORT.witherMs);
-    expect(tileAt(s, hex(2, 0)).owned).toBe(false);
-    expect(tileAt(s, hex(3, 0)).owned).toBe(false);
+    expect(tileAt(s, hex(2, 0)).owner).toBeNull();
+    expect(tileAt(s, hex(3, 0)).owner).toBeNull();
   });
 
   it("moves the Cœur once per day, onto the connected network", () => {
@@ -309,8 +313,8 @@ describe("production", () => {
       // Event times are rounded to the ms, so allow float-level differences only.
       expect(Math.abs(x.nutrients - a.nutrients) / a.nutrients).toBeLessThan(1e-7);
       expect(Math.abs(x.biomass - a.biomass) / a.biomass).toBeLessThan(1e-7);
-      expect(toSnapshot(x).tiles.map((t) => [t.q, t.r, t.owned, t.growthEndsAt])).toEqual(
-        toSnapshot(a).tiles.map((t) => [t.q, t.r, t.owned, t.growthEndsAt]),
+      expect(toSnapshot(x).tiles.map((t) => [t.q, t.r, t.owner, t.growthEndsAt])).toEqual(
+        toSnapshot(a).tiles.map((t) => [t.q, t.r, t.owner, t.growthEndsAt]),
       );
     }
   });
@@ -361,9 +365,9 @@ describe("exhaustion", () => {
     const t = tileAt(s, hex(2, 2));
     t.exhaustion = 0.5;
     const L = TERRAIN_STATS.litter.lifetimeMs;
-    advance(s, T0 + L);
+    rest(t, L, L);
     expect(t.exhaustion).toBeCloseTo(0.5 - 1 / EXHAUSTION.regenSlowdown, 10);
-    advance(s, T0 + 10 * L);
+    rest(t, L, 10 * L);
     expect(t.exhaustion).toBe(0);
   });
 });
@@ -389,7 +393,7 @@ describe("offline", () => {
     goOffline(s, T0);
     goOnline(s, T0 + 12 * HOUR);
     expect(s.lastSeenAt).toBeNull();
-    expect(tileAt(s, hex(2, 0)).owned).toBe(true);
+    expect(tileAt(s, hex(2, 0)).owner).toBe(SOLO_PLAYER);
     expect(s.queue).toEqual([]);
   });
 });
@@ -419,7 +423,7 @@ describe("snapshot", () => {
     advance(s, T0 + HOUR);
     goOffline(s, T0 + HOUR);
     s.upgrades.woodDecomposer = 2;
-    const back = fromSnapshot(JSON.parse(JSON.stringify(toSnapshot(s))));
+    const back = fromSnapshot(JSON.parse(JSON.stringify(toSnapshot(s))), s.seed);
     expect(back).toEqual(s);
   });
 });

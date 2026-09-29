@@ -128,3 +128,55 @@ export const UPGRADE_STATS: Readonly<Record<UpgradeId, UpgradeStats>> = {
   /** Décomposeur de bois: +15 % Dead wood yield per level (additive). */
   woodDecomposer: { baseCost: 60, perLevel: 0.15 },
 };
+
+// ---------------------------------------------------------------------------
+// M3 — shared forests (GDD §2.1, §2.5, §6)
+
+export const FOREST = {
+  /** Players per forest (GDD §14: 20 to 30). PLACEHOLDER within that range. */
+  capacity: 24,
+  /** Target number of hexes per player (GDD §2.1: 40 to 60); the map radius follows from it. */
+  hexesPerPlayer: 50,
+  /** Spawns sit on the rim, at this share of the radius (GDD §2.5: "bord = zone sûre"). PLACEHOLDER. */
+  spawnDistance: 0.85,
+  /** Rings of §2.5, as shares of the radius: centre below `centre`, rim above `rim`. PLACEHOLDER. */
+  ring: { centre: 1 / 3, rim: 2 / 3 },
+  /** Land terrain mix per ring (litter / humus / deadwood). PLACEHOLDER. */
+  terrainWeights: {
+    rim: { litter: 0.6, humus: 0.35, deadwood: 0.05 },
+    middle: { litter: 0.35, humus: 0.45, deadwood: 0.2 },
+    centre: { litter: 0.1, humus: 0.3, deadwood: 0.6 },
+  },
+  /** Yield multiplier: rim ×1, middle ×1.5, centre ×3 at its edge up to ×5 in the middle (GDD §2.5). */
+  richness: { rim: 1, middle: 1.5, centreEdge: 3, centreMiddle: 5 },
+  /** Rim tiles last longer (GDD §2.5: "peu d'épuisement"). PLACEHOLDER. */
+  rimLifetimeFactor: 1.5,
+  /** Share of wetlands. PLACEHOLDER. */
+  wetlandShare: 0.06,
+  /** No wetland within this distance of a spawn. */
+  spawnClearRadius: 2,
+} as const;
+
+/** Players see the tiles within this distance of their network (GDD §2.1 fog). */
+export const VISION_RADIUS = 1;
+
+/** Border fights (GDD §6.1, §6.4). */
+export const BORDERS = {
+  /** Tiles counted around a contested tile for `densité_réseau_local`. */
+  densityRadius: 2,
+  /**
+   * Time for a clearly stronger network (twice the pressure or more) to take a tile, by terrain.
+   * DECIDED range 10 min – 2 h, by tile type; values PLACEHOLDER.
+   */
+  captureMs: { litter: 10 * 60_000, humus: 45 * 60_000, deadwood: 2 * HOUR, wetland: Infinity } as Readonly<Record<Terrain, number>>,
+  /** Pressure ratio at which the capture runs at full speed; below 1 nothing happens. */
+  fullSpeedRatio: 2,
+  /** GDD §6.4: start zone protected for 24 h, within this distance of the spawn. */
+  protectedMs: 24 * HOUR,
+  protectedRadius: 2,
+  /** GDD §6.4: after 2 h of inactivity, captures on your tiles run at half speed. */
+  shieldAfterMs: 2 * HOUR,
+  shieldFactor: 0.5,
+  /** Conquest bonus (GDD §2.5): biomass worth this long of the tile's fresh production. PLACEHOLDER. */
+  conquestBonusMs: 1 * HOUR,
+} as const;

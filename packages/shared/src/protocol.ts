@@ -1,30 +1,36 @@
 import { TERRAINS, type Terrain, type UpgradeId } from "./balance";
 import { normalizeUpgrades, type ActionError, type GameState, type Tile } from "./game";
-import { hexesInRadius, hexKey, type Hex } from "./hex";
-import { START_HEX } from "./mapgen";
+import type { MapLayout } from "./forestgen";
+import { hexKey, type Hex } from "./hex";
 
 // ---------------------------------------------------------------------------
 // Game state on the wire
 
-/** A tile whose state differs from a fresh wild tile. */
-export interface TileStateDto extends Hex {
-  owned: boolean;
+/** A tile as a player sees it. */
+export interface TileDto extends Hex {
+  /** Terrain code, see TERRAIN_CODES. */
+  t: string;
+  owner: string | null;
   growthEndsAt: number | null;
   growthStartedAt: number | null;
   exhaustion: number;
   disconnectedSince: number | null;
+  capture: { by: string; progress: number } | null;
+  reservedFor: string | null;
 }
 
-/** Full solo game state as sent to the client. */
+/** A player's game as sent to them: their own economy, and the tiles they can see. */
 export interface GameSnapshot {
-  seed: number;
+  id: string;
   radius: number;
+  layout: MapLayout;
+  spawn: Hex;
+  joinedAt: number;
+  trophies: number;
   heart: Hex;
   heartMovedAt: number | null;
-  /** One character per tile, in `hexesInRadius(START_HEX, radius)` order (see TERRAIN_CODES). */
-  terrain: string;
-  /** Owned, exhausted or withering tiles; every other tile is fresh and wild. */
-  tiles: TileStateDto[];
+  /** Visible tiles only (GDD §2.1 fog); the rest of the forest is unknown to the client. */
+  tiles: TileDto[];
   queue: Hex[];
   nutrients: number;
   biomass: number;
@@ -33,31 +39,36 @@ export interface GameSnapshot {
   updatedAt: number;
 }
 
-const TERRAIN_CODES: Record<Terrain, string> = { litter: "l", humus: "h", deadwood: "d", wetland: "w" };
+export const TERRAIN_CODES: Record<Terrain, string> = { litter: "l", humus: "h", deadwood: "d", wetland: "w" };
 const TERRAIN_BY_CODE = Object.fromEntries(TERRAINS.map((t) => [TERRAIN_CODES[t], t])) as Record<string, Terrain>;
 
-export function toSnapshot(state: GameState): GameSnapshot {
-  const cells = hexesInRadius(START_HEX, state.radius);
-  const tiles: TileStateDto[] = [];
-  for (const t of state.tiles.values()) {
-    if (t.owned || t.exhaustion > 0 || t.disconnectedSince !== null) {
-      tiles.push({
-        q: t.q,
-        r: t.r,
-        owned: t.owned,
-        growthEndsAt: t.growthEndsAt,
-        growthStartedAt: t.growthStartedAt,
-        exhaustion: t.exhaustion,
-        disconnectedSince: t.disconnectedSince,
-      });
-    }
+/** Snapshot of a player's game; `visible` limits the tiles sent (all tiles when omitted). */
+export function toSnapshot(state: GameState, visible?: Set<string>): GameSnapshot {
+  const tiles: TileDto[] = [];
+  for (const [k, t] of state.tiles) {
+    if (visible && !visible.has(k)) continue;
+    tiles.push({
+      q: t.q,
+      r: t.r,
+      t: TERRAIN_CODES[t.terrain],
+      owner: t.owner,
+      growthEndsAt: t.growthEndsAt,
+      growthStartedAt: t.growthStartedAt,
+      exhaustion: t.exhaustion,
+      disconnectedSince: t.disconnectedSince,
+      capture: t.capture && { ...t.capture },
+      reservedFor: t.reservedFor,
+    });
   }
   return {
-    seed: state.seed,
+    id: state.id,
     radius: state.radius,
+    layout: state.layout,
+    spawn: { q: state.spawn.q, r: state.spawn.r },
+    joinedAt: state.joinedAt,
+    trophies: state.trophies,
     heart: { q: state.heart.q, r: state.heart.r },
     heartMovedAt: state.heartMovedAt,
-    terrain: cells.map((c) => TERRAIN_CODES[state.tiles.get(hexKey(c))!.terrain]).join(""),
     tiles,
     queue: state.queue.map((h) => ({ q: h.q, r: h.r })),
     nutrients: state.nutrients,
@@ -68,34 +79,33 @@ export function toSnapshot(state: GameState): GameSnapshot {
   };
 }
 
-export function fromSnapshot(s: GameSnapshot): GameState {
+/** Rebuilds a player's game from a snapshot; `tiles` holds only what the snapshot carried. */
+export function fromSnapshot(s: GameSnapshot, seed = 0): GameState {
   const tiles = new Map<string, Tile>();
-  hexesInRadius(START_HEX, s.radius).forEach((c, i) => {
-    const terrain = TERRAIN_BY_CODE[s.terrain[i] ?? ""];
-    if (!terrain) throw new Error(`Invalid terrain code at index ${i}`);
-    tiles.set(hexKey(c), {
-      q: c.q,
-      r: c.r,
-      terrain,
-      owned: false,
-      growthEndsAt: null,
-      growthStartedAt: null,
-      exhaustion: 0,
-      disconnectedSince: null,
-    });
-  });
   for (const o of s.tiles) {
-    const tile = tiles.get(hexKey(o));
-    if (!tile) continue;
-    tile.owned = o.owned;
-    tile.growthEndsAt = o.growthEndsAt;
-    tile.growthStartedAt = o.growthStartedAt ?? null;
-    tile.exhaustion = o.exhaustion;
-    tile.disconnectedSince = o.disconnectedSince;
+    const terrain = TERRAIN_BY_CODE[o.t];
+    if (!terrain) throw new Error(`Invalid terrain code ${o.t}`);
+    tiles.set(hexKey(o), {
+      q: o.q,
+      r: o.r,
+      terrain,
+      owner: o.owner,
+      growthEndsAt: o.growthEndsAt,
+      growthStartedAt: o.growthStartedAt ?? null,
+      exhaustion: o.exhaustion,
+      disconnectedSince: o.disconnectedSince,
+      capture: o.capture && { ...o.capture },
+      reservedFor: o.reservedFor ?? null,
+    });
   }
   return {
-    seed: s.seed,
+    id: s.id,
+    seed,
     radius: s.radius,
+    layout: s.layout,
+    spawn: { q: s.spawn.q, r: s.spawn.r },
+    joinedAt: s.joinedAt,
+    trophies: s.trophies,
     heart: { q: s.heart.q, r: s.heart.r },
     heartMovedAt: s.heartMovedAt,
     nutrients: s.nutrients,
@@ -116,16 +126,72 @@ export interface PlayerInfo {
   name: string;
 }
 
+/** Another player, as shown on the map and in the leaderboard. */
+export interface OwnerInfo {
+  id: string;
+  name: string;
+  /** Index in the client's player palette. */
+  color: number;
+}
+
+export interface LeaderboardEntry {
+  rank: number;
+  id: string;
+  name: string;
+  /** Score: cumulated biomass (GDD §8.1). */
+  biomass: number;
+  trophies: number;
+  tiles: number;
+}
+
+/** GDD §8.1 and §11: forest ranking (top and the player's surroundings) and global position. */
+export interface Leaderboard {
+  top: LeaderboardEntry[];
+  /** The player and up to two players above and below. */
+  around: LeaderboardEntry[];
+  rank: number;
+  players: number;
+  global: { rank: number; players: number };
+}
+
+export interface ForestInfo {
+  id: string;
+  number: number;
+  capacity: number;
+  players: number;
+}
+
 /** Messages sent by the server over the WebSocket. */
 export type ServerMessage =
   | { type: "welcome"; version: string; serverTime: number }
   | { type: "pong"; serverTime: number }
-  /** Answer to `auth`: the player and their full game, plus what happened while they were away. */
-  | { type: "ready"; player: PlayerInfo; game: GameSnapshot; serverTime: number; away?: AwaySummary }
+  /** Answer to `auth`: the player and their game, plus what happened while they were away. */
+  | {
+      type: "ready";
+      player: PlayerInfo;
+      forest: ForestInfo;
+      game: GameSnapshot;
+      owners: OwnerInfo[];
+      serverTime: number;
+      /** Game time runs this many times faster than real time (1 in production). */
+      timeScale: number;
+      away?: AwaySummary;
+      /** Account created as a guest (M1–M2): it should choose a password. */
+      needsPassword: boolean;
+    }
   | { type: "authError" }
-  /** Sent every tick and after each action. */
-  | { type: "state"; game: GameSnapshot; serverTime: number }
+  /** Sent every tick and after each action. `events` lists this player's lost and won tiles. */
+  | { type: "state"; game: GameSnapshot; owners: OwnerInfo[]; serverTime: number; events: CaptureNotice[] }
+  | { type: "leaderboard"; leaderboard: Leaderboard }
   | { type: "actionError"; error: ActionError | "not_authenticated" };
+
+export interface CaptureNotice {
+  q: number;
+  r: number;
+  /** Won: this player took the tile; lost: someone took it from them. */
+  kind: "won" | "lost";
+  other: string;
+}
 
 /** What the game produced while the player was away (shown when they come back). */
 export interface AwaySummary {
@@ -134,6 +200,9 @@ export interface AwaySummary {
   biomass: number;
   /** Tiles colonised from the expansion queue. */
   colonized: number;
+  /** Tiles taken from neighbours, and lost to them. */
+  won: number;
+  lost: number;
 }
 
 /** Messages sent by the client over the WebSocket. */
@@ -156,20 +225,28 @@ export interface HealthReport {
 // ---------------------------------------------------------------------------
 // HTTP API
 
-/** POST /api/guest — body. */
-export interface GuestRequest {
+/** POST /api/register and POST /api/login — body. */
+export interface Credentials {
   name: string;
+  password: string;
 }
 
-/** POST /api/guest — 201 response. The token is kept by the browser and sent in `auth`. */
-export interface GuestResponse {
+/** 200 / 201 response of register and login. The token is kept by the browser and sent in `auth`. */
+export interface SessionResponse {
   token: string;
   player: PlayerInfo;
 }
 
-export type GuestError = "invalid_name" | "name_taken";
+export type AuthError = "invalid_name" | "name_taken" | "weak_password" | "wrong_credentials" | "too_many_attempts";
 
-/** Guest pseudos: 3 to 20 letters, digits, `_` or `-`. */
+export const PASSWORD_MIN_LENGTH = 8;
+export const PASSWORD_MAX_LENGTH = 200;
+
+export function isValidPassword(password: string): boolean {
+  return password.length >= PASSWORD_MIN_LENGTH && password.length <= PASSWORD_MAX_LENGTH;
+}
+
+/** Pseudos: 3 to 20 letters, digits, `_` or `-`. */
 export const PLAYER_NAME_PATTERN = /^[\p{L}\p{N}_-]{3,20}$/u;
 
 export function isValidPlayerName(name: string): boolean {

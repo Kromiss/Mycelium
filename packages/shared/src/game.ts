@@ -13,34 +13,53 @@ import {
   type Terrain,
   type UpgradeId,
 } from "./balance";
+import { lifetimeFactorAt, richnessAt, type MapLayout } from "./forestgen";
 import { hexDistance, hexEquals, hexKey, hexNeighbors, type Hex } from "./hex";
 import { generateMap, START_HEX } from "./mapgen";
 
 /**
- * Solo game rules (GDD §2.3, §2.4, §3, §9, §10). The functions here are the single source of
- * truth: the server runs them with authority, the client runs them to display predictions.
+ * Economy rules of one player (GDD §2.3, §2.4, §3, §9, §10). A player's `GameState` shares its
+ * `tiles` with every other player of the forest; a tile belongs to whoever `owner` names. The
+ * functions here are the single source of truth: the server runs them with authority, the client
+ * runs them on what it can see to display predictions.
  */
 
 export interface Tile extends Hex {
   /** Mutable: exhausted Dead wood turns into Humus. */
   terrain: Terrain;
-  /** Colonised by the player (possibly still growing). */
-  owned: boolean;
+  /** Player who colonised the tile (possibly still growing), null for a wild tile. */
+  owner: string | null;
   /** When owned: end of the hyphae growth (ms since epoch), or null once the tile is colonised. */
   growthEndsAt: number | null;
   /** When growing: start of the hyphae growth (ms since epoch); null otherwise or if unknown. */
   growthStartedAt: number | null;
   /** 0 (fresh) to EXHAUSTION.max. Grows while the tile produces, recovers while it rests. */
   exhaustion: number;
-  /** When an owned tile lost its link to the Cœur (ms since epoch), null while connected. */
+  /** When an owned tile lost its link to its owner's Cœur (ms since epoch), null while connected. */
   disconnectedSince: number | null;
+  /** A neighbour taking the tile over by pressure (GDD §6.1): who, and how far (0 to 1). */
+  capture: { by: string; progress: number } | null;
+  /**
+   * Start zone this tile belongs to (GDD §6.4): only that player may colonise it. A player id for a
+   * new player's zone, `slice:<n>` for a slice nobody has joined yet, null elsewhere. Derived by
+   * the forest (see `refreshReservations`), not stored.
+   */
+  reservedFor: string | null;
 }
 
 export type Upgrades = Record<UpgradeId, number>;
 
 export interface GameState {
+  /** Player id: tiles with this `owner` are this player's. */
+  readonly id: string;
   readonly seed: number;
   readonly radius: number;
+  readonly layout: MapLayout;
+  /** Where the player started; its surroundings are protected for a while (GDD §6.4). */
+  readonly spawn: Hex;
+  readonly joinedAt: number;
+  /** Tiles taken from other players (GDD §2.5 "Trophée"). */
+  trophies: number;
   /** The Cœur: nutrients flow to it (GDD §2.4). */
   heart: Hex;
   /** Last time the Cœur was moved, null if never. */
@@ -63,6 +82,8 @@ export type ActionError =
   | "unknown_tile"
   | "impassable"
   | "already_owned"
+  | "occupied"
+  | "reserved"
   | "already_queued"
   | "queue_full"
   | "not_queued"
@@ -93,42 +114,73 @@ export function isUpgradeId(id: string): id is UpgradeId {
   return (UPGRADE_IDS as readonly string[]).includes(id);
 }
 
-/** A fresh solo game: the start tile is colonised, everything else is wild. */
-export function newGame(seed: number, now: number, radius?: number): GameState {
-  const map = generateMap(seed, radius);
-  const tiles = new Map<string, Tile>();
-  for (const t of map.tiles) {
-    const isStart = hexEquals(t, START_HEX);
-    tiles.set(hexKey(t), {
-      q: t.q,
-      r: t.r,
-      terrain: t.terrain,
-      owned: isStart,
-      growthEndsAt: null,
-      growthStartedAt: null,
-      exhaustion: 0,
-      disconnectedSince: null,
-    });
+export const SOLO_PLAYER = "solo";
+
+/** A wild tile, fresh. */
+export function wildTile(h: Hex, terrain: Terrain): Tile {
+  return {
+    q: h.q,
+    r: h.r,
+    terrain,
+    owner: null,
+    growthEndsAt: null,
+    growthStartedAt: null,
+    exhaustion: 0,
+    disconnectedSince: null,
+    capture: null,
+    reservedFor: null,
+  };
+}
+
+/** A new player's state on shared `tiles`: their spawn is colonised and becomes their Cœur. */
+export function newPlayer(
+  id: string,
+  map: { seed: number; radius: number; layout: MapLayout; tiles: Map<string, Tile> },
+  spawn: Hex,
+  now: number,
+): GameState {
+  const start = map.tiles.get(hexKey(spawn));
+  if (start) {
+    start.owner = id;
+    start.growthEndsAt = null;
+    start.growthStartedAt = null;
+    start.disconnectedSince = null;
+    start.capture = null;
   }
   return {
-    seed,
+    id,
+    seed: map.seed,
     radius: map.radius,
-    heart: START_HEX,
+    layout: map.layout,
+    spawn: { q: spawn.q, r: spawn.r },
+    joinedAt: now,
+    trophies: 0,
+    heart: { q: spawn.q, r: spawn.r },
     heartMovedAt: null,
     nutrients: ECONOMY.startingNutrients,
     biomass: 0,
     upgrades: emptyUpgrades(),
     queue: [],
     lastSeenAt: null,
-    tiles,
+    tiles: map.tiles,
     updatedAt: now,
   };
+}
+
+/** A solo game (M1/M2 maps, tests and simulations): one player alone on a generated map. */
+export function newGame(seed: number, now: number, radius?: number): GameState {
+  const map = generateMap(seed, radius);
+  const tiles = new Map<string, Tile>();
+  for (const t of map.tiles) tiles.set(hexKey(t), wildTile(t, t.terrain));
+  return newPlayer(SOLO_PLAYER, { seed, radius: map.radius, layout: { kind: "solo" }, tiles }, START_HEX, now);
 }
 
 // ---------------------------------------------------------------------------
 // Network (GDD §2.4)
 
-const isGrown = (t: Tile | undefined): boolean => t !== undefined && t.owned && t.growthEndsAt === null;
+/** The tile belongs to this player (growing or not). */
+export const isMine = (state: GameState, t: Tile | undefined): t is Tile => t !== undefined && t.owner === state.id;
+const isGrown = (state: GameState, t: Tile | undefined): boolean => isMine(state, t) && t.growthEndsAt === null;
 
 /**
  * Hops from the Cœur to every colonised tile it can reach through colonised tiles.
@@ -137,7 +189,7 @@ const isGrown = (t: Tile | undefined): boolean => t !== undefined && t.owned && 
 export function networkHops(state: GameState): Map<string, number> {
   const hops = new Map<string, number>();
   const heart = state.tiles.get(hexKey(state.heart));
-  if (!heart || !isGrown(heart)) return hops;
+  if (!heart || !isGrown(state, heart)) return hops;
   hops.set(hexKey(heart), 0);
   let frontier: Hex[] = [heart];
   for (let d = 1; frontier.length; d++) {
@@ -145,7 +197,7 @@ export function networkHops(state: GameState): Map<string, number> {
     for (const h of frontier) {
       for (const n of hexNeighbors(h)) {
         const k = hexKey(n);
-        if (hops.has(k) || !isGrown(state.tiles.get(k))) continue;
+        if (hops.has(k) || !isGrown(state, state.tiles.get(k))) continue;
         hops.set(k, d);
         next.push(n);
       }
@@ -175,7 +227,17 @@ export function offlineFactor(state: GameState, at: number): number {
 // ---------------------------------------------------------------------------
 // Derived values
 
-/** Nutrients per second of one fresh colonised tile of this terrain, before humidity and transport. */
+/** Yield multiplier of a tile's place on the map (GDD §2.5: richer towards the forest centre). */
+export function richness(state: GameState, h: Hex): number {
+  return richnessAt(state.layout, state.radius, h);
+}
+
+/** Occupied time after which the tile is fully exhausted, in ms (longer on the forest rim). */
+export function lifetimeMs(state: GameState, tile: Tile): number {
+  return TERRAIN_STATS[tile.terrain].lifetimeMs * lifetimeFactorAt(state.layout, state.radius, tile);
+}
+
+/** Nutrients per second of one fresh colonised tile of this terrain, before place, humidity and transport. */
 export function tileYield(terrain: Terrain, upgrades: Upgrades): number {
   const digestion = 1 + UPGRADE_STATS.digestion.perLevel * upgrades.digestion;
   const wood = terrain === "deadwood" ? 1 + UPGRADE_STATS.woodDecomposer.perLevel * upgrades.woodDecomposer : 1;
@@ -188,15 +250,20 @@ export function tileYield(terrain: Terrain, upgrades: Upgrades): number {
  */
 export function tileProduction(state: GameState, tile: Tile, hops: Map<string, number> = networkHops(state)): number {
   const d = hops.get(hexKey(tile));
-  if (!isGrown(tile) || d === undefined) return 0;
-  return tileYield(tile.terrain, state.upgrades) * humidity(state, tile) * (1 - tile.exhaustion) * (1 - transportLoss(d));
+  if (!isGrown(state, tile) || d === undefined) return 0;
+  return baseProduction(state, tile, d) * (1 - tile.exhaustion);
+}
+
+/** Nutrients per second of a fresh tile at `hops` from the Cœur: yield × place × humidity × transport. */
+function baseProduction(state: GameState, tile: Tile, hops: number): number {
+  return tileYield(tile.terrain, state.upgrades) * richness(state, tile) * humidity(state, tile) * (1 - transportLoss(hops));
 }
 
 /** Total nutrients per second right now (GDD §10 `production_totale`), including the offline factor. */
 export function productionRate(state: GameState, at: number = state.updatedAt): number {
   const hops = networkHops(state);
   let total = 0;
-  for (const t of state.tiles.values()) total += tileProduction(state, t, hops);
+  for (const k of hops.keys()) total += tileProduction(state, state.tiles.get(k)!, hops);
   return total * offlineFactor(state, at);
 }
 
@@ -208,12 +275,12 @@ export function conversionRate(upgrades: Upgrades): number {
 /** Tiles owned by the player, growing ones included (the `nb_cases` of the cost formula). */
 export function ownedCount(state: GameState): number {
   let n = 0;
-  for (const t of state.tiles.values()) if (t.owned) n++;
+  for (const t of state.tiles.values()) if (t.owner === state.id) n++;
   return n;
 }
 
 export function growingTiles(state: GameState): Tile[] {
-  return [...state.tiles.values()].filter((t) => t.owned && t.growthEndsAt !== null);
+  return [...state.tiles.values()].filter((t) => t.owner === state.id && t.growthEndsAt !== null);
 }
 
 /** `base × (1 + 0.05 × dist_cœur) × 1.02^nb_cases`, reduced by Expansion économe (GDD §2.3). */
@@ -239,7 +306,7 @@ export function growthDurationMs(terrain: Terrain, upgrades: Upgrades): number {
  * buying Croissance des hyphes during a growth does not move the progress backwards.
  */
 export function growthProgress(tile: Tile, now: number, upgrades: Upgrades): number {
-  if (tile.growthEndsAt === null) return tile.owned ? 1 : 0;
+  if (tile.growthEndsAt === null) return tile.owner !== null ? 1 : 0;
   const total =
     tile.growthStartedAt !== null
       ? tile.growthEndsAt - tile.growthStartedAt
@@ -256,7 +323,7 @@ export function upgradeCost(id: UpgradeId, level: number): number {
 
 /** Wild tile next to a colonised (fully grown) tile of the network (GDD §2.3). */
 export function isAdjacentToNetwork(state: GameState, h: Hex): boolean {
-  return hexNeighbors(h).some((n) => isGrown(state.tiles.get(hexKey(n))));
+  return hexNeighbors(h).some((n) => isGrown(state, state.tiles.get(hexKey(n))));
 }
 
 export function queueIndex(state: GameState, h: Hex): number {
@@ -279,11 +346,13 @@ export function checkColonize(state: GameState, h: Hex): ActionResult {
   const tile = state.tiles.get(hexKey(h));
   if (!tile) return { ok: false, error: "unknown_tile" };
   if (!TERRAIN_STATS[tile.terrain].colonizable) return { ok: false, error: "impassable" };
-  if (tile.owned) return { ok: false, error: "already_owned" };
+  if (tile.owner === state.id) return { ok: false, error: "already_owned" };
+  if (tile.owner !== null) return { ok: false, error: "occupied" };
+  if (tile.reservedFor !== null && tile.reservedFor !== state.id) return { ok: false, error: "reserved" };
   if (queueIndex(state, h) >= 0) return { ok: false, error: "already_queued" };
   if (state.queue.length >= QUEUE_MAX) return { ok: false, error: "queue_full" };
   const planned = new Set(state.queue.map(hexKey));
-  const reachable = hexNeighbors(h).some((n) => state.tiles.get(hexKey(n))?.owned || planned.has(hexKey(n)));
+  const reachable = hexNeighbors(h).some((n) => isMine(state, state.tiles.get(hexKey(n))) || planned.has(hexKey(n)));
   if (!reachable) return { ok: false, error: "not_adjacent" };
   return { ok: true };
 }
@@ -380,19 +449,21 @@ export function advance(state: GameState, to: number): void {
     let changed = false;
     if (plan.nextEvent <= t) {
       for (const tile of state.tiles.values()) {
+        if (tile.owner !== state.id) continue;
         if (tile.growthEndsAt !== null && tile.growthEndsAt <= t) {
           tile.growthEndsAt = null;
           tile.growthStartedAt = null;
           changed = true;
         }
-        if (tile.terrain === "deadwood" && tile.owned && tile.exhaustion >= EXHAUSTION.max - 1e-9) {
+        if (tile.terrain === "deadwood" && tile.exhaustion >= EXHAUSTION.max - 1e-9) {
           // GDD §2.2: exhausted Dead wood becomes (fresh) Humus.
           tile.terrain = "humus";
           tile.exhaustion = 0;
           changed = true;
         }
-        if (tile.owned && tile.disconnectedSince !== null && t - tile.disconnectedSince >= TRANSPORT.witherMs) {
-          tile.owned = false;
+        if (tile.disconnectedSince !== null && t - tile.disconnectedSince >= TRANSPORT.witherMs) {
+          tile.owner = null;
+          tile.capture = null;
           tile.growthEndsAt = null;
           tile.growthStartedAt = null;
           tile.disconnectedSince = null;
@@ -432,11 +503,11 @@ function planWindow(state: GameState, t: number): Window {
   let next = Infinity;
   let growing = false;
   for (const tile of state.tiles.values()) {
-    const lifetime = TERRAIN_STATS[tile.terrain].lifetimeMs;
+    if (tile.owner !== state.id) continue; // Wild tiles recover at the forest level (see forest.ts).
+    const lifetime = lifetimeMs(state, tile);
     const d = hops.get(hexKey(tile));
-    if (isGrown(tile) && d !== undefined) {
-      const perSecond = tileYield(tile.terrain, state.upgrades) * humidity(state, tile) * (1 - transportLoss(d));
-      producers.push({ tile, basePerMs: perSecond / 1000, lifetime });
+    if (isGrown(state, tile) && d !== undefined) {
+      producers.push({ tile, basePerMs: baseProduction(state, tile, d) / 1000, lifetime });
       // Rounded up to a whole ms so every event time stays an integer (it is stored as a timestamp).
       if (tile.terrain === "deadwood") next = Math.min(next, t + Math.ceil(Math.max(0, EXHAUSTION.max - tile.exhaustion) * lifetime));
     } else if (tile.exhaustion > 0 && lifetime > 0) {
@@ -446,7 +517,7 @@ function planWindow(state: GameState, t: number): Window {
       growing = true;
       next = Math.min(next, tile.growthEndsAt);
     }
-    if (tile.owned && tile.disconnectedSince !== null) next = Math.min(next, tile.disconnectedSince + TRANSPORT.witherMs);
+    if (tile.disconnectedSince !== null) next = Math.min(next, tile.disconnectedSince + TRANSPORT.witherMs);
   }
   if (state.lastSeenAt !== null && state.lastSeenAt + OFFLINE.fullMs > t) {
     next = Math.min(next, state.lastSeenAt + OFFLINE.fullMs);
@@ -472,21 +543,23 @@ function integrate(state: GameState, w: Window, dt: number): void {
     produced += p.basePerMs * freshMs;
     p.tile.exhaustion = Math.min(EXHAUSTION.max, e0 + dt / p.lifetime);
   }
-  for (const tile of w.resting) {
-    // Resting tiles recover (GDD §2.3: "se régénère lentement").
-    const lifetime = TERRAIN_STATS[tile.terrain].lifetimeMs;
-    tile.exhaustion = Math.max(0, tile.exhaustion - dt / (lifetime * EXHAUSTION.regenSlowdown));
-  }
+  for (const tile of w.resting) rest(tile, lifetimeMs(state, tile), dt);
   produced *= w.factor;
   state.nutrients += produced;
   state.biomass += produced * conversionRate(state.upgrades);
 }
 
-/** Marks owned tiles as connected or disconnected (disconnected ones start withering). */
-function refreshConnections(state: GameState, now: number): void {
+/** A resting tile recovers (GDD §2.3: "se régénère lentement"). */
+export function rest(tile: Tile, lifetime: number, dt: number): void {
+  if (tile.exhaustion > 0 && lifetime > 0) tile.exhaustion = Math.max(0, tile.exhaustion - dt / (lifetime * EXHAUSTION.regenSlowdown));
+}
+
+/** Marks the player's tiles as connected or disconnected (disconnected ones start withering). */
+export function refreshConnections(state: GameState, now: number): void {
   const hops = networkHops(state);
   for (const tile of state.tiles.values()) {
-    if (!isGrown(tile)) {
+    if (tile.owner !== state.id) continue;
+    if (!isGrown(state, tile)) {
       tile.disconnectedSince = null;
       continue;
     }
@@ -501,14 +574,21 @@ function startQueued(state: GameState, now: number): boolean {
   while (state.queue.length > 0 && growingTiles(state).length < ECONOMY.maxConcurrentGrowths) {
     const head = state.queue[0]!;
     const tile = state.tiles.get(hexKey(head));
-    if (!tile || tile.owned || !TERRAIN_STATS[tile.terrain].colonizable || !isAdjacentToNetwork(state, tile)) {
+    if (
+      !tile ||
+      tile.owner !== null ||
+      (tile.reservedFor !== null && tile.reservedFor !== state.id) ||
+      !TERRAIN_STATS[tile.terrain].colonizable ||
+      !isAdjacentToNetwork(state, tile)
+    ) {
       state.queue.shift(); // No longer possible: drop it.
       continue;
     }
     const cost = colonizationCost(state, tile);
     if (state.nutrients < cost) break;
     state.nutrients -= cost;
-    tile.owned = true;
+    tile.owner = state.id;
+    tile.capture = null;
     tile.growthStartedAt = now;
     tile.growthEndsAt = now + growthDurationMs(tile.terrain, state.upgrades);
     tile.disconnectedSince = null;
@@ -518,12 +598,18 @@ function startQueued(state: GameState, now: number): boolean {
   return started;
 }
 
-/** Deep copy, handy for client-side prediction, saves and tests. */
+/** Deep copy (tiles included), handy for client-side prediction and tests. */
 export function cloneGame(state: GameState): GameState {
   const tiles = new Map<string, Tile>();
-  for (const [k, t] of state.tiles) tiles.set(k, { ...t });
+  for (const [k, t] of state.tiles) tiles.set(k, { ...t, capture: t.capture && { ...t.capture } });
+  return clonePlayer(state, tiles);
+}
+
+/** Copy of a player's own fields, on the given tiles. */
+export function clonePlayer(state: GameState, tiles: Map<string, Tile>): GameState {
   return {
     ...state,
+    spawn: { ...state.spawn },
     heart: { ...state.heart },
     upgrades: { ...state.upgrades },
     queue: state.queue.map((h) => ({ ...h })),

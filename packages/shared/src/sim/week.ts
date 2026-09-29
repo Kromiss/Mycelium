@@ -76,7 +76,7 @@ export function simulateWeek(profile: Profile, options: SimulationOptions = {}):
       goOnline(state, start);
       for (let t = start; t < end; t += decisionEverySeconds * 1000) {
         advance(state, t);
-        play(state, t, t === start);
+        botPlay(state, t, t === start);
       }
       goOffline(state, end);
     }
@@ -89,15 +89,18 @@ export function simulateWeek(profile: Profile, options: SimulationOptions = {}):
       rate: productionRate(online, endOfDay),
       biomass: state.biomass,
       nutrients: state.nutrients,
-      tiles: [...state.tiles.values()].filter((t) => t.owned).length,
+      tiles: [...state.tiles.values()].filter((t) => t.owner === state.id).length,
       upgrades: { ...state.upgrades },
     });
   }
   return reports;
 }
 
-/** One bot decision: plan the queue, buy upgrades that pay back faster than tiles, move the Cœur. */
-function play(state: GameState, now: number, sessionStart: boolean): void {
+/**
+ * One bot decision: plan the queue, buy upgrades that pay back faster than tiles, move the Cœur.
+ * Also drives the server's test robots.
+ */
+export function botPlay(state: GameState, now: number, sessionStart: boolean): void {
   if (sessionStart && now >= heartReadyAt(state)) moveHeartToCentre(state, now);
   fillQueue(state, now);
   buyUpgrades(state);
@@ -114,7 +117,7 @@ function fillQueue(state: GameState, now: number): void {
     let best: Tile | null = null;
     let bestValue = -Infinity;
     for (const tile of state.tiles.values()) {
-      if (!TERRAIN_STATS[tile.terrain].colonizable || tile.owned) continue;
+      if (!TERRAIN_STATS[tile.terrain].colonizable || tile.owner !== null) continue;
       if (!checkColonize(state, tile).ok) continue;
       const v = tileValue(state, tile);
       if (v > bestValue) {
