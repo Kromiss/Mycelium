@@ -23,3 +23,4 @@ les signale comme `disabled` dans `/api/health`. Migrations : `DATABASE_URL=... 
 - [`docs/workflow.md`](docs/workflow.md) — branches, protocole de merge, réglages GitHub
 - [`docs/deploy.md`](docs/deploy.md) — prod, staging, mise en place du serveur, secrets
 - [`docs/versioning.md`](docs/versioning.md) — versions et releases
+- [`docs/roadmap.md`](docs/roadmap.md) — jalons de développement
