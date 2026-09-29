@@ -2,18 +2,31 @@ import {
   advance,
   checkBuyUpgrade,
   checkColonize,
+  checkMoveHeart,
   colonizationCost,
   conversionRate,
   fromSnapshot,
   GAME_NAME,
+  growingTiles,
   growthDurationMs,
+  heartReadyAt,
+  HUMIDITY,
+  humidity,
   hexEquals,
   hexKey,
+  networkHops,
   ownedCount,
   productionRate,
+  QUEUE_MAX,
+  queueIndex,
+  tileProduction,
   tileYield,
+  TRANSPORT,
+  transportLoss,
   UPGRADE_IDS,
   upgradeCost,
+  type AwaySummary,
+  type ClientMessage,
   type GameSnapshot,
   type GameState,
   type Hex,
@@ -39,10 +52,14 @@ const ui = {
   tilePanel: $("tile-panel"),
   tileName: $("tile-name"),
   tileStatus: $("tile-status"),
-  tileYield: $("tile-yield"),
-  tileCost: $("tile-cost"),
-  tileGrowth: $("tile-growth"),
-  tileColonize: $<HTMLButtonElement>("tile-colonize"),
+  tileFacts: $("tile-facts"),
+  tileNote: $("tile-note"),
+  tileActions: $("tile-actions"),
+  queue: $("queue"),
+  away: $("away"),
+  awayTitle: $("away-title"),
+  awayList: $("away-list"),
+  awayReduced: $("away-reduced"),
   hint: $("hint"),
   toast: $("toast"),
   status: $("status"),
@@ -126,6 +143,7 @@ function onMessage(msg: ServerMessage): void {
       document.body.classList.add("in-game");
       ui.player.textContent = msg.player.name;
       applySnapshot(msg.game, msg.serverTime);
+      if (msg.away) showAway(msg.away);
       break;
     case "state":
       applySnapshot(msg.game, msg.serverTime);
@@ -160,9 +178,18 @@ function selectTile(h: Hex | null): void {
   render();
 }
 
-ui.tileColonize.addEventListener("click", () => {
-  if (selected) connection?.send({ type: "colonize", q: selected.q, r: selected.r });
+// Two persistent buttons whose action is set on each render (rebuilding them would eat clicks).
+const actionButtons = [0, 1].map(() => {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.addEventListener("click", () => {
+    const type = b.dataset.action as "colonize" | "unqueue" | "moveHeart" | undefined;
+    if (type && selected) connection?.send({ type, q: selected.q, r: selected.r } satisfies ClientMessage);
+  });
+  ui.tileActions.append(b);
+  return b;
 });
+$("away-close").addEventListener("click", () => (ui.away.hidden = true));
 $("tile-close").addEventListener("click", () => selectTile(null));
 $("zoom-in").addEventListener("click", () => mapView?.zoomBy(1.25));
 $("zoom-out").addEventListener("click", () => mapView?.zoomBy(0.8));
@@ -214,6 +241,7 @@ function render(): void {
   ui.biomass.textContent = fmt(game.biomass);
   ui.biomassRate.textContent = t("res.perSecond", { value: fmt(rate * conversionRate(game.upgrades)) });
   ui.tiles.textContent = String(ownedCount(game));
+  ui.queue.textContent = `${game.queue.length}/${QUEUE_MAX}`;
 
   for (const li of ui.upgradeList.children) {
     const id = (li as HTMLElement).dataset.id!;
@@ -228,35 +256,123 @@ function render(): void {
   renderTile(game);
 }
 
+interface TileAction {
+  label: string;
+  action: "colonize" | "unqueue" | "moveHeart";
+  disabled: boolean;
+  primary: boolean;
+}
+
 function renderTile(g: GameState): void {
   const tile = selected ? g.tiles.get(hexKey(selected)) : undefined;
   ui.tilePanel.hidden = !tile;
   ui.hint.hidden = Boolean(tile) || ownedCount(g) > 3;
   if (!tile) return;
 
-  ui.tileName.textContent = t(`terrain.${tile.terrain}`);
-  ui.tileYield.textContent = t("tile.yieldValue", { value: fmt(tileYield(tile.terrain, g.upgrades)) });
-  ui.tilePanel.querySelectorAll<HTMLElement>(".wild-only").forEach((el) => (el.hidden = tile.owned));
-  ui.tileStatus.classList.toggle("good", tile.owned);
+  const now = serverNow();
+  const hops = networkHops(g);
+  const wet = humidity(g, tile) > 1;
+  const facts: Array<[MessageKey, string]> = [];
+  const actions: TileAction[] = [];
+  let status = "";
+  let tone: "good" | "warn" | "" = "";
+  let note = "";
 
-  if (tile.owned) {
+  if (tile.terrain === "wetland") {
+    note = t("tile.wetland");
+  } else if (tile.owned) {
+    tone = "good";
     if (tile.growthEndsAt !== null) {
-      ui.tileStatus.textContent = t("tile.growing", { time: formatDuration(tile.growthEndsAt - serverNow()) });
+      status = t("tile.growing", { time: formatDuration(tile.growthEndsAt - now) });
+    } else if (tile.disconnectedSince !== null) {
+      status = t("tile.disconnected", { time: formatDuration(tile.disconnectedSince + TRANSPORT.witherMs - now) });
+      tone = "warn";
     } else {
-      ui.tileStatus.textContent = hexEquals(tile, g.heart) ? t("tile.heart") : t("tile.owned");
+      status = hexEquals(tile, g.heart) ? t("tile.heart") : t("tile.owned");
+      facts.push(["tile.production", t("tile.yieldValue", { value: fmt(tileProduction(g, tile, hops)) })]);
+      facts.push(["tile.exhaustion", percent(tile.exhaustion)]);
+      const d = hops.get(hexKey(tile));
+      if (d !== undefined && d > 0) facts.push(["tile.transport", t("tile.transportValue", { hops: d, loss: Math.round(transportLoss(d) * 100) })]);
+      if (!hexEquals(tile, g.heart)) {
+        const check = checkMoveHeart(g, tile, now);
+        const cooling = !check.ok && check.error === "heart_cooldown";
+        actions.push({
+          label: cooling ? t("tile.heartReadyIn", { time: formatDuration(heartReadyAt(g) - now) }) : t("tile.moveHeart"),
+          action: "moveHeart",
+          disabled: !check.ok,
+          primary: false,
+        });
+      }
     }
-    return;
+    if (tile.terrain === "deadwood") note = t("tile.deadwoodNote");
+  } else {
+    facts.push(["tile.yield", t("tile.yieldValue", { value: fmt(tileYield(tile.terrain, g.upgrades) * humidity(g, tile)) })]);
+    if (tile.exhaustion > 0.005) facts.push(["tile.exhaustion", percent(tile.exhaustion)]);
+    facts.push(["tile.cost", fmt(colonizationCost(g, tile))]);
+    facts.push(["tile.growth", formatDuration(growthDurationMs(tile.terrain, g.upgrades))]);
+    if (tile.terrain === "deadwood") note = t("tile.deadwoodNote");
+    const position = queueIndex(g, tile);
+    if (position >= 0) {
+      status = t("tile.queued", { position: position + 1 });
+      actions.push({ label: t("tile.unqueue"), action: "unqueue", disabled: false, primary: false });
+    } else {
+      const check = checkColonize(g, tile);
+      const immediate = g.queue.length === 0 && growingTiles(g).length === 0 && g.nutrients >= colonizationCost(g, tile);
+      actions.push({
+        label: immediate ? t("tile.colonize") : t("tile.queueAdd", { count: g.queue.length + 1, max: QUEUE_MAX }),
+        action: "colonize",
+        disabled: !check.ok,
+        primary: true,
+      });
+      if (!check.ok) status = check.error === "not_adjacent" ? t("tile.notAdjacent") : t(`error.${check.error}`);
+    }
   }
+  if (wet && tile.terrain !== "wetland") facts.push(["tile.humidity", t("tile.humidityValue", { bonus: Math.round(HUMIDITY.wetlandBonus * 100) })]);
 
-  ui.tileCost.textContent = fmt(colonizationCost(g, tile));
-  ui.tileGrowth.textContent = formatDuration(growthDurationMs(tile.terrain, g.upgrades));
-  const check = checkColonize(g, tile);
-  ui.tileColonize.disabled = !check.ok;
-  ui.tileStatus.textContent = check.ok
-    ? ""
-    : check.error === "not_adjacent"
-      ? t("tile.notAdjacent")
-      : t(`error.${check.error}`);
+  ui.tileName.textContent = t(`terrain.${tile.terrain}`);
+  ui.tileStatus.textContent = status;
+  ui.tileStatus.hidden = status === "";
+  ui.tileStatus.className = `tile-status ${tone}`;
+  ui.tileFacts.replaceChildren(
+    ...facts.flatMap(([label, value]) => {
+      const dt = document.createElement("dt");
+      dt.textContent = t(label);
+      const dd = document.createElement("dd");
+      dd.textContent = value;
+      return [dt, dd];
+    }),
+  );
+  ui.tileNote.textContent = note;
+  ui.tileNote.hidden = note === "";
+  actionButtons.forEach((b, i) => {
+    const a = actions[i];
+    b.hidden = !a;
+    if (!a) return;
+    b.textContent = a.label;
+    b.dataset.action = a.action;
+    b.disabled = a.disabled;
+    b.className = a.primary ? "primary" : "";
+  });
+}
+
+function percent(x: number): string {
+  return new Intl.NumberFormat(locale(), { style: "percent", maximumFractionDigits: 0 }).format(x);
+}
+
+function showAway(away: AwaySummary): void {
+  if (away.awayMs < 60_000) return;
+  ui.awayTitle.textContent = t("away.title", { time: formatDuration(away.awayMs) });
+  const lines = [t("away.nutrients", { value: fmt(away.nutrients) }), t("away.biomass", { value: fmt(away.biomass) })];
+  if (away.colonized > 0) lines.push(t("away.colonized", { count: away.colonized }));
+  ui.awayList.replaceChildren(
+    ...lines.map((line) => {
+      const li = document.createElement("li");
+      li.textContent = line;
+      return li;
+    }),
+  );
+  ui.awayReduced.hidden = away.awayMs <= 8 * 3_600_000;
+  ui.away.hidden = false;
 }
 
 function setStatus(key: MessageKey | null): void {

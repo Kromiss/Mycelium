@@ -283,8 +283,38 @@ button.ghost {
   font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 }
 
-.tile-panel .primary {
+.tile-note {
+  margin: -4px 0 12px;
+  font-family: system-ui, sans-serif;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.tile-actions {
+  display: grid;
+  gap: 6px;
+}
+
+.tile-actions button {
   width: 100%;
+}
+
+.tile-status.warn {
+  color: var(--danger);
+}
+
+.away-card h2 {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 500;
+}
+
+.away-card ul {
+  margin: 4px 0;
+  padding-left: 1.1em;
+  display: grid;
+  gap: 4px;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 }
 
 .tile-panel .close {
@@ -446,6 +476,7 @@ button.ghost {
 
   .brand,
   .res-tiles,
+  .res-queue,
   .player {
     display: none;
   }

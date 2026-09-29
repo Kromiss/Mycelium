@@ -1,16 +1,17 @@
 import {
+  checkColonize,
   growthProgress,
   hashFloat,
   hexKey,
   hexNeighbors,
   hexToPixel,
-  isAdjacentToNetwork,
+  networkHops,
   pixelToHex,
   type GameState,
   type Hex,
   type Terrain,
 } from "@mycelium/shared";
-import { Application, Container, Graphics } from "pixi.js";
+import { Application, Container, Graphics, Text } from "pixi.js";
 
 /** Circumradius of a hex in world pixels. */
 const SIZE = 30;
@@ -23,11 +24,14 @@ const TERRAIN_COLORS: Record<Terrain, number> = {
   litter: 0x9a6f35,
   humus: 0x3b2c20,
   deadwood: 0x5e4330,
+  wetland: 0x234a58,
 };
 const GAP = 0x0c0e0a;
 const MYCELIUM = 0xe9f6c8;
 const GLOW = 0xc6f36e;
 const SELECT = 0xffffff;
+const WITHER = 0xe0704a;
+const PLAN = 0xf2e6b8;
 
 /** Canvas rendering of the hex map with pan / zoom (GDD §11: filaments that glow). */
 export class MapView {
@@ -37,9 +41,10 @@ export class MapView {
   private readonly networkLayer = new Graphics();
   private readonly frontierLayer = new Graphics();
   private readonly fxLayer = new Graphics();
+  private readonly queueLabels = new Container();
 
   private game: GameState | null = null;
-  private terrainSeed: number | null = null;
+  private terrainSignature = "";
   private networkSignature = "";
   private selected: Hex | null = null;
   private now: () => number = Date.now;
@@ -60,7 +65,7 @@ export class MapView {
       resolution: Math.min(window.devicePixelRatio || 1, 2),
     });
     host.appendChild(this.app.canvas);
-    this.world.addChild(this.terrainLayer, this.frontierLayer, this.networkLayer, this.fxLayer);
+    this.world.addChild(this.terrainLayer, this.frontierLayer, this.networkLayer, this.fxLayer, this.queueLabels);
     this.app.stage.addChild(this.world);
     this.app.ticker.add(() => this.frame());
     this.bindInput(this.app.canvas);
@@ -69,22 +74,31 @@ export class MapView {
   setGame(game: GameState): void {
     const first = this.game === null;
     this.game = game;
-    if (this.terrainSeed !== game.seed) {
-      this.drawTerrain(game);
-      this.terrainSeed = game.seed;
-    }
     this.refreshNetwork();
     if (first) this.home();
   }
 
-  /** Redraws the network when tiles were colonised or finished growing. */
+  /**
+   * Redraws what changed: terrain (Dead wood turning into Humus), and the network (colonised
+   * tiles, growth, exhaustion by steps of 5 %, disconnections, the Cœur, the queue).
+   */
   refreshNetwork(): void {
     const game = this.game;
     if (!game) return;
-    const signature = [...game.tiles.values()]
-      .filter((t) => t.owned)
-      .map((t) => `${hexKey(t)}${t.growthEndsAt === null ? "" : "g"}`)
-      .join(";");
+    const tiles = [...game.tiles.values()];
+    const terrain = `${game.seed}:${tiles.map((t) => t.terrain[0]).join("")}`;
+    if (terrain !== this.terrainSignature) {
+      this.terrainSignature = terrain;
+      this.drawTerrain(game);
+    }
+    const signature = [
+      hexKey(game.heart),
+      game.queue.map(hexKey).join("|"),
+      tiles
+        .filter((t) => t.owned || t.exhaustion > 0)
+        .map((t) => `${hexKey(t)}${t.owned ? "o" : ""}${t.growthEndsAt === null ? "" : "g"}${t.disconnectedSince === null ? "" : "x"}${Math.round(t.exhaustion * 20)}`)
+        .join(";"),
+    ].join("#");
     if (signature === this.networkSignature) return;
     this.networkSignature = signature;
     this.drawNetwork(game);
@@ -138,6 +152,13 @@ export class MapView {
       const dy = Math.sin(angle) * SIZE * 0.55;
       g.moveTo(x - dx, y - dy).lineTo(x + dx, y + dy).stroke({ width: 7, color: 0x7a5639, cap: "round" });
       g.moveTo(x - dx * 0.8, y - dy * 0.8).lineTo(x + dx * 0.8, y + dy * 0.8).stroke({ width: 1.5, color: 0x4a3222, alpha: 0.9 });
+    } else if (tile.terrain === "wetland") {
+      for (let i = 0; i < 3; i++) {
+        const cx = x + (rnd(i) - 0.5) * SIZE * 0.9;
+        const cy = y + (rnd(i + 10) - 0.5) * SIZE * 0.9;
+        const w = 5 + rnd(i + 20) * 6;
+        g.moveTo(cx - w, cy).quadraticCurveTo(cx, cy - 3, cx + w, cy).stroke({ width: 1.4, color: 0x8fc3cf, alpha: 0.55 });
+      }
     } else {
       for (let i = 0; i < 5; i++) {
         const a = rnd(i) * Math.PI * 2;
@@ -150,24 +171,31 @@ export class MapView {
   private drawNetwork(game: GameState): void {
     const net = this.networkLayer.clear();
     const frontier = this.frontierLayer.clear();
-    const grown = [...game.tiles.values()].filter((t) => t.owned && t.growthEndsAt === null);
+    const hops = networkHops(game);
+    const connected = [...game.tiles.values()].filter((t) => hops.has(hexKey(t)));
 
     for (const t of game.tiles.values()) {
-      if (!t.owned) continue;
       const { x, y } = hexToPixel(t, SIZE);
-      const grownTile = t.growthEndsAt === null;
-      net.poly(hexPoints(x, y, SIZE - 1)).fill({ color: GLOW, alpha: grownTile ? 0.2 : 0.07 });
-      if (grownTile) net.poly(hexPoints(x, y, SIZE - 2.5)).stroke({ width: 1.5, color: MYCELIUM, alpha: 0.35 });
+      // Exhaustion darkens the ground, owned or not (resting tiles recover slowly).
+      if (t.exhaustion > 0.01) net.poly(hexPoints(x, y, SIZE - 1)).fill({ color: 0x000000, alpha: t.exhaustion * 0.45 });
+      if (!t.owned) continue;
+      if (t.growthEndsAt !== null) {
+        net.poly(hexPoints(x, y, SIZE - 1)).fill({ color: GLOW, alpha: 0.07 });
+      } else if (t.disconnectedSince !== null) {
+        net.poly(hexPoints(x, y, SIZE - 1)).fill({ color: WITHER, alpha: 0.28 });
+        net.poly(hexPoints(x, y, SIZE - 2.5)).stroke({ width: 1.5, color: WITHER, alpha: 0.7 });
+      } else {
+        net.poly(hexPoints(x, y, SIZE - 1)).fill({ color: GLOW, alpha: 0.2 * (1 - t.exhaustion * 0.6) });
+        net.poly(hexPoints(x, y, SIZE - 2.5)).stroke({ width: 1.5, color: MYCELIUM, alpha: 0.35 });
+      }
     }
 
-    // Filaments between neighbouring colonised tiles (each pair once).
+    // Filaments between neighbouring connected tiles (each pair once).
     const segments: Array<[number, number, number, number]> = [];
-    for (const t of grown) {
+    for (const t of connected) {
       const a = hexToPixel(t, SIZE);
       for (const n of hexNeighbors(t)) {
-        const other = game.tiles.get(hexKey(n));
-        if (!other?.owned || other.growthEndsAt !== null) continue;
-        if (hexKey(n) < hexKey(t)) continue;
+        if (!hops.has(hexKey(n)) || hexKey(n) < hexKey(t)) continue;
         const b = hexToPixel(n, SIZE);
         segments.push([a.x, a.y, b.x, b.y]);
       }
@@ -180,14 +208,30 @@ export class MapView {
       for (const [x1, y1, x2, y2] of segments) net.moveTo(x1, y1).lineTo(x2, y2);
       if (segments.length) net.stroke({ width, color, alpha, cap: "round" });
     }
-    for (const t of grown) {
+    for (const t of connected) {
       const { x, y } = hexToPixel(t, SIZE);
-      net.circle(x, y, 4).fill({ color: MYCELIUM, alpha: 0.9 });
+      net.circle(x, y, 4).fill({ color: MYCELIUM, alpha: 0.9 - t.exhaustion * 0.5 });
     }
 
-    // Wild tiles within reach.
+    // Planned path: dotted links from each queued tile to where it will grow from.
+    this.queueLabels.removeChildren().forEach((c) => c.destroy());
+    const planned = new Set<string>();
+    game.queue.forEach((h, i) => {
+      const to = hexToPixel(h, SIZE);
+      const from = hexNeighbors(h).find((n) => game.tiles.get(hexKey(n))?.owned || planned.has(hexKey(n)));
+      if (from) dotted(net, hexToPixel(from, SIZE), to);
+      planned.add(hexKey(h));
+      net.poly(hexPoints(to.x, to.y, SIZE - 5)).stroke({ width: 2, color: PLAN, alpha: 0.8 });
+      net.circle(to.x, to.y, 9).fill({ color: 0x1b1f15, alpha: 0.85 }).stroke({ width: 1.5, color: PLAN });
+      const label = new Text({ text: String(i + 1), style: { fill: PLAN, fontSize: 11, fontFamily: "system-ui, sans-serif", fontWeight: "600" } });
+      label.anchor.set(0.5);
+      label.position.set(to.x, to.y);
+      this.queueLabels.addChild(label);
+    });
+
+    // Tiles that can be colonised or planned now.
     for (const t of game.tiles.values()) {
-      if (t.owned || !isAdjacentToNetwork(game, t)) continue;
+      if (t.owned || !checkColonize(game, t).ok) continue;
       const { x, y } = hexToPixel(t, SIZE);
       frontier.poly(hexPoints(x, y, SIZE - 4)).stroke({ width: 2, color: GLOW, alpha: 0.9 });
     }
@@ -309,6 +353,16 @@ export class MapView {
     const same = this.selected && this.selected.q === h.q && this.selected.r === h.r;
     this.onSelect(exists && !same ? h : null);
   }
+}
+
+function dotted(g: Graphics, a: { x: number; y: number }, b: { x: number; y: number }): void {
+  const steps = 7;
+  for (let i = 0; i < steps; i += 2) {
+    const t0 = i / steps;
+    const t1 = (i + 1) / steps;
+    g.moveTo(a.x + (b.x - a.x) * t0, a.y + (b.y - a.y) * t0).lineTo(a.x + (b.x - a.x) * t1, a.y + (b.y - a.y) * t1);
+  }
+  g.stroke({ width: 2, color: PLAN, alpha: 0.7, cap: "round" });
 }
 
 function hexPoints(cx: number, cy: number, radius: number): number[] {
