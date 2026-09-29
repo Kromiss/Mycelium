@@ -76,6 +76,7 @@ interface HexRow {
   terrain: Terrain;
   owner_id: string | null;
   growth_ends_at: Date | null;
+  growth_started_at: Date | null;
 }
 
 /** PostgreSQL store (tables from migrations 0001 and 0002). */
@@ -152,7 +153,7 @@ export class PgStore implements GameStore {
     const row = res.rows[0];
     if (!row) return null;
     const hexes = await this.pool.query<HexRow>(
-      "select q, r, terrain, owner_id, growth_ends_at from hex where world_id = $1",
+      "select q, r, terrain, owner_id, growth_ends_at, growth_started_at from hex where world_id = $1",
       [row.world_id],
     );
     const tiles = new Map<string, Tile>();
@@ -163,6 +164,8 @@ export class PgStore implements GameStore {
         terrain: h.terrain,
         owned: h.owner_id === playerId,
         growthEndsAt: h.owner_id === playerId && h.growth_ends_at ? h.growth_ends_at.getTime() : null,
+        growthStartedAt:
+          h.owner_id === playerId && h.growth_ends_at && h.growth_started_at ? h.growth_started_at.getTime() : null,
       });
     }
     return {
@@ -191,8 +194,9 @@ export class PgStore implements GameStore {
       if (worldId) {
         // Tiles are never lost in M1, so updating the owned ones is enough.
         await client.query(
-          `update hex set owner_id = $2, growth_ends_at = t.growth_ends_at
-           from unnest($3::int[], $4::int[], $5::timestamptz[]) as t(q, r, growth_ends_at)
+          `update hex set owner_id = $2, growth_ends_at = t.growth_ends_at, growth_started_at = t.growth_started_at
+           from unnest($3::int[], $4::int[], $5::timestamptz[], $6::timestamptz[])
+             as t(q, r, growth_ends_at, growth_started_at)
            where hex.world_id = $1 and hex.q = t.q and hex.r = t.r`,
           [
             worldId,
@@ -200,6 +204,7 @@ export class PgStore implements GameStore {
             owned.map((t) => t.q),
             owned.map((t) => t.r),
             owned.map((t) => (t.growthEndsAt === null ? null : new Date(t.growthEndsAt))),
+            owned.map((t) => (t.growthStartedAt === null ? null : new Date(t.growthStartedAt))),
           ],
         );
       }

@@ -1,5 +1,5 @@
 import {
-  growthDurationMs,
+  growthProgress,
   hashFloat,
   hexKey,
   hexNeighbors,
@@ -209,9 +209,7 @@ export class MapView {
     // Growing hyphae: a filament creeping from the network to the tile, and a progress ring.
     for (const t of game.tiles.values()) {
       if (!t.owned || t.growthEndsAt === null) continue;
-      // Progress uses the current growth time (close enough if Hyphal growth was bought meanwhile).
-      const total = Math.max(1, growthDurationMs(t.terrain, game.upgrades));
-      const progress = clamp(1 - (t.growthEndsAt - now) / total, 0, 1);
+      const progress = growthProgress(t, now, game.upgrades);
       const to = hexToPixel(t, SIZE);
       const source = hexNeighbors(t)
         .map((n) => game.tiles.get(hexKey(n)))

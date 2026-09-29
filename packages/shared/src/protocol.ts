@@ -8,6 +8,7 @@ import { START_HEX } from "./mapgen";
 
 export interface OwnedTileDto extends Hex {
   growthEndsAt: number | null;
+  growthStartedAt: number | null;
 }
 
 /** Full solo game state as sent to the client. */
@@ -30,7 +31,7 @@ const TERRAIN_BY_CODE = Object.fromEntries(TERRAINS.map((t) => [TERRAIN_CODES[t]
 export function toSnapshot(state: GameState): GameSnapshot {
   const cells = hexesInRadius(START_HEX, state.radius);
   const owned: OwnedTileDto[] = [];
-  for (const t of state.tiles.values()) if (t.owned) owned.push({ q: t.q, r: t.r, growthEndsAt: t.growthEndsAt });
+  for (const t of state.tiles.values()) if (t.owned) owned.push({ q: t.q, r: t.r, growthEndsAt: t.growthEndsAt, growthStartedAt: t.growthStartedAt });
   return {
     seed: state.seed,
     radius: state.radius,
@@ -49,13 +50,14 @@ export function fromSnapshot(s: GameSnapshot): GameState {
   hexesInRadius(START_HEX, s.radius).forEach((c, i) => {
     const terrain = TERRAIN_BY_CODE[s.terrain[i] ?? ""];
     if (!terrain) throw new Error(`Invalid terrain code at index ${i}`);
-    tiles.set(hexKey(c), { q: c.q, r: c.r, terrain, owned: false, growthEndsAt: null });
+    tiles.set(hexKey(c), { q: c.q, r: c.r, terrain, owned: false, growthEndsAt: null, growthStartedAt: null });
   });
   for (const o of s.owned) {
     const tile = tiles.get(hexKey(o));
     if (tile) {
       tile.owned = true;
       tile.growthEndsAt = o.growthEndsAt;
+      tile.growthStartedAt = o.growthStartedAt ?? null;
     }
   }
   const upgrades = normalizeUpgrades(s.upgrades);
