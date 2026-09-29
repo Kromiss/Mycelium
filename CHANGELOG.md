@@ -5,6 +5,37 @@ versions [semver](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-09-30
+
+M3 — Multijoueur minimal (GDD §15.3).
+
+### Added
+- **Comptes pseudo + mot de passe** (scrypt), sessions par navigateur, connexion et déconnexion,
+  limitation des tentatives de connexion. Les comptes invités de M1–M2 gardent leur accès et sont
+  invités à choisir un mot de passe.
+- **Forêts partagées** de 24 joueurs (GDD §2.5 validé) : carte ronde découpée en parts
+  identiques, une par joueur, qui suivent le même motif ; bord pauvre et sûr, anneau ×1,5,
+  centre riche ×3 à ×5 avec plus de bois mort. Un nouvel arrivant rejoint la forêt la plus
+  ancienne qui a de la place, loin des parts déjà prises.
+- **Brouillard** : on ne voit que son réseau et les cases voisines.
+- **Frontières à pression** (§6.1) : la case voisine passe au réseau qui pousse le plus fort
+  autour d'elle, en 10 min (Litière) à 2 h (Bois mort) à pleine vitesse ; bonus de conquête en
+  biomasse et Trophée ; les cases coupées du Cœur dépérissent.
+- **Protections** (§6.4) : Cœur imprenable, zone de départ réservée et imprenable 24 h (et
+  réservée tant que la part est libre), captures deux fois plus lentes sur un joueur absent
+  depuis plus de 2 h.
+- **Classement** en direct par biomasse (§8.1), mini-classement toujours visible, classement
+  complet et rang global ; Redis quand il est configuré.
+- Toute la forêt est simulée sur le serveur, joueurs connectés ou non ; résumé d'absence avec
+  les cases gagnées et perdues.
+- Outils de test en local : `BOTS=n` (robots qui jouent seuls) et `TIME_SCALE=n` (temps accéléré),
+  refusés en production.
+- Migration `0005_forests_accounts`.
+
+### Changed
+- Les parties solo de M1–M2 ne sont plus jouées : un compte existant repart de zéro dans une forêt.
+- Coloniser une case d'une autre colonie est impossible : les frontières se gagnent par pression.
+
 ## [0.3.0] - 2026-09-29
 
 M2 — Réseau & transport (GDD §15.2).

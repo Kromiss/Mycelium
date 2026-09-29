@@ -14,7 +14,7 @@ des points de départ à équilibrer, centralisés dans `packages/shared`.
 | M0 Fondations | 0.1.0 | — | Dépôt, CI, pipeline de déploiement | ✅ (VPS reporté) |
 | M1 Proto solo | 0.2.0 | étape 1 | Une carte, coloniser, produire, s'améliorer | ✅ |
 | M2 Réseau & transport | 0.3.0 | étape 2 | Cœur, pertes, épuisement, hors-ligne | ✅ |
-| M3 Multijoueur minimal | 0.4.0 | étape 3 | Forêt partagée, frontières, classement | à faire |
+| M3 Multijoueur minimal | 0.4.0 | étape 3 | Forêt partagée, frontières, classement | ✅ (testé en local) |
 | M4 Saison | 0.5.0 | étape 4 | Semaine, phases journalières, wipe | à faire |
 | M5 Profondeur : économie | 0.6.0 | étape 5 | Structures, mutations, souches, fructification | à faire |
 | M6 Profondeur : conflit & événements | 0.7.0 | étape 5 | Actions actives, événements, world boss | à faire |
@@ -102,8 +102,9 @@ avec ~50 % de la biomasse du joueur 12 h/jour.
 
 ## M3 — Multijoueur minimal (0.4.0) — GDD §15.3
 
-🔸 Décisions : **valider ou non la carte en secteurs symétriques, centre riche et dangereux (§2.5)** —
-bloquant pour ce jalon ; mode de connexion définitif (compte invité, e-mail, OAuth ?).
+✅ Décidé : carte du **§2.5 validée** (parts symétriques, bord sûr, centre riche) ; connexion par
+**pseudo + mot de passe** ; temps de prise d'une case **selon le terrain, de 10 min à 2 h** ; tests
+**en local avec des robots** (le VPS attendra).
 
 - Comptes et sessions ; rejoindre une **forêt de 20 à 30 joueurs** avec départ équitable (§2.1).
 - Génération de la carte partagée (800 à 1 800 hexagones) selon la décision §2.5.
@@ -116,6 +117,22 @@ bloquant pour ce jalon ; mode de connexion définitif (compte invité, e-mail, O
 
 **Terminé quand** : sur staging, plusieurs joueurs partagent une forêt, se rencontrent aux frontières,
 se prennent des cases et voient le classement bouger en direct.
+
+Livré en 0.4.0, validé en local (`BOTS=11 TIME_SCALE=60`) plutôt que sur staging. Choix de réalisation
+à valider (dans `packages/shared/src/balance.ts`) :
+- 24 joueurs par forêt, ~50 cases par joueur, départs à 85 % du rayon, anneaux à 1/3 et 2/3 du rayon ;
+- mélange de terrains par anneau, bord qui s'épuise 1,5× moins vite, 6 % de zones humides ;
+- `densité_réseau_local` = cases du joueur à 2 cases ou moins (pondérées par l'humidité) ; prise à
+  pleine vitesse dès que l'attaquant pousse 2× plus fort, rien sous l'égalité ; captures : Litière
+  10 min, Humus 45 min, Bois mort 2 h ; bonus de conquête = 1 h de production de la case en biomasse ;
+- les Trophées sont comptés et affichés mais ne s'ajoutent pas au score ;
+- le Cœur est imprenable (la perte du Cœur et le Sclérote viennent en M6) ;
+- la zone de départ (rayon 2) est réservée à son joueur pendant 24 h, et tant que la part est libre ;
+- « biomasse qui compte double au centre » et le reste des risques du centre sont laissés à M6.
+
+Constat avec 24 robots sur 37 h simulées : toute la forêt est occupée en moins d'une heure, 70 % des
+captures ont lieu dans les 6 premières heures, puis les fronts se figent ; les robots qui atteignent
+le centre finissent ~10× devant ceux restés au bord. Rééquilibrage de l'expansion à prévoir.
 
 ## M4 — Saison (0.5.0) — GDD §15.4
 
