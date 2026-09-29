@@ -25,15 +25,26 @@
         <span class="res-label" data-i18n="res.tiles"></span>
         <span class="res-value" id="tiles">1</span>
       </div>
+      <div class="res res-trophies">
+        <span class="res-label" data-i18n="res.trophies"></span>
+        <span class="res-value" id="trophies">0</span>
+      </div>
       <div class="res res-queue">
         <span class="res-label" data-i18n="res.queue"></span>
         <span class="res-value" id="queue">0/10</span>
       </div>
       <div class="topbar-end">
+        <span class="forest-label" id="forest-label"></span>
         <span class="player" id="player-name"></span>
+        <button type="button" class="ghost" id="logout-btn" data-i18n="account.logout"></button>
         <button type="button" class="ghost" id="lang-btn" data-i18n="lang.switch" data-i18n-aria="lang.switchLabel"></button>
       </div>
     </header>
+
+    <button type="button" class="panel mini-board" id="mini-board" data-i18n-aria="board.open">
+      <span class="mini-board-title"><span data-i18n="board.title"></span> <span id="mini-board-rank"></span></span>
+      <ol id="mini-board-rows"></ol>
+    </button>
 
     <aside class="panel upgrades" id="upgrades">
       <h2 data-i18n="upgrades.title"></h2>
@@ -71,18 +82,58 @@
       </div>
     </div>
 
-    <div class="overlay" id="guest" hidden>
-      <form class="guest-card" id="guest-form" novalidate>
-        <div class="guest-brand" id="guest-brand"></div>
+    <div class="overlay" id="auth" hidden>
+      <form class="guest-card" id="auth-form" novalidate>
+        <div class="guest-brand" id="auth-brand"></div>
         <p class="tagline" data-i18n="app.tagline"></p>
-        <h1 data-i18n="guest.title"></h1>
-        <p class="muted" data-i18n="guest.subtitle"></p>
-        <label for="guest-name" data-i18n="guest.nameLabel"></label>
-        <input id="guest-name" name="name" autocomplete="nickname" maxlength="20" required data-i18n-placeholder="guest.namePlaceholder" />
-        <small class="muted" data-i18n="guest.hint"></small>
-        <p class="error" id="guest-error" hidden></p>
-        <button type="submit" class="primary" data-i18n="guest.submit"></button>
+        <h1 data-i18n="auth.title"></h1>
+        <p class="muted" data-i18n="auth.subtitle"></p>
+        <div class="tabs" role="tablist">
+          <button type="button" role="tab" class="tab" id="tab-login" data-i18n="auth.loginTab"></button>
+          <button type="button" role="tab" class="tab" id="tab-register" data-i18n="auth.registerTab"></button>
+        </div>
+        <label for="auth-name" data-i18n="auth.nameLabel"></label>
+        <input id="auth-name" name="username" autocomplete="username" maxlength="20" required data-i18n-placeholder="auth.namePlaceholder" />
+        <small class="muted register-only" data-i18n="auth.nameHint"></small>
+        <label for="auth-password" data-i18n="auth.passwordLabel"></label>
+        <input id="auth-password" name="password" type="password" autocomplete="current-password" maxlength="200" required />
+        <small class="muted register-only" data-i18n="auth.passwordHint"></small>
+        <p class="error" id="auth-error" hidden></p>
+        <button type="submit" class="primary" id="auth-submit"></button>
       </form>
+    </div>
+
+    <div class="overlay" id="password" hidden>
+      <form class="guest-card" id="password-form" novalidate>
+        <h2 data-i18n="password.title"></h2>
+        <p class="muted" data-i18n="password.text"></p>
+        <label for="new-password" data-i18n="auth.passwordLabel"></label>
+        <input id="new-password" type="password" autocomplete="new-password" maxlength="200" required />
+        <small class="muted" data-i18n="auth.passwordHint"></small>
+        <p class="error" id="password-error" hidden></p>
+        <button type="submit" class="primary" data-i18n="password.submit"></button>
+        <button type="button" class="ghost" id="password-later" data-i18n="password.later"></button>
+      </form>
+    </div>
+
+    <div class="overlay" id="board" hidden>
+      <div class="guest-card board-card">
+        <h2 data-i18n="board.title"></h2>
+        <p class="muted" id="board-global"></p>
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th data-i18n="board.player"></th>
+              <th data-i18n="board.biomass"></th>
+              <th data-i18n="board.tiles"></th>
+              <th data-i18n="board.trophies"></th>
+            </tr>
+          </thead>
+          <tbody id="board-rows"></tbody>
+        </table>
+        <button type="button" class="primary" id="board-close" data-i18n="board.close"></button>
+      </div>
     </div>
 
     <script type="module" src="/src/main.ts"></script>

@@ -46,7 +46,7 @@ input {
 }
 
 /* The HUD only shows once a game is loaded. */
-body:not(.in-game) :is(.topbar, .upgrades, .tile-panel, .hint, .map-controls) {
+body:not(.in-game) :is(.topbar, .upgrades, .tile-panel, .hint, .map-controls, .mini-board) {
   display: none !important;
 }
 
@@ -390,9 +390,116 @@ button.ghost {
   color: var(--danger);
 }
 
+.toast.good {
+  border-color: rgba(198, 243, 110, 0.5);
+  color: var(--glow);
+}
+
 .status {
   top: 84px;
   color: var(--muted);
+}
+
+/* Leaderboard ------------------------------------------------------------ */
+
+.mini-board {
+  top: 86px;
+  left: 16px;
+  width: 250px;
+  padding: 10px 12px;
+  text-align: left;
+  font-family: system-ui, sans-serif;
+  font-size: 0.8rem;
+  border-radius: var(--radius);
+}
+
+.mini-board-title {
+  display: flex;
+  justify-content: space-between;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-size: 0.7rem;
+  margin-bottom: 6px;
+}
+
+.mini-board ol,
+.board-card tbody {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mini-board li {
+  display: grid;
+  grid-template-columns: 2.2em 12px 1fr auto;
+  gap: 6px;
+  align-items: center;
+  padding: 2px 0;
+}
+
+.mini-board li.me,
+.board-card tr.me {
+  color: var(--glow);
+  font-weight: 600;
+}
+
+.swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+.num {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  text-align: right;
+}
+
+.board-card {
+  width: min(620px, 100%);
+  max-height: 90vh;
+  overflow: auto;
+}
+
+.board-card table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: system-ui, sans-serif;
+  font-size: 0.88rem;
+}
+
+.board-card th,
+.board-card td {
+  padding: 6px 8px;
+  text-align: left;
+  border-bottom: 1px solid var(--panel-border);
+}
+
+.board-card th:nth-child(n + 3),
+.board-card td:nth-child(n + 3) {
+  text-align: right;
+}
+
+.forest-label {
+  color: var(--glow);
+  font-weight: 600;
+}
+
+.tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.tab[aria-selected="true"] {
+  background: var(--glow-soft);
+  border-color: rgba(198, 243, 110, 0.5);
+}
+
+#auth-form:not(.register) .register-only {
+  display: none;
 }
 
 /* Guest screen ----------------------------------------------------------- */
@@ -477,6 +584,8 @@ button.ghost {
   .brand,
   .res-tiles,
   .res-queue,
+  .res-trophies,
+  .forest-label,
   .player {
     display: none;
   }
@@ -519,6 +628,24 @@ button.ghost {
 
   .upgrades-toggle {
     display: block;
+  }
+
+  .mini-board {
+    top: auto;
+    left: auto;
+    right: 64px;
+    bottom: calc(12px + env(safe-area-inset-bottom));
+    width: auto;
+    padding: 6px 10px;
+  }
+
+  .mini-board ol {
+    display: none;
+  }
+
+  body.upgrades-open .mini-board,
+  body.tile-open .mini-board {
+    display: none;
   }
 
   body.upgrades-open .hint {

@@ -9,8 +9,10 @@ import {
   pixelToHex,
   type GameState,
   type Hex,
+  type OwnerInfo,
   type Terrain,
 } from "@mycelium/shared";
+import { playerColor } from "./colors";
 import { Application, Container, Graphics, Text } from "pixi.js";
 
 /** Circumradius of a hex in world pixels. */
@@ -44,6 +46,7 @@ export class MapView {
   private readonly queueLabels = new Container();
 
   private game: GameState | null = null;
+  private owners = new Map<string, OwnerInfo>();
   private terrainSignature = "";
   private networkSignature = "";
   private selected: Hex | null = null;
@@ -71,9 +74,10 @@ export class MapView {
     this.bindInput(this.app.canvas);
   }
 
-  setGame(game: GameState): void {
+  setGame(game: GameState, owners: OwnerInfo[] = []): void {
     const first = this.game === null;
     this.game = game;
+    for (const o of owners) this.owners.set(o.id, o);
     this.refreshNetwork();
     if (first) this.home();
   }
@@ -86,7 +90,7 @@ export class MapView {
     const game = this.game;
     if (!game) return;
     const tiles = [...game.tiles.values()];
-    const terrain = `${game.seed}:${tiles.map((t) => t.terrain[0]).join("")}`;
+    const terrain = tiles.map((t) => `${hexKey(t)}${t.terrain[0]}`).join("");
     if (terrain !== this.terrainSignature) {
       this.terrainSignature = terrain;
       this.drawTerrain(game);
@@ -95,8 +99,8 @@ export class MapView {
       hexKey(game.heart),
       game.queue.map(hexKey).join("|"),
       tiles
-        .filter((t) => t.owned || t.exhaustion > 0)
-        .map((t) => `${hexKey(t)}${t.owned ? "o" : ""}${t.growthEndsAt === null ? "" : "g"}${t.disconnectedSince === null ? "" : "x"}${Math.round(t.exhaustion * 20)}`)
+        .filter((t) => t.owner !== null || t.exhaustion > 0)
+        .map((t) => `${hexKey(t)}${t.owner ?? ""}${t.growthEndsAt === null ? "" : "g"}${t.disconnectedSince === null ? "" : "x"}${Math.round(t.exhaustion * 20)}`)
         .join(";"),
     ].join("#");
     if (signature === this.networkSignature) return;
@@ -113,7 +117,7 @@ export class MapView {
     this.zoomAt(width / 2, height / 2, factor);
   }
 
-  /** Centers the camera on the start tile at a comfortable zoom. */
+  /** Centers the camera on the Cœur at a comfortable zoom. */
   home(): void {
     if (!this.game) return;
     const { width, height } = this.app.screen;
@@ -129,6 +133,11 @@ export class MapView {
 
   private drawTerrain(game: GameState): void {
     const g = this.terrainLayer.clear();
+    if (game.layout.kind === "forest") {
+      // The forest beyond sight (GDD §2.1 fog): a dark disc with faint hex hints.
+      const r = (game.radius + 0.7) * SIZE * Math.sqrt(3);
+      g.circle(0, 0, r).fill({ color: 0x151812 }).stroke({ width: 2, color: 0x2a2f22 });
+    }
     for (const tile of game.tiles.values()) {
       const { x, y } = hexToPixel(tile, SIZE);
       const shade = 0.88 + 0.24 * hashFloat(game.seed, 11, tile.q, tile.r);
@@ -178,7 +187,14 @@ export class MapView {
       const { x, y } = hexToPixel(t, SIZE);
       // Exhaustion darkens the ground, owned or not (resting tiles recover slowly).
       if (t.exhaustion > 0.01) net.poly(hexPoints(x, y, SIZE - 1)).fill({ color: 0x000000, alpha: t.exhaustion * 0.45 });
-      if (!t.owned) continue;
+      if (t.owner === null) continue;
+      if (t.owner !== game.id) {
+        // Another player's tile.
+        const color = playerColor(this.owners.get(t.owner)?.color ?? 0);
+        net.poly(hexPoints(x, y, SIZE - 1)).fill({ color, alpha: t.disconnectedSince === null ? 0.42 : 0.2 });
+        net.poly(hexPoints(x, y, SIZE - 2.5)).stroke({ width: 1.5, color, alpha: 0.8 });
+        continue;
+      }
       if (t.growthEndsAt !== null) {
         net.poly(hexPoints(x, y, SIZE - 1)).fill({ color: GLOW, alpha: 0.07 });
       } else if (t.disconnectedSince !== null) {
@@ -218,7 +234,7 @@ export class MapView {
     const planned = new Set<string>();
     game.queue.forEach((h, i) => {
       const to = hexToPixel(h, SIZE);
-      const from = hexNeighbors(h).find((n) => game.tiles.get(hexKey(n))?.owned || planned.has(hexKey(n)));
+      const from = hexNeighbors(h).find((n) => game.tiles.get(hexKey(n))?.owner === game.id || planned.has(hexKey(n)));
       if (from) dotted(net, hexToPixel(from, SIZE), to);
       planned.add(hexKey(h));
       net.poly(hexPoints(to.x, to.y, SIZE - 5)).stroke({ width: 2, color: PLAN, alpha: 0.8 });
@@ -231,7 +247,7 @@ export class MapView {
 
     // Tiles that can be colonised or planned now.
     for (const t of game.tiles.values()) {
-      if (t.owned || !checkColonize(game, t).ok) continue;
+      if (t.owner !== null || !checkColonize(game, t).ok) continue;
       const { x, y } = hexToPixel(t, SIZE);
       frontier.poly(hexPoints(x, y, SIZE - 4)).stroke({ width: 2, color: GLOW, alpha: 0.9 });
     }
@@ -252,12 +268,12 @@ export class MapView {
 
     // Growing hyphae: a filament creeping from the network to the tile, and a progress ring.
     for (const t of game.tiles.values()) {
-      if (!t.owned || t.growthEndsAt === null) continue;
+      if (t.owner !== game.id || t.growthEndsAt === null) continue;
       const progress = growthProgress(t, now, game.upgrades);
       const to = hexToPixel(t, SIZE);
       const source = hexNeighbors(t)
         .map((n) => game.tiles.get(hexKey(n)))
-        .find((n) => n?.owned && n.growthEndsAt === null);
+        .find((n) => n?.owner === game.id && n.growthEndsAt === null);
       if (source) {
         const from = hexToPixel(source, SIZE);
         const x = from.x + (to.x - from.x) * progress;
@@ -268,6 +284,18 @@ export class MapView {
       const start = -Math.PI / 2;
       fx.moveTo(to.x + (SIZE * 0.55) * Math.cos(start), to.y + (SIZE * 0.55) * Math.sin(start));
       fx.arc(to.x, to.y, SIZE * 0.55, start, start + progress * Math.PI * 2).stroke({ width: 3, color: GLOW, alpha: 0.95 });
+    }
+
+    // Border captures (GDD §6.1): an arc showing how far the neighbour got.
+    for (const t of game.tiles.values()) {
+      if (!t.capture) continue;
+      const { x, y } = hexToPixel(t, SIZE);
+      const mine = t.capture.by === game.id;
+      const color = mine ? GLOW : t.owner === game.id ? WITHER : playerColor(this.owners.get(t.capture.by)?.color ?? 0);
+      const start = -Math.PI / 2;
+      const r = SIZE * 0.72;
+      fx.moveTo(x + r * Math.cos(start), y + r * Math.sin(start));
+      fx.arc(x, y, r, start, start + Math.min(1, t.capture.progress) * Math.PI * 2).stroke({ width: 4, color, alpha: 0.6 + 0.4 * pulse });
     }
 
     if (this.selected) {

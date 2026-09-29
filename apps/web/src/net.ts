@@ -1,8 +1,8 @@
-import type { ClientMessage, GuestError, GuestResponse, ServerMessage } from "@mycelium/shared";
+import type { AuthError, ClientMessage, ServerMessage, SessionResponse } from "@mycelium/shared";
 
 const TOKEN_KEY = "mycelium.guestToken";
 
-/** The guest token is the only identity of the M1 prototype; it lives in this browser. */
+/** The session token (or the guest token of an M1–M2 account) lives in this browser. */
 export function loadToken(): string | null {
   try {
     return localStorage.getItem(TOKEN_KEY);
@@ -27,19 +27,45 @@ export function clearToken(): void {
   }
 }
 
-export async function createGuest(name: string): Promise<{ ok: true; guest: GuestResponse } | { ok: false; error: GuestError | "network" }> {
+export async function signIn(
+  kind: "login" | "register",
+  name: string,
+  password: string,
+): Promise<{ ok: true; session: SessionResponse } | { ok: false; error: AuthError | "network" }> {
   try {
-    const res = await fetch("/api/guest", {
+    const res = await fetch(`/api/${kind}`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({ name, password }),
     });
-    if (res.status === 201) return { ok: true, guest: (await res.json()) as GuestResponse };
+    if (res.ok) return { ok: true, session: (await res.json()) as SessionResponse };
     const body = (await res.json().catch(() => ({}))) as { error?: string };
-    if (body.error === "invalid_name" || body.error === "name_taken") return { ok: false, error: body.error };
-    return { ok: false, error: "network" };
+    const known: AuthError[] = ["invalid_name", "name_taken", "weak_password", "wrong_credentials", "too_many_attempts"];
+    return { ok: false, error: known.includes(body.error as AuthError) ? (body.error as AuthError) : "network" };
   } catch {
     return { ok: false, error: "network" };
+  }
+}
+
+/** Sets the password of an account created as a guest. */
+export async function choosePassword(token: string, password: string): Promise<boolean> {
+  try {
+    const res = await fetch("/api/password", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+      body: JSON.stringify({ password }),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+export async function signOut(token: string): Promise<void> {
+  try {
+    await fetch("/api/logout", { method: "POST", headers: { authorization: `Bearer ${token}` } });
+  } catch {
+    // Signing out locally is enough if the server is unreachable.
   }
 }
 

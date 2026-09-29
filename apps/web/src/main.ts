@@ -15,6 +15,7 @@ import {
   hexEquals,
   hexKey,
   networkHops,
+  richness,
   ownedCount,
   productionRate,
   QUEUE_MAX,
@@ -26,16 +27,21 @@ import {
   UPGRADE_IDS,
   upgradeCost,
   type AwaySummary,
+  type CaptureNotice,
   type ClientMessage,
   type GameSnapshot,
+  type Leaderboard,
+  type LeaderboardEntry,
+  type OwnerInfo,
   type GameState,
   type Hex,
   type ServerMessage,
 } from "@mycelium/shared";
+import { cssColor, playerColor } from "./colors";
 import { formatDuration, formatNumber } from "./format";
 import { applyI18n, lang, locale, onLangChange, setLang, t, type MessageKey } from "./i18n";
 import { MapView } from "./map-view";
-import { clearToken, Connection, createGuest, loadToken, saveToken } from "./net";
+import { choosePassword, clearToken, Connection, loadToken, saveToken, signIn, signOut } from "./net";
 import "./style.css";
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -63,63 +69,136 @@ const ui = {
   hint: $("hint"),
   toast: $("toast"),
   status: $("status"),
-  guest: $("guest"),
-  guestForm: $<HTMLFormElement>("guest-form"),
-  guestName: $<HTMLInputElement>("guest-name"),
-  guestError: $("guest-error"),
+  auth: $("auth"),
+  authForm: $<HTMLFormElement>("auth-form"),
+  authName: $<HTMLInputElement>("auth-name"),
+  authPassword: $<HTMLInputElement>("auth-password"),
+  authError: $("auth-error"),
+  authSubmit: $<HTMLButtonElement>("auth-submit"),
+  tabLogin: $("tab-login"),
+  tabRegister: $("tab-register"),
+  password: $("password"),
+  passwordForm: $<HTMLFormElement>("password-form"),
+  newPassword: $<HTMLInputElement>("new-password"),
+  passwordError: $("password-error"),
+  forestLabel: $("forest-label"),
+  trophies: $("trophies"),
+  miniBoard: $("mini-board"),
+  miniBoardRank: $("mini-board-rank"),
+  miniBoardRows: $("mini-board-rows"),
+  board: $("board"),
+  boardGlobal: $("board-global"),
+  boardRows: $("board-rows"),
 };
 
 let game: GameState | null = null;
-/** serverTime − Date.now(), so predictions run on the server's clock. */
-let clockOffset = 0;
+/** Server clock at the last message, the local time it arrived, and the game speed (local testing). */
+let clock = { server: 0, local: 0, scale: 1 };
+let owners = new Map<string, OwnerInfo>();
+let board: Leaderboard | null = null;
+let forestNumber = 0;
+let token: string | null = loadToken();
+let authMode: "login" | "register" = "register";
 let selected: Hex | null = null;
 let connection: Connection | null = null;
 let mapView: MapView | null = null;
 let toastTimer: number | undefined;
 
-const serverNow = () => Date.now() + clockOffset;
+const serverNow = () => clock.server + (Date.now() - clock.local) * clock.scale;
 const fmt = (n: number) => formatNumber(n, locale());
 
 // ---------------------------------------------------------------------------
 // Static texts and language
 
 $("brand").textContent = GAME_NAME;
-$("guest-brand").textContent = GAME_NAME;
+$("auth-brand").textContent = GAME_NAME;
 $("version").textContent = t("footer.version", { version: __APP_VERSION__ });
 applyI18n(document);
 onLangChange(() => {
   applyI18n(document);
   $("version").textContent = t("footer.version", { version: __APP_VERSION__ });
   buildUpgradeList();
+  setAuthMode(authMode);
+  if (forestNumber) ui.forestLabel.textContent = t("forest.label", { number: forestNumber });
+  renderBoard();
   render();
 });
 $("lang-btn").addEventListener("click", () => setLang(lang() === "en" ? "fr" : "en"));
 
 // ---------------------------------------------------------------------------
-// Guest screen
+// Accounts (pseudo + password)
 
-function showGuest(): void {
-  ui.guest.hidden = false;
-  ui.guestName.focus();
+function showAuth(): void {
+  ui.auth.hidden = false;
+  setAuthMode(authMode);
+  ui.authName.focus();
 }
 
-ui.guestForm.addEventListener("submit", (e) => {
+function setAuthMode(mode: "login" | "register"): void {
+  authMode = mode;
+  ui.authForm.classList.toggle("register", mode === "register");
+  ui.tabLogin.setAttribute("aria-selected", String(mode === "login"));
+  ui.tabRegister.setAttribute("aria-selected", String(mode === "register"));
+  ui.authPassword.autocomplete = mode === "register" ? "new-password" : "current-password";
+  ui.authSubmit.textContent = t(mode === "register" ? "auth.submitRegister" : "auth.submitLogin");
+}
+
+ui.tabLogin.addEventListener("click", () => setAuthMode("login"));
+ui.tabRegister.addEventListener("click", () => setAuthMode("register"));
+
+ui.authForm.addEventListener("submit", (e) => {
   e.preventDefault();
-  const submit = ui.guestForm.querySelector("button")!;
-  submit.disabled = true;
-  ui.guestError.hidden = true;
-  void createGuest(ui.guestName.value.trim()).then((res) => {
-    submit.disabled = false;
+  ui.authSubmit.disabled = true;
+  ui.authError.hidden = true;
+  void signIn(authMode, ui.authName.value.trim(), ui.authPassword.value).then((res) => {
+    ui.authSubmit.disabled = false;
     if (!res.ok) {
-      ui.guestError.textContent = t(`guest.error.${res.error}`);
-      ui.guestError.hidden = false;
+      ui.authError.textContent = t(`auth.error.${res.error}`);
+      ui.authError.hidden = false;
       return;
     }
-    saveToken(res.guest.token);
-    ui.guest.hidden = true;
-    void startGame(res.guest.token);
+    token = res.session.token;
+    saveToken(token);
+    ui.authPassword.value = "";
+    ui.auth.hidden = true;
+    void startGame(token);
   });
 });
+
+ui.passwordForm.addEventListener("submit", (e) => {
+  e.preventDefault();
+  if (!token) return;
+  ui.passwordError.hidden = true;
+  void choosePassword(token, ui.newPassword.value).then((ok) => {
+    if (!ok) {
+      ui.passwordError.textContent = t("auth.error.weak_password");
+      ui.passwordError.hidden = false;
+      return;
+    }
+    ui.newPassword.value = "";
+    ui.password.hidden = true;
+    toast(t("password.done"));
+  });
+});
+$("password-later").addEventListener("click", () => (ui.password.hidden = true));
+
+$("logout-btn").addEventListener("click", () => {
+  const old = token;
+  leaveGame();
+  if (old) void signOut(old);
+});
+
+/** Back to the sign-in screen (signed out, or the saved session no longer exists). */
+function leaveGame(): void {
+  connection?.stop();
+  connection = null;
+  token = null;
+  game = null;
+  clearToken();
+  document.body.classList.remove("in-game");
+  setStatus(null);
+  showAuth();
+}
 
 // ---------------------------------------------------------------------------
 // Game
@@ -142,20 +221,24 @@ function onMessage(msg: ServerMessage): void {
     case "ready":
       document.body.classList.add("in-game");
       ui.player.textContent = msg.player.name;
-      applySnapshot(msg.game, msg.serverTime);
+      forestNumber = msg.forest.number;
+      ui.forestLabel.textContent = t("forest.label", { number: forestNumber });
+      clock.scale = msg.timeScale;
+      applySnapshot(msg.game, msg.owners, msg.serverTime);
       if (msg.away) showAway(msg.away);
+      if (msg.needsPassword) ui.password.hidden = false;
       break;
     case "state":
-      applySnapshot(msg.game, msg.serverTime);
+      applySnapshot(msg.game, msg.owners, msg.serverTime);
+      for (const e of msg.events) announce(e);
+      break;
+    case "leaderboard":
+      board = msg.leaderboard;
+      renderBoard();
       break;
     case "authError":
-      // The saved guest no longer exists (e.g. local server restarted without a database).
-      connection?.stop();
-      connection = null;
-      clearToken();
-      document.body.classList.remove("in-game");
-      setStatus(null);
-      showGuest();
+      // The saved session no longer exists (signed out elsewhere, or a local server without database restarted).
+      leaveGame();
       break;
     case "actionError":
       toast(t(`error.${msg.error}`));
@@ -163,20 +246,81 @@ function onMessage(msg: ServerMessage): void {
   }
 }
 
-function applySnapshot(snapshot: GameSnapshot, serverTime: number): void {
-  clockOffset = serverTime - Date.now();
+function applySnapshot(snapshot: GameSnapshot, list: OwnerInfo[], serverTime: number): void {
+  clock = { server: serverTime, local: Date.now(), scale: clock.scale };
+  for (const o of list) owners.set(o.id, o);
   game = fromSnapshot(snapshot);
-  mapView?.setGame(game);
+  mapView?.setGame(game, list);
   if (!ui.upgradeList.childElementCount) buildUpgradeList();
   render();
+}
+
+function announce(e: CaptureNotice): void {
+  const name = owners.get(e.other)?.name ?? "?";
+  toast(t(e.kind === "won" ? "capture.won" : "capture.lost", { name }), e.kind === "won" ? "good" : "bad");
 }
 
 function selectTile(h: Hex | null): void {
   selected = h;
   mapView?.select(h);
+  document.body.classList.toggle("tile-open", h !== null);
   if (h && window.matchMedia("(max-width: 760px)").matches) setUpgradesOpen(false);
   render();
 }
+
+// Leaderboard (GDD §8.1, §11: mini-leaderboard always visible)
+
+function boardRow(e: LeaderboardEntry): string[] {
+  return [String(e.rank), owners.get(e.id)?.name ?? e.name, fmt(e.biomass), String(e.tiles), String(e.trophies)];
+}
+
+function swatch(id: string): HTMLElement {
+  const sw = document.createElement("span");
+  sw.className = "swatch";
+  sw.style.background = game && id === game.id ? "var(--glow)" : cssColor(playerColor(owners.get(id)?.color ?? 0));
+  return sw;
+}
+
+function renderBoard(): void {
+  if (!board) return;
+  const me = game?.id;
+  ui.miniBoardRank.textContent = t("board.rank", { rank: board.rank, players: board.players });
+  ui.miniBoardRows.replaceChildren(
+    ...board.around.map((e) => {
+      const li = document.createElement("li");
+      li.classList.toggle("me", e.id === me);
+      const rank = document.createElement("span");
+      rank.textContent = `${e.rank}.`;
+      const name = document.createElement("span");
+      name.textContent = e.name;
+      const score = document.createElement("span");
+      score.className = "num";
+      score.textContent = fmt(e.biomass);
+      li.append(rank, swatch(e.id), name, score);
+      return li;
+    }),
+  );
+  ui.boardGlobal.textContent = t("board.global", { rank: board.global.rank, players: board.global.players });
+  const rows = [...board.top];
+  for (const e of board.around) if (!rows.some((r) => r.id === e.id)) rows.push(e);
+  ui.boardRows.replaceChildren(
+    ...rows.map((e) => {
+      const tr = document.createElement("tr");
+      tr.classList.toggle("me", e.id === me);
+      boardRow(e).forEach((v, i) => {
+        const td = document.createElement("td");
+        if (i === 1) td.append(swatch(e.id), " ");
+        td.append(v);
+        if (i >= 2) td.className = "num";
+        tr.append(td);
+      });
+      return tr;
+    }),
+  );
+}
+
+ui.miniBoard.addEventListener("click", () => (ui.board.hidden = false));
+$("board-close").addEventListener("click", () => (ui.board.hidden = true));
 
 // Two persistent buttons whose action is set on each render (rebuilding them would eat clicks).
 const actionButtons = [0, 1].map(() => {
@@ -242,6 +386,7 @@ function render(): void {
   ui.biomassRate.textContent = t("res.perSecond", { value: fmt(rate * conversionRate(game.upgrades)) });
   ui.tiles.textContent = String(ownedCount(game));
   ui.queue.textContent = `${game.queue.length}/${QUEUE_MAX}`;
+  ui.trophies.textContent = String(game.trophies);
 
   for (const li of ui.upgradeList.children) {
     const id = (li as HTMLElement).dataset.id!;
@@ -280,8 +425,25 @@ function renderTile(g: GameState): void {
 
   if (tile.terrain === "wetland") {
     note = t("tile.wetland");
-  } else if (tile.owned) {
+  } else if (tile.owner !== null && tile.owner !== g.id) {
+    // Another colony's tile: who holds it, and how the border fight goes.
+    const holder = owners.get(tile.owner)?.name ?? "?";
+    status = t("tile.ownerOther", { name: holder });
+    if (tile.capture) {
+      const pct = new Intl.NumberFormat(locale(), { style: "percent", maximumFractionDigits: 0 }).format(tile.capture.progress);
+      status =
+        tile.capture.by === g.id
+          ? t("tile.attacking", { percent: pct })
+          : t("tile.underAttack", { name: owners.get(tile.capture.by)?.name ?? "?", percent: pct });
+    }
+    facts.push(["tile.yield", t("tile.yieldValue", { value: fmt(tileYield(tile.terrain, g.upgrades) * richness(g, tile)) })]);
+    note = t("tile.border");
+  } else if (tile.owner === g.id) {
     tone = "good";
+    if (tile.capture) {
+      const pct = new Intl.NumberFormat(locale(), { style: "percent", maximumFractionDigits: 0 }).format(tile.capture.progress);
+      note = t("tile.underAttack", { name: owners.get(tile.capture.by)?.name ?? "?", percent: pct });
+    }
     if (tile.growthEndsAt !== null) {
       status = t("tile.growing", { time: formatDuration(tile.growthEndsAt - now) });
     } else if (tile.disconnectedSince !== null) {
@@ -306,7 +468,7 @@ function renderTile(g: GameState): void {
     }
     if (tile.terrain === "deadwood") note = t("tile.deadwoodNote");
   } else {
-    facts.push(["tile.yield", t("tile.yieldValue", { value: fmt(tileYield(tile.terrain, g.upgrades) * humidity(g, tile)) })]);
+    facts.push(["tile.yield", t("tile.yieldValue", { value: fmt(tileYield(tile.terrain, g.upgrades) * richness(g, tile) * humidity(g, tile)) })]);
     if (tile.exhaustion > 0.005) facts.push(["tile.exhaustion", percent(tile.exhaustion)]);
     facts.push(["tile.cost", fmt(colonizationCost(g, tile))]);
     facts.push(["tile.growth", formatDuration(growthDurationMs(tile.terrain, g.upgrades))]);
@@ -364,6 +526,8 @@ function showAway(away: AwaySummary): void {
   ui.awayTitle.textContent = t("away.title", { time: formatDuration(away.awayMs) });
   const lines = [t("away.nutrients", { value: fmt(away.nutrients) }), t("away.biomass", { value: fmt(away.biomass) })];
   if (away.colonized > 0) lines.push(t("away.colonized", { count: away.colonized }));
+  if (away.won > 0) lines.push(t("away.won", { count: away.won }));
+  if (away.lost > 0) lines.push(t("away.lost", { count: away.lost }));
   ui.awayList.replaceChildren(
     ...lines.map((line) => {
       const li = document.createElement("li");
@@ -380,8 +544,9 @@ function setStatus(key: MessageKey | null): void {
   if (key) ui.status.textContent = t(key);
 }
 
-function toast(text: string): void {
+function toast(text: string, tone: "good" | "bad" = "bad"): void {
   ui.toast.textContent = text;
+  ui.toast.classList.toggle("good", tone === "good");
   ui.toast.hidden = false;
   clearTimeout(toastTimer);
   toastTimer = window.setTimeout(() => (ui.toast.hidden = true), 2800);
@@ -397,6 +562,5 @@ setInterval(() => {
 
 // ---------------------------------------------------------------------------
 
-const token = loadToken();
 if (token) void startGame(token);
-else showGuest();
+else showAuth();
