@@ -12,6 +12,7 @@ pnpm install
 pnpm dev:server   # http://localhost:3000/api/health
 pnpm dev:web      # http://localhost:5173
 pnpm check        # typecheck + tests + migrations + build, comme la CI
+pnpm --filter @mycelium/shared simulate   # courbe d'une semaine solo (2 profils de joueurs)
 ```
 
 Postgres et Redis sont optionnels en local : sans `DATABASE_URL` / `REDIS_URL`, le serveur démarre et

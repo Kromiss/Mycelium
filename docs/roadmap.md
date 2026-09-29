@@ -13,7 +13,7 @@ des points de départ à équilibrer, centralisés dans `packages/shared`.
 |---|---|---|---|---|
 | M0 Fondations | 0.1.0 | — | Dépôt, CI, pipeline de déploiement | ✅ (VPS reporté) |
 | M1 Proto solo | 0.2.0 | étape 1 | Une carte, coloniser, produire, s'améliorer | ✅ |
-| M2 Réseau & transport | 0.3.0 | étape 2 | Cœur, pertes, épuisement, hors-ligne | à faire |
+| M2 Réseau & transport | 0.3.0 | étape 2 | Cœur, pertes, épuisement, hors-ligne | ✅ |
 | M3 Multijoueur minimal | 0.4.0 | étape 3 | Forêt partagée, frontières, classement | à faire |
 | M4 Saison | 0.5.0 | étape 4 | Semaine, phases journalières, wipe | à faire |
 | M5 Profondeur : économie | 0.6.0 | étape 5 | Structures, mutations, souches, fructification | à faire |
@@ -69,7 +69,10 @@ Livré en 0.2.0. Choix de réalisation à valider en équilibrage (tous dans `pa
 
 ## M2 — Réseau & transport (0.3.0) — GDD §15.2
 
-🔸 Décisions : valeurs de l'épuisement et de la régénération par terrain ; plafond de la file d'expansion.
+✅ Décidé : épuisement complet (90 %) en **2 h** pour la Litière, **8 h** pour l'Humus, **4 h** pour le
+Bois mort (qui devient alors de l'Humus) ; régénération au repos **4 fois plus lente** ; file d'expansion
+de **10 cases** ; hors-ligne **100 % pendant 8 h puis palier à 25 %** ; **zones humides** ajoutées
+(infranchissables, bonus d'humidité aux cases voisines).
 
 - Le **Cœur** : case de départ, déplaçable 1×/jour (§2.4).
 - **Graphe de transport** : perte de 1 % par saut jusqu'au Cœur ; cases **déconnectées** qui cessent
@@ -82,6 +85,20 @@ Livré en 0.2.0. Choix de réalisation à valider en équilibrage (tous dans `pa
 
 **Terminé quand** : un profil « 3 sessions de 10 min/jour » et un profil « 12 h/jour » simulés donnent
 des courbes cohérentes avec le pilier 2 du GDD.
+
+Livré en 0.3.0. Choix de réalisation à valider (dans `packages/shared/src/balance.ts`) :
+- valeurs provisoires : bonus d'humidité +25 %, 8 % de zones humides, perte plafonnée à 90 %,
+  case déconnectée perdue après 1 h ;
+- « une fois par jour » pour le Cœur = délai glissant de 24 h ;
+- la file se planifie en chemin (une case peut être voisine d'une case déjà en file), et une case qui
+  n'est plus atteignable quand vient son tour est retirée ;
+- le résumé d'absence est un avant-goût du Journal de la nuit (M6).
+
+Constat de la simulation (`pnpm --filter @mycelium/shared simulate`) : avec l'économie de M1, la carte
+solo de 331 cases est remplie dès le premier jour, puis la production plafonne vers 250 nutriments/s
+à cause de l'épuisement. On est loin de la courbe visée (~1e12 le dimanche), qui demandera la
+fructification et les multiplicateurs de M5 et un rééquilibrage des coûts. Le joueur 3 × 10 min finit
+avec ~50 % de la biomasse du joueur 12 h/jour.
 
 ## M3 — Multijoueur minimal (0.4.0) — GDD §15.3
 
