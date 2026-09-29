@@ -63,7 +63,7 @@ describe("simulation", () => {
     const ready = client.last("ready")!;
     expect(ready.player.name).toBe("Spore");
     expect(ready.game.nutrients).toBe(ECONOMY.startingNutrients);
-    expect(ready.game.owned).toEqual([{ q: 0, r: 0, growthEndsAt: null }]);
+    expect(ready.game.owned).toEqual([{ q: 0, r: 0, growthEndsAt: null, growthStartedAt: null }]);
   });
 
   it("produces on every tick and pushes the state", async () => {

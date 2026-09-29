@@ -5,6 +5,12 @@ versions [semver](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+### Fixed
+- Acheter « Croissance des hyphes » pendant une colonisation faisait reculer (voire repartir de zéro)
+  l'anneau de progression de la case en cours. Le début de chaque pousse est maintenant enregistré
+  (colonne `hex.growth_started_at`) et la progression s'appuie dessus. La durée réelle de la pousse
+  en cours n'a jamais changé : seul l'affichage était faux.
+
 ## [0.2.0] - 2026-09-29
 
 M1 — Proto solo (GDD §15.1).

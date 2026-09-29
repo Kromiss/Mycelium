@@ -13,6 +13,8 @@ export interface Tile extends Hex {
   owned: boolean;
   /** When owned: end of the hyphae growth (ms since epoch), or null once the tile is colonised. */
   growthEndsAt: number | null;
+  /** When growing: start of the hyphae growth (ms since epoch); null otherwise or if unknown. */
+  growthStartedAt: number | null;
 }
 
 export type Upgrades = Record<UpgradeId, number>;
@@ -63,7 +65,7 @@ export function newGame(seed: number, now: number, radius?: number): GameState {
   const tiles = new Map<string, Tile>();
   for (const t of map.tiles) {
     const isStart = t.q === START_HEX.q && t.r === START_HEX.r;
-    tiles.set(hexKey(t), { q: t.q, r: t.r, terrain: t.terrain, owned: isStart, growthEndsAt: null });
+    tiles.set(hexKey(t), { q: t.q, r: t.r, terrain: t.terrain, owned: isStart, growthEndsAt: null, growthStartedAt: null });
   }
   return {
     seed,
@@ -131,6 +133,21 @@ export function growthDurationMs(terrain: Terrain, upgrades: Upgrades): number {
   return Math.round(TERRAIN_STATS[terrain].growthSeconds * 1000 * factor);
 }
 
+/**
+ * Share of the hyphae growth done at `now`, from 0 to 1. It relies on the recorded start so that
+ * buying Croissance des hyphes during a growth does not move the progress backwards.
+ */
+export function growthProgress(tile: Tile, now: number, upgrades: Upgrades): number {
+  if (tile.growthEndsAt === null) return tile.owned ? 1 : 0;
+  const total =
+    tile.growthStartedAt !== null
+      ? tile.growthEndsAt - tile.growthStartedAt
+      : // Growths started before the start time was recorded: best estimate.
+        Math.max(growthDurationMs(tile.terrain, upgrades), tile.growthEndsAt - now);
+  if (total <= 0) return 1;
+  return Math.min(1, Math.max(0, 1 - (tile.growthEndsAt - now) / total));
+}
+
 /** `base × 1.15^level` (GDD §10). */
 export function upgradeCost(id: UpgradeId, level: number): number {
   return UPGRADE_STATS[id].baseCost * Math.pow(ECONOMY.upgradeCostGrowth, level);
@@ -165,6 +182,7 @@ export function colonize(state: GameState, h: Hex, now: number): ActionResult {
   const tile = state.tiles.get(hexKey(h))!;
   state.nutrients -= colonizationCost(state, tile);
   tile.owned = true;
+  tile.growthStartedAt = now;
   tile.growthEndsAt = now + growthDurationMs(tile.terrain, state.upgrades);
   return check;
 }
@@ -205,7 +223,10 @@ export function advance(state: GameState, to: number): void {
     t = until;
     if (next > to) break;
     for (const tile of state.tiles.values()) {
-      if (tile.growthEndsAt !== null && tile.growthEndsAt <= t) tile.growthEndsAt = null;
+      if (tile.growthEndsAt !== null && tile.growthEndsAt <= t) {
+        tile.growthEndsAt = null;
+        tile.growthStartedAt = null;
+      }
     }
   }
   state.updatedAt = to;

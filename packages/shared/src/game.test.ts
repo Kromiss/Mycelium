@@ -9,6 +9,7 @@ import {
   colonize,
   conversionRate,
   growthDurationMs,
+  growthProgress,
   newGame,
   productionRate,
   tileYield,
@@ -36,7 +37,7 @@ describe("new game", () => {
   it("owns only the start tile and has the starting nutrients", () => {
     const s = newGame(5, T0);
     const owned = [...s.tiles.values()].filter((t) => t.owned);
-    expect(owned).toEqual([{ q: 0, r: 0, terrain: "humus", owned: true, growthEndsAt: null }]);
+    expect(owned).toEqual([{ q: 0, r: 0, terrain: "humus", owned: true, growthEndsAt: null, growthStartedAt: null }]);
     expect(s.nutrients).toBe(ECONOMY.startingNutrients);
     expect(s.biomass).toBe(0);
     expect(Object.values(s.upgrades).every((l) => l === 0)).toBe(true);
@@ -95,6 +96,32 @@ describe("colonisation", () => {
     const t = tileAt(s, hex(0, 1));
     expect(t.owned).toBe(true);
     expect(t.growthEndsAt).toBe(T0 + TERRAIN_STATS.deadwood.growthSeconds * 1000);
+    expect(t.growthStartedAt).toBe(T0);
+  });
+
+  it("keeps the growth progress when Croissance des hyphes is bought meanwhile", () => {
+    const s = game("deadwood");
+    colonize(s, hex(0, 1), T0);
+    const t = tileAt(s, hex(0, 1));
+    const half = T0 + (t.growthEndsAt! - T0) / 2;
+    expect(growthProgress(t, half, s.upgrades)).toBeCloseTo(0.5, 10);
+    advance(s, half);
+    expect(buyUpgrade(s, "hyphalGrowth")).toEqual({ ok: true });
+    expect(growthProgress(t, half, s.upgrades)).toBeCloseTo(0.5, 10);
+    advance(s, t.growthEndsAt!);
+    expect(t.growthEndsAt).toBeNull();
+    expect(t.growthStartedAt).toBeNull();
+    expect(growthProgress(t, half, s.upgrades)).toBe(1);
+  });
+
+  it("estimates the progress of a growth without recorded start without going backwards", () => {
+    const s = game("deadwood");
+    colonize(s, hex(0, 1), T0);
+    const t = tileAt(s, hex(0, 1));
+    t.growthStartedAt = null;
+    s.upgrades.hyphalGrowth = 5;
+    expect(growthProgress(t, T0, s.upgrades)).toBe(0);
+    expect(growthProgress(t, t.growthEndsAt!, s.upgrades)).toBe(1);
   });
 
   it("limits simultaneous growths", () => {
