@@ -11,7 +11,7 @@ des points de départ à équilibrer, centralisés dans `packages/shared`.
 
 | Jalon | Version | GDD §15 | Objectif | Statut |
 |---|---|---|---|---|
-| M0 Fondations | 0.1.0 | — | Dépôt, CI, pipeline de déploiement | ✅ sauf VPS |
+| M0 Fondations | 0.1.0 | — | Dépôt, CI, pipeline de déploiement | ✅ (VPS reporté) |
 | M1 Proto solo | 0.2.0 | étape 1 | Une carte, coloniser, produire, s'améliorer | à faire |
 | M2 Réseau & transport | 0.3.0 | étape 2 | Cœur, pertes, épuisement, hors-ligne | à faire |
 | M3 Multijoueur minimal | 0.4.0 | étape 3 | Forêt partagée, frontières, classement | à faire |
@@ -30,13 +30,15 @@ des points de départ à équilibrer, centralisés dans `packages/shared`.
 - [x] CI, déploiement prod et staging, releases, `CLAUDE.md`.
 - [x] Ruleset sur `main` et `dev` (PR + check `check`), environnements `production` et `staging`.
 - [ ] VPS, domaine, `.env`, secrets des environnements, `DEPLOY_ENABLED` (`docs/deploy.md`).
+  **Reporté** : on développe et on teste en local dans le navigateur (`pnpm dev:server` + `pnpm dev:web`)
+  jusqu'à ce qu'on ait besoin de jouer à plusieurs à distance (au plus tard avant les tests de M3).
 
 **Terminé quand** : `https://<domaine>/api/health` répond `ok` après un merge sur `main`.
 
 ## M1 — Proto solo (0.2.0) — GDD §15.1
 
-🔸 Décisions : les **3 terrains** du proto (parmi §2.2) et leurs valeurs ; les **5 améliorations** du
-proto ; identité joueur minimale (invité + pseudo suffit ?).
+✅ Décidé : terrains du proto = **Humus, Litière de feuilles, Bois mort**.
+🔸 Décisions : les **5 améliorations** du proto ; identité joueur minimale (invité + pseudo suffit ?).
 
 - Générateur de carte hexagonale depuis une **graine** (§2.1), déterministe et testé. Pour le proto, une
   carte simple suffit : la forme finale dépend de la décision sur les secteurs (M3).
@@ -125,15 +127,16 @@ world boss partagé, sans qu'un joueur absent perde tout.
 
 ## M7 — Social (0.8.0) — GDD §15.6
 
-🔸 Décisions (questions restantes du GDD §14) : **chat de forêt en jeu ou tout sur Discord ?** ;
-canal des notifications (navigateur, e-mail…).
+✅ Décidé : **chat de forêt en jeu + messages privés** (pas de Discord).
+🔸 Décision : canal des notifications (navigateur, e-mail…).
 
 - **Pactes de symbiose** à 2-4, rupture avec malus « Réseau tâché », échanges via Signaux chimiques,
   classement d'alliance (§6.3).
 - **Classements secondaires** (territoire, conquêtes, world boss, alliance, efficacité, §8.1).
 - **Ligues** Bronze → Mycélium Primordial, promotion / relégation hebdomadaire (§8.3).
 - **Récompenses conservées** : titres, couleurs de réseau, skins de carpophores, déblocage de souches (§8.2).
-- Chat et messages si la décision est « en jeu ».
+- **Chat de forêt** et **messages privés** en temps réel, avec historique et modération minimale
+  (anti-spam, signalement, mise en sourdine).
 
 **Terminé quand** : une alliance se forme, se trahit, et les récompenses de fin de saison apparaissent
 bien sur le compte après le wipe.
