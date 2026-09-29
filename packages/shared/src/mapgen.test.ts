@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { MAP, TERRAINS } from "./balance";
-import { hexDistance, hexKey } from "./hex";
+import { LAND_TERRAINS, MAP } from "./balance";
+import { hexDistance, hexKey, hexNeighbors } from "./hex";
 import { generateMap, START_HEX } from "./mapgen";
 import { hashInts, mulberry32 } from "./rng";
 
@@ -48,22 +48,51 @@ describe("map generator", () => {
     }
   });
 
-  it("respects the terrain proportions", () => {
+  it("respects the land terrain proportions", () => {
     const map = generateMap(2024);
-    const n = map.tiles.length;
-    for (const t of TERRAINS) {
-      const share = map.tiles.filter((x) => x.terrain === t).length / n;
+    const land = map.tiles.filter((t) => t.terrain !== "wetland");
+    for (const t of LAND_TERRAINS) {
+      const share = land.filter((x) => x.terrain === t).length / land.length;
       expect(Math.abs(share - MAP.terrainWeights[t])).toBeLessThan(0.01);
+    }
+  });
+
+  it("adds wetlands away from the start", () => {
+    for (const seed of [1, 2, 3, 4, 5, 6, 7, 8]) {
+      const map = generateMap(seed);
+      const wet = map.tiles.filter((t) => t.terrain === "wetland");
+      expect(wet.length / map.tiles.length).toBeGreaterThanOrEqual(MAP.wetlandShare - 0.005);
+      expect(wet.length / map.tiles.length).toBeLessThan(MAP.wetlandShare + 0.06);
+      expect(wet.every((t) => hexDistance(t, START_HEX) > MAP.wetlandFreeRadius)).toBe(true);
+    }
+  });
+
+  it("never cuts land off from the start", () => {
+    for (const seed of [11, 12, 13, 14, 15, 16, 17, 18, 19, 20]) {
+      const map = generateMap(seed);
+      const land = new Set(map.tiles.filter((t) => t.terrain !== "wetland").map(hexKey));
+      const seen = new Set([hexKey(START_HEX)]);
+      const stack = [START_HEX];
+      while (stack.length) {
+        for (const n of hexNeighbors(stack.pop()!)) {
+          if (land.has(hexKey(n)) && !seen.has(hexKey(n))) {
+            seen.add(hexKey(n));
+            stack.push(n);
+          }
+        }
+      }
+      expect(seen.size).toBe(land.size);
     }
   });
 
   it("groups terrains in patches", () => {
     // With patches, a tile shares its terrain with its neighbours more often than by chance (~0.36).
     const map = generateMap(77);
-    const byKey = new Map(map.tiles.map((t) => [hexKey(t), t.terrain]));
+    const land = map.tiles.filter((t) => t.terrain !== "wetland");
+    const byKey = new Map(land.map((t) => [hexKey(t), t.terrain]));
     let same = 0;
     let pairs = 0;
-    for (const t of map.tiles) {
+    for (const t of land) {
       for (const n of [
         { q: t.q + 1, r: t.r },
         { q: t.q, r: t.r + 1 },

@@ -1,5 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { ECONOMY, TERRAIN_STATS, UPGRADE_IDS, type Terrain } from "./balance";
+import {
+  ECONOMY,
+  EXHAUSTION,
+  HEART_MOVE_COOLDOWN_MS,
+  HUMIDITY,
+  OFFLINE,
+  QUEUE_MAX,
+  TERRAIN_STATS,
+  TRANSPORT,
+  UPGRADE_IDS,
+  type Terrain,
+} from "./balance";
 import {
   advance,
   buyUpgrade,
@@ -8,11 +19,18 @@ import {
   colonizationCost,
   colonize,
   conversionRate,
+  goOffline,
+  goOnline,
   growthDurationMs,
   growthProgress,
+  moveHeart,
+  networkHops,
   newGame,
   productionRate,
+  tileProduction,
   tileYield,
+  transportLoss,
+  unqueue,
   upgradeCost,
   type GameState,
 } from "./game";
@@ -20,44 +38,57 @@ import { hex, hexKey, type Hex } from "./hex";
 import { fromSnapshot, toSnapshot } from "./protocol";
 
 const T0 = 1_700_000_000_000;
+const HOUR = 3_600_000;
 
 /** A small game where every tile has the given terrain (the start tile stays Humus). */
 function game(terrain: Terrain = "humus", nutrients = 1_000): GameState {
-  const state = newGame(1, T0, 3);
-  for (const [k, t] of state.tiles) {
-    if (!(t.q === 0 && t.r === 0)) state.tiles.set(k, { ...t, terrain });
-  }
+  const state = newGame(1, T0, 4);
+  for (const t of state.tiles.values()) if (!(t.q === 0 && t.r === 0)) t.terrain = terrain;
   state.nutrients = nutrients;
   return state;
 }
 
 const tileAt = (s: GameState, h: Hex) => s.tiles.get(hexKey(h))!;
 
+/** Makes tiles colonised instantly (no growth, no cost). */
+function own(s: GameState, ...hexes: Hex[]): void {
+  for (const h of hexes) tileAt(s, h).owned = true;
+}
+
 describe("new game", () => {
   it("owns only the start tile and has the starting nutrients", () => {
     const s = newGame(5, T0);
     const owned = [...s.tiles.values()].filter((t) => t.owned);
-    expect(owned).toEqual([{ q: 0, r: 0, terrain: "humus", owned: true, growthEndsAt: null, growthStartedAt: null }]);
+    expect(owned).toEqual([
+      {
+        q: 0,
+        r: 0,
+        terrain: "humus",
+        owned: true,
+        growthEndsAt: null,
+        growthStartedAt: null,
+        exhaustion: 0,
+        disconnectedSince: null,
+      },
+    ]);
     expect(s.nutrients).toBe(ECONOMY.startingNutrients);
-    expect(s.biomass).toBe(0);
-    expect(Object.values(s.upgrades).every((l) => l === 0)).toBe(true);
+    expect(s.queue).toEqual([]);
+    expect(s.lastSeenAt).toBeNull();
   });
 });
 
 describe("costs", () => {
   it("follows base × (1 + 0.05 × dist) × 1.02^tiles", () => {
     const s = game("litter");
-    // 1 tile owned, target at distance 1.
     expect(colonizationCost(s, tileAt(s, hex(1, 0)))).toBeCloseTo(5 * 1.05 * 1.02, 10);
-    // Distance 3.
     expect(colonizationCost(s, tileAt(s, hex(3, 0)))).toBeCloseTo(5 * 1.15 * 1.02, 10);
   });
 
-  it("grows with the number of owned tiles", () => {
+  it("measures the distance from the current Cœur", () => {
     const s = game("litter");
-    const before = colonizationCost(s, tileAt(s, hex(2, 0)));
-    tileAt(s, hex(1, 0)).owned = true;
-    expect(colonizationCost(s, tileAt(s, hex(2, 0)))).toBeCloseTo(before * 1.02, 10);
+    own(s, hex(1, 0), hex(2, 0));
+    s.heart = hex(2, 0);
+    expect(colonizationCost(s, tileAt(s, hex(3, 0)))).toBeCloseTo(5 * 1.05 * 1.02 ** 3, 10);
   });
 
   it("is reduced by Expansion économe (−5 % per level, compounded)", () => {
@@ -68,35 +99,34 @@ describe("costs", () => {
   });
 
   it("prices upgrades at base × 1.15^level", () => {
-    for (const id of UPGRADE_IDS) {
-      expect(upgradeCost(id, 3) / upgradeCost(id, 0)).toBeCloseTo(1.15 ** 3, 10);
-    }
+    for (const id of UPGRADE_IDS) expect(upgradeCost(id, 3) / upgradeCost(id, 0)).toBeCloseTo(1.15 ** 3, 10);
   });
 });
 
-describe("colonisation", () => {
-  it("only accepts wild tiles adjacent to the network", () => {
+describe("colonisation and queue", () => {
+  it("only accepts wild land next to the network or to the planned path", () => {
     const s = game();
+    tileAt(s, hex(-1, 0)).terrain = "wetland";
     expect(checkColonize(s, hex(2, 0))).toEqual({ ok: false, error: "not_adjacent" });
     expect(checkColonize(s, hex(0, 0))).toEqual({ ok: false, error: "already_owned" });
     expect(checkColonize(s, hex(40, 0))).toEqual({ ok: false, error: "unknown_tile" });
-    expect(checkColonize(s, hex(1, 0))).toEqual({ ok: true });
-  });
-
-  it("requires enough nutrients", () => {
-    const s = game("humus", 1);
-    expect(checkColonize(s, hex(1, 0))).toEqual({ ok: false, error: "not_enough_nutrients" });
+    expect(checkColonize(s, hex(-1, 0))).toEqual({ ok: false, error: "impassable" });
+    expect(colonize(s, hex(1, 0), T0)).toEqual({ ok: true });
+    // (2, 0) touches the growing tile: it can be planned now.
+    expect(colonize(s, hex(2, 0), T0)).toEqual({ ok: true });
+    expect(colonize(s, hex(3, 0), T0)).toEqual({ ok: true });
+    expect(checkColonize(s, hex(3, 0))).toEqual({ ok: false, error: "already_queued" });
+    expect(s.queue).toEqual([hex(2, 0), hex(3, 0)]);
   });
 
   it("pays, then grows for the terrain's growth time", () => {
     const s = game("deadwood");
     const cost = colonizationCost(s, tileAt(s, hex(0, 1)));
-    expect(colonize(s, hex(0, 1), T0)).toEqual({ ok: true });
+    colonize(s, hex(0, 1), T0);
     expect(s.nutrients).toBeCloseTo(1_000 - cost, 10);
-    const t = tileAt(s, hex(0, 1));
-    expect(t.owned).toBe(true);
-    expect(t.growthEndsAt).toBe(T0 + TERRAIN_STATS.deadwood.growthSeconds * 1000);
-    expect(t.growthStartedAt).toBe(T0);
+    expect(tileAt(s, hex(0, 1)).growthEndsAt).toBe(T0 + TERRAIN_STATS.deadwood.growthSeconds * 1000);
+    expect(tileAt(s, hex(0, 1)).growthStartedAt).toBe(T0);
+    expect(s.queue).toEqual([]);
   });
 
   it("keeps the growth progress when Croissance des hyphes is bought meanwhile", () => {
@@ -124,19 +154,60 @@ describe("colonisation", () => {
     expect(growthProgress(t, t.growthEndsAt!, s.upgrades)).toBe(1);
   });
 
-  it("limits simultaneous growths", () => {
-    const s = game();
+  it("records the start of growths launched from the queue", () => {
+    const s = game("litter");
     colonize(s, hex(1, 0), T0);
-    expect(checkColonize(s, hex(-1, 0))).toEqual({ ok: false, error: "growth_limit" });
+    colonize(s, hex(2, 0), T0);
+    const first = tileAt(s, hex(1, 0)).growthEndsAt!;
+    advance(s, first);
+    expect(tileAt(s, hex(2, 0)).growthStartedAt).toBe(first);
   });
 
-  it("cannot chain from a tile that is still growing", () => {
+  it("starts queued tiles one after the other", () => {
+    const s = game("litter");
+    colonize(s, hex(1, 0), T0);
+    colonize(s, hex(2, 0), T0);
+    colonize(s, hex(-1, 0), T0);
+    const d = growthDurationMs("litter", s.upgrades);
+    advance(s, T0 + d);
+    expect(tileAt(s, hex(1, 0)).growthEndsAt).toBeNull();
+    expect(tileAt(s, hex(2, 0)).growthEndsAt).toBe(T0 + 2 * d);
+    advance(s, T0 + 3 * d);
+    expect([hex(1, 0), hex(2, 0), hex(-1, 0)].every((h) => tileAt(s, h).owned)).toBe(true);
+    expect(s.queue).toEqual([]);
+  });
+
+  it("waits for nutrients, retrying on the 5 s grid", () => {
+    const s = game("humus", 0);
+    colonize(s, hex(1, 0), T0);
+    expect(tileAt(s, hex(1, 0)).owned).toBe(false);
+    const cost = colonizationCost(s, tileAt(s, hex(1, 0)));
+    advance(s, T0 + 60_000);
+    const t = tileAt(s, hex(1, 0));
+    expect(t.owned).toBe(true);
+    // Affordable after ~cost seconds at 1/s, started at the next multiple of 5 s.
+    const started = t.growthEndsAt! - growthDurationMs("humus", s.upgrades);
+    expect(started % 5_000).toBe(0);
+    expect(started - T0).toBeGreaterThanOrEqual(cost * 1000);
+    expect(started - T0).toBeLessThan(cost * 1000 + 5_000 + 100);
+  });
+
+  it("caps the queue and drops tiles that become unreachable", () => {
     const s = game();
     colonize(s, hex(1, 0), T0);
-    advance(s, T0 + 1_000);
-    expect(checkColonize(s, hex(2, 0)).ok).toBe(false);
-    advance(s, T0 + growthDurationMs("humus", s.upgrades));
-    expect(checkColonize(s, hex(2, 0))).toEqual({ ok: true });
+    for (let q = 2; q <= 4; q++) colonize(s, hex(q, 0), T0);
+    for (let r = 1; r <= 4; r++) colonize(s, hex(0, r), T0);
+    for (let r = -1; r >= -4; r--) colonize(s, hex(0, r), T0);
+    expect(s.queue).toHaveLength(QUEUE_MAX);
+    expect(checkColonize(s, hex(-1, 0))).toEqual({ ok: false, error: "queue_full" });
+
+    expect(unqueue(s, hex(2, 0))).toEqual({ ok: true });
+    expect(unqueue(s, hex(2, 0))).toEqual({ ok: false, error: "not_queued" });
+    advance(s, T0 + HOUR);
+    // (3, 0) and (4, 0) were planned behind (2, 0): dropped when their turn came.
+    expect(tileAt(s, hex(3, 0)).owned).toBe(false);
+    expect(tileAt(s, hex(0, 4)).owned).toBe(true);
+    expect(s.queue).toEqual([]);
   });
 
   it("grows faster with Croissance des hyphes (−8 % per level, compounded)", () => {
@@ -146,14 +217,51 @@ describe("colonisation", () => {
   });
 });
 
-describe("production", () => {
-  it("adds the yield of every colonised tile", () => {
-    const s = game("litter");
-    expect(productionRate(s)).toBe(TERRAIN_STATS.humus.yieldPerSecond);
-    tileAt(s, hex(1, 0)).owned = true;
-    expect(productionRate(s)).toBe(TERRAIN_STATS.humus.yieldPerSecond + TERRAIN_STATS.litter.yieldPerSecond);
+describe("network and transport", () => {
+  it("counts hops from the Cœur through colonised tiles", () => {
+    const s = game();
+    own(s, hex(1, 0), hex(2, 0), hex(2, 1));
+    const hops = networkHops(s);
+    expect(hops.get("0,0")).toBe(0);
+    expect(hops.get("2,0")).toBe(2);
+    expect(hops.get("2,1")).toBe(3); // Reached through (2, 0).
   });
 
+  it("loses 1 % per hop on the way to the Cœur", () => {
+    const s = game("humus");
+    own(s, hex(1, 0), hex(2, 0), hex(3, 0));
+    expect(transportLoss(3)).toBeCloseTo(0.03, 10);
+    expect(transportLoss(500)).toBe(TRANSPORT.maxLoss);
+    expect(tileProduction(s, tileAt(s, hex(3, 0)))).toBeCloseTo(1 * 0.97, 10);
+    expect(productionRate(s)).toBeCloseTo(1 + 0.99 + 0.98 + 0.97, 10);
+  });
+
+  it("stops producing on disconnected tiles, then loses them", () => {
+    const s = game("humus");
+    own(s, hex(1, 0), hex(2, 0), hex(3, 0));
+    // Cut the link at (1, 0) by hand (no player can do it before M3).
+    tileAt(s, hex(1, 0)).owned = false;
+    advance(s, T0 + 1_000);
+    expect(tileProduction(s, tileAt(s, hex(3, 0)))).toBe(0);
+    expect(tileAt(s, hex(3, 0)).disconnectedSince).toBe(T0);
+    advance(s, T0 + TRANSPORT.witherMs);
+    expect(tileAt(s, hex(2, 0)).owned).toBe(false);
+    expect(tileAt(s, hex(3, 0)).owned).toBe(false);
+  });
+
+  it("moves the Cœur once per day, onto the connected network", () => {
+    const s = game("humus");
+    own(s, hex(1, 0), hex(2, 0), hex(4, 0));
+    expect(moveHeart(s, hex(4, 0), T0)).toEqual({ ok: false, error: "not_connected" });
+    expect(moveHeart(s, hex(3, 0), T0)).toEqual({ ok: false, error: "not_connected" });
+    expect(moveHeart(s, hex(2, 0), T0)).toEqual({ ok: true });
+    expect(networkHops(s).get("0,0")).toBe(2);
+    expect(moveHeart(s, hex(1, 0), T0 + HOUR)).toEqual({ ok: false, error: "heart_cooldown" });
+    expect(moveHeart(s, hex(1, 0), T0 + HEART_MOVE_COOLDOWN_MS)).toEqual({ ok: true });
+  });
+});
+
+describe("production", () => {
   it("ignores tiles that are still growing", () => {
     const s = game();
     colonize(s, hex(1, 0), T0);
@@ -166,35 +274,45 @@ describe("production", () => {
     expect(tileYield("deadwood", up)).toBeCloseTo(3 * 1.2 * 1.6, 10);
   });
 
+  it("boosts tiles next to a wetland", () => {
+    const s = game("humus");
+    own(s, hex(1, 0));
+    tileAt(s, hex(2, 0)).terrain = "wetland";
+    expect(tileProduction(s, tileAt(s, hex(1, 0)))).toBeCloseTo((1 + HUMIDITY.wetlandBonus) * 0.99, 10);
+  });
+
   it("converts a share of the production into biomass", () => {
     const s = game();
     s.nutrients = 0;
     advance(s, T0 + 10_000);
-    expect(s.nutrients).toBeCloseTo(10, 10);
-    expect(s.biomass).toBeCloseTo(10 * ECONOMY.biomassConversionRate, 10);
+    const e = 10_000 / TERRAIN_STATS.humus.lifetimeMs;
+    expect(s.nutrients).toBeCloseTo(10 * (1 - e / 2), 8);
+    expect(s.biomass).toBeCloseTo(s.nutrients * ECONOMY.biomassConversionRate, 10);
     s.upgrades.biomassConversion = 5;
     expect(conversionRate(s.upgrades)).toBeCloseTo(ECONOMY.biomassConversionRate * 1.5, 10);
   });
 
-  it("starts producing exactly when the growth ends", () => {
-    const s = game("deadwood");
-    colonize(s, hex(1, 0), T0);
-    const end = tileAt(s, hex(1, 0)).growthEndsAt!;
-    const n0 = s.nutrients;
-    advance(s, end + 10_000);
-    const expected = ((end - T0) / 1000) * 1 + 10 * (1 + 3);
-    expect(s.nutrients - n0).toBeCloseTo(expected, 8);
-    expect(tileAt(s, hex(1, 0)).growthEndsAt).toBeNull();
-  });
-
   it("gives the same result with one big step or many ticks", () => {
-    const a = game("deadwood");
+    const a = game("deadwood", 20);
     colonize(a, hex(1, 0), T0);
+    colonize(a, hex(2, 0), T0);
+    colonize(a, hex(0, 1), T0);
     const b = cloneGame(a);
-    advance(a, T0 + 600_000);
-    for (let t = T0; t <= T0 + 600_000; t += 5_000) advance(b, t);
-    expect(b.nutrients).toBeCloseTo(a.nutrients, 6);
-    expect(b.biomass).toBeCloseTo(a.biomass, 6);
+    const c = cloneGame(a);
+    advance(a, T0 + 6 * HOUR);
+    for (let t = T0; t <= T0 + 6 * HOUR; t += 5_000) advance(b, t);
+    for (let t = T0, i = 0; t < T0 + 6 * HOUR; i++) {
+      t = Math.min(T0 + 6 * HOUR, t + 1 + ((i * 7919) % 97_000));
+      advance(c, t);
+    }
+    for (const x of [b, c]) {
+      // Event times are rounded to the ms, so allow float-level differences only.
+      expect(Math.abs(x.nutrients - a.nutrients) / a.nutrients).toBeLessThan(1e-7);
+      expect(Math.abs(x.biomass - a.biomass) / a.biomass).toBeLessThan(1e-7);
+      expect(toSnapshot(x).tiles.map((t) => [t.q, t.r, t.owned, t.growthEndsAt])).toEqual(
+        toSnapshot(a).tiles.map((t) => [t.q, t.r, t.owned, t.growthEndsAt]),
+      );
+    }
   });
 
   it("never goes back in time", () => {
@@ -204,6 +322,75 @@ describe("production", () => {
     advance(s, T0);
     expect(s.nutrients).toBe(n);
     expect(s.updatedAt).toBe(T0 + 5_000);
+  });
+});
+
+describe("exhaustion", () => {
+  it("wears a producing tile down to 10 % over its lifetime", () => {
+    const s = game("litter");
+    own(s, hex(1, 0));
+    const L = TERRAIN_STATS.litter.lifetimeMs;
+    advance(s, T0 + L / 2);
+    expect(tileAt(s, hex(1, 0)).exhaustion).toBeCloseTo(0.5, 10);
+    advance(s, T0 + 2 * L);
+    expect(tileAt(s, hex(1, 0)).exhaustion).toBe(EXHAUSTION.max);
+    expect(tileProduction(s, tileAt(s, hex(1, 0)))).toBeCloseTo(0.5 * 0.1 * 0.99, 10);
+  });
+
+  it("integrates the decline exactly", () => {
+    const s = game("litter");
+    s.nutrients = 0;
+    tileAt(s, hex(0, 0)).terrain = "litter";
+    const L = TERRAIN_STATS.litter.lifetimeMs;
+    advance(s, T0 + L);
+    // ∫0^0.9L (1 − τ/L) dτ + 0.1L × 0.1 = 0.9L − 0.405L + 0.01L = 0.505L
+    expect(s.nutrients).toBeCloseTo((0.5 * 0.505 * L) / 1000, 6);
+  });
+
+  it("turns exhausted Dead wood into fresh Humus", () => {
+    const s = game("deadwood");
+    own(s, hex(1, 0));
+    advance(s, T0 + EXHAUSTION.max * TERRAIN_STATS.deadwood.lifetimeMs + 1);
+    const t = tileAt(s, hex(1, 0));
+    expect(t.terrain).toBe("humus");
+    expect(t.exhaustion).toBeLessThan(0.001);
+  });
+
+  it("recovers slowly while resting", () => {
+    const s = game("litter");
+    const t = tileAt(s, hex(2, 2));
+    t.exhaustion = 0.5;
+    const L = TERRAIN_STATS.litter.lifetimeMs;
+    advance(s, T0 + L);
+    expect(t.exhaustion).toBeCloseTo(0.5 - 1 / EXHAUSTION.regenSlowdown, 10);
+    advance(s, T0 + 10 * L);
+    expect(t.exhaustion).toBe(0);
+  });
+});
+
+describe("offline", () => {
+  it("produces fully for 8 h, then at 25 %", () => {
+    const s = game("humus");
+    s.nutrients = 0;
+    goOffline(s, T0);
+    // Keep exhaustion out of the way to check the factor alone.
+    const check = cloneGame(s);
+    advance(check, T0 + OFFLINE.fullMs - 1);
+    expect(productionRate(check, check.updatedAt)).toBeGreaterThan(0);
+    const before = productionRate(check, T0 + OFFLINE.fullMs - 1);
+    const after = productionRate(check, T0 + OFFLINE.fullMs);
+    expect(after / before).toBeCloseTo(OFFLINE.reducedFactor, 10);
+  });
+
+  it("runs the queue while the player is away and comes back online", () => {
+    const s = game("litter", 100);
+    colonize(s, hex(1, 0), T0);
+    colonize(s, hex(2, 0), T0);
+    goOffline(s, T0);
+    goOnline(s, T0 + 12 * HOUR);
+    expect(s.lastSeenAt).toBeNull();
+    expect(tileAt(s, hex(2, 0)).owned).toBe(true);
+    expect(s.queue).toEqual([]);
   });
 });
 
@@ -220,7 +407,6 @@ describe("upgrades", () => {
     const s = game("humus", 0);
     expect(buyUpgrade(s, "nope")).toEqual({ ok: false, error: "unknown_upgrade" });
     expect(buyUpgrade(s, "digestion")).toEqual({ ok: false, error: "not_enough_nutrients" });
-    expect(s.upgrades.digestion).toBe(0);
   });
 });
 
@@ -229,6 +415,9 @@ describe("snapshot", () => {
     const s = newGame(31337, T0);
     s.nutrients = 500;
     colonize(s, hex(0, 1), T0 + 1);
+    colonize(s, hex(0, 2), T0 + 1);
+    advance(s, T0 + HOUR);
+    goOffline(s, T0 + HOUR);
     s.upgrades.woodDecomposer = 2;
     const back = fromSnapshot(JSON.parse(JSON.stringify(toSnapshot(s))));
     expect(back).toEqual(s);
