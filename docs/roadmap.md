@@ -24,7 +24,7 @@ invente pas.
 
 - [x] Monorepo TypeScript, grille hexagonale partagée, serveur HTTP + WebSocket, client Vite.
 - [x] CI, déploiement prod et staging, releases, `CLAUDE.md`.
-- [ ] Rulesets GitHub sur `main` et `dev`.
+- [ ] Rulesets GitHub sur `main` et `dev`, environnements `production` et `staging` (à faire dans les Settings : l'API n'est pas accessible aux sessions Claude).
 - [ ] VPS, domaine, secrets, premier déploiement réel (`docs/deploy.md`).
 
 **Terminé quand** : `https://<domaine>/api/health` répond `ok` après un merge sur `main`.

@@ -46,6 +46,7 @@ Commandes : `pnpm install`, `pnpm dev:server`, `pnpm dev:web`, et avant toute li
   3. `pnpm check` en local, tout doit être vert ;
   4. `git push origin HEAD:dev` (fast-forward uniquement, jamais de force-push) ;
   5. ouvrir une PR `dev → main`, attendre la CI verte.
+- Tu pousses sur `dev` directement (bypass admin du ruleset). **Jamais sur `main`.**
 - **Merge `dev → main` et déploiement : pas d'autonomie accordée pour l'instant.** Ouvre la PR et
   demande au propriétaire de merger, sauf s'il t'a donné l'autorisation par écrit dans le fil en cours.
   S'il l'accorde de façon permanente, mets à jour cette ligne.
