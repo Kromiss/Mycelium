@@ -102,7 +102,8 @@ avec ~50 % de la biomasse du joueur 12 h/jour.
 
 ## M3 — Multijoueur minimal (0.4.0) — GDD §15.3
 
-✅ Décidé : carte du **§2.5 validée** (parts symétriques, bord sûr, centre riche) ; connexion par
+✅ Décidé : carte du **§2.5 validée** (parts symétriques, bord sûr, centre riche), forêts de **12 joueurs** ;
+rythme : une forêt doit être **pleine vers le 4ᵉ–5ᵉ jour**, réglé uniquement par les chiffres ; connexion par
 **pseudo + mot de passe** ; temps de prise d'une case **selon le terrain, de 10 min à 2 h** ; tests
 **en local avec des robots** (le VPS attendra).
 
@@ -120,7 +121,9 @@ se prennent des cases et voient le classement bouger en direct.
 
 Livré en 0.4.0, validé en local (`BOTS=11 TIME_SCALE=60`) plutôt que sur staging. Choix de réalisation
 à valider (dans `packages/shared/src/balance.ts`) :
-- 24 joueurs par forêt, ~50 cases par joueur, départs à 85 % du rayon, anneaux à 1/3 et 2/3 du rayon ;
+- ~50 cases par joueur, départs à 85 % du rayon, anneaux à 1/3 et 2/3 du rayon ;
+- rythme réglé avec `simulate:forest` : coûts de base Litière 3 000 / Humus 6 000 / Bois mort 15 000,
+  `1,08 ^ nb_cases` au lieu de `1,02`, améliorations de 7 500 à 18 000, 10 000 nutriments au départ ;
 - mélange de terrains par anneau, bord qui s'épuise 1,5× moins vite, 6 % de zones humides ;
 - `densité_réseau_local` = cases du joueur à 2 cases ou moins (pondérées par l'humidité) ; prise à
   pleine vitesse dès que l'attaquant pousse 2× plus fort, rien sous l'égalité ; captures : Litière
@@ -130,9 +133,12 @@ Livré en 0.4.0, validé en local (`BOTS=11 TIME_SCALE=60`) plutôt que sur stag
 - la zone de départ (rayon 2) est réservée à son joueur pendant 24 h, et tant que la part est libre ;
 - « biomasse qui compte double au centre » et le reste des risques du centre sont laissés à M6.
 
-Constat avec 24 robots sur 37 h simulées : toute la forêt est occupée en moins d'une heure, 70 % des
-captures ont lieu dans les 6 premières heures, puis les fronts se figent ; les robots qui atteignent
-le centre finissent ~10× devant ceux restés au bord. Rééquilibrage de l'expansion à prévoir.
+Constat avec 12 robots sur une semaine (6 actifs, 6 occasionnels) : ~38 % de la forêt occupée le
+premier jour, 90 % au jour 3,5 (entre 3,5 et 4,7 selon la carte), 98 % au jour 5. Points ouverts :
+- les cases possédées ne se régénèrent jamais (on ne peut pas les mettre au repos) : au bout d'une
+  journée tout le réseau tourne à 10 % et la production de chacun baisse ;
+- le joueur qui atteint le centre en premier prend beaucoup d'avance (×4 sur le 2ᵉ), et un joueur coincé
+  entre deux voisins sur le bord pauvre ne progresse presque plus après le 3ᵉ jour.
 
 ## M4 — Saison (0.5.0) — GDD §15.4
 

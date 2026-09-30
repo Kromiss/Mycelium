@@ -43,7 +43,10 @@ const T0 = 1_700_000_000_000;
 const HOUR = 3_600_000;
 
 /** A small game where every tile has the given terrain (the start tile stays Humus). */
-function game(terrain: Terrain = "humus", nutrients = 1_000): GameState {
+/** Plenty of nutrients: tests about rules, not about waiting for income. */
+const RICH = 10_000_000;
+
+function game(terrain: Terrain = "humus", nutrients = RICH): GameState {
   const state = newGame(1, T0, 4);
   for (const t of state.tiles.values()) if (!(t.q === 0 && t.r === 0)) t.terrain = terrain;
   state.nutrients = nutrients;
@@ -82,17 +85,20 @@ describe("new game", () => {
 });
 
 describe("costs", () => {
-  it("follows base × (1 + 0.05 × dist) × 1.02^tiles", () => {
+  const LITTER = TERRAIN_STATS.litter.baseCost;
+  const G = ECONOMY.sizeFactor;
+
+  it("follows base × (1 + 0.05 × dist) × sizeFactor^tiles", () => {
     const s = game("litter");
-    expect(colonizationCost(s, tileAt(s, hex(1, 0)))).toBeCloseTo(5 * 1.05 * 1.02, 10);
-    expect(colonizationCost(s, tileAt(s, hex(3, 0)))).toBeCloseTo(5 * 1.15 * 1.02, 10);
+    expect(colonizationCost(s, tileAt(s, hex(1, 0)))).toBeCloseTo(LITTER * 1.05 * G, 6);
+    expect(colonizationCost(s, tileAt(s, hex(3, 0)))).toBeCloseTo(LITTER * 1.15 * G, 6);
   });
 
   it("measures the distance from the current Cœur", () => {
     const s = game("litter");
     own(s, hex(1, 0), hex(2, 0));
     s.heart = hex(2, 0);
-    expect(colonizationCost(s, tileAt(s, hex(3, 0)))).toBeCloseTo(5 * 1.05 * 1.02 ** 3, 10);
+    expect(colonizationCost(s, tileAt(s, hex(3, 0)))).toBeCloseTo(LITTER * 1.05 * G ** 3, 6);
   });
 
   it("is reduced by Expansion économe (−5 % per level, compounded)", () => {
@@ -127,7 +133,7 @@ describe("colonisation and queue", () => {
     const s = game("deadwood");
     const cost = colonizationCost(s, tileAt(s, hex(0, 1)));
     colonize(s, hex(0, 1), T0);
-    expect(s.nutrients).toBeCloseTo(1_000 - cost, 10);
+    expect(s.nutrients).toBeCloseTo(RICH - cost, 6);
     expect(tileAt(s, hex(0, 1)).growthEndsAt).toBe(T0 + TERRAIN_STATS.deadwood.growthSeconds * 1000);
     expect(tileAt(s, hex(0, 1)).growthStartedAt).toBe(T0);
     expect(s.queue).toEqual([]);
@@ -183,17 +189,18 @@ describe("colonisation and queue", () => {
 
   it("waits for nutrients, retrying on the 5 s grid", () => {
     const s = game("humus", 0);
+    const missing = 30; // About 30 s of production of the start tile.
+    s.nutrients = colonizationCost(s, tileAt(s, hex(1, 0))) - missing;
     colonize(s, hex(1, 0), T0);
     expect(tileAt(s, hex(1, 0)).owner).toBeNull();
-    const cost = colonizationCost(s, tileAt(s, hex(1, 0)));
     advance(s, T0 + 60_000);
     const t = tileAt(s, hex(1, 0));
     expect(t.owner).toBe(SOLO_PLAYER);
-    // Affordable after ~cost seconds at 1/s, started at the next multiple of 5 s.
+    // Affordable after ~30 s at 1/s, started at the next multiple of 5 s.
     const started = t.growthEndsAt! - growthDurationMs("humus", s.upgrades);
     expect(started % 5_000).toBe(0);
-    expect(started - T0).toBeGreaterThanOrEqual(cost * 1000);
-    expect(started - T0).toBeLessThan(cost * 1000 + 5_000 + 100);
+    expect(started - T0).toBeGreaterThanOrEqual(missing * 1000);
+    expect(started - T0).toBeLessThan(missing * 1000 + 5_000 + 100);
   });
 
   it("caps the queue and drops tiles that become unreachable", () => {
@@ -387,7 +394,7 @@ describe("offline", () => {
   });
 
   it("runs the queue while the player is away and comes back online", () => {
-    const s = game("litter", 100);
+    const s = game("litter", 20_000);
     colonize(s, hex(1, 0), T0);
     colonize(s, hex(2, 0), T0);
     goOffline(s, T0);
@@ -400,11 +407,11 @@ describe("offline", () => {
 
 describe("upgrades", () => {
   it("pays and levels up", () => {
-    const s = game("humus", 100);
     const cost = upgradeCost("digestion", 0);
+    const s = game("humus", cost + 100);
     expect(buyUpgrade(s, "digestion")).toEqual({ ok: true });
     expect(s.upgrades.digestion).toBe(1);
-    expect(s.nutrients).toBeCloseTo(100 - cost, 10);
+    expect(s.nutrients).toBeCloseTo(100, 6);
   });
 
   it("refuses unknown upgrades and empty wallets", () => {
@@ -417,7 +424,7 @@ describe("upgrades", () => {
 describe("snapshot", () => {
   it("round-trips the whole game", () => {
     const s = newGame(31337, T0);
-    s.nutrients = 500;
+    s.nutrients = RICH;
     colonize(s, hex(0, 1), T0 + 1);
     colonize(s, hex(0, 2), T0 + 1);
     advance(s, T0 + HOUR);

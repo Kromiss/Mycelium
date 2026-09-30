@@ -19,6 +19,7 @@ import {
   networkHops,
   newGame,
   productionRate,
+  richness,
   tileYield,
   upgradeCost,
   type GameState,
@@ -108,16 +109,33 @@ export function botPlay(state: GameState, now: number, sessionStart: boolean): v
 
 /** Expected biomass per second per nutrient spent on a wild tile. */
 function tileValue(state: GameState, tile: Tile): number {
-  const perSecond = tileYield(tile.terrain, state.upgrades) * humidity(state, tile) * 0.6; // ~average exhaustion
+  const perSecond = tileYield(tile.terrain, state.upgrades) * richness(state, tile) * humidity(state, tile) * 0.6; // ~average exhaustion
   return (perSecond * conversionRate(state.upgrades)) / colonizationCost(state, tile);
+}
+
+/** Wild tiles next to the player's tiles or to tiles already planned (the only ones `colonize` accepts). */
+function candidates(state: GameState): Tile[] {
+  const seen = new Set<string>();
+  const out: Tile[] = [];
+  const sources = [...state.queue];
+  for (const t of state.tiles.values()) if (t.owner === state.id) sources.push(t);
+  for (const s of sources) {
+    for (const n of hexNeighbors(s)) {
+      const k = hexKey(n);
+      if (seen.has(k)) continue;
+      seen.add(k);
+      const t = state.tiles.get(k);
+      if (t && t.owner === null && TERRAIN_STATS[t.terrain].colonizable) out.push(t);
+    }
+  }
+  return out;
 }
 
 function fillQueue(state: GameState, now: number): void {
   while (state.queue.length < QUEUE_MAX) {
     let best: Tile | null = null;
     let bestValue = -Infinity;
-    for (const tile of state.tiles.values()) {
-      if (!TERRAIN_STATS[tile.terrain].colonizable || tile.owner !== null) continue;
+    for (const tile of candidates(state)) {
       if (!checkColonize(state, tile).ok) continue;
       const v = tileValue(state, tile);
       if (v > bestValue) {

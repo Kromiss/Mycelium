@@ -213,7 +213,13 @@ describe("local testing helpers", () => {
     expect(forest.players.size).toBe(4);
     const board = a.client.last("leaderboard")!.leaderboard;
     expect(board.top.filter((e) => e.name.startsWith("Robot"))).toHaveLength(3);
-    expect(board.top.find((e) => e.name === "Robot01")!.tiles).toBeGreaterThan(1);
+    // Every robot is playing: it has colonised tiles or planned some (the map is random, so a
+    // robot surrounded by expensive tiles may still be saving up).
+    for (const p of forest.players.values()) {
+      if (p.id === a.account.id) continue;
+      const tiles = [...forest.tiles.values()].filter((t) => t.owner === p.id).length;
+      expect(tiles > 1 || p.queue.length > 0).toBe(true);
+    }
   });
 
   it("speeds up game time", async () => {

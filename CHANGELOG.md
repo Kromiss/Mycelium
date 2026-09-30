@@ -13,7 +13,7 @@ M3 — Multijoueur minimal (GDD §15.3).
 - **Comptes pseudo + mot de passe** (scrypt), sessions par navigateur, connexion et déconnexion,
   limitation des tentatives de connexion. Les comptes invités de M1–M2 gardent leur accès et sont
   invités à choisir un mot de passe.
-- **Forêts partagées** de 24 joueurs (GDD §2.5 validé) : carte ronde découpée en parts
+- **Forêts partagées** de 12 joueurs (GDD §2.5 validé) : carte ronde découpée en parts
   identiques, une par joueur, qui suivent le même motif ; bord pauvre et sûr, anneau ×1,5,
   centre riche ×3 à ×5 avec plus de bois mort. Un nouvel arrivant rejoint la forêt la plus
   ancienne qui a de la place, loin des parts déjà prises.
@@ -31,8 +31,15 @@ M3 — Multijoueur minimal (GDD §15.3).
 - Outils de test en local : `BOTS=n` (robots qui jouent seuls) et `TIME_SCALE=n` (temps accéléré),
   refusés en production.
 - Migration `0005_forests_accounts`.
+- Simulation d'une semaine de forêt (12 robots, moitié actifs, moitié occasionnels) lancée en CI :
+  vérifie qu'une forêt se remplit vers le 4ᵉ–5ᵉ jour et que personne ne cesse de progresser ;
+  `pnpm --filter @mycelium/shared simulate:forest` pour voir le détail.
 
 ### Changed
+- **Rythme de début ralenti** : coûts de colonisation de base ×600 (Litière 3 000, Humus 6 000,
+  Bois mort 15 000), chaque case rend la suivante 8 % plus chère (au lieu de 2 %), améliorations
+  ×300, 10 000 nutriments au départ. Avant, une forêt se remplissait en quelques heures ;
+  maintenant environ un tiers le premier jour, 90 % vers le jour 3,5–4,5, presque tout au jour 5.
 - Les parties solo de M1–M2 ne sont plus jouées : un compte existant repart de zéro dans une forêt.
 - Coloniser une case d'une autre colonie est impossible : les frontières se gagnent par pression.
 
