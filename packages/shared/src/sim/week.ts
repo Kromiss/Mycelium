@@ -57,6 +57,7 @@ import {
   type Tile,
 } from "../game";
 import { hexDistance, hexKey, hexNeighbors } from "../hex";
+import { centreDistance, ringAt } from "../forestgen";
 
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
@@ -136,6 +137,11 @@ export interface BotPlan {
   branches: readonly MutationBranch[];
   /** Fruits once, this many hours after joining, keeping the tiles within `radius` of the Cœur. */
   fruit?: { hour: number; radius: number };
+  /**
+   * Where the bot expands: "centre" pushes towards the rich, contested middle of the forest; "home"
+   * stays in its own slice (rim and middle ring) and avoids tiles touching another player.
+   */
+  aim?: "centre" | "home";
 }
 
 /** No strain, no mutation: the economy alone (M1–M4 pacing). */
@@ -164,7 +170,7 @@ export function botPlay(state: GameState, now: number, sessionStart: boolean, pl
   spendSpores(state);
   takeMutations(state, plan, now);
   if (sessionStart && now >= heartReadyAt(state)) moveHeartToCentre(state, now);
-  fillQueue(state, now);
+  fillQueue(state, now, plan.aim);
   buyUpgrades(state);
   buildStructures(state, now);
 }
@@ -275,14 +281,27 @@ function candidates(state: GameState): Tile[] {
   return out;
 }
 
-function fillQueue(state: GameState, now: number): void {
+/** Multiplier on a tile's value from the bot's aim (1 without aim, 0 = never). */
+function aimFactor(state: GameState, tile: Tile, aim: BotPlan["aim"]): number {
+  if (!aim || state.layout.kind !== "forest") return 1;
+  const rho = centreDistance(tile) / state.radius;
+  if (aim === "centre") return 1 + 4 * Math.max(0, 1 - rho) ** 2;
+  if (ringAt(state.radius, tile) === "centre") return 0;
+  const enemy = hexNeighbors(tile).some((n) => {
+    const t = state.tiles.get(hexKey(n));
+    return t !== undefined && t.owner !== null && t.owner !== state.id;
+  });
+  return (enemy ? 0.2 : 1) * (ringAt(state.radius, tile) === "middle" ? 0.6 : 1);
+}
+
+function fillQueue(state: GameState, now: number, aim?: BotPlan["aim"]): void {
   const production = productionRate(state);
   while (state.queue.length < QUEUE_MAX) {
     let best: Tile | null = null;
     let bestValue = -Infinity;
     for (const tile of candidates(state)) {
       if (!checkColonize(state, tile).ok) continue;
-      const v = tileValue(state, tile, production);
+      const v = tileValue(state, tile, production) * aimFactor(state, tile, aim);
       if (v > bestValue && v > 0) {
         bestValue = v;
         best = tile;

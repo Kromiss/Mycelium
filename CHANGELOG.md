@@ -5,6 +5,14 @@ versions [semver](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+### Added
+- Robots de test : option **`aim`** dans le plan d'un robot (`BotPlan`) : `"centre"` fonce vers le
+  centre riche, `"home"` reste dans sa part (bord et anneau, jamais le centre) et évite les cases
+  collées à un voisin. Sans `aim`, rien ne change.
+- Simulation **`simulate:profiles`** : robots connectés 24 h/24 ou une action toutes les 3 h, qui jouent
+  le centre ou leur base ; les profils tournent sur les places pour neutraliser la carte, `--out`
+  écrit les données et les cartes jour par jour.
+
 ## [0.6.0] - 2026-09-30
 
 M5 — Profondeur : économie (GDD §15.5).
