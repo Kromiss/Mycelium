@@ -47,7 +47,7 @@ input {
 }
 
 /* The HUD only shows once a game is loaded. */
-body:not(.in-game) :is(.topbar, .upgrades, .tile-panel, .hint, .map-controls, .mini-board, .event-panel) {
+body:not(.in-game) :is(.topbar, .upgrades, .tile-panel, .hint, .map-controls, .mini-board, .event-panel, .chat-panel) {
   display: none !important;
 }
 
@@ -919,6 +919,139 @@ button.ghost {
 
 /* Small screens ---------------------------------------------------------- */
 
+/* Chat (M7) --------------------------------------------------------------- */
+
+.chat-toggle {
+  position: relative;
+}
+
+.chat-toggle .badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: var(--glow);
+  color: #11140c;
+  font-family: system-ui, sans-serif;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 16px;
+}
+
+.chat-panel {
+  right: 404px;
+  bottom: calc(16px + env(safe-area-inset-bottom));
+  width: 340px;
+  height: min(420px, calc(100vh - 130px));
+  display: flex;
+  flex-direction: column;
+  padding: 10px 12px 12px;
+  font-family: system-ui, sans-serif;
+  font-size: 0.85rem;
+}
+
+.chat-top {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.chat-top select {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  color: inherit;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  padding: 4px 6px;
+}
+
+.chat-top .close {
+  position: static;
+}
+
+.chat-list {
+  flex: 1;
+  overflow-y: auto;
+  margin: 8px 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  align-content: start;
+  gap: 6px;
+}
+
+.chat-list li.me .chat-name {
+  color: var(--glow);
+}
+
+.chat-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.chat-head:disabled {
+  cursor: default;
+}
+
+.chat-name {
+  color: var(--fg);
+  font-weight: 600;
+}
+
+.chat-text {
+  margin: 1px 0 0;
+  overflow-wrap: anywhere;
+}
+
+.chat-menu {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.chat-menu button {
+  padding: 2px 8px;
+  font-size: 0.75rem;
+}
+
+.chat-note {
+  margin: 0 0 6px;
+  font-size: 0.75rem;
+}
+
+.chat-form {
+  display: flex;
+  gap: 6px;
+}
+
+.chat-form input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+}
+
+.notify-card .auto-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 0;
+}
+
 @media (max-width: 760px) {
   .topbar {
     flex-wrap: wrap;
@@ -1038,4 +1171,23 @@ button.ghost {
   .version {
     display: none;
   }
+
+  .chat-panel {
+    left: 12px;
+    right: 64px;
+    width: auto;
+    height: 55vh;
+    bottom: calc(12px + env(safe-area-inset-bottom));
+  }
+
+  body.chat-open :is(.mini-board, .hint, .event-panel, .tile-panel) {
+    display: none;
+  }
+}
+
+.notify-card label.auto-row {
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: 0.9rem;
+  color: var(--fg);
 }

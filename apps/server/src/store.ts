@@ -3,6 +3,7 @@ import {
   forestSpawns,
   hexKey,
   isMutationId,
+  isPushKind,
   isStrainId,
   isStructureId,
   normalizeAutomation,
@@ -15,7 +16,11 @@ import {
   seasonAt,
   serializeForest,
   TERRAIN_STATS,
+  type ChatChannel,
+  type ChatMessage,
   type ForestState,
+  type PushKind,
+  type PushLang,
   type GameState,
   type MutationId,
   type PlayerInfo,
@@ -36,6 +41,32 @@ export interface Account extends PlayerInfo {
   /** scrypt hash, null for guest accounts from M1–M2 and for robots. */
   passwordHash: string | null;
   isBot: boolean;
+  /** An admin cut the player's chat until then (ms), or null. */
+  silencedUntil: number | null;
+}
+
+/** A chat message as stored: the pact it was sent to, if any. */
+export interface StoredChat extends ChatMessage {
+  pact: string | null;
+}
+
+export interface NewChat {
+  forestId: string;
+  channel: ChatChannel;
+  pact: string | null;
+  from: string;
+  to: string | null;
+  text: string;
+  at: number;
+}
+
+export interface PushSubscriptionRecord {
+  endpoint: string;
+  playerId: string;
+  p256dh: string;
+  auth: string;
+  lang: PushLang;
+  kinds: PushKind[];
 }
 
 export interface ForestRecord {
@@ -82,6 +113,24 @@ export interface GameStore {
   endForest(id: string, standings: Standing[], endedAt: number): Promise<void>;
   /** A player's finished seasons, most recent first. */
   seasonHistory(playerId: string, limit: number): Promise<SeasonResult[]>;
+
+  // Chat and moderation (M7)
+  addChat(m: NewChat): Promise<StoredChat>;
+  /** The forest's last `limit` messages (every channel), oldest first. */
+  chatHistory(forestId: string, limit: number): Promise<StoredChat[]>;
+  findChat(id: number): Promise<(StoredChat & { forestId: string }) | null>;
+  reportChat(messageId: number, reporterId: string): Promise<void>;
+  mutedBy(playerId: string): Promise<string[]>;
+  setMute(playerId: string, mutedId: string, muted: boolean): Promise<void>;
+  silence(playerId: string, until: number): Promise<void>;
+
+  // Browser notifications (M7)
+  savePushSubscription(sub: PushSubscriptionRecord): Promise<void>;
+  /** Removes a subscription (only the player's own when `playerId` is given). */
+  removePushSubscription(endpoint: string, playerId?: string): Promise<void>;
+  pushSubscriptions(playerId: string): Promise<PushSubscriptionRecord[]>;
+  getSetting(key: string): Promise<string | null>;
+  setSetting(key: string, value: string): Promise<void>;
 }
 
 // ---------------------------------------------------------------------------
@@ -92,11 +141,16 @@ export class MemoryStore implements GameStore {
   private readonly sessions = new Map<string, string>();
   private readonly forests = new Map<string, { record: ForestRecord; json: string; seed: number; ended: boolean }>();
   private readonly results: Array<Standing & { seasonStart: number; forestId: string }> = [];
+  private readonly chats: Array<StoredChat & { forestId: string }> = [];
+  private readonly reports = new Set<string>();
+  private readonly mutes = new Map<string, Set<string>>();
+  private readonly subscriptions = new Map<string, PushSubscriptionRecord>();
+  private readonly settings = new Map<string, string>();
   private nextForest = 1;
 
   async createAccount(name: string, passwordHash: string | null, isBot = false): Promise<Account> {
     if (await this.findAccountByName(name)) throw new NameTakenError();
-    const account = { id: randomUUID(), name, passwordHash, isBot };
+    const account: Account = { id: randomUUID(), name, passwordHash, isBot, silencedUntil: null };
     this.accounts.set(account.id, account);
     return { ...account };
   }
@@ -170,6 +224,82 @@ export class MemoryStore implements GameStore {
     const f = this.forests.get(id);
     if (f) f.json = JSON.stringify(serializeForest(forest));
   }
+
+  async addChat(m: NewChat): Promise<StoredChat> {
+    const stored: StoredChat & { forestId: string } = {
+      id: this.chats.length + 1,
+      forestId: m.forestId,
+      channel: m.channel,
+      pact: m.pact,
+      from: m.from,
+      fromName: this.accounts.get(m.from)?.name ?? "?",
+      ...(m.to ? { to: m.to } : {}),
+      at: m.at,
+      text: m.text,
+    };
+    this.chats.push(stored);
+    return withoutForest(stored);
+  }
+
+  async chatHistory(forestId: string, limit: number): Promise<StoredChat[]> {
+    return this.chats.filter((c) => c.forestId === forestId).slice(-limit).map(withoutForest);
+  }
+
+  async findChat(id: number): Promise<(StoredChat & { forestId: string }) | null> {
+    const c = this.chats[id - 1];
+    return c ? { ...c } : null;
+  }
+
+  async reportChat(messageId: number, reporterId: string): Promise<void> {
+    this.reports.add(`${messageId}|${reporterId}`);
+  }
+
+  /** For tests. */
+  reportCount(): number {
+    return this.reports.size;
+  }
+
+  async mutedBy(playerId: string): Promise<string[]> {
+    return [...(this.mutes.get(playerId) ?? [])];
+  }
+
+  async setMute(playerId: string, mutedId: string, muted: boolean): Promise<void> {
+    const set = this.mutes.get(playerId) ?? new Set<string>();
+    if (muted) set.add(mutedId);
+    else set.delete(mutedId);
+    this.mutes.set(playerId, set);
+  }
+
+  async silence(playerId: string, until: number): Promise<void> {
+    const a = this.accounts.get(playerId);
+    if (a) a.silencedUntil = until;
+  }
+
+  async savePushSubscription(sub: PushSubscriptionRecord): Promise<void> {
+    this.subscriptions.set(sub.endpoint, { ...sub, kinds: [...sub.kinds] });
+  }
+
+  async removePushSubscription(endpoint: string, playerId?: string): Promise<void> {
+    const sub = this.subscriptions.get(endpoint);
+    if (sub && (playerId === undefined || sub.playerId === playerId)) this.subscriptions.delete(endpoint);
+  }
+
+  async pushSubscriptions(playerId: string): Promise<PushSubscriptionRecord[]> {
+    return [...this.subscriptions.values()].filter((s) => s.playerId === playerId).map((s) => ({ ...s, kinds: [...s.kinds] }));
+  }
+
+  async getSetting(key: string): Promise<string | null> {
+    return this.settings.get(key) ?? null;
+  }
+
+  async setSetting(key: string, value: string): Promise<void> {
+    this.settings.set(key, value);
+  }
+}
+
+function withoutForest(c: StoredChat & { forestId: string }): StoredChat {
+  const { forestId: _forest, ...rest } = c;
+  return rest;
 }
 
 // ---------------------------------------------------------------------------
@@ -179,7 +309,33 @@ interface AccountRow {
   name: string;
   password_hash: string | null;
   is_bot: boolean;
+  chat_silenced_until: Date | null;
 }
+
+interface ChatRow {
+  id: string;
+  forest_id: string;
+  channel: ChatChannel;
+  pact_id: string | null;
+  from_id: string;
+  from_name: string;
+  to_id: string | null;
+  body: string;
+  sent_at: Date;
+}
+
+const toChat = (r: ChatRow): StoredChat => ({
+  id: Number(r.id),
+  channel: r.channel,
+  pact: r.pact_id,
+  from: r.from_id,
+  fromName: r.from_name,
+  ...(r.to_id ? { to: r.to_id } : {}),
+  at: r.sent_at.getTime(),
+  text: r.body,
+});
+
+const ACCOUNT_COLUMNS = "id, name, password_hash, is_bot, chat_silenced_until";
 
 interface PlayerRow extends AccountRow {
   heart_q: number;
@@ -246,7 +402,13 @@ function toResult(
 
 const toDate = (ms: number | null) => (ms === null ? null : new Date(ms));
 const toMs = (d: Date | null) => (d === null ? null : d.getTime());
-const toAccount = (r: AccountRow): Account => ({ id: r.id, name: r.name, passwordHash: r.password_hash, isBot: r.is_bot });
+const toAccount = (r: AccountRow): Account => ({
+  id: r.id,
+  name: r.name,
+  passwordHash: r.password_hash,
+  isBot: r.is_bot,
+  silencedUntil: toMs(r.chat_silenced_until ?? null),
+});
 
 /** PostgreSQL store (tables from migrations 0001 to 0005). */
 export class PgStore implements GameStore {
@@ -257,7 +419,7 @@ export class PgStore implements GameStore {
       const res = await this.pool.query<AccountRow>(
         `insert into players (name, password_hash, is_bot)
          select $1, $2, $3 where not exists (select 1 from players where lower(name) = lower($1))
-         returning id, name, password_hash, is_bot`,
+         returning ${ACCOUNT_COLUMNS}`,
         [name, passwordHash, isBot],
       );
       if (!res.rows[0]) throw new NameTakenError();
@@ -270,7 +432,7 @@ export class PgStore implements GameStore {
 
   async findAccountByName(name: string): Promise<Account | null> {
     const res = await this.pool.query<AccountRow>(
-      "select id, name, password_hash, is_bot from players where lower(name) = lower($1)",
+      `select ${ACCOUNT_COLUMNS} from players where lower(name) = lower($1)`,
       [name],
     );
     return res.rows[0] ? toAccount(res.rows[0]) : null;
@@ -287,7 +449,7 @@ export class PgStore implements GameStore {
   async findAccountBySession(tokenHash: string): Promise<Account | null> {
     const res = await this.pool.query<AccountRow>(
       `with s as (update sessions set last_used_at = now() where token_hash = $1 returning player_id)
-       select p.id, p.name, p.password_hash, p.is_bot from players p
+       select p.id, p.name, p.password_hash, p.is_bot, p.chat_silenced_until from players p
        where p.id in (select player_id from s) or p.token_hash = $1
        limit 1`,
       [tokenHash],
@@ -443,7 +605,7 @@ export class PgStore implements GameStore {
     const layout = { kind: "forest", capacity: row.capacity } as const;
     const seed = Number(row.seed);
     const players = await this.pool.query<PlayerRow>(
-      `select id, name, password_hash, is_bot, heart_q, heart_r, heart_moved_at, spawn_q, spawn_r, joined_at, trophies,
+      `select id, name, password_hash, is_bot, chat_silenced_until, heart_q, heart_r, heart_moved_at, spawn_q, spawn_r, joined_at, trophies,
               monday_bonus, nutrients, enzymes, enzymes_unlocked, strain, mutations, spores, spore_upgrades, fruitings,
               automation, cooldowns, heart_shield_until, biomass, upgrades, queue, last_seen_at, updated_at
        from players where forest_id = $1`,
@@ -595,5 +757,96 @@ export class PgStore implements GameStore {
     } finally {
       client.release();
     }
+  }
+
+  async addChat(m: NewChat): Promise<StoredChat> {
+    const res = await this.pool.query<ChatRow>(
+      `with c as (
+         insert into chat_messages (forest_id, channel, pact_id, from_id, to_id, body, sent_at)
+         values ($1, $2, $3, $4, $5, $6, $7) returning *
+       )
+       select c.*, p.name as from_name from c join players p on p.id = c.from_id`,
+      [m.forestId, m.channel, m.pact, m.from, m.to, m.text, new Date(m.at)],
+    );
+    return toChat(res.rows[0]!);
+  }
+
+  async chatHistory(forestId: string, limit: number): Promise<StoredChat[]> {
+    const res = await this.pool.query<ChatRow>(
+      `select c.*, p.name as from_name from chat_messages c join players p on p.id = c.from_id
+       where c.forest_id = $1 order by c.id desc limit $2`,
+      [forestId, limit],
+    );
+    return res.rows.reverse().map(toChat);
+  }
+
+  async findChat(id: number): Promise<(StoredChat & { forestId: string }) | null> {
+    const res = await this.pool.query<ChatRow>(
+      "select c.*, p.name as from_name from chat_messages c join players p on p.id = c.from_id where c.id = $1",
+      [id],
+    );
+    const row = res.rows[0];
+    return row ? { ...toChat(row), forestId: row.forest_id } : null;
+  }
+
+  async reportChat(messageId: number, reporterId: string): Promise<void> {
+    await this.pool.query("insert into chat_reports (message_id, reporter_id) values ($1, $2) on conflict do nothing", [messageId, reporterId]);
+  }
+
+  async mutedBy(playerId: string): Promise<string[]> {
+    const res = await this.pool.query<{ muted_id: string }>("select muted_id from chat_mutes where player_id = $1", [playerId]);
+    return res.rows.map((r) => r.muted_id);
+  }
+
+  async setMute(playerId: string, mutedId: string, muted: boolean): Promise<void> {
+    if (muted) {
+      await this.pool.query("insert into chat_mutes (player_id, muted_id) values ($1, $2) on conflict do nothing", [playerId, mutedId]);
+    } else {
+      await this.pool.query("delete from chat_mutes where player_id = $1 and muted_id = $2", [playerId, mutedId]);
+    }
+  }
+
+  async silence(playerId: string, until: number): Promise<void> {
+    await this.pool.query("update players set chat_silenced_until = $2 where id = $1", [playerId, new Date(until)]);
+  }
+
+  async savePushSubscription(sub: PushSubscriptionRecord): Promise<void> {
+    await this.pool.query(
+      `insert into push_subscriptions (endpoint, player_id, p256dh, auth, lang, kinds) values ($1, $2, $3, $4, $5, $6::jsonb)
+       on conflict (endpoint) do update set player_id = $2, p256dh = $3, auth = $4, lang = $5, kinds = $6::jsonb`,
+      [sub.endpoint, sub.playerId, sub.p256dh, sub.auth, sub.lang, JSON.stringify(sub.kinds)],
+    );
+  }
+
+  async removePushSubscription(endpoint: string, playerId?: string): Promise<void> {
+    if (playerId === undefined) await this.pool.query("delete from push_subscriptions where endpoint = $1", [endpoint]);
+    else await this.pool.query("delete from push_subscriptions where endpoint = $1 and player_id = $2", [endpoint, playerId]);
+  }
+
+  async pushSubscriptions(playerId: string): Promise<PushSubscriptionRecord[]> {
+    const res = await this.pool.query<{ endpoint: string; player_id: string; p256dh: string; auth: string; lang: string; kinds: unknown }>(
+      "select endpoint, player_id, p256dh, auth, lang, kinds from push_subscriptions where player_id = $1",
+      [playerId],
+    );
+    return res.rows.map((r) => ({
+      endpoint: r.endpoint,
+      playerId: r.player_id,
+      p256dh: r.p256dh,
+      auth: r.auth,
+      lang: r.lang === "fr" ? "fr" : "en",
+      kinds: Array.isArray(r.kinds) ? r.kinds.filter(isPushKind) : [],
+    }));
+  }
+
+  async getSetting(key: string): Promise<string | null> {
+    const res = await this.pool.query<{ value: string }>("select value from server_settings where key = $1", [key]);
+    return res.rows[0]?.value ?? null;
+  }
+
+  async setSetting(key: string, value: string): Promise<void> {
+    await this.pool.query(
+      "insert into server_settings (key, value) values ($1, $2) on conflict (key) do update set value = $2",
+      [key, value],
+    );
   }
 }

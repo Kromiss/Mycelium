@@ -109,6 +109,10 @@ async function handleHttp(req: IncomingMessage, res: ServerResponse, deps: AppDe
     sendJson(res, status, { error: result });
     return;
   }
+  if (req.method === "GET" && req.url === "/api/push/key") {
+    sendJson(res, 200, { key: game.pushKey() });
+    return;
+  }
   if (req.method === "POST" && req.url === "/api/logout") {
     const token = bearer(req);
     if (token) await game.logout(token);
@@ -203,11 +207,34 @@ function onConnection(ws: WebSocket, game: ForestService): void {
         if (!player) return send(ws, { type: "actionError", error: "not_authenticated" });
         game.act(player.id, msg.action, msg.q, msg.r, client);
         return;
+      case "chat":
+        if (!player) return send(ws, { type: "actionError", error: "not_authenticated" });
+        background(game.chat(player.id, msg.channel, msg.text, msg.to, client));
+        return;
+      case "mute":
+        if (player) background(game.mute(player.id, msg.player, msg.muted));
+        return;
+      case "report":
+        if (player) background(game.report(player.id, msg.message, client));
+        return;
+      case "silence":
+        if (player) background(game.silence(player.id, msg.player, client));
+        return;
+      case "pushSubscribe":
+        if (player) background(game.subscribePush(player.id, msg));
+        return;
+      case "pushUnsubscribe":
+        if (player) background(game.unsubscribePush(player.id, msg.endpoint));
+        return;
     }
   });
   ws.on("close", () => {
     if (player) void game.detach(player.id, client);
   });
+}
+
+function background(p: Promise<void>): void {
+  p.catch((err: unknown) => console.error("[ws]", err));
 }
 
 function readJson(req: IncomingMessage, maxBytes: number): Promise<unknown> {

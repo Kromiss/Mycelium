@@ -132,7 +132,22 @@
       <button type="button" id="zoom-out" data-i18n-aria="zoom.out">−</button>
       <button type="button" id="zoom-home" data-i18n-aria="zoom.home">◎</button>
       <button type="button" id="upgrades-toggle" class="upgrades-toggle" data-i18n-aria="panel.upgrades">⬡</button>
+      <button type="button" id="chat-toggle" class="chat-toggle" data-i18n-aria="chat.open">💬<span class="badge" id="chat-badge" hidden></span></button>
     </div>
+
+    <section class="panel chat-panel" id="chat-panel" hidden>
+      <div class="chat-top">
+        <select id="chat-channel" data-i18n-aria="chat.channel"></select>
+        <button type="button" class="ghost" id="notify-open" data-i18n-aria="notify.open">🔔</button>
+        <button type="button" class="close" id="chat-close" data-i18n-aria="chat.close">×</button>
+      </div>
+      <ol class="chat-list" id="chat-list" aria-live="polite"></ol>
+      <p class="muted chat-note" id="chat-note" hidden></p>
+      <form class="chat-form" id="chat-form" autocomplete="off">
+        <input id="chat-input" maxlength="500" />
+        <button type="submit" class="primary" data-i18n="chat.send"></button>
+      </form>
+    </section>
 
     <div class="toasts" id="toast" role="status" aria-live="polite" hidden></div>
     <div class="status" id="status" role="status" hidden></div>
@@ -200,6 +215,18 @@
         <button type="submit" class="primary" data-i18n="password.submit"></button>
         <button type="button" class="ghost" id="password-later" data-i18n="password.later"></button>
       </form>
+    </div>
+
+    <div class="overlay" id="notify" hidden>
+      <div class="guest-card notify-card">
+        <h2 data-i18n="notify.title"></h2>
+        <p class="muted" data-i18n="notify.desc"></p>
+        <div id="notify-kinds"></div>
+        <p class="muted" data-i18n="notify.limit"></p>
+        <p id="notify-status"></p>
+        <button type="button" class="primary" id="notify-toggle"></button>
+        <button type="button" class="ghost" id="notify-close" data-i18n="notify.close"></button>
+      </div>
     </div>
 
     <div class="overlay" id="board" hidden>

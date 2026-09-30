@@ -139,4 +139,52 @@ describe.each(stores)("%s store", (_name, make) => {
     await store.endForest(record.id, [], SEASON + 7 * 86_400_000);
     expect(await store.seasonHistory(b.id, 5)).toHaveLength(1);
   });
+
+  it("keeps chat messages, reports, mutes and silences", async () => {
+    const store = make();
+    const forest = newForest(7, T0, 4);
+    const record = await store.createForest(forest, SEASON);
+    const a = await store.createAccount(`Gus${_name}`, "hash");
+    const b = await store.createAccount(`Hana${_name}`, "hash");
+    const m1 = await store.addChat({ forestId: record.id, channel: "forest", pact: null, from: a.id, to: null, text: "hello", at: T0 });
+    const m2 = await store.addChat({ forestId: record.id, channel: "dm", pact: null, from: a.id, to: b.id, text: "psst", at: T0 + 1 });
+    const m3 = await store.addChat({ forestId: record.id, channel: "pact", pact: "p1", from: b.id, to: null, text: "allies", at: T0 + 2 });
+    expect(m1).toEqual({ id: m1.id, channel: "forest", pact: null, from: a.id, fromName: `Gus${_name}`, at: T0, text: "hello" });
+    expect(m2.to).toBe(b.id);
+    expect((await store.chatHistory(record.id, 10)).map((m) => m.text)).toEqual(["hello", "psst", "allies"]);
+    expect((await store.chatHistory(record.id, 2)).map((m) => m.text)).toEqual(["psst", "allies"]);
+    expect(await store.findChat(m3.id)).toEqual({ ...m3, forestId: record.id });
+    expect(await store.findChat(999_999)).toBeNull();
+    await store.reportChat(m1.id, b.id);
+    await store.reportChat(m1.id, b.id);
+
+    await store.setMute(b.id, a.id, true);
+    await store.setMute(b.id, a.id, true);
+    expect(await store.mutedBy(b.id)).toEqual([a.id]);
+    await store.setMute(b.id, a.id, false);
+    expect(await store.mutedBy(b.id)).toEqual([]);
+
+    await store.silence(a.id, T0 + 86_400_000);
+    expect((await store.findAccountByName(`Gus${_name}`))?.silencedUntil).toBe(T0 + 86_400_000);
+  });
+
+  it("keeps push subscriptions and settings", async () => {
+    const store = make();
+    const a = await store.createAccount(`Ivy${_name}`, "hash");
+    const b = await store.createAccount(`Jo${_name}`, "hash");
+    const sub = { endpoint: `https://push.example/${_name}`, playerId: a.id, p256dh: "k", auth: "x", lang: "fr" as const, kinds: ["dm" as const] };
+    await store.savePushSubscription(sub);
+    await store.savePushSubscription({ ...sub, kinds: ["dm", "boss"] });
+    expect(await store.pushSubscriptions(a.id)).toEqual([{ ...sub, kinds: ["dm", "boss"] }]);
+    // Somebody else cannot remove it.
+    await store.removePushSubscription(sub.endpoint, b.id);
+    expect(await store.pushSubscriptions(a.id)).toHaveLength(1);
+    await store.removePushSubscription(sub.endpoint, a.id);
+    expect(await store.pushSubscriptions(a.id)).toEqual([]);
+
+    expect(await store.getSetting(`k${_name}`)).toBeNull();
+    await store.setSetting(`k${_name}`, "1");
+    await store.setSetting(`k${_name}`, "2");
+    expect(await store.getSetting(`k${_name}`)).toBe("2");
+  });
 });

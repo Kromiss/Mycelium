@@ -60,6 +60,22 @@ describe("protocol", () => {
     expect(parseClientMessage("null")).toBeNull();
   });
 
+  it("validates chat and notification messages", () => {
+    const p = (o: unknown) => parseClientMessage(JSON.stringify(o));
+    expect(p({ type: "chat", channel: "forest", text: "hi" })).toEqual({ type: "chat", channel: "forest", text: "hi" });
+    expect(p({ type: "chat", channel: "dm", to: "abc", text: "hi" })).toEqual({ type: "chat", channel: "dm", to: "abc", text: "hi" });
+    expect(p({ type: "chat", channel: "dm", text: "hi" })).toBeNull();
+    expect(p({ type: "chat", channel: "shout", text: "hi" })).toBeNull();
+    expect(p({ type: "chat", channel: "forest", text: "x".repeat(5000) })).toBeNull();
+    expect(p({ type: "mute", player: "a", muted: true })).toEqual({ type: "mute", player: "a", muted: true });
+    expect(p({ type: "report", message: 0 })).toBeNull();
+    expect(p({ type: "report", message: 12 })).toEqual({ type: "report", message: 12 });
+    const sub = { type: "pushSubscribe", endpoint: "https://push.example/x", p256dh: "k", auth: "a", lang: "fr", kinds: ["dm", "nope", "dm"] };
+    expect(p(sub)).toEqual({ ...sub, kinds: ["dm"] });
+    expect(p({ ...sub, endpoint: "http://insecure/x" })).toBeNull();
+    expect(p({ ...sub, lang: "de" })).toBeNull();
+  });
+
   it("validates player names", () => {
     expect(isValidPlayerName("Kromiss")).toBe(true);
     expect(isValidPlayerName("Élodie_42")).toBe(true);

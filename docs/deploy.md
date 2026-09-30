@@ -48,7 +48,9 @@ ufw allow OpenSSH && ufw allow 80/tcp && ufw allow 443 && ufw --force enable
 - **DNS** : un enregistrement `A` du domaine vers l'IP du VPS.
 - **`.env`** dans `/opt/mycelium` (modèle : `deploy/.env.example`), `chmod 600`, propriétaire `deploy` :
   `DOMAIN`, `POSTGRES_PASSWORD` (`openssl rand -hex 24`), `JWT_SECRET` (`openssl rand -hex 32`),
-  et optionnellement `STAGING_BASE_DOMAIN`. **Ces secrets ne vont jamais dans GitHub ni dans le repo** ;
+  et optionnellement `STAGING_BASE_DOMAIN`, `ADMIN_NAMES` (pseudos des modérateurs du chat, séparés par
+  des virgules) et `VAPID_SUBJECT` (contact des notifications navigateur ; les clés Web Push sont
+  générées au premier démarrage et gardées dans Postgres, rien à créer à la main). **Ces secrets ne vont jamais dans GitHub ni dans le repo** ;
   en garder une copie en lieu sûr.
 - **Clé SSH de déploiement** (sur ta machine) :
   ```bash

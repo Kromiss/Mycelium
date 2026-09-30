@@ -18,7 +18,7 @@ des points de départ à équilibrer, centralisés dans `packages/shared`.
 | M4 Saison | 0.5.0 | étape 4 | Semaine, phases journalières, wipe | ✅ (testé en local) |
 | M5 Profondeur : économie | 0.6.0 | étape 5 | Structures, mutations, souches, fructification | ✅ (testé en local) |
 | M6 Profondeur : conflit & événements | 0.7.0 | étape 5 | Actions actives, événements, world boss | ✅ (testé en local) |
-| M7 Social | 0.8.0 | étape 6 | Alliances, ligues, récompenses | à faire |
+| M7 Social | 0.8.0 | étape 6 | Alliances, ligues, récompenses | en cours |
 | M8 Bêta fermée | 0.9.0 | — | Plusieurs forêts, équilibrage, charge | à faire |
 | Lancement | 1.0.0 | — | Ouverture publique | — |
 
@@ -279,7 +279,7 @@ Constats des simulations :
 ## M7 — Social (0.8.0) — GDD §15.6
 
 ✅ Décidé : **chat de forêt en jeu + messages privés** (pas de Discord).
-🔸 Décision : canal des notifications (navigateur, e-mail…).
+✅ Décidé : notifications par le navigateur (Web Push), pas d'e-mail.
 
 - **Pactes de symbiose** à 2-4, rupture avec malus « Réseau tâché », échanges via Signaux chimiques,
   classement d'alliance (§6.3).
@@ -291,6 +291,39 @@ Constats des simulations :
 
 **Terminé quand** : une alliance se forme, se trahit, et les récompenses de fin de saison apparaissent
 bien sur le compte après le wipe.
+
+✅ Décidé : **paquet proposé validé tel quel** (valeurs à équilibrer). Livraison en trois étapes :
+chat et notifications, puis pactes, Signaux et Ruine, puis classements, ligues et récompenses.
+- **Pactes de symbiose** : invitation à n'importe quel joueur de la forêt, acceptée par lui ; 2 à 4
+  membres, un pacte par joueur, dès le lundi. Entre membres : pas de pression, pas de prise, pas
+  d'action active. Chacun verse **5 % de sa production** dans un pot partagé à parts égales. Sortie avec
+  **préavis de 1 h** sans malus ; rupture immédiate = **trahison** : « Réseau tâché » 24 h (marque visible,
+  production −15 %, ni créer ni rejoindre de pacte). Classement d'alliance = biomasse gagnée par les
+  membres pendant qu'ils sont dans le pacte. Chat de pacte. Les pactes disparaissent au wipe.
+- **Signaux chimiques** : 1 par heure et par case de Racines d'arbre, débloqués à la première Racine.
+  *Envoi* (1 Signal) : Nutriments ou Enzymes à un allié, 5 % de perte. *Écoute* (3 Signaux) : voir le
+  réseau d'un joueur à travers le brouillard pendant 1 h.
+- **Ruine** : une par part (même place pour tous), dans l'anneau intermédiaire, payée en Enzymes ; la
+  première colonisation donne une **relique pour la semaine** au choix (production +10 %, pousse −15 %,
+  +1 point de mutation) ; la case ne produit rien.
+- **Classements secondaires** par forêt, archivés : territoire, cases prises, contribution aux Arbres
+  mourants, alliance, efficacité (biomasse ÷ heures actives ; heure active = connecté avec une action
+  dans les 10 dernières minutes ; 1 h active minimum).
+- **Ligues** Bronze, Argent, Or, Diamant, Mycélium Primordial ; départ en Bronze ; chaque semaine les
+  3 premiers montent, les 3 derniers descendent (joueurs ayant joué au moins un jour) ; 2 semaines
+  d'absence = −1 ligue. On rejoint une forêt de sa ligue qui a de la place, sinon de la ligue la plus
+  proche ; une forêt ne s'ouvre que quand toutes sont pleines (le vrai découpage vient en M8).
+- **Récompenses** : titres (un par classement + un par ligue, un affiché à côté du pseudo), couleurs de
+  réseau (podium, ligues ; le serveur évite les doublons dans une forêt), 4 skins de Carpophore par
+  paliers, souche **Moisissure** après 3 saisons jouées (sur les cases usées à 20 % ou plus :
+  colonisation −30 %, prises 2× plus rapides ; production −10 %). Page profil. Rien ne s'achète.
+- **Chat** de forêt et messages privés dans la forêt, en temps réel avec historique ; 500 caractères,
+  5 messages / 10 s, répétitions bloquées ; sourdine par joueur, signalement enregistré, comptes admin
+  (config) qui coupent le chat d'un joueur 24 h. Pas de purge des vieux messages (elle demanderait un
+  `DELETE`, non autorisé) : ils sont gardés.
+- ✅ **Notifications : navigateur seul** (Web Push, sur activation) : frontière attaquée, Cœur menacé,
+  Arbre mourant, fin de saison dans 1 h, message privé ; au plus une par type toutes les 30 min.
+  Pas d'e-mail.
 
 ## M8 — Bêta fermée (0.9.0)
 

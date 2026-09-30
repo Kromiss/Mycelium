@@ -55,10 +55,25 @@ import {
   type SeasonResult,
   type ServerMessage,
   type SessionResponse,
+  canReadChat,
+  CHAT,
+  cleanChatText,
+  guardChat,
+  newChatGuard,
+  PUSH,
+  pushText,
+  type ChatChannel,
+  type ChatError,
+  type ChatGuard,
+  type ChatMessage,
+  type PushKind,
+  type PushLang,
+  type RosterEntry,
 } from "@mycelium/shared";
 import { hashPassword, hashToken, newToken, RateLimiter, verifyPassword } from "./auth";
 import { MemoryScoreBoard, type ScoreBoard } from "./leaderboard";
-import { NameTakenError, type Account, type ForestRecord, type GameStore, type Standing } from "./store";
+import { NO_PUSH, type PushSender } from "./push";
+import { NameTakenError, type Account, type ForestRecord, type GameStore, type Standing, type StoredChat } from "./store";
 
 /** Anything we can push server messages to (a WebSocket in production, a spy in tests). */
 export interface GameClient {
@@ -77,6 +92,10 @@ export interface ForestServiceOptions {
   bots?: number;
   /** Players per new forest. */
   capacity?: number;
+  /** Browser notifications (M7); off when omitted. */
+  push?: PushSender;
+  /** Names of the accounts that may cut other players' chat (M7 moderation). */
+  admins?: readonly string[];
   log?: (msg: string) => void;
 }
 
@@ -116,6 +135,8 @@ interface LiveForest {
   alerts: Map<string, Alert[]>;
   /** Last "attacked" alert per defender|attacker (game time). */
   attackAlerted: Map<string, number>;
+  /** The "season ends in an hour" notification went out. */
+  seasonEndNotified: boolean;
   saving: Promise<void>;
 }
 
@@ -144,6 +165,14 @@ export class ForestService {
   private ticks = 0;
   private lastTick = 0;
   private creating: Promise<LiveForest> | null = null;
+  private readonly push: PushSender;
+  private readonly admins: Set<string>;
+  /** Anti-spam memory per player (real time). */
+  private readonly chatGuards = new Map<string, ChatGuard>();
+  /** Players each connected player muted. */
+  private readonly mutes = new Map<string, Set<string>>();
+  /** Last notification per player|kind (game time). */
+  private readonly pushed = new Map<string, number>();
 
   constructor(
     private readonly store: GameStore,
@@ -155,6 +184,8 @@ export class ForestService {
     this.capacity = options.capacity ?? FOREST.capacity;
     this.bots = options.bots ?? 0;
     this.log = options.log ?? ((msg) => console.error(`[forest] ${msg}`));
+    this.push = options.push ?? NO_PUSH;
+    this.admins = new Set((options.admins ?? []).map((n) => n.toLowerCase()));
     this.realBase = this.realNow();
     this.clockBase = this.realBase;
   }
@@ -256,6 +287,11 @@ export class ForestService {
   async attach(account: Account, client: GameClient): Promise<boolean> {
     const live = await this.forestOf(account);
     if (!live) return false;
+    // The session's account is fresh (an admin may have silenced it since the forest was loaded).
+    live.members.set(account.id, account);
+    const muted = new Set(await this.store.mutedBy(account.id));
+    this.mutes.set(account.id, muted);
+    const chat = await this.chatFor(live, account.id, muted);
     const now = this.now();
     advanceForest(live.forest, now);
     const player = live.forest.players.get(account.id)!;
@@ -286,6 +322,11 @@ export class ForestService {
       needsPassword: account.passwordHash === null,
       history: await this.store.seasonHistory(account.id, HISTORY_SIZE),
       forestEvents: this.eventsFor(live, account.id),
+      roster: this.roster(live),
+      chat,
+      muted: [...muted],
+      silencedUntil: account.silencedUntil,
+      admin: this.admins.has(account.name.toLowerCase()),
     });
     client.send({ type: "leaderboard", leaderboard: await this.leaderboard(live, account.id) });
     return true;
@@ -365,6 +406,156 @@ export class ForestService {
     this.act_(playerId, client, (p, now) => setAutomation(p, change as Partial<Automation>, now));
   }
 
+  // -------------------------------------------------------------------------
+  // Chat, private messages and moderation (M7)
+
+  /** Sends a message to the forest, the player's pact or one player. */
+  async chat(playerId: string, channel: ChatChannel, text: string, to: string | undefined, client: GameClient): Promise<void> {
+    const live = this.liveOf(playerId);
+    if (!live || !live.clients.get(playerId)?.has(client)) {
+      client.send({ type: "actionError", error: "not_authenticated" });
+      return;
+    }
+    const error = await this.postChat(live, playerId, channel, text, to);
+    if (error) client.send({ type: "chatError", error });
+  }
+
+  mute(playerId: string, other: string, muted: boolean): Promise<void> {
+    const set = this.mutes.get(playerId) ?? new Set<string>();
+    this.mutes.set(playerId, set);
+    if (other === playerId) return Promise.resolve();
+    if (muted) set.add(other);
+    else set.delete(other);
+    return this.store.setMute(playerId, other, muted);
+  }
+
+  /** Reports a message the player can read (kept for the owner). */
+  async report(playerId: string, messageId: number, client: GameClient): Promise<void> {
+    const live = this.liveOf(playerId);
+    const message = await this.store.findChat(messageId);
+    if (!live || !message || message.forestId !== live.record.id || message.from === playerId) return;
+    if (!canReadChat(message, playerId, this.pactOf(live, playerId))) return;
+    await this.store.reportChat(messageId, playerId);
+    this.log(`chat message #${messageId} from ${message.fromName} reported by ${live.members.get(playerId)?.name ?? "?"}`);
+    client.send({ type: "chatNotice", notice: "reported" });
+  }
+
+  /** Admins: cuts a player's chat for a day. */
+  async silence(playerId: string, target: string, client: GameClient): Promise<void> {
+    const live = this.liveOf(playerId);
+    const admin = live?.members.get(playerId);
+    const account = live?.members.get(target);
+    if (!live || !admin || !account || !this.admins.has(admin.name.toLowerCase())) return;
+    const until = this.realNow() + CHAT.silenceMs;
+    await this.store.silence(target, until);
+    live.members.set(target, { ...account, silencedUntil: until });
+    this.log(`${account.name} silenced by ${admin.name} until ${new Date(until).toISOString()}`);
+    client.send({ type: "chatNotice", notice: "silenced", name: account.name });
+  }
+
+  async subscribePush(playerId: string, sub: { endpoint: string; p256dh: string; auth: string; lang: PushLang; kinds: PushKind[] }): Promise<void> {
+    if (!this.push.publicKey || !this.playerForest.has(playerId)) return;
+    await this.store.savePushSubscription({ ...sub, playerId });
+  }
+
+  unsubscribePush(playerId: string, endpoint: string): Promise<void> {
+    return this.store.removePushSubscription(endpoint, playerId);
+  }
+
+  /** Public key browsers subscribe with, null when notifications are off. */
+  pushKey(): string | null {
+    return this.push.publicKey;
+  }
+
+  private async postChat(live: LiveForest, from: string, channel: ChatChannel, raw: string, to: string | undefined): Promise<ChatError | null> {
+    const account = live.members.get(from);
+    if (!account) return "unknown_player";
+    const real = this.realNow();
+    if (account.silencedUntil !== null && account.silencedUntil > real) return "silenced";
+    const clean = cleanChatText(raw);
+    if (!clean.ok) return clean.error;
+    let pact: string | null = null;
+    if (channel === "dm") {
+      if (to === from) return "self";
+      if (!to || !live.members.has(to)) return "unknown_player";
+    } else if (channel === "pact") {
+      pact = this.pactOf(live, from);
+      if (pact === null) return "no_pact";
+    }
+    const guard = this.chatGuards.get(from) ?? newChatGuard();
+    this.chatGuards.set(from, guard);
+    const refused = guardChat(guard, clean.text, real);
+    if (refused) return refused;
+    const stored = await this.store.addChat({
+      forestId: live.record.id,
+      channel,
+      pact,
+      from,
+      to: channel === "dm" ? to! : null,
+      text: clean.text,
+      at: this.now(),
+    });
+    const message = publicChat(stored);
+    for (const [id, clients] of live.clients) {
+      if (clients.size === 0 || !canReadChat(stored, id, this.pactOf(live, id))) continue;
+      if (id !== from && this.mutes.get(id)?.has(from)) continue;
+      for (const c of clients) c.send({ type: "chat", message });
+    }
+    if (channel === "dm" && to) {
+      const muted = this.mutes.get(to) ?? new Set(await this.store.mutedBy(to));
+      if (!muted.has(from)) this.notify(live, to, "dm", { name: account.name, text: clean.text });
+    }
+    return null;
+  }
+
+  /** The messages a player can read, without those of the players they muted. */
+  private async chatFor(live: LiveForest, playerId: string, muted: Set<string>): Promise<ChatMessage[]> {
+    const pact = this.pactOf(live, playerId);
+    const all = await this.store.chatHistory(live.record.id, CHAT.history * 4);
+    return all
+      .filter((m) => canReadChat(m, playerId, pact) && (m.from === playerId || !muted.has(m.from)))
+      .slice(-CHAT.history)
+      .map(publicChat);
+  }
+
+  /** The player's pact (M7 step 2), null without one. */
+  private pactOf(_live: LiveForest, _playerId: string): string | null {
+    return null;
+  }
+
+  private roster(live: LiveForest): RosterEntry[] {
+    return [...live.forest.players.keys()].map((id) => {
+      const o = this.ownerInfo(live, id, new Map());
+      return { id, name: o.name, color: o.color };
+    });
+  }
+
+  private broadcastRoster(live: LiveForest): void {
+    const roster = this.roster(live);
+    for (const clients of live.clients.values()) for (const c of clients) c.send({ type: "roster", roster });
+  }
+
+  /**
+   * Browser notification (M7) to a player who is not connected, if they asked for this kind; at
+   * most one per kind every 30 min. Runs in the background.
+   */
+  private notify(live: LiveForest, playerId: string, kind: PushKind, params: { name?: string; text?: string } = {}): void {
+    if (!this.push.publicKey || (live.clients.get(playerId)?.size ?? 0) > 0 || live.members.get(playerId)?.isBot) return;
+    const now = this.now();
+    const key = `${playerId}|${kind}`;
+    const last = this.pushed.get(key);
+    if (last !== undefined && now - last < PUSH.throttleMs) return;
+    void (async () => {
+      const subs = (await this.store.pushSubscriptions(playerId)).filter((sub) => sub.kinds.includes(kind));
+      if (subs.length === 0) return;
+      this.pushed.set(key, now);
+      for (const sub of subs) {
+        const result = await this.push.send(sub, { ...pushText(kind, sub.lang, params), tag: kind });
+        if (result === "gone") await this.store.removePushSubscription(sub.endpoint);
+      }
+    })().catch((err: unknown) => this.log(`notification failed: ${String(err)}`));
+  }
+
   /** One simulation step for every forest: economy, borders, robots, views, leaderboard, saves. */
   async tick(): Promise<void> {
     const now = this.now();
@@ -383,6 +574,9 @@ export class ForestService {
         this.alertAttacks(live, before, now);
         const happenings = resolveEvents(live.forest, dt, now);
         for (const h of happenings) {
+          if (h.phase === "announced" && h.event.kind === "tree") {
+            for (const id of live.forest.players.keys()) this.notify(live, id, "boss");
+          }
           for (const l of h.lost) {
             live.lost.set(l.player, (live.lost.get(l.player) ?? 0) + 1);
             this.journalEvent(live, l.player, h.event.kind).tiles++;
@@ -393,6 +587,11 @@ export class ForestService {
             j.enzymes += r.enzymes;
             j.trophy ||= r.trophy;
           }
+        }
+        const season = seasonAt(live.record.seasonStart);
+        if (!live.seasonEndNotified && now >= season.freezeAt - 3_600_000 && now < season.freezeAt) {
+          live.seasonEndNotified = true;
+          for (const id of live.forest.players.keys()) this.notify(live, id, "seasonEnd");
         }
         const notices = new Map<string, CaptureNotice[]>();
         for (const e of events) {
@@ -526,7 +725,10 @@ export class ForestService {
       const last = live.attackAlerted.get(key);
       if (last !== undefined && now - last < ATTACK_ALERT_MS) continue;
       live.attackAlerted.set(key, now);
-      pushAlert(live, t.owner, { type: "attacked", by: t.capture.by, q: t.q, r: t.r });
+      const owner = live.forest.players.get(t.owner);
+      const heart = owner !== undefined && owner.heart.q === t.q && owner.heart.r === t.r;
+      pushAlert(live, t.owner, { type: "attacked", by: t.capture.by, q: t.q, r: t.r, ...(heart ? { heart: true as const } : {}) });
+      this.notify(live, t.owner, heart ? "heart" : "attacked", { name: live.members.get(t.capture.by)?.name ?? "?" });
     }
   }
 
@@ -676,6 +878,7 @@ export class ForestService {
     player.mondayBonus = mondayBonusFor(previous);
     live.members.set(account.id, account);
     this.playerForest.set(account.id, live.record.id);
+    this.broadcastRoster(live);
     this.save(live);
     await live.saving;
     return live;
@@ -704,6 +907,7 @@ export class ForestService {
       journal: new Map(),
       alerts: new Map(),
       attackAlerted: new Map(),
+      seasonEndNotified: false,
       saving: Promise.resolve(),
     };
     this.forests.set(record.id, live);
@@ -729,6 +933,12 @@ export class ForestService {
       .then(() => this.store.saveForest(live.record.id, live.forest))
       .catch((err: unknown) => this.log(`save failed for forest #${live.record.number}: ${String(err)}`));
   }
+}
+
+/** A stored message as sent to players (the pact id stays on the server). */
+function publicChat(m: StoredChat): ChatMessage {
+  const { pact: _pact, ...message } = m;
+  return message;
 }
 
 function countTiles(forest: ForestState, playerId: string): number {

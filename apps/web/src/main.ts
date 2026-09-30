@@ -85,7 +85,9 @@ import {
 import { cssColor, playerColor } from "./colors";
 import { formatDuration, formatNumber } from "./format";
 import { applyI18n, lang, locale, onLangChange, setLang, t, type MessageKey } from "./i18n";
+import { ChatView } from "./chat-view";
 import { MapView } from "./map-view";
+import { NotifyView } from "./notify";
 import { choosePassword, clearToken, Connection, loadToken, saveToken, signIn, signOut } from "./net";
 import "./style.css";
 
@@ -200,6 +202,29 @@ let panelTab: "upgrades" | "mutations" | "spores" = "upgrades";
 const serverNow = () => clock.server + (Date.now() - clock.local) * clock.scale;
 const fmt = (n: number) => formatNumber(n, locale());
 
+// Chat and browser notifications (M7)
+const chat = new ChatView(
+  {
+    panel: $("chat-panel"),
+    toggle: $("chat-toggle"),
+    badge: $("chat-badge"),
+    channel: $<HTMLSelectElement>("chat-channel"),
+    list: $("chat-list"),
+    form: $<HTMLFormElement>("chat-form"),
+    input: $<HTMLInputElement>("chat-input"),
+    note: $("chat-note"),
+  },
+  { send: (msg) => connection?.send(msg), toast: (text, tone) => toast(text, tone) },
+);
+$("chat-close").addEventListener("click", () => chat.setOpen(false));
+const notify = new NotifyView(
+  { overlay: $("notify"), kinds: $("notify-kinds"), status: $("notify-status"), toggle: $<HTMLButtonElement>("notify-toggle") },
+  (msg) => connection?.send(msg),
+);
+notify.render();
+$("notify-open").addEventListener("click", () => notify.open());
+$("notify-close").addEventListener("click", () => notify.close());
+
 // ---------------------------------------------------------------------------
 // Static texts and language
 
@@ -220,6 +245,10 @@ onLangChange(() => {
   renderBoard();
   renderHistory();
   if (!ui.seasonEnd.hidden) showSeasonEnd(lastResult);
+  chat.refresh();
+  notify.render();
+  // Notifications are written in the language of the subscription.
+  void notify.resubscribe();
   render();
 });
 $("lang-btn").addEventListener("click", () => setLang(lang() === "en" ? "fr" : "en"));
@@ -327,8 +356,22 @@ function onMessage(msg: ServerMessage): void {
       renderHistory();
       setForestEvents(msg.forestEvents ?? []);
       applySnapshot(msg.game, msg.owners, msg.serverTime);
+      chat.load({ me: msg.player.id, admin: msg.admin, silencedUntil: msg.silencedUntil, roster: msg.roster, chat: msg.chat, muted: msg.muted });
+      void notify.resubscribe();
       if (msg.away) showAway(msg.away);
       if (msg.needsPassword) ui.password.hidden = false;
+      break;
+    case "roster":
+      chat.setRoster(msg.roster);
+      break;
+    case "chat":
+      chat.receive(msg.message);
+      break;
+    case "chatError":
+      chat.error(msg.error);
+      break;
+    case "chatNotice":
+      toast(msg.notice === "reported" ? t("chat.notice.reported") : t("chat.notice.silenced", { name: msg.name ?? "?" }), "good");
       break;
     case "state":
       setForestEvents(msg.forestEvents ?? []);
@@ -377,7 +420,7 @@ function announce(e: CaptureNotice): void {
 
 function alert(a: Alert): void {
   const name = owners.get(a.by)?.name ?? "?";
-  if (a.type === "attacked") toast(t("alert.attacked", { name }));
+  if (a.type === "attacked") toast(t(a.heart ? "alert.heart" : "alert.attacked", { name }));
   else toast(t("alert.action", { name, action: t(`action.${a.action}.name`) }));
 }
 

@@ -15,6 +15,7 @@ import {
 } from "./game";
 import type { MapLayout } from "./forestgen";
 import type { EventDto, EventNotice } from "./events";
+import { CHAT, CHAT_CHANNELS, isPushKind, type ChatChannel, type ChatError, type ChatMessage, type PushKind, type PushLang } from "./chat";
 import { hexKey, type Hex } from "./hex";
 
 // ---------------------------------------------------------------------------
@@ -233,6 +234,14 @@ export interface OwnerInfo {
   tiles: number;
 }
 
+/** A member of the forest, for the chat and private messages (everybody, fog or not). */
+export interface RosterEntry {
+  id: string;
+  name: string;
+  /** Index in the client's player palette. */
+  color: number;
+}
+
 export interface LeaderboardEntry {
   rank: number;
   id: string;
@@ -299,7 +308,24 @@ export type ServerMessage =
       history: SeasonResult[];
       /** Events announced or under way in the forest (GDD §7). */
       forestEvents: EventDto[];
+      /** Every colony of the forest (M7 chat). */
+      roster: RosterEntry[];
+      /** Recent messages this player can read, oldest first. */
+      chat: ChatMessage[];
+      /** Players this player muted. */
+      muted: string[];
+      /** An admin cut this player's chat until then (game time), or null. */
+      silencedUntil: number | null;
+      /** The player may cut other players' chat (M7 moderation). */
+      admin: boolean;
     }
+  /** The forest's colonies changed (someone joined). */
+  | { type: "roster"; roster: RosterEntry[] }
+  /** A new message this player can read. */
+  | { type: "chat"; message: ChatMessage }
+  | { type: "chatError"; error: ChatError }
+  /** Moderation done: a message reported, a player silenced. */
+  | { type: "chatNotice"; notice: "reported" | "silenced"; name?: string }
   /** The season is over and the forest was wiped: `result` is the final standing (null if absent). */
   | { type: "seasonEnded"; result: SeasonResult | null }
   | { type: "authError" }
@@ -331,7 +357,7 @@ export interface CaptureNotice {
 
 /** In-game alerts (GDD §11): a border fight starts on one of your tiles, an action hits you. */
 export type Alert =
-  | { type: "attacked"; by: string; q: number; r: number }
+  | { type: "attacked"; by: string; q: number; r: number; heart?: true }
   | { type: "action"; action: ActionId; by: string; q: number; r: number };
 
 /** One line of the night journal (GDD §11 "Journal de la nuit"); names are resolved by the server. */
@@ -378,7 +404,16 @@ export type ClientMessage =
   /** Switches automations (GDD §9). */
   | { type: "setAutomation"; colonize?: string | null; upgrades?: boolean }
   /** Uses an active action on an enemy tile (GDD §6.2). */
-  | { type: "act"; action: string; q: number; r: number };
+  | { type: "act"; action: string; q: number; r: number }
+  /** Sends a message to the forest, to the player's pact, or to one player (`to`). */
+  | { type: "chat"; channel: ChatChannel; to?: string; text: string }
+  | { type: "mute"; player: string; muted: boolean }
+  | { type: "report"; message: number }
+  /** Admins only: cuts a player's chat for a day. */
+  | { type: "silence"; player: string }
+  /** Browser notifications (M7): the subscription made by the browser, the language and the kinds wanted. */
+  | { type: "pushSubscribe"; endpoint: string; p256dh: string; auth: string; lang: PushLang; kinds: PushKind[] }
+  | { type: "pushUnsubscribe"; endpoint: string };
 
 export interface HealthReport {
   status: "ok" | "degraded";
@@ -456,6 +491,29 @@ export function parseClientMessage(raw: string): ClientMessage | null {
       return isStr(m.upgrade, 50) ? { type: "buySporeUpgrade", upgrade: m.upgrade } : null;
     case "act":
       return isStr(m.action, 20) && isInt(m.q) && isInt(m.r) ? { type: "act", action: m.action, q: m.q, r: m.r } : null;
+    case "chat": {
+      if (typeof m.channel !== "string" || !(CHAT_CHANNELS as readonly string[]).includes(m.channel)) return null;
+      // Room for the characters cleaning removes; the length rule itself is checked on the cleaned text.
+      if (!isStr(m.text, CHAT.maxLength * 4)) return null;
+      const channel = m.channel as ChatChannel;
+      if (channel === "dm") return isStr(m.to, 64) ? { type: "chat", channel, to: m.to, text: m.text } : null;
+      return { type: "chat", channel, text: m.text };
+    }
+    case "mute":
+      return isStr(m.player, 64) && typeof m.muted === "boolean" ? { type: "mute", player: m.player, muted: m.muted } : null;
+    case "report":
+      return isInt(m.message) && m.message > 0 ? { type: "report", message: m.message } : null;
+    case "silence":
+      return isStr(m.player, 64) ? { type: "silence", player: m.player } : null;
+    case "pushSubscribe": {
+      if (!isStr(m.endpoint, 1000) || !/^https:\/\//.test(m.endpoint) || !isStr(m.p256dh, 200) || !isStr(m.auth, 100)) return null;
+      if (m.lang !== "en" && m.lang !== "fr") return null;
+      if (!Array.isArray(m.kinds) || m.kinds.length > 10) return null;
+      const kinds = [...new Set(m.kinds.filter(isPushKind))];
+      return { type: "pushSubscribe", endpoint: m.endpoint, p256dh: m.p256dh, auth: m.auth, lang: m.lang, kinds };
+    }
+    case "pushUnsubscribe":
+      return isStr(m.endpoint, 1000) ? { type: "pushUnsubscribe", endpoint: m.endpoint } : null;
     case "setAutomation": {
       const out: ClientMessage = { type: "setAutomation" };
       if (m.colonize === null || isStr(m.colonize, 20)) out.colonize = m.colonize as string | null;
