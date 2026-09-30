@@ -1,4 +1,11 @@
 import {
+  ACTION_IDS,
+  ACTIONS,
+  actionPrice,
+  ANTI_FRUSTRATION,
+  activeEffect,
+  effectsAt,
+  inForestCentre,
   advance,
   biomassRate,
   checkBuild,
@@ -34,6 +41,7 @@ import {
   mondayBonusFor,
   hexEquals,
   hexKey,
+  hexNeighbors,
   networkHops,
   phaseAt,
   richness,
@@ -64,6 +72,8 @@ import {
   type Hex,
   type ServerMessage,
   type Terrain,
+  type ActionId,
+  type Tile,
 } from "@mycelium/shared";
 import { cssColor, playerColor } from "./colors";
 import { formatDuration, formatNumber } from "./format";
@@ -100,6 +110,8 @@ const ui = {
   autoUpgrades: $<HTMLInputElement>("auto-upgrades"),
   autoNote: $("auto-note"),
   structureList: $("structure-list"),
+  tileConflict: $("tile-conflict"),
+  actionList: $("action-list"),
   nutrientsRate: $("nutrients-rate"),
   biomass: $("biomass"),
   biomassRate: $("biomass-rate"),
@@ -343,7 +355,8 @@ function applySnapshot(snapshot: GameSnapshot, list: OwnerInfo[], serverTime: nu
 
 function announce(e: CaptureNotice): void {
   const name = owners.get(e.other)?.name ?? "?";
-  toast(t(e.kind === "won" ? "capture.won" : "capture.lost", { name }), e.kind === "won" ? "good" : "bad");
+  const key: MessageKey = e.heart ? (e.kind === "won" ? "capture.heartWon" : "capture.heartLost") : e.kind === "won" ? "capture.won" : "capture.lost";
+  toast(t(key, { name }), e.kind === "won" ? "good" : "bad");
 }
 
 function selectTile(h: Hex | null): void {
@@ -515,6 +528,19 @@ const structureItems = STRUCTURE_IDS.map((id) => {
   desc.className = "structure-desc";
   li.append(button, desc);
   ui.structureList.append(li);
+  return { id, li, button, desc };
+});
+const actionItems = ACTION_IDS.map((id) => {
+  const li = document.createElement("li");
+  const button = document.createElement("button");
+  button.type = "button";
+  button.addEventListener("click", () => {
+    if (selected) connection?.send({ type: "act", action: id, q: selected.q, r: selected.r } satisfies ClientMessage);
+  });
+  const desc = document.createElement("p");
+  desc.className = "structure-desc";
+  li.append(button, desc);
+  ui.actionList.append(li);
   return { id, li, button, desc };
 });
 const demolishItem = (() => {
@@ -863,7 +889,13 @@ function renderTile(g: GameState): void {
     }
     facts.push(["tile.yield", t("tile.yieldValue", { value: fmt(tileYield(tile.terrain, g.upgrades) * richness(g, tile)) })]);
     if (tile.structure) facts.push(["tile.structure", t(`structure.${tile.structure}.name`)]);
-    note = t("tile.border");
+    const theirs = owners.get(tile.owner)?.tiles ?? Infinity;
+    note =
+      theirs <= ANTI_FRUSTRATION.floorTiles
+        ? t("tile.floorNote")
+        : ownedCount(g) >= ANTI_FRUSTRATION.bullyRatio * theirs
+          ? t("tile.bullyNote")
+          : t("tile.border");
   } else if (tile.owner === g.id) {
     tone = "good";
     if (tile.capture) {
@@ -877,6 +909,9 @@ function renderTile(g: GameState): void {
       tone = "warn";
     } else {
       status = hexEquals(tile, g.heart) ? t("tile.heart") : t("tile.owned");
+      if (hexEquals(tile, g.heart) && g.heartShieldUntil !== null && g.heartShieldUntil > now) {
+        facts.push(["tile.heartShield", formatDuration(g.heartShieldUntil - now)]);
+      }
       facts.push(["tile.production", t("tile.yieldValue", { value: fmt(tileProduction(g, tile, hops)) })]);
       if (tile.structure) facts.push(["tile.structure", t(`structure.${tile.structure}.name`)]);
       if (tile.structure === "gland" && hops.has(hexKey(tile))) facts.push(["tile.enzymes", t("tile.enzymesValue", { value: fmt(glandRate(tile) * 3600) })]);
@@ -921,6 +956,11 @@ function renderTile(g: GameState): void {
     }
   }
   if (wet && tile.terrain !== "wetland") facts.push(["tile.humidity", t("tile.humidityValue", { bonus: Math.round(HUMIDITY.wetlandBonus * 100) })]);
+  const effects = tile.effects.filter((e) => e.until > now);
+  if (effects.length > 0) {
+    facts.push(["tile.effects", effects.map((e) => t("tile.effectValue", { name: t(`action.${e.kind}.name`), time: formatDuration(e.until - now) })).join(", ")]);
+  }
+  if (inForestCentre(g, tile) && tile.terrain !== "wetland" && !note) note = t("tile.centreNote");
 
   ui.tileName.textContent = t(`terrain.${tile.terrain}`);
   ui.tileStatus.textContent = status;
@@ -936,6 +976,7 @@ function renderTile(g: GameState): void {
     }),
   );
   renderStructures(g, tile, buildable);
+  renderConflict(g, tile, now);
   ui.tileNote.textContent = note;
   ui.tileNote.hidden = note === "";
   actionButtons.forEach((b, i) => {
@@ -982,6 +1023,36 @@ function renderStructures(g: GameState, tile: { q: number; r: number; structure:
   }
   demolishItem.li.hidden = current === null;
   if (current !== null) demolishItem.button.textContent = t("tile.demolish", { name: t(`structure.${current}.name` as MessageKey) });
+}
+
+/**
+ * Active actions on another colony's tile (GDD §6.2). The client checks what it can see (adjacency,
+ * Enzymes, cooldown, Monday); the server has the last word.
+ */
+function renderConflict(g: GameState, tile: Tile, now: number): void {
+  const enemy = tile.owner !== null && tile.owner !== g.id && tile.growthEndsAt === null;
+  const hops = networkHops(g, now);
+  const touching = enemy && hexNeighbors(tile).some((n) => hops.has(hexKey(n)));
+  ui.tileConflict.hidden = !enemy || !touching || !g.enzymesUnlocked;
+  if (ui.tileConflict.hidden) return;
+  const noPvp = effectsAt(g, now).captureSpeed === 0;
+  const theirs = owners.get(tile.owner!)?.tiles ?? Infinity;
+  const bullying = ownedCount(g) >= ANTI_FRUSTRATION.bullyRatio * theirs;
+  for (const item of actionItems) {
+    const id: ActionId = item.id;
+    const name = t(`action.${id}.name`);
+    const ready = g.cooldowns[id] ?? -Infinity;
+    const cost = actionPrice(id, bullying, inForestCentre(g, tile));
+    item.button.textContent = now < ready ? t("tile.actReadyIn", { name, time: formatDuration(ready - now) }) : t("tile.act", { name, cost: fmt(cost) });
+    item.button.disabled =
+      noPvp ||
+      now < ready ||
+      g.enzymes < cost ||
+      (id === "cut" && tile.structure === "rhizomorph") ||
+      (id === "assault" && theirs <= ANTI_FRUSTRATION.floorTiles) ||
+      (id === "assault" && activeEffect(tile, "assault", now)?.by === g.id);
+    item.desc.textContent = noPvp ? t("error.no_pvp") : t(`action.${id}.desc`, { duration: formatDuration(ACTIONS[id].durationMs) });
+  }
 }
 
 function percent(x: number): string {

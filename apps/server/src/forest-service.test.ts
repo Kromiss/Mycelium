@@ -103,7 +103,7 @@ describe("forests", () => {
     const a = await play(service, "Alpha");
     const ready = a.client.last("ready")!;
     expect(ready.game.tiles.length).toBe(7); // Spawn and its neighbours.
-    expect(ready.owners).toEqual([{ id: a.account.id, name: "Alpha", color: expect.any(Number) }]);
+    expect(ready.owners).toEqual([{ id: a.account.id, name: "Alpha", color: expect.any(Number), tiles: 1 }]);
     expect(ready.needsPassword).toBe(false);
     expect(ready.timeScale).toBe(1);
     expect(a.client.last("leaderboard")!.leaderboard.rank).toBe(1);
@@ -199,7 +199,8 @@ describe("forests", () => {
     pa.heart = { q: -2, r: 0 };
     for (const [q, r] of [[-2, 0], [-1, 0], [0, 0], [-1, 1], [0, -1], [0, 1], [1, -1], [-2, 1], [-1, -1]]) forest.tiles.get(`${q},${r}`)!.owner = pa.id;
     pb.heart = { q: 3, r: 0 };
-    for (const [q, r] of [[3, 0], [2, 0], [1, 0]]) forest.tiles.get(`${q},${r}`)!.owner = pb.id;
+    // B keeps a tail out of reach, to stay above the floor of 7 tiles (M6).
+    for (const [q, r] of [[3, 0], [2, 0], [1, 0], [4, 0], [5, 0], [4, -1], [5, -1], [6, -1]]) forest.tiles.get(`${q},${r}`)!.owner = pb.id;
     forest.tiles.get("1,0")!.terrain = "litter";
     (pa as { joinedAt: number }).joinedAt -= 2 * BORDERS.protectedMs;
     (pb as { joinedAt: number }).joinedAt -= 2 * BORDERS.protectedMs;

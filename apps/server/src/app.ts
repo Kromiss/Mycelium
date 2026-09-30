@@ -199,6 +199,10 @@ function onConnection(ws: WebSocket, game: ForestService): void {
         if (!player) return send(ws, { type: "actionError", error: "not_authenticated" });
         game.setAutomation(player.id, { colonize: msg.colonize, upgrades: msg.upgrades }, client);
         return;
+      case "act":
+        if (!player) return send(ws, { type: "actionError", error: "not_authenticated" });
+        game.act(player.id, msg.action, msg.q, msg.r, client);
+        return;
     }
   });
   ws.on("close", () => {

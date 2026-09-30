@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { BORDERS, FOREST, TERRAIN_STATS, VISION_RADIUS } from "./balance";
+import { BORDERS, CENTRE_RISK, FOREST, TERRAIN_STATS, VISION_RADIUS } from "./balance";
 import {
   advanceForest,
   captureSpeed,
   deserializeForest,
   freeSlices,
+  inCentre,
   isProtected,
   joinForest,
   newForest,
@@ -163,7 +164,8 @@ function arena(): { f: ForestState; a: GameState; b: GameState; border: Hex } {
   a.heart = hex(-2, 0);
   for (const h of [...hexesInRadius(a.heart, 2), hex(0, 1), hex(1, -1)]) f.tiles.get(hexKey(h))!.owner = "a";
   b.heart = hex(3, 0);
-  for (const h of [hex(3, 0), hex(2, 0), hex(1, 0)]) f.tiles.get(hexKey(h))!.owner = "b";
+  // b's tail (out of the border's reach) keeps b above the M6 floor and less than 3× smaller than a.
+  for (const h of [hex(3, 0), hex(2, 0), hex(1, 0), hex(4, 0), hex(5, 0), hex(4, -1), hex(5, -1), hex(6, -1)]) f.tiles.get(hexKey(h))!.owner = "b";
   for (const p of [a, b]) {
     p.lastSeenAt = null;
     p.updatedAt = T0;
@@ -222,10 +224,13 @@ describe("borders (GDD §6.1)", () => {
     expect(tile.capture?.progress ?? 0).toBeLessThan(0.5);
   });
 
-  it("never takes a Cœur, nor a new player's start zone", () => {
+  it("never takes a Cœur lost less than a day ago, nor a new player's start zone", () => {
     const { f, b } = arena();
     const heartTile = f.tiles.get(hexKey(b.heart))!;
+    expect(isProtected(f, heartTile, T0)).toBe(false);
+    b.heartShieldUntil = T0 + HOUR;
     expect(isProtected(f, heartTile, T0)).toBe(true);
+    expect(isProtected(f, heartTile, T0 + HOUR)).toBe(false);
     const fresh = joinForest(f, "fresh", T0)!;
     const start = f.tiles.get(hexKey(fresh.spawn))!;
     expect(isProtected(f, start, T0 + HOUR)).toBe(true);
@@ -234,14 +239,17 @@ describe("borders (GDD §6.1)", () => {
     expect(isProtected(f, start, T0 + BORDERS.protectedMs + 1)).toBe(false);
   });
 
-  it("halves captures on a player away for more than 2 h", () => {
+  it("slows captures on a player away for more than 2 h: halves them, but only by 25 % in the centre", () => {
     const run = (away: boolean) => {
       const { f, b, border } = arena();
       if (away) b.lastSeenAt = T0 - BORDERS.shieldAfterMs;
       resolveBorders(f, 60_000, T0 + 60_000);
-      return f.tiles.get(hexKey(border))!.capture!.progress;
+      return { progress: f.tiles.get(hexKey(border))!.capture!.progress, centre: inCentre(f, border) };
     };
-    expect(run(true)).toBeCloseTo(run(false) * BORDERS.shieldFactor, 10);
+    const away = run(true);
+    expect(away.centre).toBe(true); // The arena sits in the middle of a small forest.
+    expect(away.progress).toBeCloseTo(run(false).progress * CENTRE_RISK.shieldFactor, 10);
+    expect(BORDERS.shieldFactor).toBe(0.5);
   });
 });
 

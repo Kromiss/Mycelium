@@ -1,4 +1,5 @@
 import {
+  act,
   advance,
   advanceForest,
   botPlay,
@@ -21,6 +22,7 @@ import {
   moveHeart,
   refreshToxins,
   setAutomation,
+  tileCounts,
   mutate,
   newForest,
   randomSeed,
@@ -277,47 +279,52 @@ export class ForestService {
   }
 
   colonize(playerId: string, q: number, r: number, client: GameClient): void {
-    this.act(playerId, client, (p, now) => colonize(p, { q, r }, now));
+    this.act_(playerId, client, (p, now) => colonize(p, { q, r }, now));
   }
 
   unqueue(playerId: string, q: number, r: number, client: GameClient): void {
-    this.act(playerId, client, (p) => unqueue(p, { q, r }));
+    this.act_(playerId, client, (p) => unqueue(p, { q, r }));
   }
 
   moveHeart(playerId: string, q: number, r: number, client: GameClient): void {
-    this.act(playerId, client, (p, now) => moveHeart(p, { q, r }, now));
+    this.act_(playerId, client, (p, now) => moveHeart(p, { q, r }, now));
   }
 
   buyUpgrade(playerId: string, upgrade: string, client: GameClient): void {
-    this.act(playerId, client, (p) => buyUpgrade(p, upgrade));
+    this.act_(playerId, client, (p) => buyUpgrade(p, upgrade));
   }
 
   build(playerId: string, q: number, r: number, structure: string, client: GameClient): void {
-    this.act(playerId, client, (p, now) => build(p, { q, r }, structure, now));
+    this.act_(playerId, client, (p, now) => build(p, { q, r }, structure, now));
   }
 
   demolish(playerId: string, q: number, r: number, client: GameClient): void {
-    this.act(playerId, client, (p, now) => demolish(p, { q, r }, now));
+    this.act_(playerId, client, (p, now) => demolish(p, { q, r }, now));
   }
 
   mutate(playerId: string, mutation: string, client: GameClient): void {
-    this.act(playerId, client, (p, now) => mutate(p, mutation, now));
+    this.act_(playerId, client, (p, now) => mutate(p, mutation, now));
   }
 
   chooseStrain(playerId: string, strain: string, client: GameClient): void {
-    this.act(playerId, client, (p) => chooseStrain(p, strain));
+    this.act_(playerId, client, (p) => chooseStrain(p, strain));
   }
 
   fructify(playerId: string, radius: number, client: GameClient): void {
-    this.act(playerId, client, (p, now) => fructify(p, radius, now));
+    this.act_(playerId, client, (p, now) => fructify(p, radius, now));
   }
 
   buySporeUpgrade(playerId: string, upgrade: string, client: GameClient): void {
-    this.act(playerId, client, (p) => buySporeUpgrade(p, upgrade));
+    this.act_(playerId, client, (p) => buySporeUpgrade(p, upgrade));
+  }
+
+  /** Active action on an enemy tile (GDD §6.2); it changes the victim's tiles too. */
+  act(playerId: string, action: string, q: number, r: number, client: GameClient): void {
+    this.act_(playerId, client, (p, now, forest) => act(forest, p.id, action, { q, r }, now));
   }
 
   setAutomation(playerId: string, change: { colonize?: string | null; upgrades?: boolean }, client: GameClient): void {
-    this.act(playerId, client, (p, now) => setAutomation(p, change as Partial<Automation>, now));
+    this.act_(playerId, client, (p, now) => setAutomation(p, change as Partial<Automation>, now));
   }
 
   /** One simulation step for every forest: economy, borders, robots, views, leaderboard, saves. */
@@ -337,8 +344,9 @@ export class ForestService {
         for (const e of events) {
           live.won.set(e.to, (live.won.get(e.to) ?? 0) + 1);
           live.lost.set(e.from, (live.lost.get(e.from) ?? 0) + 1);
-          push(notices, e.to, { q: e.q, r: e.r, kind: "won", other: e.from });
-          push(notices, e.from, { q: e.q, r: e.r, kind: "lost", other: e.to });
+          const heart = e.heart ? { heart: true as const } : {};
+          push(notices, e.to, { q: e.q, r: e.r, kind: "won", other: e.from, ...heart });
+          push(notices, e.from, { q: e.q, r: e.r, kind: "lost", other: e.to, ...heart });
         }
         for (const [id, account] of live.members) {
           if (account.isBot) botPlay(live.forest.players.get(id)!, now, Math.floor(now / BOT_SESSION_MS) !== Math.floor((now - dt) / BOT_SESSION_MS));
@@ -370,7 +378,7 @@ export class ForestService {
 
   // -------------------------------------------------------------------------
 
-  private act(playerId: string, client: GameClient, action: (p: GameState, now: number) => ActionResult): void {
+  private act_(playerId: string, client: GameClient, action: (p: GameState, now: number, forest: ForestState) => ActionResult): void {
     const live = this.liveOf(playerId);
     if (!live || !live.clients.get(playerId)?.has(client)) {
       client.send({ type: "actionError", error: "not_authenticated" });
@@ -379,7 +387,7 @@ export class ForestService {
     const now = this.now();
     advanceForest(live.forest, now);
     const player = live.forest.players.get(playerId)!;
-    const result = action(player, now);
+    const result = action(player, now, live.forest);
     if (!result.ok) {
       client.send({ type: "actionError", error: result.error });
       return;
@@ -398,14 +406,16 @@ export class ForestService {
     for (const t of game.tiles) {
       if (t.owner) ids.add(t.owner);
       if (t.capture) ids.add(t.capture.by);
+      for (const e of t.e ?? []) ids.add(e.by);
     }
-    return { game, owners: [...ids].map((id) => this.ownerInfo(live, id)) };
+    const counts = tileCounts(live.forest);
+    return { game, owners: [...ids].map((id) => this.ownerInfo(live, id, counts)) };
   }
 
-  private ownerInfo(live: LiveForest, id: string): OwnerInfo {
+  private ownerInfo(live: LiveForest, id: string, counts: Map<string, number>): OwnerInfo {
     const p = live.forest.players.get(id);
     const slice = p ? live.forest.spawns.findIndex((s) => s.q === p.spawn.q && s.r === p.spawn.r) : 0;
-    return { id, name: live.members.get(id)?.name ?? "?", color: Math.max(0, slice) };
+    return { id, name: live.members.get(id)?.name ?? "?", color: Math.max(0, slice), tiles: counts.get(id) ?? 0 };
   }
 
   private async leaderboard(live: LiveForest, playerId: string): Promise<Leaderboard> {

@@ -352,3 +352,51 @@ export const AUTOMATION = {
   /** Auto-reinvestment: buy the cheapest upgrade with the nutrients the next colonisation does not need. */
   upgradesAt: 1_000_000,
 } as const;
+
+// ---------------------------------------------------------------------------
+// M6 — conflict: active actions, anti-frustration, centre risk (GDD §2.5, §6.2, §6.4).
+// DECIDED: the proposed package (biomass ×1.5 in the centre, floor of 7 tiles); numbers PLACEHOLDER.
+
+export const ACTION_IDS = ["assault", "toxin", "cut", "siphon"] as const;
+/** Assaut, Toxine, Coupure, Siphon (GDD §6.2): paid in Enzymes, on an enemy tile touching the network. */
+export type ActionId = (typeof ACTION_IDS)[number];
+
+export const ACTIONS: Readonly<Record<ActionId, { cost: number; cooldownMs: number; durationMs: number }>> = {
+  /** Assaut: the tile is taken 4× faster, and as soon as the attacker is above parity. */
+  assault: { cost: 30, cooldownMs: 4 * HOUR, durationMs: 30 * 60_000 },
+  /** Toxine: the tile and its neighbours of the same owner produce 50 % less. */
+  toxin: { cost: 20, cooldownMs: 3 * HOUR, durationMs: 1 * HOUR },
+  /** Coupure: the tile carries no nutrients; tiles cut off behind it do not wither meanwhile. */
+  cut: { cost: 40, cooldownMs: 6 * HOUR, durationMs: 45 * 60_000 },
+  /** Siphon: 20 % of the production of the tile and of the owner's tiles within 2 goes to the caster. */
+  siphon: { cost: 25, cooldownMs: 4 * HOUR, durationMs: 2 * HOUR },
+};
+
+export const ACTION_EFFECTS = {
+  assaultSpeed: 4,
+  toxinProduction: 0.5,
+  siphonShare: 0.2,
+  siphonRadius: 2,
+} as const;
+
+export const ANTI_FRUSTRATION = {
+  /** The Cœur is taken this much slower than a normal tile of its terrain. */
+  heartCaptureFactor: 0.25,
+  /** After losing it, the Cœur cannot be taken again for this long ("une fois par jour"). */
+  heartShieldMs: 24 * HOUR,
+  /** Against a player with this many times fewer tiles: captures slower and actions dearer (GDD §6.4). */
+  bullyRatio: 3,
+  bullyCaptureFactor: 0.25,
+  bullyActionCost: 3,
+  /** A player with this many tiles or fewer cannot lose any more. DECIDED: 7. */
+  floorTiles: 7,
+} as const;
+
+export const CENTRE_RISK = {
+  /** Offline shield in the centre: captures at this speed instead of BORDERS.shieldFactor (GDD §2.5). */
+  shieldFactor: 0.75,
+  /** Coupures on a centre tile cost this share. */
+  cutCost: 0.5,
+  /** Biomass of the production of centre tiles. DECIDED: ×1.5. */
+  biomass: 1.5,
+} as const;

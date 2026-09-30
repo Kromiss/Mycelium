@@ -135,7 +135,7 @@ describe("phase effects (GDD §7)", () => {
     a.heart = hex(-2, 0);
     for (const [q, r] of [[-2, 0], [-1, 0], [0, 0], [-1, 1], [0, -1], [0, 1], [1, -1], [-2, 1], [-1, -1]] as const) f.tiles.get(`${q},${r}`)!.owner = "a";
     b.heart = hex(3, 0);
-    for (const [q, r] of [[3, 0], [2, 0], [1, 0]] as const) f.tiles.get(`${q},${r}`)!.owner = "b";
+    for (const [q, r] of [[3, 0], [2, 0], [1, 0], [4, 0], [5, 0], [4, -1], [5, -1], [6, -1]] as const) f.tiles.get(`${q},${r}`)!.owner = "b";
     const border = f.tiles.get("1,0")!;
     resolveBorders(f, 60_000, MONDAY + HOUR);
     expect(border.capture).toBeNull();

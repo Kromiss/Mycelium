@@ -6,6 +6,19 @@ versions [semver](https://semver.org/lang/fr/).
 ## [Unreleased]
 
 ### Added
+- **Actions actives** (GDD §6.2), payées en Enzymes, avec une recharge par action, interdites le
+  lundi, sur une case ennemie collée à son réseau : **Assaut** (30, 4 h : prise 4× plus rapide pendant
+  30 min, dès qu'on pousse plus fort que le défenseur), **Toxine** (20, 3 h : la case et ses voisines
+  −50 % pendant 1 h), **Coupure** (40, 6 h : la case ne fait plus passer les nutriments pendant 45 min,
+  sans dépérissement derrière ; pas sur un Rhizomorphe ni sur un Cœur), **Siphon** (25, 4 h : 20 % de
+  la production des cases à 2 ou moins pendant 2 h).
+- **Anti-frustration** (§6.4) : le Cœur est prenable, 4× plus lentement ; il renaît sur le Sclérote,
+  sinon sur la case la plus proche, puis reste protégé 24 h. Contre un joueur 3× plus petit : prises
+  4× plus lentes, actions 3× plus chères. **Plancher** : un joueur à 7 cases ne peut plus en perdre.
+- **Risque du centre** (§2.5) : biomasse ×1,5, bouclier hors ligne réduit à −25 %, Coupures 2× moins chères.
+- Client : section « Attaquer » dans le panneau d'une case ennemie, effets en cours sur les cases et
+  sur la carte, Cœur protégé, alertes de Cœur pris (EN + FR).
+- Migration `0010_active_actions`.
 - Robots de test : option **`aim`** dans le plan d'un robot (`BotPlan`) : `"centre"` fonce vers le
   centre riche, `"home"` reste dans sa part (bord et anneau, jamais le centre) et évite les cases
   collées à un voisin. Sans `aim`, rien ne change.

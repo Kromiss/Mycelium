@@ -12,6 +12,7 @@ import {
   type Hex,
   type OwnerInfo,
   type StructureId,
+  type EffectKind,
   type Terrain,
 } from "@mycelium/shared";
 import { playerColor } from "./colors";
@@ -43,6 +44,13 @@ const STRUCTURE_COLORS: Record<StructureId, number> = {
   rhizomorph: 0xe39a5b,
   sclerotium: 0xd9d4bd,
   carpophore: 0xe0704a,
+};
+/** Marks of the timed tile effects (GDD §6.2). */
+const EFFECT_COLORS: Record<EffectKind, number> = {
+  assault: 0xff5a3c,
+  toxin: 0x9be15d,
+  cut: 0xf2efe6,
+  siphon: 0x5ac8ff,
 };
 const GAP = 0x0c0e0a;
 const MYCELIUM = 0xe9f6c8;
@@ -386,6 +394,23 @@ export class MapView {
       const r = SIZE * 0.72;
       fx.moveTo(x + r * Math.cos(start), y + r * Math.sin(start));
       fx.arc(x, y, r, start, start + Math.min(1, t.capture.progress) * Math.PI * 2).stroke({ width: 4, color, alpha: 0.6 + 0.4 * pulse });
+    }
+
+    // Active actions (GDD §6.2): one small mark per effect along the bottom of the tile.
+    for (const t of game.tiles.values()) {
+      const active = t.effects.filter((e) => e.until > now);
+      if (active.length === 0) continue;
+      const { x, y } = hexToPixel(t, SIZE);
+      active.forEach((e, i) => {
+        const ex = x + (i - (active.length - 1) / 2) * 9;
+        const ey = y + SIZE * 0.52;
+        const color = EFFECT_COLORS[e.kind];
+        if (e.kind === "cut") {
+          fx.moveTo(ex - 4, ey - 4).lineTo(ex + 4, ey + 4).moveTo(ex + 4, ey - 4).lineTo(ex - 4, ey + 4).stroke({ width: 2.5, color, alpha: 0.95 });
+        } else {
+          fx.circle(ex, ey, 3.5 + (e.kind === "assault" ? pulse : 0)).fill({ color, alpha: 0.95 });
+        }
+      });
     }
 
     if (this.highlighted) {

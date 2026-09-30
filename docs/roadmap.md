@@ -225,6 +225,27 @@ Points ouverts :
 **Terminé quand** : sur staging, une saison de test voit des coupures, des retournements et au moins un
 world boss partagé, sans qu'un joueur absent perde tout.
 
+✅ Décidé : **paquet proposé validé**, avec deux changements (biomasse ×1,5 au centre, plancher à 7 cases) ;
+les chiffres d'équilibrage de M5 marqués « à valider » sont acquis. Livraison en trois étapes.
+- **Actions actives** (Enzymes, recharge par action, interdites le lundi, sur une case ennemie collée à
+  son réseau) : Assaut (30, recharge 4 h : prise 4× plus rapide pendant 30 min, dès que l'on dépasse
+  l'égalité), Toxine (20, 3 h : la case et ses voisines du même joueur −50 % pendant 1 h), Coupure (40,
+  6 h : la case ne fait plus passer les nutriments pendant 45 min, sans dépérissement des cases coupées ;
+  un Rhizomorphe ne peut pas être coupé), Siphon (25, 4 h : 20 % de la production de la case et des cases
+  du même joueur à 2 cases ou moins, pendant 2 h).
+- **Anti-frustration** : Cœur prenable 4× plus lentement ; il renaît sur le Sclérote, sinon sur la case
+  la plus proche de l'ancien Cœur, puis reste imprenable 24 h. Contre un joueur 3× plus petit : prises
+  4× plus lentes, actions 3× plus chères. **Plancher : un joueur à 7 cases ne peut plus en perdre.**
+- **Risque du centre** : bouclier hors ligne réduit (prises −25 % au lieu de −50 %), Coupures 2× moins
+  chères, événements plus forts, **biomasse ×1,5**.
+- **Événements** (1 à 3 par jour du mardi au dimanche, annoncés 1 h avant, au plus 10 % des cases d'un
+  joueur par événement, jamais le Cœur ni le Sclérote) : Orage, Incendie (puis Cendres ×2 pendant 24 h),
+  Sanglier, Chute d'arbre (le jeudi), Carcasse (12 h), Nématodes (PvE). Ruine reportée à M7.
+- **Arbre mourant** (world boss) jeudi et dimanche après-midi, au centre, 7 cases ; digéré au prorata de
+  la production, PV ≈ 2 h de production de la forêt, 6 h au plus ; biomasse et Enzymes au prorata,
+  Trophée au meilleur contributeur.
+- **Journal de la nuit** et alertes en jeu (navigateur / e-mail : décision de M7).
+
 ## M7 — Social (0.8.0) — GDD §15.6
 
 ✅ Décidé : **chat de forêt en jeu + messages privés** (pas de Discord).

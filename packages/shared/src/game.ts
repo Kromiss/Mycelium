@@ -1,5 +1,7 @@
 import {
+  ACTION_EFFECTS,
   AUTOMATION,
+  CENTRE_RISK,
   ECONOMY,
   FRUITING,
   ENZYMES_UNLOCK_TILES,
@@ -26,6 +28,7 @@ import {
   TRANSPORT,
   UPGRADE_IDS,
   UPGRADE_STATS,
+  type ActionId,
   type MutationId,
   type SporeUpgradeId,
   type StrainId,
@@ -33,7 +36,7 @@ import {
   type Terrain,
   type UpgradeId,
 } from "./balance";
-import { lifetimeFactorAt, richnessAt, type MapLayout } from "./forestgen";
+import { lifetimeFactorAt, richnessAt, ringAt, type MapLayout } from "./forestgen";
 import { hexDistance, hexEquals, hexKey, hexNeighbors, type Hex } from "./hex";
 import { generateMap, START_HEX } from "./mapgen";
 import { NEUTRAL_EFFECTS, nextPhaseChange, phaseAt, type PhaseEffects } from "./season";
@@ -73,6 +76,23 @@ export interface Tile extends Hex {
    * by the forest (see `refreshToxins`), not stored.
    */
   toxic: boolean;
+  /** Timed effects on the tile: active actions (GDD §6.2) and, later, events. Expired ones are pruned by the forest. */
+  effects: TileEffect[];
+}
+
+/** Kinds of timed tile effects. */
+export type EffectKind = ActionId;
+
+/** A timed effect on a tile, cast by `by` (a player id) and active until `until` (ms since epoch). */
+export interface TileEffect {
+  kind: EffectKind;
+  by: string;
+  until: number;
+}
+
+/** The first effect of this kind still active at `at`, if any. */
+export function activeEffect(tile: Tile, kind: EffectKind, at: number): TileEffect | undefined {
+  return tile.effects.find((e) => e.kind === kind && e.until > at);
 }
 
 export type Upgrades = Record<UpgradeId, number>;
@@ -115,6 +135,15 @@ export interface GameState {
   heart: Hex;
   /** Last time the Cœur was moved, null if never. */
   heartMovedAt: number | null;
+  /** After losing the Cœur, it cannot be taken again until then (GDD §6.4); null otherwise. */
+  heartShieldUntil: number | null;
+  /** When each active action can be used again (GDD §6.2), ms since epoch. */
+  cooldowns: Partial<Record<ActionId, number>>;
+  /**
+   * Nutrients siphoned from this player and not yet handed to the casters (GDD §6.2 Siphon), by caster
+   * id. The forest settles it whenever it moves on; never stored.
+   */
+  siphoned: Record<string, number>;
   nutrients: number;
   /** GDD §3: made by Glandes enzymatiques, spent on Rock (and on active actions in M6). */
   enzymes: number;
@@ -164,7 +193,13 @@ export type ActionError =
   | "nothing_to_fruit"
   | "unknown_spore_upgrade"
   | "not_enough_spores"
-  | "invalid_automation";
+  | "invalid_automation"
+  | "unknown_action"
+  | "not_enemy"
+  | "no_pvp"
+  | "protected"
+  | "uncuttable"
+  | "action_cooldown";
 
 export type ActionResult = { ok: true } | { ok: false; error: ActionError };
 
@@ -230,6 +265,7 @@ export function wildTile(h: Hex, terrain: Terrain): Tile {
     reservedFor: null,
     structure: null,
     toxic: false,
+    effects: [],
   };
 }
 
@@ -267,6 +303,9 @@ export function newPlayer(
     automation: { colonize: null, upgrades: false },
     heart: { q: spawn.q, r: spawn.r },
     heartMovedAt: null,
+    heartShieldUntil: null,
+    cooldowns: {},
+    siphoned: {},
     nutrients: ECONOMY.startingNutrients,
     enzymes: 0,
     enzymesUnlocked: false,
@@ -297,11 +336,15 @@ const isGrown = (state: GameState, t: Tile | undefined): boolean => isMine(state
 /**
  * Hops from the Cœur to every colonised tile it can reach through colonised tiles. Stepping onto a
  * Rhizomorphe costs no hop (GDD §4.1: a reinforced cord). Tiles missing from the result are disconnected.
+ * A tile under a Coupure at `at` (GDD §6.2) carries nothing: it and what lies behind it are left out,
+ * unless `ignoreCuts`.
  */
-export function networkHops(state: GameState): Map<string, number> {
+export function networkHops(state: GameState, at: number = state.updatedAt, ignoreCuts = false): Map<string, number> {
   const hops = new Map<string, number>();
   const heart = state.tiles.get(hexKey(state.heart));
   if (!heart || !isGrown(state, heart)) return hops;
+  const cut = (t: Tile) => !ignoreCuts && t.effects.length > 0 && activeEffect(t, "cut", at) !== undefined;
+  if (cut(heart)) return hops;
   hops.set(hexKey(heart), 0);
   // 0-1 breadth-first search: free steps go to the front of the deque.
   const deque: Array<[Hex, number]> = [[heart, 0]];
@@ -313,7 +356,7 @@ export function networkHops(state: GameState): Map<string, number> {
     for (const n of hexNeighbors(h)) {
       const k = hexKey(n);
       const t = state.tiles.get(k);
-      if (!t || !isGrown(state, t)) continue;
+      if (!t || !isGrown(state, t) || cut(t)) continue;
       const free = t.structure === "rhizomorph";
       const nd = free ? d : d + 1;
       const known = hops.get(k);
@@ -556,7 +599,25 @@ export function tileProduction(
 ): number {
   const d = hops.get(hexKey(tile));
   if (!isGrown(state, tile) || d === undefined) return 0;
-  return baseProduction(state, tile, d, at) * bonus * (1 - Math.min(tile.exhaustion, wearCap(state)));
+  const siphon = siphonedBy(tile, state.id, at) !== null ? 1 - ACTION_EFFECTS.siphonShare : 1;
+  return baseProduction(state, tile, d, at) * bonus * (1 - Math.min(tile.exhaustion, wearCap(state))) * siphon;
+}
+
+/** Who siphons this tile of `owner` at `at` (GDD §6.2 Siphon), null if nobody. */
+export function siphonedBy(tile: Tile, owner: string, at: number): string | null {
+  if (tile.effects.length === 0) return null;
+  const e = tile.effects.find((x) => x.kind === "siphon" && x.until > at && x.by !== owner);
+  return e ? e.by : null;
+}
+
+/** The tile lies in the centre of a forest (GDD §2.5 war zone). */
+export function inForestCentre(state: GameState, h: Hex): boolean {
+  return state.layout.kind === "forest" && ringAt(state.radius, h) === "centre";
+}
+
+/** Biomass multiplier of what a tile produces: ×1.5 in the forest centre (GDD §2.5 risk). */
+export function placeBiomass(state: GameState, h: Hex): number {
+  return inForestCentre(state, h) ? CENTRE_RISK.biomass : 1;
 }
 
 /** Nutrients per second of a fresh tile at `hops` from the Cœur: yield × structure × place × humidity × transport × phase. */
@@ -569,13 +630,14 @@ function baseProduction(state: GameState, tile: Tile, hops: number, at: number):
     humidity(state, tile) *
     (1 - transportLoss(hops, hasMutation(state, "mycelialCords") ? MUTATIONS.mycelialCords : 1)) *
     phaseProduction(state, tile, effectsAt(state, at), at) *
-    (tile.toxic ? 1 - MUTATIONS.toxins : 1)
+    (tile.toxic ? 1 - MUTATIONS.toxins : 1) *
+    (tile.effects.length > 0 && activeEffect(tile, "toxin", at) ? ACTION_EFFECTS.toxinProduction : 1)
   );
 }
 
 /** Total nutrients per second right now (GDD §10 `production_totale`), including the offline factor. */
 export function productionRate(state: GameState, at: number = state.updatedAt): number {
-  const hops = networkHops(state);
+  const hops = networkHops(state, at);
   const bonus = networkBonus(state, hops, at);
   let total = 0;
   for (const k of hops.keys()) total += tileProduction(state, state.tiles.get(k)!, hops, at, bonus);
@@ -590,7 +652,7 @@ export function glandRate(tile: Tile): number {
 
 /** Enzymes per second right now, including the offline factor. */
 export function enzymeRate(state: GameState, at: number = state.updatedAt): number {
-  const hops = networkHops(state);
+  const hops = networkHops(state, at);
   let total = 0;
   for (const k of hops.keys()) {
     const t = state.tiles.get(k)!;
@@ -599,9 +661,16 @@ export function enzymeRate(state: GameState, at: number = state.updatedAt): numb
   return total * offlineFactor(state, at);
 }
 
-/** Biomass gained per second right now (the score), phase included (0 once the season is frozen). */
+/** Biomass gained per second right now (the score), phase and centre bonus included (0 once the season is frozen). */
 export function biomassRate(state: GameState, at: number = state.updatedAt): number {
-  return productionRate(state, at) * biomassConversion(state) * effectsAt(state, at).biomass;
+  const hops = networkHops(state, at);
+  const bonus = networkBonus(state, hops, at);
+  let total = 0;
+  for (const k of hops.keys()) {
+    const t = state.tiles.get(k)!;
+    total += tileProduction(state, t, hops, at, bonus) * placeBiomass(state, t);
+  }
+  return total * offlineFactor(state, at) * biomassConversion(state) * effectsAt(state, at).biomass;
 }
 
 /** Share of the player's production credited as Biomass: upgrades and Spore shop. */
@@ -852,6 +921,7 @@ export function fructify(state: GameState, radius: number, now: number): ActionR
   for (const t of lost) {
     t.owner = null;
     t.structure = null;
+    t.effects = [];
     t.growthEndsAt = null;
     t.growthStartedAt = null;
     t.disconnectedSince = null;
@@ -1028,6 +1098,7 @@ export function advance(state: GameState, to: number): void {
           tile.owner = null;
           tile.structure = null;
           tile.capture = null;
+          tile.effects = [];
           tile.growthEndsAt = null;
           tile.growthStartedAt = null;
           tile.disconnectedSince = null;
@@ -1062,6 +1133,10 @@ interface Producer {
   /** Nutrients per ms of the tile when fresh, after humidity and transport. */
   basePerMs: number;
   lifetime: number;
+  /** Biomass multiplier of the tile's place (centre). */
+  biomassWeight: number;
+  /** Player siphoning the tile (GDD §6.2), null if none. */
+  siphonBy: string | null;
 }
 
 /** What stays constant until the next event: who produces, who rests, when the next event is. */
@@ -1083,7 +1158,7 @@ interface Window {
 }
 
 function planWindow(state: GameState, t: number): Window {
-  const hops = networkHops(state);
+  const hops = networkHops(state, t);
   const bonus = networkBonus(state, hops, t);
   const producers: Producer[] = [];
   let enzymes = 0;
@@ -1094,7 +1169,13 @@ function planWindow(state: GameState, t: number): Window {
     const lifetime = lifetimeMs(state, tile);
     const d = hops.get(hexKey(tile));
     if (isGrown(state, tile) && d !== undefined) {
-      producers.push({ tile, basePerMs: (baseProduction(state, tile, d, t) * bonus) / 1000, lifetime });
+      producers.push({
+        tile,
+        basePerMs: (baseProduction(state, tile, d, t) * bonus) / 1000,
+        lifetime,
+        biomassWeight: placeBiomass(state, tile),
+        siphonBy: siphonedBy(tile, state.id, t),
+      });
       if (tile.structure === "gland") enzymes += glandRate(tile) / 1000;
       // Rounded up to a whole ms so every event time stays an integer (it is stored as a timestamp).
       if (tile.terrain === "deadwood") {
@@ -1106,6 +1187,8 @@ function planWindow(state: GameState, t: number): Window {
       next = Math.min(next, tile.growthEndsAt);
     }
     if (tile.disconnectedSince !== null) next = Math.min(next, tile.disconnectedSince + TRANSPORT.witherMs);
+    // Timed effects change production or the network when they end.
+    for (const e of tile.effects) if (e.until > t) next = Math.min(next, e.until);
   }
   if (state.lastSeenAt !== null && state.lastSeenAt + OFFLINE.fullMs > t) {
     next = Math.min(next, state.lastSeenAt + OFFLINE.fullMs);
@@ -1146,6 +1229,7 @@ function waitingCost(state: GameState, t: number): { amount: number; enzymes: bo
 function integrate(state: GameState, w: Window, dt: number): void {
   if (dt <= 0) return;
   let produced = 0;
+  let weighted = 0;
   for (const p of w.producers) {
     // ∫ (1 − min(e(τ), cap)) dτ with e rising at max/lifetime per ms up to EXHAUSTION.max; the player's
     // cap (Usure lente) may stop it from counting earlier.
@@ -1155,24 +1239,31 @@ function integrate(state: GameState, w: Window, dt: number): void {
     const start = Math.min(e0, cap);
     const rising = e0 >= cap ? 0 : Math.min(dt, (cap - e0) / rate);
     const freshMs = rising * (1 - start) - (rate * rising * rising) / 2 + (dt - rising) * (1 - Math.min(cap, e0 + rate * dt));
-    produced += p.basePerMs * freshMs;
+    let amount = p.basePerMs * freshMs * w.factor;
+    if (p.siphonBy !== null) {
+      const taken = amount * ACTION_EFFECTS.siphonShare;
+      state.siphoned[p.siphonBy] = (state.siphoned[p.siphonBy] ?? 0) + taken;
+      amount -= taken;
+    }
+    produced += amount;
+    weighted += amount * p.biomassWeight;
     p.tile.exhaustion = Math.min(EXHAUSTION.max, e0 + dt * rate);
   }
-  produced *= w.factor;
   state.nutrients += produced;
   state.enzymes += w.enzymesPerMs * dt * w.factor;
-  state.biomass += produced * biomassConversion(state) * w.biomass;
+  state.biomass += weighted * biomassConversion(state) * w.biomass;
 }
 
 /** Marks the player's tiles as connected or disconnected (disconnected ones start withering). */
 export function refreshConnections(state: GameState, now: number): void {
-  const hops = networkHops(state);
+  const hops = networkHops(state, now, true);
   for (const tile of state.tiles.values()) {
     if (tile.owner !== state.id) continue;
     if (!isGrown(state, tile)) {
       tile.disconnectedSince = null;
       continue;
     }
+    // Tiles only cut off by a Coupure stop producing but do not wither (GDD §6.2, M6 decision).
     if (hops.has(hexKey(tile))) tile.disconnectedSince = null;
     else tile.disconnectedSince ??= now;
   }
@@ -1222,7 +1313,7 @@ function startQueued(state: GameState, now: number): boolean {
 /** Deep copy (tiles included), handy for client-side prediction and tests. */
 export function cloneGame(state: GameState): GameState {
   const tiles = new Map<string, Tile>();
-  for (const [k, t] of state.tiles) tiles.set(k, { ...t, capture: t.capture && { ...t.capture } });
+  for (const [k, t] of state.tiles) tiles.set(k, { ...t, capture: t.capture && { ...t.capture }, effects: t.effects.map((e) => ({ ...e })) });
   return clonePlayer(state, tiles);
 }
 
@@ -1236,6 +1327,8 @@ export function clonePlayer(state: GameState, tiles: Map<string, Tile>): GameSta
     mutations: [...state.mutations],
     sporeUpgrades: { ...state.sporeUpgrades },
     automation: { ...state.automation },
+    cooldowns: { ...state.cooldowns },
+    siphoned: { ...state.siphoned },
     queue: state.queue.map((h) => ({ ...h })),
     tiles,
   };

@@ -74,6 +74,9 @@ describe.each(stores)("%s store", (_name, make) => {
     pa.sporeUpgrades.production = 2;
     pa.fruitings = 1;
     pa.automation = { colonize: "litter", upgrades: true };
+    pa.cooldowns = { toxin: T0 + 7_200_000, cut: T0 + 9_000_000 };
+    pa.heartShieldUntil = T0 + 86_400_000;
+    someTile.effects = [{ kind: "siphon", by: b.id, until: T0 + 7_200_000 }];
     resolveBorders(forest, 5_000, T0 + 3_600_000);
     await store.saveForest(record.id, forest);
 

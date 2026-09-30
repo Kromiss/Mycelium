@@ -1,4 +1,4 @@
-import { TERRAINS, type MutationId, type StrainId, type StructureId, type Terrain, type UpgradeId } from "./balance";
+import { ACTION_IDS, TERRAINS, type ActionId, type MutationId, type StrainId, type StructureId, type Terrain, type UpgradeId } from "./balance";
 import {
   isMutationId,
   isStrainId,
@@ -11,6 +11,7 @@ import {
   type GameState,
   type SporeUpgrades,
   type Tile,
+  type TileEffect,
 } from "./game";
 import type { MapLayout } from "./forestgen";
 import { hexKey, type Hex } from "./hex";
@@ -33,6 +34,8 @@ export interface TileDto extends Hex {
   s?: StructureId;
   /** Poisoned by a neighbour's Toxines (GDD §4.2), omitted when not. */
   x?: 1;
+  /** Timed effects (actions, events), omitted when there are none. */
+  e?: TileEffect[];
 }
 
 /** A player's game as sent to them: their own economy, and the tiles they can see. */
@@ -53,6 +56,8 @@ export interface GameSnapshot {
   automation: Automation;
   heart: Hex;
   heartMovedAt: number | null;
+  heartShieldUntil: number | null;
+  cooldowns: Partial<Record<ActionId, number>>;
   /** Visible tiles only (GDD §2.1 fog); the rest of the forest is unknown to the client. */
   tiles: TileDto[];
   queue: Hex[];
@@ -96,6 +101,7 @@ export function toSnapshot(state: GameState, visible?: Set<string>): GameSnapsho
     };
     if (t.structure !== null) dto.s = t.structure;
     if (t.toxic) dto.x = 1;
+    if (t.effects.length > 0) dto.e = t.effects.map((e) => ({ ...e }));
     tiles.push(dto);
   }
   return {
@@ -115,6 +121,8 @@ export function toSnapshot(state: GameState, visible?: Set<string>): GameSnapsho
     automation: { ...state.automation },
     heart: { q: state.heart.q, r: state.heart.r },
     heartMovedAt: state.heartMovedAt,
+    heartShieldUntil: state.heartShieldUntil,
+    cooldowns: { ...state.cooldowns },
     tiles,
     queue: state.queue.map((h) => ({ q: h.q, r: h.r })),
     nutrients: state.nutrients,
@@ -146,6 +154,7 @@ export function fromSnapshot(s: GameSnapshot, seed = 0): GameState {
       reservedFor: o.reservedFor ?? null,
       structure: typeof o.s === "string" && isStructureId(o.s) ? o.s : null,
       toxic: o.x === 1,
+      effects: normalizeEffects(o.e),
     });
   }
   return {
@@ -166,6 +175,9 @@ export function fromSnapshot(s: GameSnapshot, seed = 0): GameState {
     automation: normalizeAutomation(s.automation),
     heart: { q: s.heart.q, r: s.heart.r },
     heartMovedAt: s.heartMovedAt,
+    heartShieldUntil: s.heartShieldUntil ?? null,
+    cooldowns: normalizeCooldowns(s.cooldowns),
+    siphoned: {},
     nutrients: s.nutrients,
     enzymes: s.enzymes ?? 0,
     enzymesUnlocked: s.enzymesUnlocked ?? false,
@@ -176,6 +188,28 @@ export function fromSnapshot(s: GameSnapshot, seed = 0): GameState {
     tiles,
     updatedAt: s.updatedAt,
   };
+}
+
+const EFFECT_KINDS: readonly string[] = ACTION_IDS;
+
+/** Tile effects from untrusted data. */
+export function normalizeEffects(raw: unknown): TileEffect[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter(
+      (e): e is TileEffect =>
+        typeof e === "object" && e !== null && EFFECT_KINDS.includes(e.kind) && typeof e.by === "string" && typeof e.until === "number",
+    )
+    .map((e) => ({ kind: e.kind, by: e.by, until: e.until }));
+}
+
+/** Action cooldowns from untrusted data. */
+export function normalizeCooldowns(raw: unknown): Partial<Record<ActionId, number>> {
+  const out: Partial<Record<ActionId, number>> = {};
+  if (typeof raw === "object" && raw !== null) {
+    for (const [id, at] of Object.entries(raw)) if ((ACTION_IDS as readonly string[]).includes(id) && typeof at === "number") out[id as ActionId] = at;
+  }
+  return out;
 }
 
 // ---------------------------------------------------------------------------
@@ -192,6 +226,8 @@ export interface OwnerInfo {
   name: string;
   /** Index in the client's player palette. */
   color: number;
+  /** Tiles the player owns (GDD §6.4: attacking a much smaller player costs more; floor of tiles). */
+  tiles: number;
 }
 
 export interface LeaderboardEntry {
@@ -273,6 +309,8 @@ export interface CaptureNotice {
   /** Won: this player took the tile; lost: someone took it from them. */
   kind: "won" | "lost";
   other: string;
+  /** The tile was the loser's Cœur. */
+  heart?: true;
 }
 
 /** What the game produced while the player was away (shown when they come back). */
@@ -307,7 +345,9 @@ export type ClientMessage =
   | { type: "fructify"; radius: number }
   | { type: "buySporeUpgrade"; upgrade: string }
   /** Switches automations (GDD §9). */
-  | { type: "setAutomation"; colonize?: string | null; upgrades?: boolean };
+  | { type: "setAutomation"; colonize?: string | null; upgrades?: boolean }
+  /** Uses an active action on an enemy tile (GDD §6.2). */
+  | { type: "act"; action: string; q: number; r: number };
 
 export interface HealthReport {
   status: "ok" | "degraded";
@@ -383,6 +423,8 @@ export function parseClientMessage(raw: string): ClientMessage | null {
       return isInt(m.radius) ? { type: "fructify", radius: m.radius } : null;
     case "buySporeUpgrade":
       return isStr(m.upgrade, 50) ? { type: "buySporeUpgrade", upgrade: m.upgrade } : null;
+    case "act":
+      return isStr(m.action, 20) && isInt(m.q) && isInt(m.r) ? { type: "act", action: m.action, q: m.q, r: m.r } : null;
     case "setAutomation": {
       const out: ClientMessage = { type: "setAutomation" };
       if (m.colonize === null || isStr(m.colonize, 20)) out.colonize = m.colonize as string | null;

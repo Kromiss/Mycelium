@@ -1,7 +1,9 @@
-import { BORDERS, FOREST, MUTATIONS, ROCK, STRUCTURES, VISION_RADIUS } from "./balance";
-import { generateForestMap, type MapLayout } from "./forestgen";
+import { ACTION_EFFECTS, ANTI_FRUSTRATION, BORDERS, CENTRE_RISK, FOREST, MUTATIONS, ROCK, STRUCTURES, VISION_RADIUS } from "./balance";
+import { generateForestMap, ringAt, type MapLayout } from "./forestgen";
 import {
+  activeEffect,
   advance,
+  effectsAt,
   capturedFactor,
   conquestFactor,
   biomassConversion,
@@ -46,6 +48,8 @@ export interface CaptureEvent {
   r: number;
   from: string;
   to: string;
+  /** The tile was the loser's Cœur. */
+  heart?: true;
 }
 
 export function newForest(
@@ -125,8 +129,56 @@ export function advanceForest(forest: ForestState, to: number): void {
   refreshToxins(forest);
   for (const p of forest.players.values()) advance(p, to);
   forest.updatedAt = to;
+  settleSiphons(forest, to);
+  pruneEffects(forest, to);
   refreshReservations(forest, to);
   refreshToxins(forest);
+}
+
+/**
+ * Hands siphoned nutrients to their casters (GDD §6.2 Siphon): nutrients, and the biomass they would
+ * have given the caster at `at`.
+ */
+export function settleSiphons(forest: ForestState, at: number): void {
+  for (const p of forest.players.values()) {
+    for (const [by, amount] of Object.entries(p.siphoned)) {
+      const caster = forest.players.get(by);
+      if (caster && amount > 0) {
+        caster.nutrients += amount;
+        caster.biomass += amount * biomassConversion(caster) * effectsAt(caster, at).biomass;
+      }
+    }
+    p.siphoned = {};
+  }
+}
+
+/** Drops the tile effects that are over. */
+export function pruneEffects(forest: ForestState, at: number): void {
+  for (const t of forest.tiles.values()) {
+    if (t.effects.length > 0 && t.effects.some((e) => e.until <= at)) t.effects = t.effects.filter((e) => e.until > at);
+  }
+}
+
+/** Tiles owned by each player, growing ones included. */
+export function tileCounts(forest: ForestState): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const t of forest.tiles.values()) if (t.owner !== null) counts.set(t.owner, (counts.get(t.owner) ?? 0) + 1);
+  return counts;
+}
+
+/** GDD §6.4: `attacker` is at least 3× bigger than `defender` (in tiles), so attacking them costs more. */
+export function isBullying(counts: Map<string, number>, attacker: string, defender: string): boolean {
+  return (counts.get(attacker) ?? 0) >= ANTI_FRUSTRATION.bullyRatio * Math.max(1, counts.get(defender) ?? 0);
+}
+
+/** M6 floor: a player down to this many tiles cannot lose any more. */
+export function atFloor(counts: Map<string, number>, playerId: string): boolean {
+  return (counts.get(playerId) ?? 0) <= ANTI_FRUSTRATION.floorTiles;
+}
+
+/** The tile lies in the forest centre (GDD §2.5 war zone). */
+export function inCentre(forest: ForestState, h: Hex): boolean {
+  return ringAt(forest.radius, h) === "centre";
 }
 
 /**
@@ -146,13 +198,21 @@ export function refreshToxins(forest: ForestState): void {
   }
 }
 
-/** A tile that cannot be taken right now: a Cœur, a Sclérote, or the start zone of a new player (GDD §4.1, §6.4). */
+/**
+ * A tile that cannot be taken right now: a Cœur lost less than a day ago, a Sclérote, or the start zone
+ * of a new player (GDD §4.1, §6.4). The floor of tiles is checked by `resolveBorders`.
+ */
 export function isProtected(forest: ForestState, tile: Tile, now: number): boolean {
   const owner = tile.owner === null ? undefined : forest.players.get(tile.owner);
   if (!owner) return false;
-  if (hexEquals(owner.heart, tile)) return true;
+  if (hexEquals(owner.heart, tile) && owner.heartShieldUntil !== null && now < owner.heartShieldUntil) return true;
   if (tile.structure === "sclerotium" && tile.growthEndsAt === null) return true;
-  return now - owner.joinedAt < BORDERS.protectedMs && hexDistance(owner.spawn, tile) <= BORDERS.protectedRadius;
+  return isStartZone(owner, tile, now);
+}
+
+/** The start zone of a player who joined less than 24 h ago (GDD §6.4). */
+export function isStartZone(owner: GameState, h: Hex, now: number): boolean {
+  return now - owner.joinedAt < BORDERS.protectedMs && hexDistance(owner.spawn, h) <= BORDERS.protectedRadius;
 }
 
 /** `pression = densité_réseau_local × agression × humidité` (GDD §6.1) of one player around a tile. */
@@ -200,7 +260,8 @@ export function resolveBorders(forest: ForestState, dt: number, now: number): Ca
   const phaseSpeed = forest.calendar ? phaseAt(now).effects.captureSpeed : 1;
   if (phaseSpeed === 0) return [];
   const connected = new Map<string, Map<string, number>>();
-  for (const p of forest.players.values()) connected.set(p.id, networkHops(p));
+  for (const p of forest.players.values()) connected.set(p.id, networkHops(p, now));
+  const counts = tileCounts(forest);
   const events: CaptureEvent[] = [];
 
   for (const tile of forest.tiles.values()) {
@@ -209,7 +270,7 @@ export function resolveBorders(forest: ForestState, dt: number, now: number): Ca
     if (!defender) continue;
 
     let best: { id: string; speed: number; attack: number } | null = null;
-    if (!isProtected(forest, tile, now)) {
+    if (!isProtected(forest, tile, now) && !atFloor(counts, defender.id)) {
       const attackers = new Set<string>();
       for (const n of hexNeighbors(tile)) {
         const o = forest.tiles.get(hexKey(n))?.owner;
@@ -219,7 +280,10 @@ export function resolveBorders(forest: ForestState, dt: number, now: number): Ca
         const defence = pressure(forest, defender.id, tile);
         for (const a of attackers) {
           const attack = pressure(forest, a, tile, connected.get(a));
-          const speed = captureSpeed(attack, defence);
+          // Assaut (GDD §6.2): full speed as soon as the attacker is above parity, ×4.
+          const assault = tile.effects.length > 0 && tile.effects.some((e) => e.kind === "assault" && e.by === a && e.until > now);
+          let speed = assault ? (attack > defence ? ACTION_EFFECTS.assaultSpeed : 0) : captureSpeed(attack, defence);
+          if (isBullying(counts, a, defender.id)) speed *= ANTI_FRUSTRATION.bullyCaptureFactor;
           if (speed > 0 && (!best || speed > best.speed || (speed === best.speed && attack > best.attack))) best = { id: a, speed, attack };
         }
       }
@@ -235,12 +299,24 @@ export function resolveBorders(forest: ForestState, dt: number, now: number): Ca
     }
     if (!tile.capture || tile.capture.by !== best.id) tile.capture = { by: best.id, progress: 0 };
     const shielded = defender.lastSeenAt !== null && now - defender.lastSeenAt >= BORDERS.shieldAfterMs;
+    // GDD §2.5: the offline shield is weaker in the centre.
+    const shield = shielded ? (inCentre(forest, tile) ? CENTRE_RISK.shieldFactor : BORDERS.shieldFactor) : 1;
+    const isHeart = hexEquals(defender.heart, tile);
     tile.capture.progress +=
-      (dt / duration) * best.speed * phaseSpeed * (shielded ? BORDERS.shieldFactor : 1) * defenceFactor(forest, tile) * capturedFactor(defender);
+      (dt / duration) *
+      best.speed *
+      phaseSpeed *
+      shield *
+      defenceFactor(forest, tile) *
+      capturedFactor(defender) *
+      (isHeart ? ANTI_FRUSTRATION.heartCaptureFactor : 1);
     if (tile.capture.progress >= 1 - 1e-9) {
       const attacker = forest.players.get(best.id)!;
-      events.push({ q: tile.q, r: tile.r, from: defender.id, to: attacker.id });
+      events.push({ q: tile.q, r: tile.r, from: defender.id, to: attacker.id, ...(isHeart ? { heart: true } : {}) });
       conquer(attacker, tile);
+      counts.set(defender.id, (counts.get(defender.id) ?? 1) - 1);
+      counts.set(attacker.id, (counts.get(attacker.id) ?? 0) + 1);
+      if (isHeart) rebirthHeart(forest, defender, tile, now);
     }
   }
 
@@ -251,6 +327,26 @@ export function resolveBorders(forest: ForestState, dt: number, now: number): Ca
   return events;
 }
 
+/**
+ * The Cœur was taken (GDD §6.4): it is reborn on the player's Sclérote, or else on their tile closest to
+ * where it was, and cannot be taken again for a day.
+ */
+export function rebirthHeart(forest: ForestState, player: GameState, lost: Hex, now: number): void {
+  let best: Tile | null = null;
+  let bestKey: [number, number, string] | null = null;
+  for (const [k, t] of forest.tiles) {
+    if (t.owner !== player.id || t.growthEndsAt !== null) continue;
+    const key: [number, number, string] = [t.structure === "sclerotium" ? 0 : 1, hexDistance(t, lost), k];
+    if (!bestKey || key[0] < bestKey[0] || (key[0] === bestKey[0] && (key[1] < bestKey[1] || (key[1] === bestKey[1] && key[2] < bestKey[2])))) {
+      best = t;
+      bestKey = key;
+    }
+  }
+  if (best) player.heart = { q: best.q, r: best.r };
+  player.heartShieldUntil = now + ANTI_FRUSTRATION.heartShieldMs;
+  refreshConnections(player, now);
+}
+
 /** The attacker takes the tile, with the conquest bonus and a Trophy (GDD §2.5). */
 function conquer(attacker: GameState, tile: Tile): void {
   tile.owner = attacker.id;
@@ -258,6 +354,7 @@ function conquer(attacker: GameState, tile: Tile): void {
   tile.growthStartedAt = null;
   tile.disconnectedSince = null;
   tile.capture = null;
+  tile.effects = [];
   // Structures are destroyed, unless the attacker has Cordyceps (a second Sclérote is not kept).
   const keep =
     hasMutation(attacker, "cordyceps") &&
@@ -377,6 +474,8 @@ function emptySnapshot(dto: ForestDto): GameSnapshot {
     automation: { colonize: null, upgrades: false },
     heart: dto.spawns[0]!,
     heartMovedAt: null,
+    heartShieldUntil: null,
+    cooldowns: {},
     tiles: [],
     queue: [],
     nutrients: 0,

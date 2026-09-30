@@ -6,6 +6,8 @@ import {
   isStrainId,
   isStructureId,
   normalizeAutomation,
+  normalizeCooldowns,
+  normalizeEffects,
   normalizeSporeUpgrades,
   normalizeUpgrades,
   refreshReservations,
@@ -197,6 +199,8 @@ interface PlayerRow extends AccountRow {
   spore_upgrades: unknown;
   fruitings: number;
   automation: unknown;
+  cooldowns: unknown;
+  heart_shield_until: Date | null;
   biomass: number;
   upgrades: Record<string, number>;
   queue: Array<{ q: number; r: number }>;
@@ -216,6 +220,7 @@ interface HexRow {
   capture_by: string | null;
   capture_progress: number | null;
   structure: string | null;
+  effects: unknown;
 }
 
 function toResult(
@@ -412,7 +417,7 @@ export class PgStore implements GameStore {
     if (!row) return null;
     const hexes = await this.pool.query<HexRow>(
       `select q, r, terrain, owner_id, growth_ends_at, growth_started_at, exhaustion, disconnected_since,
-              capture_by, capture_progress, structure
+              capture_by, capture_progress, structure, effects
        from hex where world_id = $1`,
       [row.world_id],
     );
@@ -431,6 +436,7 @@ export class PgStore implements GameStore {
         reservedFor: null,
         structure: h.structure !== null && isStructureId(h.structure) ? h.structure : null,
         toxic: false,
+        effects: normalizeEffects(h.effects),
       });
     }
     const layout = { kind: "forest", capacity: row.capacity } as const;
@@ -438,7 +444,7 @@ export class PgStore implements GameStore {
     const players = await this.pool.query<PlayerRow>(
       `select id, name, password_hash, is_bot, heart_q, heart_r, heart_moved_at, spawn_q, spawn_r, joined_at, trophies,
               monday_bonus, nutrients, enzymes, enzymes_unlocked, strain, mutations, spores, spore_upgrades, fruitings,
-              automation, biomass, upgrades, queue, last_seen_at, updated_at
+              automation, cooldowns, heart_shield_until, biomass, upgrades, queue, last_seen_at, updated_at
        from players where forest_id = $1`,
       [id],
     );
@@ -464,6 +470,9 @@ export class PgStore implements GameStore {
         automation: normalizeAutomation(p.automation),
         heart: { q: p.heart_q, r: p.heart_r },
         heartMovedAt: toMs(p.heart_moved_at),
+        heartShieldUntil: toMs(p.heart_shield_until),
+        cooldowns: normalizeCooldowns(p.cooldowns),
+        siphoned: {},
         nutrients: p.nutrients,
         enzymes: p.enzymes,
         enzymesUnlocked: p.enzymes_unlocked,
@@ -509,14 +518,15 @@ export class PgStore implements GameStore {
                   queue = t.queue::jsonb, last_seen_at = t.last_seen_at, updated_at = t.updated_at,
                   monday_bonus = t.monday_bonus, enzymes = t.enzymes, enzymes_unlocked = t.enzymes_unlocked,
                   strain = t.strain, mutations = t.mutations::jsonb, spores = t.spores,
-                  spore_upgrades = t.spore_upgrades::jsonb, fruitings = t.fruitings, automation = t.automation::jsonb
+                  spore_upgrades = t.spore_upgrades::jsonb, fruitings = t.fruitings, automation = t.automation::jsonb,
+                  cooldowns = t.cooldowns::jsonb, heart_shield_until = t.heart_shield_until
            from unnest($3::uuid[], $4::int[], $5::int[], $6::timestamptz[], $7::int[], $8::int[], $9::timestamptz[],
                        $10::int[], $11::float8[], $12::float8[], $13::text[], $14::text[], $15::timestamptz[],
                        $16::timestamptz[], $17::float8[], $18::float8[], $19::bool[], $20::text[], $21::text[],
-                       $22::float8[], $23::text[], $24::int[], $25::text[])
+                       $22::float8[], $23::text[], $24::int[], $25::text[], $26::text[], $27::timestamptz[])
              as t(id, heart_q, heart_r, heart_moved_at, spawn_q, spawn_r, joined_at, trophies, nutrients, biomass,
                   upgrades, queue, last_seen_at, updated_at, monday_bonus, enzymes, enzymes_unlocked, strain, mutations,
-                  spores, spore_upgrades, fruitings, automation)
+                  spores, spore_upgrades, fruitings, automation, cooldowns, heart_shield_until)
            where players.id = t.id`,
           [
             id,
@@ -544,6 +554,8 @@ export class PgStore implements GameStore {
             ps.map((p) => JSON.stringify(p.sporeUpgrades)),
             ps.map((p) => p.fruitings),
             ps.map((p) => JSON.stringify(p.automation)),
+            ps.map((p) => JSON.stringify(p.cooldowns)),
+            ps.map((p) => toDate(p.heartShieldUntil)),
           ],
         );
       }
@@ -552,11 +564,11 @@ export class PgStore implements GameStore {
         `update hex set terrain = t.terrain, owner_id = t.owner_id, growth_ends_at = t.growth_ends_at,
                 growth_started_at = t.growth_started_at, exhaustion = t.exhaustion,
                 disconnected_since = t.disconnected_since, capture_by = t.capture_by,
-                capture_progress = t.capture_progress, structure = t.structure
+                capture_progress = t.capture_progress, structure = t.structure, effects = t.effects::jsonb
          from unnest($2::int[], $3::int[], $4::text[], $5::uuid[], $6::timestamptz[], $7::timestamptz[],
-                     $8::float8[], $9::timestamptz[], $10::uuid[], $11::float8[], $12::text[])
+                     $8::float8[], $9::timestamptz[], $10::uuid[], $11::float8[], $12::text[], $13::text[])
            as t(q, r, terrain, owner_id, growth_ends_at, growth_started_at, exhaustion, disconnected_since,
-                capture_by, capture_progress, structure)
+                capture_by, capture_progress, structure, effects)
          where hex.world_id = $1 and hex.q = t.q and hex.r = t.r`,
         [
           worldId,
@@ -571,6 +583,7 @@ export class PgStore implements GameStore {
           tiles.map((t) => t.capture?.by ?? null),
           tiles.map((t) => t.capture?.progress ?? null),
           tiles.map((t) => t.structure),
+          tiles.map((t) => JSON.stringify(t.effects)),
         ],
       );
       await client.query("commit");

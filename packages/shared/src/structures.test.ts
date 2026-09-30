@@ -244,7 +244,8 @@ function duel(): { f: ForestState; a: GameState; b: GameState; border: Hex } {
   a.heart = hex(-2, 0);
   for (const h of [...hexesInRadius(a.heart, 2), hex(0, 1), hex(1, -1)]) f.tiles.get(hexKey(h))!.owner = "a";
   b.heart = hex(3, 0);
-  for (const h of [hex(3, 0), hex(2, 0), hex(1, 0)]) f.tiles.get(hexKey(h))!.owner = "b";
+  // b's tail (out of the border's reach) keeps b above the M6 floor and less than 3× smaller than a.
+  for (const h of [hex(3, 0), hex(2, 0), hex(1, 0), hex(4, 0), hex(5, 0), hex(4, -1), hex(5, -1), hex(6, -1)]) f.tiles.get(hexKey(h))!.owner = "b";
   for (const p of [a, b]) {
     p.lastSeenAt = null;
     p.updatedAt = T0;
