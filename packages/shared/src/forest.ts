@@ -24,6 +24,7 @@ import {
 import { hexDistance, hexEquals, hexesInRadius, hexKey, hexNeighbors, type Hex } from "./hex";
 import { fromSnapshot, toSnapshot, type GameSnapshot, type TileDto } from "./protocol";
 import { phaseAt } from "./season";
+import type { ForestEvent } from "./events";
 
 /**
  * A forest (GDD §2.1): one shared map, 20 to 30 players. Each player's economy runs with the rules
@@ -40,6 +41,8 @@ export interface ForestState {
   readonly players: Map<string, GameState>;
   /** Follows the weekly calendar (GDD §7). */
   readonly calendar: boolean;
+  /** The season's random events and world bosses (GDD §7, M6), drawn when first needed. */
+  events: ForestEvent[];
   updatedAt: number;
 }
 
@@ -69,6 +72,7 @@ export function newForest(
     tiles,
     players: new Map(),
     calendar: options.calendar ?? true,
+    events: [],
     updatedAt: now,
   };
   refreshReservations(forest, now);
@@ -408,6 +412,7 @@ export interface ForestDto {
   capacity: number;
   spawns: Hex[];
   calendar: boolean;
+  events?: ForestEvent[];
   updatedAt: number;
   tiles: TileDto[];
   players: GameSnapshot[];
@@ -423,6 +428,7 @@ export function serializeForest(forest: ForestState): ForestDto {
     capacity: forest.layout.capacity,
     spawns: forest.spawns.map((h) => ({ q: h.q, r: h.r })),
     calendar: forest.calendar,
+    events: forest.events,
     updatedAt: forest.updatedAt,
     tiles,
     players: [...forest.players.values()].map((p) => toSnapshot(p, none)),
@@ -444,6 +450,7 @@ export function deserializeForest(dto: ForestDto): ForestState {
     tiles,
     players,
     calendar: dto.calendar ?? true,
+    events: Array.isArray(dto.events) ? dto.events : [],
     updatedAt: dto.updatedAt,
   };
   refreshReservations(forest, forest.updatedAt);

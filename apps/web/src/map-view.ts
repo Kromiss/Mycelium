@@ -13,6 +13,8 @@ import {
   type OwnerInfo,
   type StructureId,
   type EffectKind,
+  type EventDto,
+  type EventKind,
   type Terrain,
 } from "@mycelium/shared";
 import { playerColor } from "./colors";
@@ -34,6 +36,19 @@ const TERRAIN_COLORS: Record<Terrain, number> = {
   roots: 0x43331f,
   rock: 0x5f5e57,
   acid: 0x4f5a22,
+  carcass: 0x6b3a33,
+  tree: 0x2c3f1f,
+};
+
+/** Event zones on the map (GDD §7). */
+const EVENT_COLORS: Record<EventKind, number> = {
+  storm: 0x7fb8ff,
+  fire: 0xff8a3c,
+  boar: 0xc79a5a,
+  treefall: 0xd8b36a,
+  carcass: 0xe06a6a,
+  nematodes: 0xd6e05a,
+  tree: 0x8fe07a,
 };
 
 /** Structure marks (GDD §4.1), drawn in a corner of the tile. */
@@ -51,6 +66,8 @@ const EFFECT_COLORS: Record<EffectKind, number> = {
   toxin: 0x9be15d,
   cut: 0xf2efe6,
   siphon: 0x5ac8ff,
+  storm: 0x9fd0ff,
+  ashes: 0xb7b2a8,
 };
 const GAP = 0x0c0e0a;
 const MYCELIUM = 0xe9f6c8;
@@ -76,6 +93,7 @@ export class MapView {
   private selected: Hex | null = null;
   /** Tiles to outline, e.g. those a fruiting would release. */
   private highlighted: Set<string> | null = null;
+  private events: EventDto[] = [];
   private now: () => number = Date.now;
   private onSelect: (h: Hex | null) => void = () => {};
 
@@ -136,6 +154,11 @@ export class MapView {
 
   select(h: Hex | null): void {
     this.selected = h;
+  }
+
+  /** Events announced or under way (GDD §7), drawn as zones. */
+  setEvents(events: EventDto[]): void {
+    this.events = events;
   }
 
   highlight(keys: Set<string> | null): void {
@@ -223,6 +246,16 @@ export class MapView {
       }
       g.poly(pts).fill({ color: 0x8c8a80 }).stroke({ width: 1.5, color: 0x3f3e39 });
       g.moveTo(x - SIZE * 0.2, y - SIZE * 0.15).lineTo(x + SIZE * 0.1, y - SIZE * 0.22).stroke({ width: 1.5, color: 0xb2b0a5, alpha: 0.8 });
+    } else if (tile.terrain === "carcass") {
+      // Ribs.
+      for (let i = -1; i <= 1; i++) {
+        g.moveTo(x - SIZE * 0.35, y + i * SIZE * 0.22).quadraticCurveTo(x, y + i * SIZE * 0.22 - SIZE * 0.2, x + SIZE * 0.35, y + i * SIZE * 0.22).stroke({ width: 2.5, color: 0xe8dcc8, alpha: 0.85, cap: "round" });
+      }
+    } else if (tile.terrain === "tree") {
+      // A huge trunk, split by rot.
+      g.circle(x, y, SIZE * 0.7).fill({ color: 0x4a3524 }).stroke({ width: 3, color: 0x2a1d12 });
+      for (const r of [SIZE * 0.5, SIZE * 0.3]) g.circle(x, y, r).stroke({ width: 1.5, color: 0x7a5a3a, alpha: 0.7 });
+      g.moveTo(x - SIZE * 0.1, y - SIZE * 0.6).lineTo(x + SIZE * 0.05, y).lineTo(x - SIZE * 0.05, y + SIZE * 0.55).stroke({ width: 2, color: 0x1a120b });
     } else if (tile.terrain === "acid") {
       // Sour bubbles.
       for (let i = 0; i < 5; i++) {
@@ -394,6 +427,25 @@ export class MapView {
       const r = SIZE * 0.72;
       fx.moveTo(x + r * Math.cos(start), y + r * Math.sin(start));
       fx.arc(x, y, r, start, start + Math.min(1, t.capture.progress) * Math.PI * 2).stroke({ width: 4, color, alpha: 0.6 + 0.4 * pulse });
+    }
+
+    // Events (GDD §7): announced zones pulse, active ones are tinted.
+    for (const e of this.events) {
+      const color = EVENT_COLORS[e.kind];
+      const active = e.status === "active";
+      for (const c of e.cells) {
+        const { x, y } = hexToPixel(c, SIZE);
+        const poly = fx.poly(hexPoints(x, y, SIZE - 4));
+        if (active) poly.fill({ color, alpha: 0.12 + 0.06 * pulse });
+        poly.stroke({ width: 2, color, alpha: active ? 0.7 : 0.35 + 0.45 * pulse });
+      }
+      if (e.life !== undefined) {
+        // Life bar above the centre of a world boss or of the Nématodes.
+        const { x, y } = hexToPixel(e, SIZE);
+        const w = SIZE * 2.4;
+        fx.rect(x - w / 2, y - SIZE * 1.9, w, 6).fill({ color: 0x111409, alpha: 0.85 });
+        fx.rect(x - w / 2, y - SIZE * 1.9, w * e.life, 6).fill({ color, alpha: 0.95 });
+      }
     }
 
     // Active actions (GDD §6.2): one small mark per effect along the bottom of the tile.

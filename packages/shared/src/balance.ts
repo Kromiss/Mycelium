@@ -6,10 +6,11 @@
 
 const HOUR = 3_600_000;
 
-export const TERRAINS = ["litter", "humus", "deadwood", "wetland", "stump", "roots", "rock", "acid"] as const;
+export const TERRAINS = ["litter", "humus", "deadwood", "wetland", "stump", "roots", "rock", "acid", "carcass", "tree"] as const;
 /**
- * GDD §2.2: Litière de feuilles, Humus, Bois mort (M1), Ruisseau / Zone humide (M2), and in M5 Souche /
- * Tronc tombé, Racines d'arbre, Roche and Sol acide. Carcasse and Ruine arrive with events (M6).
+ * GDD §2.2: Litière de feuilles, Humus, Bois mort (M1), Ruisseau / Zone humide (M2), in M5 Souche /
+ * Tronc tombé, Racines d'arbre, Roche and Sol acide, and in M6 the temporary Carcasse and the Arbre
+ * mourant (world boss) left by events. Ruine comes with M7.
  */
 export type Terrain = (typeof TERRAINS)[number];
 /** Terrains of the solo maps (M1–M2). */
@@ -55,6 +56,10 @@ export const TERRAIN_STATS: Readonly<Record<Terrain, TerrainStats>> = {
   rock: { colonizable: true, yieldPerSecond: 0, baseCost: 40, growthSeconds: 300, lifetimeMs: Infinity, reserve: 0, paidInEnzymes: true },
   // GDD §2.2: high yield, medium cost, but eats the network: wears twice as fast (see ACID). M5, PLACEHOLDER.
   acid: { colonizable: true, yieldPerSecond: 2, baseCost: 13_000, growthSeconds: 90, lifetimeMs: 2 * HOUR, reserve: 4_000 },
+  // GDD §2.2, M6 event: a huge burst for little cost, gone after 12 h. PLACEHOLDER.
+  carcass: { colonizable: true, yieldPerSecond: 12, baseCost: 6_000, growthSeconds: 60, lifetimeMs: 6 * HOUR, reserve: 0 },
+  // GDD §7, M6 world boss: the Arbre mourant stands on these tiles; nobody can colonise them.
+  tree: { colonizable: false, yieldPerSecond: 0, baseCost: 0, growthSeconds: 0, lifetimeMs: Infinity, reserve: 0 },
 };
 
 /** Racines d'arbre (GDD §2.2 "mycorhize"): each colonised Roots tile adds this to the whole network's production. PLACEHOLDER. */
@@ -210,6 +215,8 @@ export const BORDERS = {
     roots: 45 * 60_000,
     rock: 2 * HOUR,
     acid: 45 * 60_000,
+    carcass: 10 * 60_000,
+    tree: 2 * HOUR,
   } as Readonly<Record<Terrain, number>>,
   /** Pressure ratio at which the capture runs at full speed; below 1 nothing happens. */
   fullSpeedRatio: 2,
@@ -400,3 +407,50 @@ export const CENTRE_RISK = {
   /** Biomass of the production of centre tiles. DECIDED: ×1.5. */
   biomass: 1.5,
 } as const;
+
+// ---------------------------------------------------------------------------
+// M6 — random events and the world boss (GDD §7). DECIDED: the proposed package; numbers PLACEHOLDER.
+
+export const EVENT_KINDS = ["storm", "fire", "boar", "treefall", "carcass", "nematodes", "tree"] as const;
+/** Orage, Incendie, Sanglier, Chute d'arbre, Carcasse, Nématodes, and the Arbre mourant (world boss). */
+export type EventKind = (typeof EVENT_KINDS)[number];
+
+export const EVENTS = {
+  /** Every event is shown on the map this long before it starts. */
+  announceMs: 1 * HOUR,
+  /** Random events per day, Tuesday to Sunday (Monday is Germination, no events). */
+  perDay: { min: 1, max: 3 },
+  /** Random events start between these local hours. */
+  hours: { from: 8, to: 20 },
+  /** Draw weights of the random events; the Orage is more likely on Tuesday (Printemps). */
+  weights: { storm: 3, fire: 2, boar: 2, carcass: 2, nematodes: 2 } as Readonly<Partial<Record<EventKind, number>>>,
+  springStormWeight: 6,
+  /** Events centred in the forest centre are stronger (GDD §2.5). */
+  centreStrength: 1.5,
+  /** An event takes at most this share of a player's tiles (rounded down), never the Cœur nor a Sclérote. */
+  maxLossShare: 0.1,
+} as const;
+
+/** Orage: humidity boost in a zone. */
+export const STORM = { radius: 3, durationMs: 4 * HOUR, bonus: 0.5 } as const;
+/** Incendie: the zone is burnt and released, then its Cendres produce more. */
+export const FIRE = { radius: 2, ashesMs: 24 * HOUR, ashesFactor: 2 } as const;
+/** Sanglier: tears a line of tiles off (and turns the soil: fresh tiles). */
+export const BOAR = { minLength: 3, maxLength: 6 } as const;
+/** Chute d'arbre, on Thursday (GDD §7 "Chute"): new Stumps in the centre, at this local hour. */
+export const TREEFALL = { minStumps: 2, maxStumps: 3, hour: 10 } as const;
+/** Carcasse: a temporary very rich tile. */
+export const CARCASS = { durationMs: 12 * HOUR } as const;
+/**
+ * Nématodes (PvE): they eat one tile of the zone every `biteMs`; the players whose tiles stand in
+ * the zone digest them with their production. Killing them pays `rewardFactor` × the damage dealt, as
+ * biomass. Their life: `hpHours` of the production of the zone's tiles, `minHp` at least.
+ */
+export const NEMATODES = { radius: 2, durationMs: 6 * HOUR, biteMs: 30 * 60_000, hpHours: 1.5, minHp: 50_000, rewardFactor: 0.5 } as const;
+/**
+ * Arbre mourant (world boss), Thursday and Sunday at 14:00: 7 tiles in the centre. Players touching
+ * it digest it with their whole production; its life is `hpHours` of the forest's production. At the
+ * end (dead, or after 6 h), each contributor gets `biomassFactor` × their damage as biomass and a share
+ * of the Enzymes; the top contributor a Trophy. The tree then leaves Stumps.
+ */
+export const DYING_TREE = { days: [3, 6], hour: 14, durationMs: 6 * HOUR, hpHours: 2, minHp: 200_000, biomassFactor: 0.25, enzymes: 300 } as const;

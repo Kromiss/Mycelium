@@ -74,6 +74,11 @@ import {
   type Terrain,
   type ActionId,
   type Tile,
+  type EventDto,
+  type EventNotice,
+  NEMATODES,
+  STORM,
+  EVENTS,
 } from "@mycelium/shared";
 import { cssColor, playerColor } from "./colors";
 import { formatDuration, formatNumber } from "./format";
@@ -111,6 +116,8 @@ const ui = {
   autoNote: $("auto-note"),
   structureList: $("structure-list"),
   tileConflict: $("tile-conflict"),
+  eventPanel: $("event-panel"),
+  eventList: $("event-list"),
   actionList: $("action-list"),
   nutrientsRate: $("nutrients-rate"),
   biomass: $("biomass"),
@@ -165,6 +172,8 @@ let game: GameState | null = null;
 /** Server clock at the last message, the local time it arrived, and the game speed (local testing). */
 let clock = { server: 0, local: 0, scale: 1 };
 let owners = new Map<string, OwnerInfo>();
+/** Events announced or under way in the forest (GDD §7). */
+let forestEvents: EventDto[] = [];
 let board: Leaderboard | null = null;
 let forestNumber = 0;
 let history: SeasonResult[] = [];
@@ -313,13 +322,16 @@ function onMessage(msg: ServerMessage): void {
       clock.scale = msg.timeScale;
       history = msg.history;
       renderHistory();
+      setForestEvents(msg.forestEvents ?? []);
       applySnapshot(msg.game, msg.owners, msg.serverTime);
       if (msg.away) showAway(msg.away);
       if (msg.needsPassword) ui.password.hidden = false;
       break;
     case "state":
+      setForestEvents(msg.forestEvents ?? []);
       applySnapshot(msg.game, msg.owners, msg.serverTime);
       for (const e of msg.events) announce(e);
+      for (const n of msg.eventNotices ?? []) announceEvent(n);
       break;
     case "leaderboard":
       board = msg.leaderboard;
@@ -357,6 +369,65 @@ function announce(e: CaptureNotice): void {
   const name = owners.get(e.other)?.name ?? "?";
   const key: MessageKey = e.heart ? (e.kind === "won" ? "capture.heartWon" : "capture.heartLost") : e.kind === "won" ? "capture.won" : "capture.lost";
   toast(t(key, { name }), e.kind === "won" ? "good" : "bad");
+}
+
+function setForestEvents(list: EventDto[]): void {
+  forestEvents = list;
+  mapView?.setEvents(list);
+}
+
+function announceEvent(n: EventNotice): void {
+  const name = t(`event.${n.kind}`);
+  switch (n.phase) {
+    case "announced":
+      toast(t("notice.announced", { name }), "good");
+      break;
+    case "started":
+      toast(t("notice.started", { name }), "good");
+      break;
+    case "lost":
+      toast(t("notice.lost", { name, count: n.tiles ?? 0 }));
+      break;
+    case "reward": {
+      const text = (n.enzymes ?? 0) > 0
+        ? t("notice.rewardEnzymes", { name, biomass: fmt(n.biomass ?? 0), enzymes: fmt(n.enzymes ?? 0) })
+        : t("notice.reward", { name, biomass: fmt(n.biomass ?? 0) });
+      toast(n.trophy ? `${text} ${t("notice.trophy")}` : text, "good");
+      break;
+    }
+  }
+}
+
+/** The events panel: what is coming and what is under way, most urgent first (GDD §7, §11). */
+function renderEvents(now: number): void {
+  const list = [...forestEvents].sort((a, b) => (a.status === b.status ? a.startsAt - b.startsAt : a.status === "active" ? -1 : 1));
+  ui.eventPanel.hidden = list.length === 0;
+  const items = list.map((e) => {
+    const li = document.createElement("li");
+    li.classList.toggle("active", e.status === "active");
+    const button = document.createElement("button");
+    button.type = "button";
+    const name = t(`event.${e.kind}`);
+    let text: string;
+    if (e.status === "announced") text = t("event.in", { name, time: formatDuration(e.startsAt - now) });
+    else if (e.life !== undefined) text = t("event.life", { name, life: percent(e.life), share: percent(e.share ?? 0) });
+    else text = t("event.active", { name, time: formatDuration(e.endsAt - now) });
+    button.textContent = text;
+    button.title = eventDescription(e);
+    button.addEventListener("click", () => selectTile({ q: e.q, r: e.r }));
+    li.append(button);
+    return li;
+  });
+  ui.eventList.replaceChildren(...items);
+}
+
+function eventDescription(e: EventDto): string {
+  const strength = e.strong ? EVENTS.centreStrength : 1;
+  const desc = t(`event.${e.kind}.desc`, {
+    bonus: Math.round(STORM.bonus * strength * 100),
+    minutes: Math.round(NEMATODES.biteMs / strength / 60_000),
+  });
+  return e.strong ? `${desc} (${t("event.strong")})` : desc;
 }
 
 function selectTile(h: Hex | null): void {
@@ -833,6 +904,7 @@ function render(): void {
   ui.queue.textContent = `${game.queue.length}/${QUEUE_MAX}`;
   ui.trophies.textContent = String(game.trophies);
   renderPhase(game);
+  renderEvents(serverNow());
   renderMutations(game);
   renderSpores(game);
   renderAutomation(game);
@@ -958,9 +1030,14 @@ function renderTile(g: GameState): void {
   if (wet && tile.terrain !== "wetland") facts.push(["tile.humidity", t("tile.humidityValue", { bonus: Math.round(HUMIDITY.wetlandBonus * 100) })]);
   const effects = tile.effects.filter((e) => e.until > now);
   if (effects.length > 0) {
-    facts.push(["tile.effects", effects.map((e) => t("tile.effectValue", { name: t(`action.${e.kind}.name`), time: formatDuration(e.until - now) })).join(", ")]);
+    facts.push(["tile.effects", effects.map((e) => t("tile.effectValue", { name: t(`effect.${e.kind}`), time: formatDuration(e.until - now) })).join(", ")]);
   }
   if (inForestCentre(g, tile) && tile.terrain !== "wetland" && !note) note = t("tile.centreNote");
+  const here = forestEvents.find((e) => e.cells.some((c) => c.q === tile.q && c.r === tile.r));
+  if (here) {
+    const when = here.status === "announced" ? t("event.in", { name: t(`event.${here.kind}`), time: formatDuration(here.startsAt - now) }) : t(`event.${here.kind}`);
+    note = `${when} — ${eventDescription(here)} ${t("event.cap")}`;
+  }
 
   ui.tileName.textContent = t(`terrain.${tile.terrain}`);
   ui.tileStatus.textContent = status;
@@ -1002,6 +1079,10 @@ function terrainNote(terrain: Terrain): string {
       return t("tile.rockNote");
     case "acid":
       return t("tile.acidNote");
+    case "carcass":
+      return t("tile.carcassNote");
+    case "tree":
+      return t("tile.treeNote");
     default:
       return "";
   }

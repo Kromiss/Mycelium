@@ -14,6 +14,7 @@ import {
   type TileEffect,
 } from "./game";
 import type { MapLayout } from "./forestgen";
+import type { EventDto, EventNotice } from "./events";
 import { hexKey, type Hex } from "./hex";
 
 // ---------------------------------------------------------------------------
@@ -79,6 +80,8 @@ export const TERRAIN_CODES: Record<Terrain, string> = {
   roots: "r",
   rock: "k",
   acid: "a",
+  carcass: "c",
+  tree: "t",
 };
 const TERRAIN_BY_CODE = Object.fromEntries(TERRAINS.map((t) => [TERRAIN_CODES[t], t])) as Record<string, Terrain>;
 
@@ -190,7 +193,7 @@ export function fromSnapshot(s: GameSnapshot, seed = 0): GameState {
   };
 }
 
-const EFFECT_KINDS: readonly string[] = ACTION_IDS;
+const EFFECT_KINDS: readonly string[] = [...ACTION_IDS, "storm", "ashes"];
 
 /** Tile effects from untrusted data. */
 export function normalizeEffects(raw: unknown): TileEffect[] {
@@ -200,7 +203,7 @@ export function normalizeEffects(raw: unknown): TileEffect[] {
       (e): e is TileEffect =>
         typeof e === "object" && e !== null && EFFECT_KINDS.includes(e.kind) && typeof e.by === "string" && typeof e.until === "number",
     )
-    .map((e) => ({ kind: e.kind, by: e.by, until: e.until }));
+    .map((e) => (typeof e.power === "number" ? { kind: e.kind, by: e.by, until: e.until, power: e.power } : { kind: e.kind, by: e.by, until: e.until }));
 }
 
 /** Action cooldowns from untrusted data. */
@@ -294,12 +297,23 @@ export type ServerMessage =
       needsPassword: boolean;
       /** Previous seasons of this player, most recent first. */
       history: SeasonResult[];
+      /** Events announced or under way in the forest (GDD §7). */
+      forestEvents: EventDto[];
     }
   /** The season is over and the forest was wiped: `result` is the final standing (null if absent). */
   | { type: "seasonEnded"; result: SeasonResult | null }
   | { type: "authError" }
   /** Sent every tick and after each action. `events` lists this player's lost and won tiles. */
-  | { type: "state"; game: GameSnapshot; owners: OwnerInfo[]; serverTime: number; events: CaptureNotice[] }
+  | {
+      type: "state";
+      game: GameSnapshot;
+      owners: OwnerInfo[];
+      serverTime: number;
+      events: CaptureNotice[];
+      /** Events announced or under way (GDD §7), and what they did to this player since the last state. */
+      forestEvents: EventDto[];
+      eventNotices: EventNotice[];
+    }
   | { type: "leaderboard"; leaderboard: Leaderboard }
   | { type: "actionError"; error: ActionError | "not_authenticated" };
 

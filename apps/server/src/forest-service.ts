@@ -27,6 +27,10 @@ import {
   newForest,
   randomSeed,
   resolveBorders,
+  resolveEvents,
+  eventNotices,
+  eventView,
+  visibleEvents,
   seasonAt,
   TICK_MS,
   toSnapshot,
@@ -37,6 +41,7 @@ import {
   type AuthError,
   type AwaySummary,
   type CaptureNotice,
+  type EventDto,
   type ForestState,
   type GameState,
   type Leaderboard,
@@ -255,6 +260,7 @@ export class ForestService {
       away,
       needsPassword: account.passwordHash === null,
       history: await this.store.seasonHistory(account.id, HISTORY_SIZE),
+      forestEvents: this.eventsFor(live, account.id),
     });
     client.send({ type: "leaderboard", leaderboard: await this.leaderboard(live, account.id) });
     return true;
@@ -340,6 +346,10 @@ export class ForestService {
       [...this.forests.values()].map(async (live) => {
         advanceForest(live.forest, now);
         const events = resolveBorders(live.forest, dt, now);
+        const happenings = resolveEvents(live.forest, dt, now);
+        for (const h of happenings) {
+          for (const l of h.lost) live.lost.set(l.player, (live.lost.get(l.player) ?? 0) + 1);
+        }
         const notices = new Map<string, CaptureNotice[]>();
         for (const e of events) {
           live.won.set(e.to, (live.won.get(e.to) ?? 0) + 1);
@@ -362,7 +372,15 @@ export class ForestService {
           const { game, owners } = this.view(live, player);
           const board = await this.leaderboard(live, id);
           for (const c of clients) {
-            c.send({ type: "state", game, owners, serverTime: now, events: notices.get(id) ?? [] });
+            c.send({
+              type: "state",
+              game,
+              owners,
+              serverTime: now,
+              events: notices.get(id) ?? [],
+              forestEvents: this.eventsFor(live, id),
+              eventNotices: eventNotices(happenings, id),
+            });
             c.send({ type: "leaderboard", leaderboard: board });
           }
         }
@@ -395,7 +413,8 @@ export class ForestService {
     advance(player, now);
     refreshToxins(live.forest); // Toxines and captures change the neighbours' tiles.
     const { game, owners } = this.view(live, player);
-    for (const c of live.clients.get(playerId)!) c.send({ type: "state", game, owners, serverTime: now, events: [] });
+    const forestEvents = this.eventsFor(live, playerId);
+    for (const c of live.clients.get(playerId)!) c.send({ type: "state", game, owners, serverTime: now, events: [], forestEvents, eventNotices: [] });
   }
 
   /** What a player sees: their game, the tiles near their network, and who owns them. */
@@ -410,6 +429,10 @@ export class ForestService {
     }
     const counts = tileCounts(live.forest);
     return { game, owners: [...ids].map((id) => this.ownerInfo(live, id, counts)) };
+  }
+
+  private eventsFor(live: LiveForest, playerId: string): EventDto[] {
+    return visibleEvents(live.forest).map((e) => eventView(e, playerId));
   }
 
   private ownerInfo(live: LiveForest, id: string, counts: Map<string, number>): OwnerInfo {

@@ -408,8 +408,9 @@ export class PgStore implements GameStore {
       capacity: number;
       updated_at: Date;
       season_start: Date;
+      events: unknown;
     }>(
-      `select f.id, f.number, f.world_id, w.seed, w.radius, w.capacity, f.updated_at, f.season_start
+      `select f.id, f.number, f.world_id, w.seed, w.radius, w.capacity, f.updated_at, f.season_start, f.events
        from forests f join worlds w on w.id = f.world_id where f.id = $1 and f.ended_at is null`,
       [id],
     );
@@ -492,6 +493,7 @@ export class PgStore implements GameStore {
       tiles,
       players: states,
       calendar: true,
+      events: Array.isArray(row.events) ? (row.events as ForestState["events"]) : [],
       updatedAt: row.updated_at.getTime(),
     };
     refreshReservations(forest, forest.updatedAt);
@@ -504,8 +506,8 @@ export class PgStore implements GameStore {
     try {
       await client.query("begin");
       const res = await client.query<{ world_id: string }>(
-        "update forests set updated_at = $2 where id = $1 returning world_id",
-        [id, new Date(forest.updatedAt)],
+        "update forests set updated_at = $2, events = $3::jsonb where id = $1 returning world_id",
+        [id, new Date(forest.updatedAt), JSON.stringify(forest.events)],
       );
       const worldId = res.rows[0]?.world_id;
       if (!worldId) throw new Error(`Unknown forest ${id}`);

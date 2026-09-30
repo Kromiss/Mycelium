@@ -1,5 +1,6 @@
 export * from "./balance";
 export * from "./conflict";
+export * from "./events";
 export * from "./forest";
 export * from "./forestgen";
 export * from "./game";

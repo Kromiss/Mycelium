@@ -47,7 +47,7 @@ input {
 }
 
 /* The HUD only shows once a game is loaded. */
-body:not(.in-game) :is(.topbar, .upgrades, .tile-panel, .hint, .map-controls, .mini-board) {
+body:not(.in-game) :is(.topbar, .upgrades, .tile-panel, .hint, .map-controls, .mini-board, .event-panel) {
   display: none !important;
 }
 
@@ -688,6 +688,49 @@ button.ghost {
   margin-left: 6px;
 }
 
+/* Events (GDD §7) -------------------------------------------------------- */
+
+.event-panel {
+  left: 16px;
+  bottom: calc(52px + env(safe-area-inset-bottom));
+  width: 250px;
+  padding: 8px 12px;
+  font-family: system-ui, sans-serif;
+  font-size: 0.8rem;
+}
+
+.event-panel h4 {
+  margin: 0 0 4px;
+  font-size: 0.7rem;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.event-panel ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 2px;
+}
+
+.event-panel button {
+  width: 100%;
+  padding: 3px 0;
+  text-align: left;
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.event-panel li.active button {
+  color: var(--glow);
+}
+
 /* Leaderboard ------------------------------------------------------------ */
 
 .mini-board {
@@ -932,6 +975,18 @@ button.ghost {
 
   .upgrades-toggle {
     display: block;
+  }
+
+  .event-panel {
+    left: 12px;
+    right: auto;
+    bottom: calc(12px + env(safe-area-inset-bottom));
+    width: min(230px, calc(100vw - 200px));
+    padding: 6px 10px;
+  }
+
+  body.tile-open .event-panel {
+    display: none;
   }
 
   .mini-board {

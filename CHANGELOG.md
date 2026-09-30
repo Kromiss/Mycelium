@@ -19,6 +19,19 @@ versions [semver](https://semver.org/lang/fr/).
 - Client : section « Attaquer » dans le panneau d'une case ennemie, effets en cours sur les cases et
   sur la carte, Cœur protégé, alertes de Cœur pris (EN + FR).
 - Migration `0010_active_actions`.
+- **Événements** (GDD §7), tirés de la graine de la forêt pour la semaine : 1 à 3 par jour du mardi au
+  dimanche, placés et annoncés sur la carte 1 h avant. **Orage** (production +50 % dans un rayon de 3
+  pendant 4 h), **Incendie** (zone brûlée, puis Cendres ×2 pendant 24 h), **Sanglier** (une ligne de
+  cases arrachée, sol retourné à neuf), **Chute d'arbres** (le jeudi à 10 h : 2 ou 3 Souches au centre),
+  **Carcasse** (nouvelle case très riche pendant 12 h), **Nématodes** (mangent une case de la zone
+  toutes les 30 min ; les tuer rapporte de la biomasse). Plus forts au centre. Un événement ne prend
+  jamais plus de 10 % des cases d'une colonie, ni son Cœur ou son Sclérote, ni sous le plancher de 7 cases.
+- **Arbre mourant** (world boss) le jeudi et le dimanche à 14 h : 7 cases au centre, digérées par la
+  production de toutes les colonies qui le touchent ; vie = 2 h de production de la forêt, 6 h au plus ;
+  biomasse (¼ de ce qu'on a digéré) et 300 Enzymes au prorata, Trophée au meilleur ; il laisse des Souches.
+- Client : panneau « Événements » (à venir, en cours, vie du boss et sa part), zones sur la carte, barre
+  de vie, alertes (annonce, cases perdues, récompenses), terrains Carcasse et Arbre mourant (EN + FR).
+- Migration `0011_forest_events`.
 - Robots de test : option **`aim`** dans le plan d'un robot (`BotPlan`) : `"centre"` fonce vers le
   centre riche, `"home"` reste dans sa part (bord et anneau, jamais le centre) et évite les cases
   collées à un voisin. Sans `aim`, rien ne change.

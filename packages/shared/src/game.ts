@@ -80,14 +80,21 @@ export interface Tile extends Hex {
   effects: TileEffect[];
 }
 
-/** Kinds of timed tile effects. */
-export type EffectKind = ActionId;
+/** Kinds of timed tile effects: active actions, and the Orage and Cendres left by events (M6). */
+export type EffectKind = ActionId | "storm" | "ashes";
 
-/** A timed effect on a tile, cast by `by` (a player id) and active until `until` (ms since epoch). */
+/** Who casts the effects left by events. */
+export const EVENT_CASTER = "event";
+
+/**
+ * A timed effect on a tile, cast by `by` (a player id, or EVENT_CASTER) and active until `until` (ms
+ * since epoch). `power`: the production bonus of an Orage, the multiplier of Cendres.
+ */
 export interface TileEffect {
   kind: EffectKind;
   by: string;
   until: number;
+  power?: number;
 }
 
 /** The first effect of this kind still active at `at`, if any. */
@@ -631,8 +638,18 @@ function baseProduction(state: GameState, tile: Tile, hops: number, at: number):
     (1 - transportLoss(hops, hasMutation(state, "mycelialCords") ? MUTATIONS.mycelialCords : 1)) *
     phaseProduction(state, tile, effectsAt(state, at), at) *
     (tile.toxic ? 1 - MUTATIONS.toxins : 1) *
-    (tile.effects.length > 0 && activeEffect(tile, "toxin", at) ? ACTION_EFFECTS.toxinProduction : 1)
+    (tile.effects.length > 0 ? effectProduction(tile, at) : 1)
   );
+}
+
+/** Production multiplier of a tile's timed effects: Toxine, Orage, Cendres. */
+export function effectProduction(tile: Tile, at: number): number {
+  let m = activeEffect(tile, "toxin", at) ? ACTION_EFFECTS.toxinProduction : 1;
+  const storm = activeEffect(tile, "storm", at);
+  if (storm) m *= 1 + (storm.power ?? 0);
+  const ashes = activeEffect(tile, "ashes", at);
+  if (ashes) m *= ashes.power ?? 1;
+  return m;
 }
 
 /** Total nutrients per second right now (GDD §10 `production_totale`), including the offline factor. */

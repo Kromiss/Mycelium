@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { advanceForest, joinForest, newForest, resolveBorders } from "@mycelium/shared";
+import { advanceForest, joinForest, newForest, resolveBorders, scheduleEvents } from "@mycelium/shared";
 import path from "node:path";
 import pg from "pg";
 import { migrate } from "./migrate";
@@ -78,6 +78,9 @@ describe.each(stores)("%s store", (_name, make) => {
     pa.heartShieldUntil = T0 + 86_400_000;
     someTile.effects = [{ kind: "siphon", by: b.id, until: T0 + 7_200_000 }];
     resolveBorders(forest, 5_000, T0 + 3_600_000);
+    forest.events = scheduleEvents(99, SEASON);
+    forest.events[0]!.status = "active";
+    forest.events[0]!.damage = { [a.id]: 12.5 };
     await store.saveForest(record.id, forest);
 
     expect(await store.listForests()).toContainEqual(record);
@@ -87,6 +90,7 @@ describe.each(stores)("%s store", (_name, make) => {
     expect(loaded.members.get(b.id)?.isBot).toBe(true);
     expect(loaded.forest.tiles).toEqual(forest.tiles);
     expect(loaded.forest.spawns).toEqual(forest.spawns);
+    expect(loaded.forest.events).toEqual(forest.events);
     for (const [id, p] of forest.players) {
       const q = loaded.forest.players.get(id)!;
       expect(q.tiles).toBe(loaded.forest.tiles);

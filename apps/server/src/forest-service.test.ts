@@ -215,6 +215,25 @@ describe("forests", () => {
     expect(hexKey({ q: 1, r: 0 })).toBe("1,0");
   });
 
+  it("announces the season's events and runs the Dying tree (GDD §7)", async () => {
+    // Thursday 13:00 Paris: the Dying tree of 14:00 is announced.
+    const { service, wait } = await setup({ at: Date.UTC(2026, 9, 8, 10, 30) });
+    const a = await play(service, "Alpha");
+    await service.tick();
+    wait(30 * 60_000);
+    await service.tick();
+    const state = a.client.last("state")!;
+    const tree = state.forestEvents.find((e) => e.kind === "tree");
+    expect(tree?.status).toBe("announced");
+    expect(tree?.cells).toHaveLength(7);
+    const notices = a.client.messages.flatMap((m) => (m.type === "state" ? m.eventNotices : []));
+    expect(notices).toContainEqual(expect.objectContaining({ kind: "tree", phase: "announced" }));
+    wait(HOUR);
+    await service.tick();
+    expect(a.client.last("state")!.forestEvents.find((e) => e.kind === "tree")?.status).toBe("active");
+    expect(service.forestState(a.account.id)!.tiles.get(hexKey(tree!.cells[0]!))!.terrain).toBe("tree");
+  });
+
   it("saves forests and finds players again after a restart", async () => {
     const { service, store, wait } = await setup();
     const a = await play(service, "Alpha");
