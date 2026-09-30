@@ -1,5 +1,5 @@
-import { TERRAINS, type StructureId, type Terrain, type UpgradeId } from "./balance";
-import { isStructureId, normalizeUpgrades, type ActionError, type GameState, type Tile } from "./game";
+import { TERRAINS, type MutationId, type StrainId, type StructureId, type Terrain, type UpgradeId } from "./balance";
+import { isMutationId, isStrainId, isStructureId, normalizeUpgrades, type ActionError, type GameState, type Tile } from "./game";
 import type { MapLayout } from "./forestgen";
 import { hexKey, type Hex } from "./hex";
 
@@ -19,6 +19,8 @@ export interface TileDto extends Hex {
   reservedFor: string | null;
   /** Structure (GDD §4.1), omitted when there is none. */
   s?: StructureId;
+  /** Poisoned by a neighbour's Toxines (GDD §4.2), omitted when not. */
+  x?: 1;
 }
 
 /** A player's game as sent to them: their own economy, and the tiles they can see. */
@@ -31,6 +33,8 @@ export interface GameSnapshot {
   trophies: number;
   calendar: boolean;
   mondayBonus: number;
+  strain: StrainId | null;
+  mutations: MutationId[];
   heart: Hex;
   heartMovedAt: number | null;
   /** Visible tiles only (GDD §2.1 fog); the rest of the forest is unknown to the client. */
@@ -75,6 +79,7 @@ export function toSnapshot(state: GameState, visible?: Set<string>): GameSnapsho
       reservedFor: t.reservedFor,
     };
     if (t.structure !== null) dto.s = t.structure;
+    if (t.toxic) dto.x = 1;
     tiles.push(dto);
   }
   return {
@@ -86,6 +91,8 @@ export function toSnapshot(state: GameState, visible?: Set<string>): GameSnapsho
     trophies: state.trophies,
     calendar: state.calendar,
     mondayBonus: state.mondayBonus,
+    strain: state.strain,
+    mutations: [...state.mutations],
     heart: { q: state.heart.q, r: state.heart.r },
     heartMovedAt: state.heartMovedAt,
     tiles,
@@ -118,6 +125,7 @@ export function fromSnapshot(s: GameSnapshot, seed = 0): GameState {
       capture: o.capture && { ...o.capture },
       reservedFor: o.reservedFor ?? null,
       structure: typeof o.s === "string" && isStructureId(o.s) ? o.s : null,
+      toxic: o.x === 1,
     });
   }
   return {
@@ -130,6 +138,8 @@ export function fromSnapshot(s: GameSnapshot, seed = 0): GameState {
     trophies: s.trophies,
     calendar: s.calendar ?? false,
     mondayBonus: s.mondayBonus ?? 0,
+    strain: typeof s.strain === "string" && isStrainId(s.strain) ? s.strain : null,
+    mutations: Array.isArray(s.mutations) ? s.mutations.filter((m) => typeof m === "string" && isMutationId(m)) : [],
     heart: { q: s.heart.q, r: s.heart.r },
     heartMovedAt: s.heartMovedAt,
     nutrients: s.nutrients,
@@ -264,7 +274,11 @@ export type ClientMessage =
   | { type: "buyUpgrade"; upgrade: string }
   /** Builds a structure on one of the player's tiles (GDD §4.1). */
   | { type: "build"; q: number; r: number; structure: string }
-  | { type: "demolish"; q: number; r: number };
+  | { type: "demolish"; q: number; r: number }
+  /** Takes a mutation (GDD §4.2). */
+  | { type: "mutate"; mutation: string }
+  /** Picks the season's strain (GDD §4.3). */
+  | { type: "chooseStrain"; strain: string };
 
 export interface HealthReport {
   status: "ok" | "degraded";
@@ -332,6 +346,10 @@ export function parseClientMessage(raw: string): ClientMessage | null {
       return isInt(m.q) && isInt(m.r) && isStr(m.structure, 50) ? { type: "build", q: m.q, r: m.r, structure: m.structure } : null;
     case "buyUpgrade":
       return isStr(m.upgrade, 50) ? { type: "buyUpgrade", upgrade: m.upgrade } : null;
+    case "mutate":
+      return isStr(m.mutation, 50) ? { type: "mutate", mutation: m.mutation } : null;
+    case "chooseStrain":
+      return isStr(m.strain, 50) ? { type: "chooseStrain", strain: m.strain } : null;
     default:
       return null;
   }

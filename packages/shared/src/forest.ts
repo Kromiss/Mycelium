@@ -1,8 +1,12 @@
-import { BORDERS, FOREST, ROCK, STRUCTURES, VISION_RADIUS } from "./balance";
+import { BORDERS, FOREST, MUTATIONS, ROCK, STRUCTURES, VISION_RADIUS } from "./balance";
 import { generateForestMap, type MapLayout } from "./forestgen";
 import {
   advance,
+  capturedFactor,
+  conquestFactor,
   conversionRate,
+  hasMutation,
+  pressureFactor,
   emptyUpgrades,
   networkHops,
   newPlayer,
@@ -89,6 +93,7 @@ export function joinForest(forest: ForestState, id: string, now: number): GameSt
   player.lastSeenAt = now;
   forest.players.set(id, player);
   refreshReservations(forest, now);
+  refreshToxins(forest);
   return player;
 }
 
@@ -116,9 +121,28 @@ export function advanceForest(forest: ForestState, to: number): void {
   const dt = to - forest.updatedAt;
   if (dt <= 0) return;
   refreshReservations(forest, forest.updatedAt);
+  refreshToxins(forest);
   for (const p of forest.players.values()) advance(p, to);
   forest.updatedAt = to;
   refreshReservations(forest, to);
+  refreshToxins(forest);
+}
+
+/**
+ * Toxines (GDD §4.2): a player's tiles touching a colonised tile of a player with that mutation
+ * produce less. Refreshed whenever the forest moves on (the effect follows the borders tick by tick).
+ */
+export function refreshToxins(forest: ForestState): void {
+  const toxic = new Set([...forest.players.values()].filter((p) => hasMutation(p, "toxins")).map((p) => p.id));
+  for (const t of forest.tiles.values()) {
+    t.toxic =
+      toxic.size > 0 &&
+      t.owner !== null &&
+      hexNeighbors(t).some((n) => {
+        const o = forest.tiles.get(hexKey(n));
+        return o !== undefined && o.owner !== null && o.owner !== t.owner && o.growthEndsAt === null && toxic.has(o.owner);
+      });
+  }
 }
 
 /** A tile that cannot be taken right now: a Cœur, a Sclérote, or the start zone of a new player (GDD §4.1, §6.4). */
@@ -139,9 +163,9 @@ export function pressure(forest: ForestState, playerId: string, around: Hex, con
     const t = forest.tiles.get(hexKey(h));
     if (!t || t.owner !== playerId || t.growthEndsAt !== null) continue;
     if (connected && !connected.has(hexKey(h))) continue;
-    total += humidity(player, t); // Aggression multipliers arrive with mutations (M5).
+    total += humidity(player, t);
   }
-  return total;
+  return total * pressureFactor(player);
 }
 
 /**
@@ -211,7 +235,7 @@ export function resolveBorders(forest: ForestState, dt: number, now: number): Ca
     if (!tile.capture || tile.capture.by !== best.id) tile.capture = { by: best.id, progress: 0 };
     const shielded = defender.lastSeenAt !== null && now - defender.lastSeenAt >= BORDERS.shieldAfterMs;
     tile.capture.progress +=
-      (dt / duration) * best.speed * phaseSpeed * (shielded ? BORDERS.shieldFactor : 1) * defenceFactor(forest, tile);
+      (dt / duration) * best.speed * phaseSpeed * (shielded ? BORDERS.shieldFactor : 1) * defenceFactor(forest, tile) * capturedFactor(defender);
     if (tile.capture.progress >= 1 - 1e-9) {
       const attacker = forest.players.get(best.id)!;
       events.push({ q: tile.q, r: tile.r, from: defender.id, to: attacker.id });
@@ -221,6 +245,7 @@ export function resolveBorders(forest: ForestState, dt: number, now: number): Ca
 
   if (events.length > 0) {
     for (const p of forest.players.values()) refreshConnections(p, now);
+    refreshToxins(forest);
   }
   return events;
 }
@@ -232,10 +257,14 @@ function conquer(attacker: GameState, tile: Tile): void {
   tile.growthStartedAt = null;
   tile.disconnectedSince = null;
   tile.capture = null;
-  tile.structure = null; // Structures are destroyed (Cordyceps will keep them, M5 step 2).
+  // Structures are destroyed, unless the attacker has Cordyceps (a second Sclérote is not kept).
+  const keep =
+    hasMutation(attacker, "cordyceps") &&
+    !(tile.structure === "sclerotium" && [...attacker.tiles.values()].some((t) => t !== tile && t.owner === attacker.id && t.structure === "sclerotium"));
+  if (!keep) tile.structure = null;
   attacker.trophies += 1;
   const perSecond = tileYield(tile.terrain, attacker.upgrades) * richness(attacker, tile);
-  attacker.biomass += ((perSecond * BORDERS.conquestBonusMs) / 1000) * conversionRate(attacker.upgrades);
+  attacker.biomass += ((perSecond * BORDERS.conquestBonusMs) / 1000) * conversionRate(attacker.upgrades) * conquestFactor(attacker);
 }
 
 /**
@@ -244,13 +273,29 @@ function conquer(attacker: GameState, tile: Tile): void {
  */
 export function visibleKeys(forest: ForestState, playerId: string): Set<string> {
   const seen = new Set<string>();
+  const viewer = forest.players.get(playerId);
+  const glowing = viewer !== undefined && hasMutation(viewer, "bioluminescence");
+  /** Truffe (GDD §4.3): a truffle's tiles are only seen by the players whose tiles touch them. */
+  const hidden = (t: Tile) => {
+    if (t.owner === null || t.owner === playerId || forest.players.get(t.owner)?.strain !== "truffle") return false;
+    return !hexNeighbors(t).some((n) => forest.tiles.get(hexKey(n))?.owner === playerId);
+  };
   for (const [key, t] of forest.tiles) {
-    if (t.structure === "carpophore" && t.owner !== null) seen.add(key);
+    if (t.structure === "carpophore" && t.owner !== null && forest.players.get(t.owner)?.strain !== "truffle") seen.add(key);
     if (t.owner !== playerId) continue;
     const vision = t.structure === "carpophore" && t.growthEndsAt === null ? STRUCTURES.carpophoreVision : VISION_RADIUS;
     for (const h of hexesInRadius(t, vision)) {
       const k = hexKey(h);
-      if (forest.tiles.has(k)) seen.add(k);
+      const o = forest.tiles.get(k);
+      if (o && !hidden(o)) seen.add(k);
+    }
+    if (glowing) {
+      // Bioluminescence (GDD §4.2): enemy networks within 3 tiles.
+      for (const h of hexesInRadius(t, MUTATIONS.bioluminescenceVision)) {
+        const k = hexKey(h);
+        const o = forest.tiles.get(k);
+        if (o && o.owner !== null && o.owner !== playerId && !hidden(o)) seen.add(k);
+      }
     }
   }
   return seen;
@@ -304,6 +349,7 @@ export function deserializeForest(dto: ForestDto): ForestState {
     updatedAt: dto.updatedAt,
   };
   refreshReservations(forest, forest.updatedAt);
+  refreshToxins(forest);
   return forest;
 }
 
@@ -322,6 +368,8 @@ function emptySnapshot(dto: ForestDto): GameSnapshot {
     trophies: 0,
     calendar: dto.calendar ?? true,
     mondayBonus: 0,
+    strain: null,
+    mutations: [],
     heart: dto.spawns[0]!,
     heartMovedAt: null,
     tiles: [],

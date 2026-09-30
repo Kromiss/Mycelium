@@ -194,6 +194,100 @@ button.ghost {
   padding: 14px;
 }
 
+.panel-tabs {
+  margin: 0 0 12px;
+}
+
+.panel-tabs .tab.attention {
+  color: var(--glow);
+}
+
+.panel-tabs .tab {
+  font-family: system-ui, sans-serif;
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.strain-line,
+.mutation-points {
+  margin: 0 0 8px;
+  font-family: system-ui, sans-serif;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.mutation-points strong,
+.strain-line strong {
+  color: var(--glow);
+  font-weight: 600;
+}
+
+.branch {
+  margin: 12px 0 0;
+}
+
+.branch h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.branch > p {
+  margin: 0 0 6px;
+  font-family: system-ui, sans-serif;
+  font-size: 0.76rem;
+  color: var(--muted);
+}
+
+.mutation.owned {
+  background: var(--glow-soft);
+}
+
+.mutation.locked {
+  opacity: 0.55;
+}
+
+.strain-card {
+  width: min(520px, 100%);
+}
+
+.strain-card h2 {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 500;
+}
+
+.strain-card p {
+  margin: 0;
+}
+
+.strain-list {
+  list-style: none;
+  margin: 4px 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.strain-list button {
+  width: 100%;
+  display: grid;
+  gap: 2px;
+  text-align: left;
+  padding: 10px 12px;
+}
+
+.strain-list .strain-name {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.strain-list .strain-desc {
+  font-family: system-ui, sans-serif;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
 .upgrades h2 {
   margin: 0 0 10px;
   font-size: 0.8rem;

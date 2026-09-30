@@ -57,8 +57,18 @@
     </button>
 
     <aside class="panel upgrades" id="upgrades">
-      <h2 data-i18n="upgrades.title"></h2>
-      <ul id="upgrade-list"></ul>
+      <div class="tabs panel-tabs" role="tablist">
+        <button type="button" role="tab" class="tab" id="tab-upgrades" aria-selected="true" data-i18n="upgrades.title"></button>
+        <button type="button" role="tab" class="tab" id="tab-mutations" aria-selected="false"></button>
+      </div>
+      <div id="upgrades-view">
+        <ul id="upgrade-list"></ul>
+      </div>
+      <div id="mutations-view" hidden>
+        <p class="strain-line" id="strain-line"></p>
+        <p class="mutation-points" id="mutation-points"></p>
+        <div id="mutation-branches"></div>
+      </div>
     </aside>
 
     <section class="panel tile-panel" id="tile-panel" hidden>
@@ -93,6 +103,15 @@
         <ul id="away-list"></ul>
         <p class="muted" id="away-reduced" data-i18n="away.reduced" hidden></p>
         <button type="button" class="primary" id="away-close" data-i18n="away.close"></button>
+      </div>
+    </div>
+
+    <div class="overlay" id="strain" hidden>
+      <div class="guest-card strain-card">
+        <h2 data-i18n="strain.title"></h2>
+        <p class="muted" data-i18n="strain.subtitle"></p>
+        <ul class="strain-list" id="strain-list"></ul>
+        <button type="button" id="strain-later" data-i18n="strain.later"></button>
       </div>
     </div>
 

@@ -147,6 +147,13 @@ describe("forests", () => {
     expect(a.client.last("actionError")?.error).toBe("has_structure");
     service.demolish(a.account.id, spawn.q, spawn.r, a.client);
     expect(a.client.last("state")!.game.tiles.find((t) => t.q === spawn.q && t.r === spawn.r)?.s).toBeUndefined();
+    service.mutate(a.account.id, "digestiveEnzymes", a.client);
+    expect(a.client.last("actionError")?.error).toBe("no_mutation_point");
+    forest.players.get(a.account.id)!.biomass = 20_000;
+    service.mutate(a.account.id, "digestiveEnzymes", a.client);
+    expect(a.client.last("state")!.game.mutations).toEqual(["digestiveEnzymes"]);
+    service.chooseStrain(a.account.id, "armillaria", a.client);
+    expect(a.client.last("actionError")?.error).toBe("strain_chosen"); // It already owns a second tile.
     const stranger = new Spy();
     service.colonize(a.account.id, target.q, target.r, stranger);
     expect(stranger.last("actionError")?.error).toBe("not_authenticated");

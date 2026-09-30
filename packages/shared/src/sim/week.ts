@@ -2,11 +2,23 @@
  * Solo week simulation (roadmap M2): a simple bot plays a week with a given schedule, using the
  * real rules. Used by the CI test `sim.test.ts` and by `pnpm --filter @mycelium/shared simulate`.
  */
-import { EXHAUSTION, QUEUE_MAX, TERRAIN_STATS, UPGRADE_STATS, type UpgradeId } from "../balance";
+import {
+  EXHAUSTION,
+  MUTATION_BRANCHES,
+  QUEUE_MAX,
+  STRAIN_IDS,
+  UPGRADE_STATS,
+  type MutationBranch,
+  type StrainId,
+  type UpgradeId,
+} from "../balance";
 import {
   advance,
   buyUpgrade,
+  canColonizeTerrain,
   checkColonize,
+  checkMutate,
+  chooseStrain,
   cloneGame,
   colonizationCost,
   colonize,
@@ -16,7 +28,9 @@ import {
   heartReadyAt,
   humidity,
   moveHeart,
+  mutate,
   networkHops,
+  ownedCount,
   newGame,
   productionRate,
   richness,
@@ -97,14 +111,49 @@ export function simulateWeek(profile: Profile, options: SimulationOptions = {}):
   return reports;
 }
 
+/** How a bot builds its colony: its strain, and the order in which it follows the mutation branches. */
+export interface BotPlan {
+  /** null: plays without a strain. */
+  strain: StrainId | null;
+  /** Empty: takes no mutation. */
+  branches: readonly MutationBranch[];
+}
+
+/** No strain, no mutation: the economy alone (M1–M4 pacing). */
+export const NEUTRAL_PLAN: BotPlan = { strain: null, branches: [] };
+
+const BRANCHES = Object.keys(MUTATION_BRANCHES) as MutationBranch[];
+
+/** A plan picked from the bot's id, so that robots differ but stay the same across restarts. */
+export function defaultPlan(id: string): BotPlan {
+  let h = 2166136261;
+  for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 16777619) >>> 0;
+  const first = BRANCHES[h % 3]!;
+  const second = BRANCHES[(h % 3 + 1 + ((h >>> 4) % 2)) % 3]!;
+  return { strain: STRAIN_IDS[(h >>> 8) % STRAIN_IDS.length]!, branches: [first, second, ...BRANCHES.filter((b) => b !== first && b !== second)] };
+}
+
 /**
- * One bot decision: plan the queue, buy upgrades that pay back faster than tiles, move the Cœur.
- * Also drives the server's test robots.
+ * One bot decision: pick the strain and mutations, plan the queue, buy upgrades that pay back faster
+ * than tiles, move the Cœur. Also drives the server's test robots.
  */
-export function botPlay(state: GameState, now: number, sessionStart: boolean): void {
+export function botPlay(state: GameState, now: number, sessionStart: boolean, plan: BotPlan = defaultPlan(state.id)): void {
+  if (plan.strain !== null && state.strain === null && ownedCount(state) <= 1) chooseStrain(state, plan.strain);
+  takeMutations(state, plan, now);
   if (sessionStart && now >= heartReadyAt(state)) moveHeartToCentre(state, now);
   fillQueue(state, now);
   buyUpgrades(state);
+}
+
+/** Spends mutation points down the plan's branches, in order. */
+function takeMutations(state: GameState, plan: BotPlan, now: number): void {
+  for (const branch of plan.branches) {
+    for (const id of MUTATION_BRANCHES[branch]) {
+      if (state.mutations.includes(id)) continue;
+      if (!checkMutate(state, id).ok) return;
+      mutate(state, id, now);
+    }
+  }
 }
 
 /** Expected biomass per second per nutrient spent on a wild tile. */
@@ -125,7 +174,7 @@ function candidates(state: GameState): Tile[] {
       if (seen.has(k)) continue;
       seen.add(k);
       const t = state.tiles.get(k);
-      if (t && t.owner === null && TERRAIN_STATS[t.terrain].colonizable) out.push(t);
+      if (t && t.owner === null && canColonizeTerrain(state, t.terrain)) out.push(t);
     }
   }
   return out;

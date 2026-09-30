@@ -179,6 +179,14 @@ function onConnection(ws: WebSocket, game: ForestService): void {
         if (!player) return send(ws, { type: "actionError", error: "not_authenticated" });
         game.demolish(player.id, msg.q, msg.r, client);
         return;
+      case "mutate":
+        if (!player) return send(ws, { type: "actionError", error: "not_authenticated" });
+        game.mutate(player.id, msg.mutation, client);
+        return;
+      case "chooseStrain":
+        if (!player) return send(ws, { type: "actionError", error: "not_authenticated" });
+        game.chooseStrain(player.id, msg.strain, client);
+        return;
     }
   });
   ws.on("close", () => {

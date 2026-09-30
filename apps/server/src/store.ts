@@ -2,14 +2,18 @@ import {
   deserializeForest,
   forestSpawns,
   hexKey,
+  isMutationId,
+  isStrainId,
   isStructureId,
   normalizeUpgrades,
   refreshReservations,
+  refreshToxins,
   seasonAt,
   serializeForest,
   TERRAIN_STATS,
   type ForestState,
   type GameState,
+  type MutationId,
   type PlayerInfo,
   type SeasonResult,
   type Terrain,
@@ -185,6 +189,8 @@ interface PlayerRow extends AccountRow {
   nutrients: number;
   enzymes: number;
   enzymes_unlocked: boolean;
+  strain: string | null;
+  mutations: unknown;
   biomass: number;
   upgrades: Record<string, number>;
   queue: Array<{ q: number; r: number }>;
@@ -418,13 +424,14 @@ export class PgStore implements GameStore {
         capture: h.capture_by && h.capture_progress !== null ? { by: h.capture_by, progress: h.capture_progress } : null,
         reservedFor: null,
         structure: h.structure !== null && isStructureId(h.structure) ? h.structure : null,
+        toxic: false,
       });
     }
     const layout = { kind: "forest", capacity: row.capacity } as const;
     const seed = Number(row.seed);
     const players = await this.pool.query<PlayerRow>(
       `select id, name, password_hash, is_bot, heart_q, heart_r, heart_moved_at, spawn_q, spawn_r, joined_at, trophies,
-              monday_bonus, nutrients, enzymes, enzymes_unlocked, biomass, upgrades, queue, last_seen_at, updated_at
+              monday_bonus, nutrients, enzymes, enzymes_unlocked, strain, mutations, biomass, upgrades, queue, last_seen_at, updated_at
        from players where forest_id = $1`,
       [id],
     );
@@ -442,6 +449,8 @@ export class PgStore implements GameStore {
         trophies: p.trophies,
         calendar: true,
         mondayBonus: p.monday_bonus,
+        strain: p.strain !== null && isStrainId(p.strain) ? p.strain : null,
+        mutations: Array.isArray(p.mutations) ? p.mutations.filter((m): m is MutationId => typeof m === "string" && isMutationId(m)) : [],
         heart: { q: p.heart_q, r: p.heart_r },
         heartMovedAt: toMs(p.heart_moved_at),
         nutrients: p.nutrients,
@@ -466,6 +475,7 @@ export class PgStore implements GameStore {
       updatedAt: row.updated_at.getTime(),
     };
     refreshReservations(forest, forest.updatedAt);
+    refreshToxins(forest);
     return { record: { id: row.id, number: row.number, seasonStart: row.season_start.getTime() }, forest, members };
   }
 
@@ -486,12 +496,13 @@ export class PgStore implements GameStore {
                   heart_moved_at = t.heart_moved_at, spawn_q = t.spawn_q, spawn_r = t.spawn_r, joined_at = t.joined_at,
                   trophies = t.trophies, nutrients = t.nutrients, biomass = t.biomass, upgrades = t.upgrades::jsonb,
                   queue = t.queue::jsonb, last_seen_at = t.last_seen_at, updated_at = t.updated_at,
-                  monday_bonus = t.monday_bonus, enzymes = t.enzymes, enzymes_unlocked = t.enzymes_unlocked
+                  monday_bonus = t.monday_bonus, enzymes = t.enzymes, enzymes_unlocked = t.enzymes_unlocked,
+                  strain = t.strain, mutations = t.mutations::jsonb
            from unnest($3::uuid[], $4::int[], $5::int[], $6::timestamptz[], $7::int[], $8::int[], $9::timestamptz[],
                        $10::int[], $11::float8[], $12::float8[], $13::text[], $14::text[], $15::timestamptz[],
-                       $16::timestamptz[], $17::float8[], $18::float8[], $19::bool[])
+                       $16::timestamptz[], $17::float8[], $18::float8[], $19::bool[], $20::text[], $21::text[])
              as t(id, heart_q, heart_r, heart_moved_at, spawn_q, spawn_r, joined_at, trophies, nutrients, biomass,
-                  upgrades, queue, last_seen_at, updated_at, monday_bonus, enzymes, enzymes_unlocked)
+                  upgrades, queue, last_seen_at, updated_at, monday_bonus, enzymes, enzymes_unlocked, strain, mutations)
            where players.id = t.id`,
           [
             id,
@@ -513,6 +524,8 @@ export class PgStore implements GameStore {
             ps.map((p) => p.mondayBonus),
             ps.map((p) => p.enzymes),
             ps.map((p) => p.enzymesUnlocked),
+            ps.map((p) => p.strain),
+            ps.map((p) => JSON.stringify(p.mutations)),
           ],
         );
       }

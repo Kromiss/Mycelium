@@ -3,17 +3,25 @@ import {
   ENZYMES_UNLOCK_TILES,
   EXHAUSTION,
   HEART_MOVE_COOLDOWN_MS,
+  ACID,
   HUMIDITY,
+  MUTATION_BRANCHES,
+  MUTATION_IDS,
+  MUTATIONS,
   OFFLINE,
   QUEUE_MAX,
   ROOTS,
   STRUCTURE_IDS,
+  STRAIN_IDS,
+  STRAINS,
   STRUCTURES,
   TERRAIN_STATS,
   TICK_MS,
   TRANSPORT,
   UPGRADE_IDS,
   UPGRADE_STATS,
+  type MutationId,
+  type StrainId,
   type StructureId,
   type Terrain,
   type UpgradeId,
@@ -53,6 +61,11 @@ export interface Tile extends Hex {
   reservedFor: string | null;
   /** Structure built on the tile (GDD §4.1), one at most; it goes with the tile's owner. */
   structure: StructureId | null;
+  /**
+   * Touches a tile of another player who has the Toxines mutation (GDD §4.2): produces less. Derived
+   * by the forest (see `refreshToxins`), not stored.
+   */
+  toxic: boolean;
 }
 
 export type Upgrades = Record<UpgradeId, number>;
@@ -72,6 +85,10 @@ export interface GameState {
   readonly calendar: boolean;
   /** Production bonus on Monday from the previous season's rank (GDD §8.2), e.g. 0.05. */
   mondayBonus: number;
+  /** Strain chosen for the season (GDD §4.3), null until chosen. */
+  strain: StrainId | null;
+  /** Mutations taken this season (GDD §4.2), in the order they were taken. */
+  mutations: MutationId[];
   /** The Cœur: nutrients flow to it (GDD §2.4). */
   heart: Hex;
   /** Last time the Cœur was moved, null if never. */
@@ -113,7 +130,13 @@ export type ActionError =
   | "unknown_structure"
   | "has_structure"
   | "no_structure"
-  | "structure_limit";
+  | "structure_limit"
+  | "unknown_mutation"
+  | "already_mutated"
+  | "mutation_locked"
+  | "no_mutation_point"
+  | "unknown_strain"
+  | "strain_chosen";
 
 export type ActionResult = { ok: true } | { ok: false; error: ActionError };
 
@@ -152,6 +175,7 @@ export function wildTile(h: Hex, terrain: Terrain): Tile {
     capture: null,
     reservedFor: null,
     structure: null,
+    toxic: false,
   };
 }
 
@@ -181,6 +205,8 @@ export function newPlayer(
     trophies: 0,
     calendar: map.calendar ?? false,
     mondayBonus: 0,
+    strain: null,
+    mutations: [],
     heart: { q: spawn.q, r: spawn.r },
     heartMovedAt: null,
     nutrients: ECONOMY.startingNutrients,
@@ -242,9 +268,9 @@ export function networkHops(state: GameState): Map<string, number> {
   return hops;
 }
 
-/** Share of a tile's nutrients lost on the way to the Cœur (GDD §2.4: 1 % per hop). */
-export function transportLoss(hops: number): number {
-  return Math.min(TRANSPORT.maxLoss, TRANSPORT.lossPerHop * hops);
+/** Share of a tile's nutrients lost on the way to the Cœur (GDD §2.4: 1 % per hop), × `factor` (Cordons mycéliens). */
+export function transportLoss(hops: number, factor = 1): number {
+  return Math.min(TRANSPORT.maxLoss, TRANSPORT.lossPerHop * hops * factor);
 }
 
 /** Humidity multiplier of a tile: bonus next to a wetland or to one of the player's Réservoirs (GDD §2.2, §4.1). */
@@ -256,10 +282,150 @@ export function humidity(state: GameState, h: Hex): number {
   return wet ? 1 + HUMIDITY.wetlandBonus : 1;
 }
 
-/** Production multiplier while the player is away (GDD §9). */
+/** Production multiplier while the player is away (GDD §9); Dormance trades online for offline production. */
 export function offlineFactor(state: GameState, at: number): number {
-  if (state.lastSeenAt === null) return 1;
-  return at - state.lastSeenAt < OFFLINE.fullMs ? 1 : OFFLINE.reducedFactor;
+  const dormant = hasMutation(state, "dormancy");
+  if (state.lastSeenAt === null) return dormant ? MUTATIONS.dormancyOnline : 1;
+  const base = at - state.lastSeenAt < OFFLINE.fullMs ? 1 : OFFLINE.reducedFactor;
+  return dormant ? base * MUTATIONS.dormancyOffline : base;
+}
+
+// ---------------------------------------------------------------------------
+// Mutations and strains (GDD §4.2, §4.3)
+
+export function hasMutation(state: GameState, id: MutationId): boolean {
+  return state.mutations.includes(id);
+}
+
+export function isMutationId(id: string): id is MutationId {
+  return (MUTATION_IDS as readonly string[]).includes(id);
+}
+
+export function isStrainId(id: string): id is StrainId {
+  return (STRAIN_IDS as readonly string[]).includes(id);
+}
+
+/** Biomass at which the n-th mutation point (n ≥ 1) is earned: 20 k, 60 k, 180 k… */
+export function mutationThreshold(n: number): number {
+  return MUTATIONS.firstThreshold * Math.pow(MUTATIONS.thresholdGrowth, n - 1);
+}
+
+/** Mutation points earned by the season's biomass. */
+export function earnedMutationPoints(biomass: number): number {
+  let n = 0;
+  while (biomass >= mutationThreshold(n + 1)) n++;
+  return n;
+}
+
+/** Points left to spend. */
+export function mutationPoints(state: GameState): number {
+  return earnedMutationPoints(state.biomass) - state.mutations.length;
+}
+
+/** The branch of a mutation, and the mutation it requires (null for the first of a branch). */
+export function mutationPlace(id: MutationId): { branch: keyof typeof MUTATION_BRANCHES; requires: MutationId | null } {
+  for (const [branch, list] of Object.entries(MUTATION_BRANCHES) as Array<[keyof typeof MUTATION_BRANCHES, readonly MutationId[]]>) {
+    const i = list.indexOf(id);
+    if (i >= 0) return { branch, requires: i === 0 ? null : list[i - 1]! };
+  }
+  throw new Error(`Unknown mutation ${id}`);
+}
+
+export function checkMutate(state: GameState, id: string): ActionResult {
+  if (!isMutationId(id)) return { ok: false, error: "unknown_mutation" };
+  if (hasMutation(state, id)) return { ok: false, error: "already_mutated" };
+  const { requires } = mutationPlace(id);
+  if (requires !== null && !hasMutation(state, requires)) return { ok: false, error: "mutation_locked" };
+  if (mutationPoints(state) < 1) return { ok: false, error: "no_mutation_point" };
+  return { ok: true };
+}
+
+/** Takes a mutation for the rest of the season (no respec). */
+export function mutate(state: GameState, id: string, now: number): ActionResult {
+  const check = checkMutate(state, id);
+  if (!check.ok || !isMutationId(id)) return check;
+  state.mutations.push(id);
+  refreshConnections(state, now);
+  return check;
+}
+
+export function checkChooseStrain(state: GameState, id: string): ActionResult {
+  if (!isStrainId(id)) return { ok: false, error: "unknown_strain" };
+  if (state.strain !== null || ownedCount(state) > 1) return { ok: false, error: "strain_chosen" };
+  return { ok: true };
+}
+
+/** Picks the season's strain, before the first colonised tile; final for the season. */
+export function chooseStrain(state: GameState, id: string): ActionResult {
+  const check = checkChooseStrain(state, id);
+  if (!check.ok || !isStrainId(id)) return check;
+  state.strain = id;
+  return check;
+}
+
+/** Whether the player may colonise this terrain at all (wetlands need Hyphes aquatiques). */
+export function canColonizeTerrain(state: GameState, terrain: Terrain): boolean {
+  if (terrain === "wetland") return hasMutation(state, "aquaticHyphae");
+  return TERRAIN_STATS[terrain].colonizable;
+}
+
+/** Wear stops counting at this level for the player (Usure lente). */
+export function wearCap(state: GameState): number {
+  return hasMutation(state, "slowWear") ? MUTATIONS.slowWearCap : EXHAUSTION.max;
+}
+
+/** Multiplier on the player's Roots (Mycorhize, Truffe). */
+export function rootsFactor(state: GameState): number {
+  return (hasMutation(state, "mycorrhiza") ? MUTATIONS.mycorrhiza : 1) * (state.strain === "truffle" ? STRAINS.truffle.roots : 1);
+}
+
+/** Yield multiplier of a terrain for the player (Saprophyte, Roots). */
+export function terrainFactor(state: GameState, terrain: Terrain): number {
+  if ((terrain === "deadwood" || terrain === "stump") && hasMutation(state, "saprophyte")) return 1 + MUTATIONS.saprophyte;
+  if (terrain === "roots") return rootsFactor(state);
+  return 1;
+}
+
+/** Hyphae growth time multiplier of the strain (Pleurote). */
+export function strainGrowthFactor(state: GameState): number {
+  return state.strain === "pleurotus" ? STRAINS.pleurotus.growthTime : 1;
+}
+
+/** Border pressure multiplier (Hyphes agressives, Cordyceps). */
+export function pressureFactor(state: GameState): number {
+  return (hasMutation(state, "aggressiveHyphae") ? 1 + MUTATIONS.aggressiveHyphae : 1) * (state.strain === "cordyceps" ? STRAINS.cordyceps.pressure : 1);
+}
+
+/** Speed at which the player's tiles are taken (Résilience, Pleurote). */
+export function capturedFactor(state: GameState): number {
+  return (hasMutation(state, "resilience") ? MUTATIONS.resilience : 1) * (state.strain === "pleurotus" ? STRAINS.pleurotus.capturedSpeed : 1);
+}
+
+/** Conquest bonus multiplier (Pillage, Cordyceps). */
+export function conquestFactor(state: GameState): number {
+  return (hasMutation(state, "plunder") ? MUTATIONS.plunder : 1) * (state.strain === "cordyceps" ? STRAINS.cordyceps.conquestBonus : 1);
+}
+
+/** Production multiplier from mutations and strain that does not depend on the map (Enzymes digestives, Cordyceps, Armillaire). */
+export function traitProduction(state: GameState, at: number): number {
+  let m = hasMutation(state, "digestiveEnzymes") ? 1 + MUTATIONS.digestiveEnzymes : 1;
+  if (state.strain === "cordyceps") m *= STRAINS.cordyceps.production;
+  if (state.strain === "armillaria" && state.calendar) m *= STRAINS.armillaria.monday + STRAINS.armillaria.perDay * phaseAt(at).index;
+  return m;
+}
+
+/** Témérité: +3 % per tile of the player touching another player's tile, up to +30 %. */
+export function temerityFactor(state: GameState): number {
+  if (!hasMutation(state, "temerity")) return 1;
+  let border = 0;
+  for (const t of state.tiles.values()) {
+    if (t.owner !== state.id || t.growthEndsAt !== null) continue;
+    if (hexNeighbors(t).some((n) => {
+      const o = state.tiles.get(hexKey(n))?.owner;
+      return o !== undefined && o !== null && o !== state.id;
+    })) border++;
+  }
+  return 1 + Math.min(MUTATIONS.temerityMax, MUTATIONS.temerityPerTile * border);
 }
 
 // ---------------------------------------------------------------------------
@@ -270,9 +436,10 @@ export function richness(state: GameState, h: Hex): number {
   return richnessAt(state.layout, state.radius, h);
 }
 
-/** Occupied time after which the tile's wear reaches its cap, in ms (longer on the forest rim). */
+/** Occupied time after which the tile's wear reaches its cap, in ms (longer on the forest rim; Acidophile). */
 export function lifetimeMs(state: GameState, tile: Tile): number {
-  return TERRAIN_STATS[tile.terrain].lifetimeMs * lifetimeFactorAt(state.layout, state.radius, tile);
+  const acid = tile.terrain === "acid" && hasMutation(state, "acidophile") ? ACID.acidophileLifetimeFactor : 1;
+  return TERRAIN_STATS[tile.terrain].lifetimeMs * lifetimeFactorAt(state.layout, state.radius, tile) * acid;
 }
 
 /** Modifiers in force at `at`: the day's phase (GDD §7), or none outside the calendar. */
@@ -302,11 +469,14 @@ export function structureFactor(structure: StructureId | null): number {
   return 1;
 }
 
-/** Whole-network multiplier: each connected Roots tile adds its mycorrhiza bonus (GDD §2.2). */
-export function networkBonus(state: GameState, hops: Map<string, number> = networkHops(state)): number {
+/**
+ * Whole-network multiplier: each connected Roots tile adds its mycorrhiza bonus (GDD §2.2), times the
+ * player's traits (mutations and strain) and Témérité.
+ */
+export function networkBonus(state: GameState, hops: Map<string, number> = networkHops(state), at: number = state.updatedAt): number {
   let roots = 0;
   for (const k of hops.keys()) if (state.tiles.get(k)!.terrain === "roots") roots++;
-  return 1 + ROOTS.networkBonus * roots;
+  return (1 + ROOTS.networkBonus * roots * rootsFactor(state)) * traitProduction(state, at) * temerityFactor(state);
 }
 
 /**
@@ -318,29 +488,31 @@ export function tileProduction(
   tile: Tile,
   hops: Map<string, number> = networkHops(state),
   at: number = state.updatedAt,
-  bonus: number = networkBonus(state, hops),
+  bonus: number = networkBonus(state, hops, at),
 ): number {
   const d = hops.get(hexKey(tile));
   if (!isGrown(state, tile) || d === undefined) return 0;
-  return baseProduction(state, tile, d, at) * bonus * (1 - tile.exhaustion);
+  return baseProduction(state, tile, d, at) * bonus * (1 - Math.min(tile.exhaustion, wearCap(state)));
 }
 
 /** Nutrients per second of a fresh tile at `hops` from the Cœur: yield × structure × place × humidity × transport × phase. */
 function baseProduction(state: GameState, tile: Tile, hops: number, at: number): number {
   return (
     tileYield(tile.terrain, state.upgrades) *
+    terrainFactor(state, tile.terrain) *
     structureFactor(tile.structure) *
     richness(state, tile) *
     humidity(state, tile) *
-    (1 - transportLoss(hops)) *
-    phaseProduction(state, tile, effectsAt(state, at), at)
+    (1 - transportLoss(hops, hasMutation(state, "mycelialCords") ? MUTATIONS.mycelialCords : 1)) *
+    phaseProduction(state, tile, effectsAt(state, at), at) *
+    (tile.toxic ? 1 - MUTATIONS.toxins : 1)
   );
 }
 
 /** Total nutrients per second right now (GDD §10 `production_totale`), including the offline factor. */
 export function productionRate(state: GameState, at: number = state.updatedAt): number {
   const hops = networkHops(state);
-  const bonus = networkBonus(state, hops);
+  const bonus = networkBonus(state, hops, at);
   let total = 0;
   for (const k of hops.keys()) total += tileProduction(state, state.tiles.get(k)!, hops, at, bonus);
   return total * offlineFactor(state, at);
@@ -397,7 +569,8 @@ export function colonizationCost(state: GameState, target: Hex & { terrain: Terr
     (1 + ECONOMY.distanceFactor * dist) *
     Math.pow(ECONOMY.sizeFactor, ownedCount(state)) *
     thrifty *
-    effectsAt(state, at).colonizationCost
+    effectsAt(state, at).colonizationCost *
+    (state.strain === "pleurotus" ? STRAINS.pleurotus.colonizationCost : 1)
   );
 }
 
@@ -472,7 +645,7 @@ export function heartReadyAt(state: GameState): number {
 export function checkColonize(state: GameState, h: Hex): ActionResult {
   const tile = state.tiles.get(hexKey(h));
   if (!tile) return { ok: false, error: "unknown_tile" };
-  if (!TERRAIN_STATS[tile.terrain].colonizable) return { ok: false, error: "impassable" };
+  if (!canColonizeTerrain(state, tile.terrain)) return { ok: false, error: "impassable" };
   if (TERRAIN_STATS[tile.terrain].paidInEnzymes && !state.enzymesUnlocked) return { ok: false, error: "locked" };
   if (tile.owner === state.id) return { ok: false, error: "already_owned" };
   if (tile.owner !== null) return { ok: false, error: "occupied" };
@@ -670,12 +843,14 @@ interface Window {
   biomass: number;
   /** Enzymes per ms (before the offline factor). */
   enzymesPerMs: number;
+  /** Wear stops counting for production at this level (Usure lente). */
+  wearCap: number;
   queueWaiting: boolean;
 }
 
 function planWindow(state: GameState, t: number): Window {
   const hops = networkHops(state);
-  const bonus = networkBonus(state, hops);
+  const bonus = networkBonus(state, hops, t);
   const producers: Producer[] = [];
   let enzymes = 0;
   let next = Infinity;
@@ -707,6 +882,7 @@ function planWindow(state: GameState, t: number): Window {
     factor: offlineFactor(state, t),
     biomass: effectsAt(state, t).biomass,
     enzymesPerMs: enzymes,
+    wearCap: wearCap(state),
     nextEvent: Math.max(next, t),
     queueWaiting: state.queue.length > 0 && !growing,
   };
@@ -717,11 +893,14 @@ function integrate(state: GameState, w: Window, dt: number): void {
   if (dt <= 0) return;
   let produced = 0;
   for (const p of w.producers) {
-    // ∫ (1 − e(τ)) dτ with e rising at max/lifetime per ms, capped at EXHAUSTION.max.
+    // ∫ (1 − min(e(τ), cap)) dτ with e rising at max/lifetime per ms up to EXHAUSTION.max; the player's
+    // cap (Usure lente) may stop it from counting earlier.
     const rate = EXHAUSTION.max / p.lifetime;
     const e0 = p.tile.exhaustion;
-    const rising = Math.min(dt, Math.max(0, (EXHAUSTION.max - e0) / rate));
-    const freshMs = rising * (1 - e0) - (rate * rising * rising) / 2 + (dt - rising) * (1 - EXHAUSTION.max);
+    const cap = w.wearCap;
+    const start = Math.min(e0, cap);
+    const rising = e0 >= cap ? 0 : Math.min(dt, (cap - e0) / rate);
+    const freshMs = rising * (1 - start) - (rate * rising * rising) / 2 + (dt - rising) * (1 - Math.min(cap, e0 + rate * dt));
     produced += p.basePerMs * freshMs;
     p.tile.exhaustion = Math.min(EXHAUSTION.max, e0 + dt * rate);
   }
@@ -755,7 +934,7 @@ function startQueued(state: GameState, now: number): boolean {
       !tile ||
       tile.owner !== null ||
       (tile.reservedFor !== null && tile.reservedFor !== state.id) ||
-      !TERRAIN_STATS[tile.terrain].colonizable ||
+      !canColonizeTerrain(state, tile.terrain) ||
       !isAdjacentToNetwork(state, tile)
     ) {
       state.queue.shift(); // No longer possible: drop it.
@@ -774,7 +953,7 @@ function startQueued(state: GameState, now: number): boolean {
     tile.capture = null;
     tile.structure = null;
     tile.growthStartedAt = now;
-    tile.growthEndsAt = now + growthDurationMs(tile.terrain, state.upgrades, effectsAt(state, now).growthTime);
+    tile.growthEndsAt = now + growthDurationMs(tile.terrain, state.upgrades, effectsAt(state, now).growthTime * strainGrowthFactor(state));
     tile.disconnectedSince = null;
     state.queue.shift();
     started = true;
@@ -796,6 +975,7 @@ export function clonePlayer(state: GameState, tiles: Map<string, Tile>): GameSta
     spawn: { ...state.spawn },
     heart: { ...state.heart },
     upgrades: { ...state.upgrades },
+    mutations: [...state.mutations],
     queue: state.queue.map((h) => ({ ...h })),
     tiles,
   };

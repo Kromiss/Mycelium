@@ -9,7 +9,7 @@ import { ringAt, type Ring } from "../forestgen";
 import { goOffline, goOnline, networkHops, productionRate } from "../game";
 import { hexKey } from "../hex";
 import { seasonAt } from "../season";
-import { PROFILES, botPlay, type Profile } from "./week";
+import { PROFILES, botPlay, defaultPlan, type BotPlan, type Profile } from "./week";
 
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
@@ -25,6 +25,8 @@ export interface ForestSimOptions {
   decisionEveryMinutes?: number;
   /** Schedule of robot i: alternates by default between active and casual players. */
   profileOf?: (i: number) => Profile;
+  /** Strain and mutation branches of robot i (from its id by default). */
+  planOf?: (i: number, id: string) => BotPlan;
 }
 
 export interface ForestSnapshot {
@@ -33,7 +35,16 @@ export interface ForestSnapshot {
   /** Share of colonisable land owned by someone. */
   occupancy: number;
   captures: number;
-  players: Array<{ id: string; profile: string; tiles: number; biomass: number; rate: number; trophies: number }>;
+  players: Array<{
+    id: string;
+    profile: string;
+    strain: string;
+    branch: string;
+    tiles: number;
+    biomass: number;
+    rate: number;
+    trophies: number;
+  }>;
 }
 
 export interface ForestSimResult {
@@ -61,15 +72,19 @@ export function simulateForestWeek(options: ForestSimOptions = {}): ForestSimRes
     stepMs = MINUTE,
     decisionEveryMinutes = 5,
     profileOf = MIXED_PROFILES,
+    planOf = (_i: number, id: string) => defaultPlan(id),
   } = options;
   // The forest opens on Monday 00:00 Paris, like a real season (phases follow the calendar).
   const t0 = seasonAt(Date.UTC(2026, 9, 5, 12)).start;
   const forest = newForest(seed, t0, capacity);
   const profiles = new Map<string, Profile>();
+  const plans = new Map<string, BotPlan>();
   const pending = Array.from({ length: capacity }, (_, i) => {
     const profile = profileOf(i);
+    const id = `bot${String(i + 1).padStart(2, "0")}`;
+    plans.set(id, planOf(i, id));
     // Everyone joins at the start of their first session on Monday.
-    return { id: `bot${String(i + 1).padStart(2, "0")}`, profile, at: t0 + profile.sessions[0]![0] * HOUR };
+    return { id, profile, at: t0 + profile.sessions[0]![0] * HOUR };
   });
   const land = [...forest.tiles.values()].filter((t) => t.terrain !== "wetland").length;
   const occupied = () => [...forest.tiles.values()].filter((t) => t.owner !== null).length / land;
@@ -92,6 +107,8 @@ export function simulateForestWeek(options: ForestSimOptions = {}): ForestSimRes
       players: [...forest.players.values()].map((p) => ({
         id: p.id,
         profile: profiles.get(p.id)!.name,
+        strain: plans.get(p.id)!.strain ?? "none",
+        branch: plans.get(p.id)!.branches[0] ?? "none",
         tiles: counts.get(p.id) ?? 0,
         biomass: p.biomass,
         rate: productionRate({ ...p, lastSeenAt: null }, t),
@@ -123,7 +140,7 @@ export function simulateForestWeek(options: ForestSimOptions = {}): ForestSimRes
         const profile = profiles.get(p.id)!;
         if (!online(profile, t)) continue;
         const sessionStart = !online(profile, t - decisionEveryMinutes * MINUTE);
-        botPlay(p, t, sessionStart);
+        botPlay(p, t, sessionStart, plans.get(p.id));
       }
     }
     const occ = occupied();

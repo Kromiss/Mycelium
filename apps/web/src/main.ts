@@ -9,6 +9,12 @@ import {
   effectsAt,
   enzymeRate,
   glandRate,
+  earnedMutationPoints,
+  MUTATION_BRANCHES,
+  mutationPlace,
+  mutationPoints,
+  mutationThreshold,
+  STRAIN_IDS,
   fromSnapshot,
   GAME_NAME,
   growingTiles,
@@ -65,6 +71,15 @@ const ui = {
   enzymes: $("enzymes"),
   enzymesRate: $("enzymes-rate"),
   tileStructures: $("tile-structures"),
+  tabUpgrades: $("tab-upgrades"),
+  tabMutations: $("tab-mutations"),
+  upgradesView: $("upgrades-view"),
+  mutationsView: $("mutations-view"),
+  strainLine: $("strain-line"),
+  mutationPointsLine: $("mutation-points"),
+  mutationBranches: $("mutation-branches"),
+  strain: $("strain"),
+  strainList: $("strain-list"),
   structureList: $("structure-list"),
   nutrientsRate: $("nutrients-rate"),
   biomass: $("biomass"),
@@ -131,6 +146,8 @@ let mapView: MapView | null = null;
 let toastTimer: number | undefined;
 /** Whether Enzymes were unlocked at the last snapshot, to announce the unlock once. */
 let enzymesKnown: boolean | null = null;
+/** The player closed the strain picker with "later" in this session. */
+let strainDeferred = false;
 
 const serverNow = () => clock.server + (Date.now() - clock.local) * clock.scale;
 const fmt = (n: number) => formatNumber(n, locale());
@@ -146,6 +163,8 @@ onLangChange(() => {
   applyI18n(document);
   $("version").textContent = t("footer.version", { version: __APP_VERSION__ });
   buildUpgradeList();
+  buildMutationList();
+  buildStrainList();
   setAuthMode(authMode);
   if (forestNumber) ui.forestLabel.textContent = t("forest.label", { number: forestNumber });
   renderBoard();
@@ -289,6 +308,8 @@ function applySnapshot(snapshot: GameSnapshot, list: OwnerInfo[], serverTime: nu
   enzymesKnown = game.enzymesUnlocked;
   mapView?.setGame(game, list);
   if (!ui.upgradeList.childElementCount) buildUpgradeList();
+  if (!ui.mutationBranches.childElementCount) buildMutationList();
+  if (!ui.strainList.childElementCount) buildStrainList();
   render();
 }
 
@@ -433,6 +454,7 @@ function showSeasonEnd(result: SeasonResult | null): void {
 $("season-end-next").addEventListener("click", () => {
   ui.seasonEnd.hidden = true;
   ui.board.hidden = true;
+  strainDeferred = false;
   selectTile(null);
   // The old forest is gone: reconnect and the server places the player in a forest of the new season.
   connection?.stop();
@@ -523,6 +545,99 @@ function buildUpgradeList(): void {
   );
 }
 
+// Mutations (GDD §4.2) and strains (GDD §4.3)
+
+function setPanelTab(tab: "upgrades" | "mutations"): void {
+  ui.tabUpgrades.setAttribute("aria-selected", String(tab === "upgrades"));
+  ui.tabMutations.setAttribute("aria-selected", String(tab === "mutations"));
+  ui.upgradesView.hidden = tab !== "upgrades";
+  ui.mutationsView.hidden = tab !== "mutations";
+}
+ui.tabUpgrades.addEventListener("click", () => setPanelTab("upgrades"));
+ui.tabMutations.addEventListener("click", () => setPanelTab("mutations"));
+
+const mutationRows = new Map<string, { li: HTMLElement; button: HTMLButtonElement }>();
+
+function buildMutationList(): void {
+  mutationRows.clear();
+  ui.mutationBranches.replaceChildren(
+    ...(Object.keys(MUTATION_BRANCHES) as Array<keyof typeof MUTATION_BRANCHES>).map((branch) => {
+      const section = document.createElement("section");
+      section.className = "branch";
+      const title = document.createElement("h3");
+      title.textContent = t(`branch.${branch}.name`);
+      const desc = document.createElement("p");
+      desc.textContent = t(`branch.${branch}.desc`);
+      const list = document.createElement("ul");
+      for (const id of MUTATION_BRANCHES[branch]) {
+        const li = document.createElement("li");
+        li.className = "upgrade mutation";
+        const name = document.createElement("span");
+        name.className = "upgrade-name";
+        name.textContent = t(`mutation.${id}.name`);
+        const text = document.createElement("div");
+        text.className = "upgrade-desc";
+        text.textContent = t(`mutation.${id}.desc`);
+        const button = document.createElement("button");
+        button.type = "button";
+        button.addEventListener("click", () => connection?.send({ type: "mutate", mutation: id }));
+        li.append(name, button, text);
+        list.append(li);
+        mutationRows.set(id, { li, button });
+      }
+      section.append(title, desc, list);
+      return section;
+    }),
+  );
+}
+
+function renderMutations(g: GameState): void {
+  const points = mutationPoints(g);
+  ui.tabMutations.textContent = points > 0 ? t("mutations.tab", { points }) : t("mutations.title");
+  ui.tabMutations.classList.toggle("attention", points > 0);
+  ui.mutationPointsLine.textContent = t("mutations.points", { points, next: fmt(mutationThreshold(earnedMutationPoints(g.biomass) + 1)) });
+  ui.strainLine.textContent = g.strain
+    ? t("strain.current", { name: t(`strain.${g.strain}.name`), desc: t(`strain.${g.strain}.desc`) })
+    : t("strain.none");
+  for (const [id, row] of mutationRows) {
+    const owned = g.mutations.includes(id as never);
+    const { requires } = mutationPlace(id as never);
+    const locked = !owned && requires !== null && !g.mutations.includes(requires);
+    row.li.classList.toggle("owned", owned);
+    row.li.classList.toggle("locked", locked);
+    row.button.textContent = owned ? t("mutations.owned") : locked ? t("mutations.locked") : t("mutations.take");
+    row.button.disabled = owned || locked || points < 1;
+  }
+}
+
+function buildStrainList(): void {
+  ui.strainList.replaceChildren(
+    ...STRAIN_IDS.map((id) => {
+      const li = document.createElement("li");
+      const button = document.createElement("button");
+      button.type = "button";
+      const name = document.createElement("span");
+      name.className = "strain-name";
+      name.textContent = t(`strain.${id}.name`);
+      const desc = document.createElement("span");
+      desc.className = "strain-desc";
+      desc.textContent = t(`strain.${id}.desc`);
+      button.append(name, desc);
+      button.addEventListener("click", () => {
+        connection?.send({ type: "chooseStrain", strain: id });
+        ui.strain.hidden = true;
+      });
+      li.append(button);
+      return li;
+    }),
+  );
+}
+
+$("strain-later").addEventListener("click", () => {
+  strainDeferred = true;
+  ui.strain.hidden = true;
+});
+
 function render(): void {
   if (!game) return;
   const rate = productionRate(game);
@@ -539,6 +654,8 @@ function render(): void {
   ui.queue.textContent = `${game.queue.length}/${QUEUE_MAX}`;
   ui.trophies.textContent = String(game.trophies);
   renderPhase(game);
+  renderMutations(game);
+  ui.strain.hidden = strainDeferred || game.strain !== null || ownedCount(game) > 1;
 
   for (const li of ui.upgradeList.children) {
     const id = (li as HTMLElement).dataset.id!;

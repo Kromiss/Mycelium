@@ -1,13 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { formatForestReport, simulateForestWeek } from "./forest-week";
+import { NEUTRAL_PLAN } from "./week";
 
 /**
  * Pacing of a forest (owner's target): 12 players, half active (12 h/day) and half casual
  * (3 × 10 min/day). The forest must not fill up in a few hours: about a third on day 1, 90 % around
- * day 4, almost everything by day 5. Nobody may stop growing after the first day.
+ * day 4, almost everything by day 5. Nobody may stop growing after the first day. The robots play the
+ * economy alone here (no strain, no mutation); `balance.test.ts` covers strains and mutations.
  */
 describe("forest week pacing", () => {
-  const result = simulateForestWeek({ days: 5, stepMs: 180_000, decisionEveryMinutes: 15 });
+  const result = simulateForestWeek({ days: 5, stepMs: 180_000, decisionEveryMinutes: 15, planOf: () => NEUTRAL_PLAN });
   const days = result.snapshots.filter((s) => s.hour % 24 === 0);
   const day = (d: number) => days.find((s) => s.hour === d * 24)!;
 

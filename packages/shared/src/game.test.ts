@@ -76,6 +76,7 @@ describe("new game", () => {
         capture: null,
         reservedFor: null,
         structure: null,
+        toxic: false,
       },
     ]);
     expect(s.nutrients).toBe(ECONOMY.startingNutrients);

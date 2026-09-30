@@ -68,6 +68,8 @@ describe.each(stores)("%s store", (_name, make) => {
     someTile.structure = "node";
     pa.enzymes = 42.5;
     pa.enzymesUnlocked = true;
+    pa.strain = "truffle";
+    pa.mutations = ["mycorrhiza", "mycelialCords"];
     resolveBorders(forest, 5_000, T0 + 3_600_000);
     await store.saveForest(record.id, forest);
 

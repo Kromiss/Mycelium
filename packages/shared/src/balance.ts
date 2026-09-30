@@ -44,8 +44,9 @@ export const TERRAIN_STATS: Readonly<Record<Terrain, TerrainStats>> = {
   humus: { colonizable: true, yieldPerSecond: 1, baseCost: 7_200, growthSeconds: 60, lifetimeMs: 8 * HOUR, reserve: 2_000 },
   // GDD §2.2: high yield, medium cost; exhausts, then becomes Humus.
   deadwood: { colonizable: true, yieldPerSecond: 3, baseCost: 18_000, growthSeconds: 120, lifetimeMs: 4 * HOUR, reserve: 5_000 },
-  // GDD §2.2: cannot be colonised without a mutation; boosts humidity of adjacent tiles.
-  wetland: { colonizable: false, yieldPerSecond: 0, baseCost: 0, growthSeconds: 0, lifetimeMs: 0, reserve: 0 },
+  // GDD §2.2: cannot be colonised without a mutation (Hyphes aquatiques, M5); boosts humidity of adjacent
+  // tiles. The yield, cost and times only apply to that mutation. PLACEHOLDER.
+  wetland: { colonizable: false, yieldPerSecond: 0.5, baseCost: 7_200, growthSeconds: 60, lifetimeMs: 8 * HOUR, reserve: 0 },
   // GDD §2.2: very high yield, high cost — the contested "objective" tiles, near the centre. M5, PLACEHOLDER.
   stump: { colonizable: true, yieldPerSecond: 4, baseCost: 45_000, growthSeconds: 240, lifetimeMs: 12 * HOUR, reserve: 20_000 },
   // GDD §2.2: medium yield + bonus (mycorrhiza, see ROOTS). M5, PLACEHOLDER.
@@ -60,7 +61,7 @@ export const TERRAIN_STATS: Readonly<Record<Terrain, TerrainStats>> = {
 export const ROOTS = { networkBonus: 0.02 } as const;
 /** Roche (GDD §2.2 "rempart défensif"): captures of the owner's tiles next to their Rock run at this speed. PLACEHOLDER. */
 export const ROCK = { rampartFactor: 0.5 } as const;
-/** Sol acide: `lifetimeMs` above is already the fast wear (twice as fast as Humus would be over 4 h). */
+/** Sol acide: `lifetimeMs` above is the fast wear; the Acidophile mutation makes it last twice as long. */
 export const ACID = { acidophileLifetimeFactor: 2 } as const;
 
 export const MAP = {
@@ -204,7 +205,7 @@ export const BORDERS = {
     litter: 10 * 60_000,
     humus: 45 * 60_000,
     deadwood: 2 * HOUR,
-    wetland: Infinity,
+    wetland: 45 * 60_000,
     stump: 2 * HOUR,
     roots: 45 * 60_000,
     rock: 2 * HOUR,
@@ -253,3 +254,65 @@ export const STRUCTURES = {
 
 /** GDD §3: Enzymes appear once the player holds this many tiles, or from Tuesday on. */
 export const ENZYMES_UNLOCK_TILES = 15;
+
+// ---------------------------------------------------------------------------
+// M5 — mutations and strains (GDD §4.2, §4.3). DECIDED: the proposed packages; numbers PLACEHOLDER.
+
+export const MUTATION_BRANCHES = {
+  /** Décomposeur (economy). */
+  decomposer: ["digestiveEnzymes", "slowWear", "saprophyte", "acidophile", "dormancy"],
+  /** Parasite (aggression). */
+  parasite: ["aggressiveHyphae", "plunder", "toxins", "temerity", "cordyceps"],
+  /** Symbiote (support). */
+  symbiote: ["mycorrhiza", "mycelialCords", "resilience", "bioluminescence", "aquaticHyphae"],
+} as const;
+export type MutationBranch = keyof typeof MUTATION_BRANCHES;
+export const MUTATION_IDS = Object.values(MUTATION_BRANCHES).flat() as MutationId[];
+export type MutationId = (typeof MUTATION_BRANCHES)[MutationBranch][number];
+
+export const MUTATIONS = {
+  /** One mutation point each time the season's biomass passes `firstThreshold × thresholdGrowth ^ k`. */
+  firstThreshold: 20_000,
+  thresholdGrowth: 3,
+  /** Enzymes digestives: production +15 %. */
+  digestiveEnzymes: 0.15,
+  /** Usure lente: wear stops counting at 25 % instead of 40 % for this player. */
+  slowWearCap: 0.25,
+  /** Saprophyte: Dead wood and Stumps +50 %. */
+  saprophyte: 0.5,
+  /** Dormance: offline production ×1.5, online ×0.8. */
+  dormancyOffline: 1.5,
+  dormancyOnline: 0.8,
+  /** Hyphes agressives: border pressure +25 %. */
+  aggressiveHyphae: 0.25,
+  /** Pillage: conquest bonus ×2. */
+  plunder: 2,
+  /** Toxines: enemy tiles touching yours produce 15 % less. */
+  toxins: 0.15,
+  /** Témérité: +3 % production per tile of yours on an enemy border, up to +30 %. */
+  temerityPerTile: 0.03,
+  temerityMax: 0.3,
+  /** Mycorhize: Roots ×2 (yield and network bonus). */
+  mycorrhiza: 2,
+  /** Cordons mycéliens: transport loss −50 %. */
+  mycelialCords: 0.5,
+  /** Résilience: captures of your tiles −25 %. */
+  resilience: 0.75,
+  /** Bioluminescence: enemy networks seen this far. */
+  bioluminescenceVision: 3,
+} as const;
+
+export const STRAIN_IDS = ["pleurotus", "armillaria", "cordyceps", "truffle"] as const;
+/** Pleurote, Armillaire, Cordyceps, Truffe (GDD §4.3); Moisissure comes with season rewards (M7). */
+export type StrainId = (typeof STRAIN_IDS)[number];
+
+export const STRAINS = {
+  /** Pleurote: fast expansion, weak defence. */
+  pleurotus: { growthTime: 0.7, colonizationCost: 0.9, capturedSpeed: 1.25 },
+  /** Armillaire: production ×0.85 on Monday, +0.05 each day, ×1.15 on Sunday (×1 outside the calendar). */
+  armillaria: { monday: 0.85, perDay: 0.05 },
+  /** Cordyceps: conquest. */
+  cordyceps: { pressure: 1.2, conquestBonus: 1.5, production: 0.9 },
+  /** Truffe: tiles away from the border stay hidden from enemies; Roots +50 %. */
+  truffle: { roots: 1.5 },
+} as const;

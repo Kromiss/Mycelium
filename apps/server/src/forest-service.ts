@@ -3,6 +3,7 @@ import {
   advanceForest,
   botPlay,
   build,
+  chooseStrain,
   buyUpgrade,
   colonize,
   conversionRate,
@@ -16,6 +17,8 @@ import {
   mondayBonusFor,
   demolish,
   moveHeart,
+  refreshToxins,
+  mutate,
   newForest,
   randomSeed,
   resolveBorders,
@@ -293,6 +296,14 @@ export class ForestService {
     this.act(playerId, client, (p, now) => demolish(p, { q, r }, now));
   }
 
+  mutate(playerId: string, mutation: string, client: GameClient): void {
+    this.act(playerId, client, (p, now) => mutate(p, mutation, now));
+  }
+
+  chooseStrain(playerId: string, strain: string, client: GameClient): void {
+    this.act(playerId, client, (p) => chooseStrain(p, strain));
+  }
+
   /** One simulation step for every forest: economy, borders, robots, views, leaderboard, saves. */
   async tick(): Promise<void> {
     const now = this.now();
@@ -358,6 +369,7 @@ export class ForestService {
       return;
     }
     advance(player, now);
+    refreshToxins(live.forest); // Toxines and captures change the neighbours' tiles.
     const { game, owners } = this.view(live, player);
     for (const c of live.clients.get(playerId)!) c.send({ type: "state", game, owners, serverTime: now, events: [] });
   }
