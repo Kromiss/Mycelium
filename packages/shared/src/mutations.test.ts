@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ACID, BORDERS, EXHAUSTION, MUTATIONS, ROOTS, STRAINS, TERRAIN_STATS, TRANSPORT, type Terrain } from "./balance";
-import { joinForest, newForest, pressure, refreshReservations, refreshToxins, resolveBorders, visibleKeys, type ForestState } from "./forest";
+import { joinForest, newForest, pressure, refreshReservations, refreshToxins, resolveBorders, visibleKeys, maskedKeys, type ForestState } from "./forest";
 import {
   advance,
   build,
@@ -297,6 +297,22 @@ describe("strains (GDD §4.3)", () => {
     a.strain = "cordyceps";
     expect(pressure(f, "a", border)).toBeCloseTo(p * STRAINS.cordyceps.pressure, 10);
     expect(productionRate(a)).toBeCloseTo(prod * STRAINS.cordyceps.production, 10);
+  });
+
+  it("Truffe: hidden tiles are sent as wild ground, with or without fog", () => {
+    const { f, b } = duel();
+    b.strain = "truffle";
+    for (const fog of [true, false]) {
+      const seen = visibleKeys(f, "a", fog);
+      const masked = maskedKeys(f, "a", seen, fog);
+      expect(masked.has(hexKey(hex(3, 0)))).toBe(fog ? visibleKeys(f, "a", true, false).has(hexKey(hex(3, 0))) : true);
+      expect(masked.has(hexKey(hex(1, 0)))).toBe(false); // Touches a: seen as b's tile.
+      for (const k of masked) expect(seen.has(k)).toBe(false);
+    }
+    const snap = toSnapshot(b, new Set(), new Set([hexKey(hex(3, 0))]));
+    expect(snap.tiles).toHaveLength(1);
+    expect(snap.tiles[0]).toMatchObject({ q: 3, r: 0, owner: null, capture: null });
+    expect(snap.tiles[0]!.s).toBeUndefined();
   });
 
   it("Truffe: hidden from far sight, stronger Roots", () => {

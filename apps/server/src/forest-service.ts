@@ -36,6 +36,7 @@ import {
   toSnapshot,
   unqueue,
   visibleKeys,
+  maskedKeys,
   type ActionResult,
   type Automation,
   type AuthError,
@@ -844,7 +845,7 @@ export class ForestService {
   /** What a player sees: their game, the tiles near their network, and who owns them. */
   private view(live: LiveForest, player: GameState): { game: ReturnType<typeof toSnapshot>; owners: OwnerInfo[] } {
     const visible = visibleKeys(live.forest, player.id);
-    const game = toSnapshot(player, visible);
+    const game = toSnapshot(player, visible, maskedKeys(live.forest, player.id, visible));
     const ids = new Set<string>([player.id]);
     for (const t of game.tiles) {
       if (t.owner) ids.add(t.owner);

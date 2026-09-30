@@ -12,6 +12,10 @@ versions [semver](https://semver.org/lang/fr/).
   étincelles de nutriments qui remontent le réseau vers lui, et flèche au bord de l'écran quand il est
   hors champ (toucher la flèche recentre la vue).
 
+### Fixed
+- Les cases cachées d'une **Truffe** n'apparaissent plus comme un trou noir sur la carte des autres
+  joueurs : elles sont montrées comme des cases sauvages (terrain seul), avec ou sans brouillard.
+
 ## [0.8.0] - 2026-09-30
 
 M7 — Social (GDD §15.6).

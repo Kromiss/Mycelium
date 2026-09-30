@@ -392,23 +392,20 @@ function conquer(attacker: GameState, tile: Tile): void {
  * network of the colonies they listen to (M7 Écoute). Without fog (FOG_ENABLED false), every tile but the
  * Truffe's hidden ones.
  */
-export function visibleKeys(forest: ForestState, playerId: string, fog: boolean = FOG_ENABLED): Set<string> {
+export function visibleKeys(forest: ForestState, playerId: string, fog: boolean = FOG_ENABLED, hideTruffles = true): Set<string> {
   const seen = new Set<string>();
   const viewer = forest.players.get(playerId);
+  /** Truffe (GDD §4.3): a truffle's tiles are only seen by the players whose tiles touch them. */
+  const hidden = (t: Tile) => {
+    if (!hideTruffles || t.owner === null || t.owner === playerId || forest.players.get(t.owner)?.strain !== "truffle") return false;
+    return !hexNeighbors(t).some((n) => forest.tiles.get(hexKey(n))?.owner === playerId);
+  };
   if (!fog) {
-    // No fog (experiment): the whole forest, except the Truffe's hidden tiles (GDD §4.3).
-    for (const [key, t] of forest.tiles) {
-      const truffle = t.owner !== null && t.owner !== playerId && forest.players.get(t.owner)?.strain === "truffle";
-      if (!truffle || hexNeighbors(t).some((n) => forest.tiles.get(hexKey(n))?.owner === playerId)) seen.add(key);
-    }
+    // No fog (experiment): the whole forest, except the Truffe's hidden tiles.
+    for (const [key, t] of forest.tiles) if (!hidden(t)) seen.add(key);
     return seen;
   }
   const glowing = viewer !== undefined && hasMutation(viewer, "bioluminescence");
-  /** Truffe (GDD §4.3): a truffle's tiles are only seen by the players whose tiles touch them. */
-  const hidden = (t: Tile) => {
-    if (t.owner === null || t.owner === playerId || forest.players.get(t.owner)?.strain !== "truffle") return false;
-    return !hexNeighbors(t).some((n) => forest.tiles.get(hexKey(n))?.owner === playerId);
-  };
   const listened = new Set(viewer ? Object.entries(viewer.listens).filter(([, until]) => until > forest.updatedAt).map(([id]) => id) : []);
   for (const [key, t] of forest.tiles) {
     if (t.structure === "carpophore" && t.owner !== null && forest.players.get(t.owner)?.strain !== "truffle") seen.add(key);
@@ -430,6 +427,16 @@ export function visibleKeys(forest: ForestState, playerId: string, fog: boolean 
     }
   }
   return seen;
+}
+
+/**
+ * Tiles a player would see but that belong to a hidden Truffe (GDD §4.3): they are shown as wild
+ * ground, so the Truffe leaves no hole in the map that would give it away.
+ */
+export function maskedKeys(forest: ForestState, playerId: string, visible: Set<string>, fog: boolean = FOG_ENABLED): Set<string> {
+  const masked = new Set<string>();
+  for (const k of visibleKeys(forest, playerId, fog, false)) if (!visible.has(k)) masked.add(k);
+  return masked;
 }
 
 // ---------------------------------------------------------------------------

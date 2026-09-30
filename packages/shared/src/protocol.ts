@@ -103,9 +103,17 @@ export const TERRAIN_CODES: Record<Terrain, string> = {
 const TERRAIN_BY_CODE = Object.fromEntries(TERRAINS.map((t) => [TERRAIN_CODES[t], t])) as Record<string, Terrain>;
 
 /** Snapshot of a player's game; `visible` limits the tiles sent (all tiles when omitted). */
-export function toSnapshot(state: GameState, visible?: Set<string>): GameSnapshot {
+/**
+ * `visible`: the tiles the player sees (all when absent). `masked`: tiles sent as bare wild ground,
+ * without owner or anything that would tell who holds them (a hidden Truffe, GDD §4.3).
+ */
+export function toSnapshot(state: GameState, visible?: Set<string>, masked?: Set<string>): GameSnapshot {
   const tiles: TileDto[] = [];
   for (const [k, t] of state.tiles) {
+    if (masked?.has(k)) {
+      tiles.push({ q: t.q, r: t.r, t: TERRAIN_CODES[t.terrain], owner: null, growthEndsAt: null, growthStartedAt: null, exhaustion: 0, disconnectedSince: null, capture: null, reservedFor: null });
+      continue;
+    }
     if (visible && !visible.has(k)) continue;
     const dto: TileDto = {
       q: t.q,
