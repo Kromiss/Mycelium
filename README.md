@@ -14,6 +14,7 @@ pnpm dev:web      # http://localhost:5173
 pnpm check        # typecheck + tests + migrations + build, comme la CI
 pnpm --filter @mycelium/shared simulate   # courbe d'une semaine solo (2 profils de joueurs)
 pnpm --filter @mycelium/shared simulate:forest   # une semaine de forêt avec 12 robots
+pnpm --filter @mycelium/shared simulate:balance  # équilibre des souches et des branches (≈ 5 min)
 ```
 
 Postgres et Redis sont optionnels en local : sans `DATABASE_URL` / `REDIS_URL`, le serveur démarre et

@@ -1,5 +1,17 @@
 import { TERRAINS, type MutationId, type StrainId, type StructureId, type Terrain, type UpgradeId } from "./balance";
-import { isMutationId, isStrainId, isStructureId, normalizeUpgrades, type ActionError, type GameState, type Tile } from "./game";
+import {
+  isMutationId,
+  isStrainId,
+  isStructureId,
+  normalizeAutomation,
+  normalizeSporeUpgrades,
+  normalizeUpgrades,
+  type ActionError,
+  type Automation,
+  type GameState,
+  type SporeUpgrades,
+  type Tile,
+} from "./game";
 import type { MapLayout } from "./forestgen";
 import { hexKey, type Hex } from "./hex";
 
@@ -35,6 +47,10 @@ export interface GameSnapshot {
   mondayBonus: number;
   strain: StrainId | null;
   mutations: MutationId[];
+  spores: number;
+  sporeUpgrades: SporeUpgrades;
+  fruitings: number;
+  automation: Automation;
   heart: Hex;
   heartMovedAt: number | null;
   /** Visible tiles only (GDD §2.1 fog); the rest of the forest is unknown to the client. */
@@ -93,6 +109,10 @@ export function toSnapshot(state: GameState, visible?: Set<string>): GameSnapsho
     mondayBonus: state.mondayBonus,
     strain: state.strain,
     mutations: [...state.mutations],
+    spores: state.spores,
+    sporeUpgrades: { ...state.sporeUpgrades },
+    fruitings: state.fruitings,
+    automation: { ...state.automation },
     heart: { q: state.heart.q, r: state.heart.r },
     heartMovedAt: state.heartMovedAt,
     tiles,
@@ -140,6 +160,10 @@ export function fromSnapshot(s: GameSnapshot, seed = 0): GameState {
     mondayBonus: s.mondayBonus ?? 0,
     strain: typeof s.strain === "string" && isStrainId(s.strain) ? s.strain : null,
     mutations: Array.isArray(s.mutations) ? s.mutations.filter((m) => typeof m === "string" && isMutationId(m)) : [],
+    spores: s.spores ?? 0,
+    sporeUpgrades: normalizeSporeUpgrades(s.sporeUpgrades),
+    fruitings: s.fruitings ?? 0,
+    automation: normalizeAutomation(s.automation),
     heart: { q: s.heart.q, r: s.heart.r },
     heartMovedAt: s.heartMovedAt,
     nutrients: s.nutrients,
@@ -278,7 +302,12 @@ export type ClientMessage =
   /** Takes a mutation (GDD §4.2). */
   | { type: "mutate"; mutation: string }
   /** Picks the season's strain (GDD §4.3). */
-  | { type: "chooseStrain"; strain: string };
+  | { type: "chooseStrain"; strain: string }
+  /** Fruits, keeping the tiles within `radius` of the Cœur (GDD §5). */
+  | { type: "fructify"; radius: number }
+  | { type: "buySporeUpgrade"; upgrade: string }
+  /** Switches automations (GDD §9). */
+  | { type: "setAutomation"; colonize?: string | null; upgrades?: boolean };
 
 export interface HealthReport {
   status: "ok" | "degraded";
@@ -350,6 +379,18 @@ export function parseClientMessage(raw: string): ClientMessage | null {
       return isStr(m.mutation, 50) ? { type: "mutate", mutation: m.mutation } : null;
     case "chooseStrain":
       return isStr(m.strain, 50) ? { type: "chooseStrain", strain: m.strain } : null;
+    case "fructify":
+      return isInt(m.radius) ? { type: "fructify", radius: m.radius } : null;
+    case "buySporeUpgrade":
+      return isStr(m.upgrade, 50) ? { type: "buySporeUpgrade", upgrade: m.upgrade } : null;
+    case "setAutomation": {
+      const out: ClientMessage = { type: "setAutomation" };
+      if (m.colonize === null || isStr(m.colonize, 20)) out.colonize = m.colonize as string | null;
+      else if (m.colonize !== undefined) return null;
+      if (typeof m.upgrades === "boolean") out.upgrades = m.upgrades;
+      else if (m.upgrades !== undefined) return null;
+      return out;
+    }
     default:
       return null;
   }

@@ -5,6 +5,8 @@ import {
   isMutationId,
   isStrainId,
   isStructureId,
+  normalizeAutomation,
+  normalizeSporeUpgrades,
   normalizeUpgrades,
   refreshReservations,
   refreshToxins,
@@ -191,6 +193,10 @@ interface PlayerRow extends AccountRow {
   enzymes_unlocked: boolean;
   strain: string | null;
   mutations: unknown;
+  spores: number;
+  spore_upgrades: unknown;
+  fruitings: number;
+  automation: unknown;
   biomass: number;
   upgrades: Record<string, number>;
   queue: Array<{ q: number; r: number }>;
@@ -431,7 +437,8 @@ export class PgStore implements GameStore {
     const seed = Number(row.seed);
     const players = await this.pool.query<PlayerRow>(
       `select id, name, password_hash, is_bot, heart_q, heart_r, heart_moved_at, spawn_q, spawn_r, joined_at, trophies,
-              monday_bonus, nutrients, enzymes, enzymes_unlocked, strain, mutations, biomass, upgrades, queue, last_seen_at, updated_at
+              monday_bonus, nutrients, enzymes, enzymes_unlocked, strain, mutations, spores, spore_upgrades, fruitings,
+              automation, biomass, upgrades, queue, last_seen_at, updated_at
        from players where forest_id = $1`,
       [id],
     );
@@ -451,6 +458,10 @@ export class PgStore implements GameStore {
         mondayBonus: p.monday_bonus,
         strain: p.strain !== null && isStrainId(p.strain) ? p.strain : null,
         mutations: Array.isArray(p.mutations) ? p.mutations.filter((m): m is MutationId => typeof m === "string" && isMutationId(m)) : [],
+        spores: p.spores,
+        sporeUpgrades: normalizeSporeUpgrades(p.spore_upgrades),
+        fruitings: p.fruitings,
+        automation: normalizeAutomation(p.automation),
         heart: { q: p.heart_q, r: p.heart_r },
         heartMovedAt: toMs(p.heart_moved_at),
         nutrients: p.nutrients,
@@ -497,12 +508,15 @@ export class PgStore implements GameStore {
                   trophies = t.trophies, nutrients = t.nutrients, biomass = t.biomass, upgrades = t.upgrades::jsonb,
                   queue = t.queue::jsonb, last_seen_at = t.last_seen_at, updated_at = t.updated_at,
                   monday_bonus = t.monday_bonus, enzymes = t.enzymes, enzymes_unlocked = t.enzymes_unlocked,
-                  strain = t.strain, mutations = t.mutations::jsonb
+                  strain = t.strain, mutations = t.mutations::jsonb, spores = t.spores,
+                  spore_upgrades = t.spore_upgrades::jsonb, fruitings = t.fruitings, automation = t.automation::jsonb
            from unnest($3::uuid[], $4::int[], $5::int[], $6::timestamptz[], $7::int[], $8::int[], $9::timestamptz[],
                        $10::int[], $11::float8[], $12::float8[], $13::text[], $14::text[], $15::timestamptz[],
-                       $16::timestamptz[], $17::float8[], $18::float8[], $19::bool[], $20::text[], $21::text[])
+                       $16::timestamptz[], $17::float8[], $18::float8[], $19::bool[], $20::text[], $21::text[],
+                       $22::float8[], $23::text[], $24::int[], $25::text[])
              as t(id, heart_q, heart_r, heart_moved_at, spawn_q, spawn_r, joined_at, trophies, nutrients, biomass,
-                  upgrades, queue, last_seen_at, updated_at, monday_bonus, enzymes, enzymes_unlocked, strain, mutations)
+                  upgrades, queue, last_seen_at, updated_at, monday_bonus, enzymes, enzymes_unlocked, strain, mutations,
+                  spores, spore_upgrades, fruitings, automation)
            where players.id = t.id`,
           [
             id,
@@ -526,6 +540,10 @@ export class PgStore implements GameStore {
             ps.map((p) => p.enzymesUnlocked),
             ps.map((p) => p.strain),
             ps.map((p) => JSON.stringify(p.mutations)),
+            ps.map((p) => p.spores),
+            ps.map((p) => JSON.stringify(p.sporeUpgrades)),
+            ps.map((p) => p.fruitings),
+            ps.map((p) => JSON.stringify(p.automation)),
           ],
         );
       }

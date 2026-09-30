@@ -39,26 +39,26 @@ export interface TerrainStats {
 
 export const TERRAIN_STATS: Readonly<Record<Terrain, TerrainStats>> = {
   // GDD §2.2: low yield, very low cost — ideal to spread fast.
-  litter: { colonizable: true, yieldPerSecond: 0.5, baseCost: 3_600, growthSeconds: 30, lifetimeMs: 2 * HOUR, reserve: 500 },
+  litter: { colonizable: true, yieldPerSecond: 0.5, baseCost: 4_000, growthSeconds: 30, lifetimeMs: 2 * HOUR, reserve: 500 },
   // GDD §2.2: medium yield, low cost — the base terrain.
-  humus: { colonizable: true, yieldPerSecond: 1, baseCost: 7_200, growthSeconds: 60, lifetimeMs: 8 * HOUR, reserve: 2_000 },
+  humus: { colonizable: true, yieldPerSecond: 1, baseCost: 8_000, growthSeconds: 60, lifetimeMs: 8 * HOUR, reserve: 2_000 },
   // GDD §2.2: high yield, medium cost; exhausts, then becomes Humus.
-  deadwood: { colonizable: true, yieldPerSecond: 3, baseCost: 18_000, growthSeconds: 120, lifetimeMs: 4 * HOUR, reserve: 5_000 },
+  deadwood: { colonizable: true, yieldPerSecond: 3, baseCost: 20_000, growthSeconds: 120, lifetimeMs: 4 * HOUR, reserve: 5_000 },
   // GDD §2.2: cannot be colonised without a mutation (Hyphes aquatiques, M5); boosts humidity of adjacent
   // tiles. The yield, cost and times only apply to that mutation. PLACEHOLDER.
   wetland: { colonizable: false, yieldPerSecond: 0.5, baseCost: 7_200, growthSeconds: 60, lifetimeMs: 8 * HOUR, reserve: 0 },
   // GDD §2.2: very high yield, high cost — the contested "objective" tiles, near the centre. M5, PLACEHOLDER.
-  stump: { colonizable: true, yieldPerSecond: 4, baseCost: 45_000, growthSeconds: 240, lifetimeMs: 12 * HOUR, reserve: 20_000 },
+  stump: { colonizable: true, yieldPerSecond: 4, baseCost: 50_000, growthSeconds: 240, lifetimeMs: 12 * HOUR, reserve: 20_000 },
   // GDD §2.2: medium yield + bonus (mycorrhiza, see ROOTS). M5, PLACEHOLDER.
-  roots: { colonizable: true, yieldPerSecond: 1, baseCost: 9_000, growthSeconds: 90, lifetimeMs: 12 * HOUR, reserve: 3_000 },
+  roots: { colonizable: true, yieldPerSecond: 1, baseCost: 10_000, growthSeconds: 90, lifetimeMs: 12 * HOUR, reserve: 3_000 },
   // GDD §2.2: yields nothing, costs Enzymes; a rampart (see ROCK). M5, PLACEHOLDER.
   rock: { colonizable: true, yieldPerSecond: 0, baseCost: 40, growthSeconds: 300, lifetimeMs: Infinity, reserve: 0, paidInEnzymes: true },
   // GDD §2.2: high yield, medium cost, but eats the network: wears twice as fast (see ACID). M5, PLACEHOLDER.
-  acid: { colonizable: true, yieldPerSecond: 2, baseCost: 12_000, growthSeconds: 90, lifetimeMs: 2 * HOUR, reserve: 4_000 },
+  acid: { colonizable: true, yieldPerSecond: 2, baseCost: 13_000, growthSeconds: 90, lifetimeMs: 2 * HOUR, reserve: 4_000 },
 };
 
 /** Racines d'arbre (GDD §2.2 "mycorhize"): each colonised Roots tile adds this to the whole network's production. PLACEHOLDER. */
-export const ROOTS = { networkBonus: 0.02 } as const;
+export const ROOTS = { networkBonus: 0.03 } as const;
 /** Roche (GDD §2.2 "rempart défensif"): captures of the owner's tiles next to their Rock run at this speed. PLACEHOLDER. */
 export const ROCK = { rampartFactor: 0.5 } as const;
 /** Sol acide: `lifetimeMs` above is the fast wear; the Acidophile mutation makes it last twice as long. */
@@ -232,10 +232,10 @@ export type StructureId = (typeof STRUCTURE_IDS)[number];
 
 export const STRUCTURES = {
   /** Nutrient cost of a structure: `baseCost × costGrowth ^ structures already owned`. */
-  baseCost: { node: 20_000, gland: 15_000, reservoir: 15_000, rhizomorph: 12_000, sclerotium: 30_000, carpophore: 25_000 } as Readonly<
+  baseCost: { node: 60_000, gland: 45_000, reservoir: 45_000, rhizomorph: 36_000, sclerotium: 90_000, carpophore: 75_000 } as Readonly<
     Record<StructureId, number>
   >,
-  costGrowth: 1.25,
+  costGrowth: 1.5,
   /** Nœud de digestion: +50 % on its tile. */
   nodeBonus: 0.5,
   /** Glande enzymatique: its tile yields 50 % less, and it makes Enzymes (twice as many on Dead wood or a Stump). */
@@ -276,8 +276,8 @@ export const MUTATIONS = {
   thresholdGrowth: 3,
   /** Enzymes digestives: production +15 %. */
   digestiveEnzymes: 0.15,
-  /** Usure lente: wear stops counting at 25 % instead of 40 % for this player. */
-  slowWearCap: 0.25,
+  /** Usure lente: wear stops counting at 30 % instead of 40 % for this player. */
+  slowWearCap: 0.3,
   /** Saprophyte: Dead wood and Stumps +50 %. */
   saprophyte: 0.5,
   /** Dormance: offline production ×1.5, online ×0.8. */
@@ -292,10 +292,10 @@ export const MUTATIONS = {
   /** Témérité: +3 % production per tile of yours on an enemy border, up to +30 %. */
   temerityPerTile: 0.03,
   temerityMax: 0.3,
-  /** Mycorhize: Roots ×2 (yield and network bonus). */
-  mycorrhiza: 2,
-  /** Cordons mycéliens: transport loss −50 %. */
-  mycelialCords: 0.5,
+  /** Mycorhize: Roots ×4 (yield and network bonus). */
+  mycorrhiza: 4,
+  /** Cordons mycéliens: no transport loss. */
+  mycelialCords: 0,
   /** Résilience: captures of your tiles −25 %. */
   resilience: 0.75,
   /** Bioluminescence: enemy networks seen this far. */
@@ -308,11 +308,47 @@ export type StrainId = (typeof STRAIN_IDS)[number];
 
 export const STRAINS = {
   /** Pleurote: fast expansion, weak defence. */
-  pleurotus: { growthTime: 0.7, colonizationCost: 0.9, capturedSpeed: 1.25 },
-  /** Armillaire: production ×0.85 on Monday, +0.05 each day, ×1.15 on Sunday (×1 outside the calendar). */
-  armillaria: { monday: 0.85, perDay: 0.05 },
+  pleurotus: { growthTime: 0.7, colonizationCost: 0.9, capturedSpeed: 1.15 },
+  /** Armillaire: production ×0.95 on Monday, +0.05 each day, ×1.25 on Sunday (×1 outside the calendar). */
+  armillaria: { monday: 0.95, perDay: 0.05 },
   /** Cordyceps: conquest. */
   cordyceps: { pressure: 1.2, conquestBonus: 1.5, production: 0.9 },
-  /** Truffe: tiles away from the border stay hidden from enemies; Roots +50 %. */
-  truffle: { roots: 1.5 },
+  /** Truffe: tiles away from the border stay hidden from enemies; Roots +30 %. */
+  truffle: { roots: 1.3 },
+} as const;
+
+// ---------------------------------------------------------------------------
+// M5 — fruiting, Spores and automations (GDD §5, §9). DECIDED: the proposed package; numbers PLACEHOLDER.
+
+export const FRUITING = {
+  /** The player keeps the tiles within this distance of the Cœur at least. */
+  minRadius: 2,
+  /** `spores = floor((value of the lost tiles / valueDivisor) ^ exponent)` (GDD §5). */
+  valueDivisor: 1e4,
+  exponent: 0.6,
+} as const;
+
+export const SPORE_UPGRADE_IDS = ["production", "growth", "conversion", "mutationPoint"] as const;
+/** The Spore shop: bonuses for the rest of the week (GDD §5). */
+export type SporeUpgradeId = (typeof SPORE_UPGRADE_IDS)[number];
+
+export const SPORE_UPGRADES: Readonly<Record<SporeUpgradeId, { baseCost: number; perLevel: number }>> = {
+  /** Production +10 % per level (additive). */
+  production: { baseCost: 10, perLevel: 0.1 },
+  /** Growth time −10 % per level (compounded). */
+  growth: { baseCost: 10, perLevel: 0.1 },
+  /** Biomass conversion +5 % per level (additive). */
+  conversion: { baseCost: 15, perLevel: 0.05 },
+  /** One more mutation point per level. */
+  mutationPoint: { baseCost: 25, perLevel: 1 },
+};
+/** Spore shop prices: `baseCost × costGrowth ^ level`. */
+export const SPORE_COST_GROWTH = 1.5;
+
+/** Automations (GDD §9), unlocked by the season's biomass. */
+export const AUTOMATION = {
+  /** Auto-colonisation: when the queue is empty, plan the cheapest wild tile next to the network (preferred terrain first). */
+  colonizeAt: 100_000,
+  /** Auto-reinvestment: buy the cheapest upgrade with the nutrients the next colonisation does not need. */
+  upgradesAt: 1_000_000,
 } as const;

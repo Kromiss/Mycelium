@@ -6,21 +6,33 @@ import {
   EXHAUSTION,
   MUTATION_BRANCHES,
   QUEUE_MAX,
+  ROOTS,
+  SPORE_UPGRADE_IDS,
   STRAIN_IDS,
+  STRUCTURES,
   UPGRADE_STATS,
+  type SporeUpgradeId,
   type MutationBranch,
   type StrainId,
   type UpgradeId,
 } from "../balance";
 import {
   advance,
+  biomassConversion,
+  build,
+  buySporeUpgrade,
   buyUpgrade,
   canColonizeTerrain,
+  carpophores,
+  checkBuild,
   checkColonize,
   checkMutate,
   chooseStrain,
   cloneGame,
+  demolish,
   colonizationCost,
+  fructify,
+  fruitingPreview,
   colonize,
   conversionRate,
   goOffline,
@@ -34,12 +46,17 @@ import {
   newGame,
   productionRate,
   richness,
+  rootsFactor,
+  sporeUpgradeCost,
+  structureCost,
+  terrainFactor,
+  tileProduction,
   tileYield,
   upgradeCost,
   type GameState,
   type Tile,
 } from "../game";
-import { hexKey, hexNeighbors } from "../hex";
+import { hexDistance, hexKey, hexNeighbors } from "../hex";
 
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
@@ -117,6 +134,8 @@ export interface BotPlan {
   strain: StrainId | null;
   /** Empty: takes no mutation. */
   branches: readonly MutationBranch[];
+  /** Fruits once, this many hours after joining, keeping the tiles within `radius` of the Cœur. */
+  fruit?: { hour: number; radius: number };
 }
 
 /** No strain, no mutation: the economy alone (M1–M4 pacing). */
@@ -130,7 +149,9 @@ export function defaultPlan(id: string): BotPlan {
   for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 16777619) >>> 0;
   const first = BRANCHES[h % 3]!;
   const second = BRANCHES[(h % 3 + 1 + ((h >>> 4) % 2)) % 3]!;
-  return { strain: STRAIN_IDS[(h >>> 8) % STRAIN_IDS.length]!, branches: [first, second, ...BRANCHES.filter((b) => b !== first && b !== second)] };
+  // Half of the robots fruit once, between day 3 and day 5.
+  const fruit = (h >>> 12) % 2 === 0 ? { hour: 60 + ((h >>> 13) % 48), radius: 3 } : undefined;
+  return { strain: STRAIN_IDS[(h >>> 8) % STRAIN_IDS.length]!, branches: [first, second, ...BRANCHES.filter((b) => b !== first && b !== second)], fruit };
 }
 
 /**
@@ -139,10 +160,79 @@ export function defaultPlan(id: string): BotPlan {
  */
 export function botPlay(state: GameState, now: number, sessionStart: boolean, plan: BotPlan = defaultPlan(state.id)): void {
   if (plan.strain !== null && state.strain === null && ownedCount(state) <= 1) chooseStrain(state, plan.strain);
+  if (plan.fruit && state.fruitings === 0 && now >= state.joinedAt + plan.fruit.hour * 3_600_000) fruit(state, plan.fruit.radius, now);
+  spendSpores(state);
   takeMutations(state, plan, now);
   if (sessionStart && now >= heartReadyAt(state)) moveHeartToCentre(state, now);
   fillQueue(state, now);
   buyUpgrades(state);
+  buildStructures(state, now);
+}
+
+/** Builds a Carpophore on the Cœur (or next to it) if needed, then fruits. */
+function fruit(state: GameState, radius: number, now: number): void {
+  if (carpophores(state) === 0) {
+    const hops = networkHops(state);
+    const spot = [...hops.keys()]
+      .map((k) => state.tiles.get(k)!)
+      .filter((t) => hexDistance(state.heart, t) <= 1)
+      .sort((a, b) => hexDistance(state.heart, a) - hexDistance(state.heart, b))
+      .find((t) => t.structure === null || t.structure === "node");
+    if (!spot) return;
+    if (spot.structure !== null) demolish(state, spot, now); // Replaces a Node.
+    if (!build(state, spot, "carpophore", now).ok) return;
+  }
+  if (fruitingPreview(state, radius, now).lost.length > 0) fructify(state, radius, now);
+}
+
+/** Value of one Spore shop level, as a share of biomass gained. */
+const SPORE_VALUE: Record<SporeUpgradeId, number> = { production: 0.1, conversion: 0.05, mutationPoint: 0.08, growth: 0.03 };
+
+function spendSpores(state: GameState): void {
+  for (;;) {
+    let best: SporeUpgradeId | null = null;
+    let bestRatio = 0;
+    for (const id of SPORE_UPGRADE_IDS) {
+      const cost = sporeUpgradeCost(id, state.sporeUpgrades[id]);
+      if (cost > state.spores) continue;
+      const ratio = SPORE_VALUE[id] / cost;
+      if (ratio > bestRatio) {
+        bestRatio = ratio;
+        best = id;
+      }
+    }
+    if (!best || !buySporeUpgrade(state, best).ok) return;
+  }
+}
+
+/**
+ * Builds Digestion nodes (and Reservoirs) when they pay back faster than the next tile. Robots leave
+ * Glands, Rhizomorphs and Sclerotia alone.
+ */
+function buildStructures(state: GameState, now: number): void {
+  for (let guard = 0; guard < 5; guard++) {
+    const nextTile = state.queue[0] ? state.tiles.get(hexKey(state.queue[0])) : undefined;
+    const tileRoi = nextTile ? tileValue(state, nextTile) : 0;
+    const conv = biomassConversion(state);
+    const hops = networkHops(state);
+    let best: { tile: Tile; id: "node" | "reservoir"; roi: number } | null = null;
+    for (const k of hops.keys()) {
+      const tile = state.tiles.get(k)!;
+      if (tile.structure !== null || tile.terrain === "rock") continue;
+      const prod = tileProduction(state, tile, hops, now);
+      const node = (prod * STRUCTURES.nodeBonus * conv) / structureCost(state, "node");
+      if (!best || node > best.roi) best = { tile, id: "node", roi: node };
+      let dry = 0;
+      for (const n of hexNeighbors(tile)) {
+        const t = state.tiles.get(hexKey(n));
+        if (t && t.owner === state.id && humidity(state, t) === 1) dry += tileProduction(state, t, hops, now);
+      }
+      const reservoir = (dry * 0.25 * conv) / structureCost(state, "reservoir");
+      if (reservoir > best.roi) best = { tile, id: "reservoir", roi: reservoir };
+    }
+    if (!best || best.roi <= tileRoi || !checkBuild(state, best.tile, best.id).ok) return;
+    build(state, best.tile, best.id, now);
+  }
 }
 
 /** Spends mutation points down the plan's branches, in order. */
@@ -156,9 +246,14 @@ function takeMutations(state: GameState, plan: BotPlan, now: number): void {
   }
 }
 
-/** Expected biomass per second per nutrient spent on a wild tile. */
-function tileValue(state: GameState, tile: Tile): number {
-  const perSecond = tileYield(tile.terrain, state.upgrades) * richness(state, tile) * humidity(state, tile) * (1 - EXHAUSTION.max * 0.75); // ~average wear
+/**
+ * Expected biomass per second per nutrient spent on a wild tile; `production` (the current total)
+ * values the network bonus of Roots.
+ */
+function tileValue(state: GameState, tile: Tile, production = 0): number {
+  let perSecond =
+    tileYield(tile.terrain, state.upgrades) * terrainFactor(state, tile.terrain) * richness(state, tile) * humidity(state, tile) * (1 - EXHAUSTION.max * 0.75); // ~average wear
+  if (tile.terrain === "roots") perSecond += production * ROOTS.networkBonus * rootsFactor(state);
   return (perSecond * conversionRate(state.upgrades)) / colonizationCost(state, tile);
 }
 
@@ -181,12 +276,13 @@ function candidates(state: GameState): Tile[] {
 }
 
 function fillQueue(state: GameState, now: number): void {
+  const production = productionRate(state);
   while (state.queue.length < QUEUE_MAX) {
     let best: Tile | null = null;
     let bestValue = -Infinity;
     for (const tile of candidates(state)) {
       if (!checkColonize(state, tile).ok) continue;
-      const v = tileValue(state, tile);
+      const v = tileValue(state, tile, production);
       if (v > bestValue && v > 0) {
         bestValue = v;
         best = tile;

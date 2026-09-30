@@ -187,6 +187,18 @@ function onConnection(ws: WebSocket, game: ForestService): void {
         if (!player) return send(ws, { type: "actionError", error: "not_authenticated" });
         game.chooseStrain(player.id, msg.strain, client);
         return;
+      case "fructify":
+        if (!player) return send(ws, { type: "actionError", error: "not_authenticated" });
+        game.fructify(player.id, msg.radius, client);
+        return;
+      case "buySporeUpgrade":
+        if (!player) return send(ws, { type: "actionError", error: "not_authenticated" });
+        game.buySporeUpgrade(player.id, msg.upgrade, client);
+        return;
+      case "setAutomation":
+        if (!player) return send(ws, { type: "actionError", error: "not_authenticated" });
+        game.setAutomation(player.id, { colonize: msg.colonize, upgrades: msg.upgrades }, client);
+        return;
     }
   });
   ws.on("close", () => {

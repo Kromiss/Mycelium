@@ -4,6 +4,7 @@ import {
   botPlay,
   build,
   chooseStrain,
+  buySporeUpgrade,
   buyUpgrade,
   colonize,
   conversionRate,
@@ -16,8 +17,10 @@ import {
   joinForest,
   mondayBonusFor,
   demolish,
+  fructify,
   moveHeart,
   refreshToxins,
+  setAutomation,
   mutate,
   newForest,
   randomSeed,
@@ -28,6 +31,7 @@ import {
   unqueue,
   visibleKeys,
   type ActionResult,
+  type Automation,
   type AuthError,
   type AwaySummary,
   type CaptureNotice,
@@ -302,6 +306,18 @@ export class ForestService {
 
   chooseStrain(playerId: string, strain: string, client: GameClient): void {
     this.act(playerId, client, (p) => chooseStrain(p, strain));
+  }
+
+  fructify(playerId: string, radius: number, client: GameClient): void {
+    this.act(playerId, client, (p, now) => fructify(p, radius, now));
+  }
+
+  buySporeUpgrade(playerId: string, upgrade: string, client: GameClient): void {
+    this.act(playerId, client, (p) => buySporeUpgrade(p, upgrade));
+  }
+
+  setAutomation(playerId: string, change: { colonize?: string | null; upgrades?: boolean }, client: GameClient): void {
+    this.act(playerId, client, (p, now) => setAutomation(p, change as Partial<Automation>, now));
   }
 
   /** One simulation step for every forest: economy, borders, robots, views, leaderboard, saves. */

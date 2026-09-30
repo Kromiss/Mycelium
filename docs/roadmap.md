@@ -16,7 +16,7 @@ des points de départ à équilibrer, centralisés dans `packages/shared`.
 | M2 Réseau & transport | 0.3.0 | étape 2 | Cœur, pertes, épuisement, hors-ligne | ✅ |
 | M3 Multijoueur minimal | 0.4.0 | étape 3 | Forêt partagée, frontières, classement | ✅ (testé en local) |
 | M4 Saison | 0.5.0 | étape 4 | Semaine, phases journalières, wipe | ✅ (testé en local) |
-| M5 Profondeur : économie | 0.6.0 | étape 5 | Structures, mutations, souches, fructification | à faire |
+| M5 Profondeur : économie | 0.6.0 | étape 5 | Structures, mutations, souches, fructification | ✅ (testé en local) |
 | M6 Profondeur : conflit & événements | 0.7.0 | étape 5 | Actions actives, événements, world boss | à faire |
 | M7 Social | 0.8.0 | étape 6 | Alliances, ligues, récompenses | à faire |
 | M8 Bêta fermée | 0.9.0 | — | Plusieurs forêts, équilibrage, charge | à faire |
@@ -186,6 +186,32 @@ jour 4,9 selon la carte.
 
 **Terminé quand** : les simulations montrent qu'aucune branche ni souche ne domine, et qu'une
 fructification bien placée est rentable.
+
+✅ Décidé : **paquets proposés** pour les mutations (15, en trois branches, points par paliers de
+biomasse ×3, sans retour en arrière), les souches (Pleurote, Armillaire, Cordyceps, Truffe ; la
+Moisissure vient avec les récompenses en M7) et les structures / la fructification (Carpophore
+obligatoire, valeur = coût de colonisation actuel des cases libérées). Livraison en trois étapes.
+
+Livré en 0.6.0, validé en local. Équilibrage par `simulate:balance` (une carte jouée 12 fois, les 12
+combinaisons souche × branche tournant sur les parts) : rang moyen de 5,8 à 7,2 par souche et de 6,0
+à 6,8 par branche sur deux cartes (6,5 = milieu). Une fructification au jour 3 (rayon 3) finit la
+semaine avec +18 % de biomasse. Chiffres changés par rapport au paquet validé, **à valider** :
+- Armillaire ×0,95 le lundi (au lieu de ×0,85), +0,05 par jour, donc ×1,25 le dimanche ;
+- Pleurote : cases prises +15 % plus vite (au lieu de +25 %) ; Truffe : Racines +30 % (au lieu de +50 %) ;
+- Mycorhize : Racines ×4 (au lieu de ×2) ; Cordons mycéliens : plus aucune perte (au lieu de −50 %) ;
+- Usure lente : l'usure s'arrête à 30 % (au lieu de 25 %).
+Choix de réalisation (dans `balance.ts`) : Racines +3 % de production du réseau par case, Glande
+0,01 Enzyme/s (×2 sur bois mort), Roche 40 Enzymes, structures 36 k à 90 k × 1,5 par structure,
+boutique de Spores 10 à 25 Spores × 1,5 par niveau, Hyphes aquatiques = zone humide colonisable
+comme de l'Humus pauvre (0,5/s), la Truffe cache ses cases de la vision lointaine (Carpophore,
+Bioluminescence), Toxines/Témérité recalculées à chaque tick.
+
+Points ouverts :
+- environ 10 % des robots finissent avec 3 cases ou moins : les protections contre l'acharnement
+  (§6.4 : coût d'attaque contre plus petit, perte du Cœur) arrivent en M6 ;
+- les écarts de score restent énormes (le premier au centre), comme avant M5 ;
+- Bioluminescence et Résilience n'ont presque pas de valeur pour les robots : la branche Symbiote
+  prendra plus de sens avec les alliances (M7) et les événements (M6).
 
 ## M6 — Profondeur : conflit & événements (0.7.0) — GDD §15.5
 

@@ -1,6 +1,6 @@
 {
   "name": "@mycelium/shared",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "private": true,
   "type": "module",
   "exports": {
@@ -11,7 +11,8 @@
     "test": "vitest run",
     "build": "tsc -p tsconfig.json",
     "simulate": "tsx src/sim/cli.ts",
-    "simulate:forest": "tsx src/sim/forest-cli.ts"
+    "simulate:forest": "tsx src/sim/forest-cli.ts",
+    "simulate:balance": "tsx src/sim/balance-cli.ts"
   },
   "devDependencies": {
     "tsx": "^4.19.0"

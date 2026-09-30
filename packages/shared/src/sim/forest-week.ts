@@ -54,7 +54,7 @@ export interface ForestSimResult {
   snapshots: ForestSnapshot[];
   captures: Array<CaptureEvent & { hour: number; ring: Ring }>;
   /** Final map, for pictures. */
-  tiles: Array<{ q: number; r: number; terrain: string; owner: string | null; exhaustion: number; connected: boolean }>;
+  tiles: Array<{ q: number; r: number; terrain: string; owner: string | null; exhaustion: number; structure: string | null; connected: boolean }>;
   hearts: Record<string, { q: number; r: number }>;
   spawns: Record<string, { q: number; r: number }>;
   /** Hours at which the forest reached 50 %, 90 % and 100 % occupancy (null if never). */
@@ -162,6 +162,7 @@ export function simulateForestWeek(options: ForestSimOptions = {}): ForestSimRes
       terrain: t.terrain,
       owner: t.owner,
       exhaustion: t.exhaustion,
+      structure: t.structure,
       connected: t.owner !== null && networkHops(forest.players.get(t.owner)!).has(hexKey(t)),
     })),
     hearts: Object.fromEntries([...forest.players.values()].map((p) => [p.id, { ...p.heart }])),

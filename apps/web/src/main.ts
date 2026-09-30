@@ -6,10 +6,19 @@ import {
   checkColonize,
   checkMoveHeart,
   colonizationCost,
-  effectsAt,
   enzymeRate,
   glandRate,
   earnedMutationPoints,
+  AUTOMATION,
+  automationUnlocked,
+  canColonizeTerrain,
+  checkBuySporeUpgrade,
+  checkFructify,
+  FRUITING,
+  fruitingPreview,
+  growthTimeFactor,
+  SPORE_UPGRADE_IDS,
+  sporeUpgradeCost,
   MUTATION_BRANCHES,
   mutationPlace,
   mutationPoints,
@@ -80,6 +89,16 @@ const ui = {
   mutationBranches: $("mutation-branches"),
   strain: $("strain"),
   strainList: $("strain-list"),
+  tabSpores: $("tab-spores"),
+  sporesView: $("spores-view"),
+  sporesLine: $("spores-line"),
+  fruitRadius: $("fruit-radius"),
+  fruitPreview: $("fruit-preview"),
+  fruitGo: $<HTMLButtonElement>("fruit-go"),
+  sporeList: $("spore-list"),
+  autoColonize: $<HTMLSelectElement>("auto-colonize"),
+  autoUpgrades: $<HTMLInputElement>("auto-upgrades"),
+  autoNote: $("auto-note"),
   structureList: $("structure-list"),
   nutrientsRate: $("nutrients-rate"),
   biomass: $("biomass"),
@@ -148,6 +167,11 @@ let toastTimer: number | undefined;
 let enzymesKnown: boolean | null = null;
 /** The player closed the strain picker with "later" in this session. */
 let strainDeferred = false;
+/** Tiles kept around the Cœur when fruiting. */
+let fruitRadius = 3;
+/** The fruiting button waits for a second click until this time. */
+let fruitConfirmUntil = 0;
+let panelTab: "upgrades" | "mutations" | "spores" = "upgrades";
 
 const serverNow = () => clock.server + (Date.now() - clock.local) * clock.scale;
 const fmt = (n: number) => formatNumber(n, locale());
@@ -165,6 +189,8 @@ onLangChange(() => {
   buildUpgradeList();
   buildMutationList();
   buildStrainList();
+  buildSporeList();
+  buildAutomation();
   setAuthMode(authMode);
   if (forestNumber) ui.forestLabel.textContent = t("forest.label", { number: forestNumber });
   renderBoard();
@@ -310,6 +336,8 @@ function applySnapshot(snapshot: GameSnapshot, list: OwnerInfo[], serverTime: nu
   if (!ui.upgradeList.childElementCount) buildUpgradeList();
   if (!ui.mutationBranches.childElementCount) buildMutationList();
   if (!ui.strainList.childElementCount) buildStrainList();
+  if (!ui.sporeList.childElementCount) buildSporeList();
+  if (!ui.autoColonize.childElementCount) buildAutomation();
   render();
 }
 
@@ -547,14 +575,139 @@ function buildUpgradeList(): void {
 
 // Mutations (GDD §4.2) and strains (GDD §4.3)
 
-function setPanelTab(tab: "upgrades" | "mutations"): void {
+function setPanelTab(tab: typeof panelTab): void {
+  panelTab = tab;
   ui.tabUpgrades.setAttribute("aria-selected", String(tab === "upgrades"));
   ui.tabMutations.setAttribute("aria-selected", String(tab === "mutations"));
+  ui.tabSpores.setAttribute("aria-selected", String(tab === "spores"));
   ui.upgradesView.hidden = tab !== "upgrades";
   ui.mutationsView.hidden = tab !== "mutations";
+  ui.sporesView.hidden = tab !== "spores";
+  render();
 }
 ui.tabUpgrades.addEventListener("click", () => setPanelTab("upgrades"));
 ui.tabMutations.addEventListener("click", () => setPanelTab("mutations"));
+ui.tabSpores.addEventListener("click", () => setPanelTab("spores"));
+
+// Fruiting and the Spore shop (GDD §5)
+
+$("fruit-minus").addEventListener("click", () => {
+  fruitRadius = Math.max(FRUITING.minRadius, fruitRadius - 1);
+  fruitConfirmUntil = 0;
+  render();
+});
+$("fruit-plus").addEventListener("click", () => {
+  fruitRadius = Math.min(40, fruitRadius + 1);
+  fruitConfirmUntil = 0;
+  render();
+});
+ui.fruitGo.addEventListener("click", () => {
+  if (!game) return;
+  // Fruiting cannot be undone: the first click asks for confirmation.
+  if (Date.now() > fruitConfirmUntil) {
+    fruitConfirmUntil = Date.now() + 4000;
+    render();
+    return;
+  }
+  fruitConfirmUntil = 0;
+  const { spores } = fruitingPreview(game, fruitRadius, serverNow());
+  connection?.send({ type: "fructify", radius: fruitRadius });
+  toast(t("fruit.done", { spores: fmt(spores) }), "good");
+});
+
+const sporeRows = new Map<string, { button: HTMLButtonElement; level: HTMLElement }>();
+
+function buildSporeList(): void {
+  sporeRows.clear();
+  ui.sporeList.replaceChildren(
+    ...SPORE_UPGRADE_IDS.map((id) => {
+      const li = document.createElement("li");
+      li.className = "upgrade";
+      const title = document.createElement("div");
+      const name = document.createElement("span");
+      name.className = "upgrade-name";
+      name.textContent = t(`sporeUpgrade.${id}.name`);
+      const level = document.createElement("span");
+      level.className = "upgrade-level";
+      title.append(name, level);
+      const desc = document.createElement("div");
+      desc.className = "upgrade-desc";
+      desc.textContent = t(`sporeUpgrade.${id}.desc`);
+      const button = document.createElement("button");
+      button.type = "button";
+      button.addEventListener("click", () => connection?.send({ type: "buySporeUpgrade", upgrade: id }));
+      li.append(title, button, desc);
+      sporeRows.set(id, { button, level });
+      return li;
+    }),
+  );
+}
+
+function renderSpores(g: GameState): void {
+  ui.tabSpores.textContent = g.spores >= 1 ? `${t("spores.tab")} · ${fmt(g.spores)}` : t("spores.tab");
+  ui.sporesLine.textContent = t("spores.line", { spores: fmt(g.spores), count: g.fruitings });
+  for (const [id, row] of sporeRows) {
+    const level = g.sporeUpgrades[id as (typeof SPORE_UPGRADE_IDS)[number]];
+    row.level.textContent = t("upgrades.level", { level });
+    row.button.textContent = t("sporeShop.buy", { cost: fmt(sporeUpgradeCost(id as (typeof SPORE_UPGRADE_IDS)[number], level)) });
+    row.button.disabled = !checkBuySporeUpgrade(g, id).ok;
+  }
+  ui.fruitRadius.textContent = t("fruit.radius", { radius: fruitRadius });
+  const now = serverNow();
+  const preview = fruitingPreview(g, fruitRadius, now);
+  const check = checkFructify(g, fruitRadius);
+  const kept = ownedCount(g) - preview.lost.length;
+  ui.fruitPreview.textContent = !check.ok && check.error === "no_carpophore"
+    ? t("fruit.noCarpophore")
+    : preview.lost.length === 0
+      ? t("fruit.nothing")
+      : t("fruit.preview", { kept, lost: preview.lost.length, spores: fmt(preview.spores) });
+  const confirming = Date.now() <= fruitConfirmUntil;
+  ui.fruitGo.disabled = !check.ok;
+  ui.fruitGo.classList.toggle("confirm", confirming && check.ok);
+  ui.fruitGo.textContent = confirming && check.ok ? t("fruit.confirm", { lost: preview.lost.length }) : t("fruit.go");
+  // Show on the map what fruiting would release while the Spores tab is open.
+  const showing = panelTab === "spores" && (ui.upgradesPanel.classList.contains("open") || !window.matchMedia("(max-width: 760px)").matches);
+  mapView?.highlight(showing && check.ok ? new Set(preview.lost.map(hexKey)) : null);
+}
+
+// Automations (GDD §9)
+
+const AUTO_TERRAINS: Terrain[] = ["litter", "humus", "deadwood", "stump", "roots", "acid", "wetland"];
+
+function buildAutomation(): void {
+  const option = (value: string, label: string) => {
+    const o = document.createElement("option");
+    o.value = value;
+    o.textContent = label;
+    return o;
+  };
+  ui.autoColonize.replaceChildren(
+    option("off", t("auto.off")),
+    option("any", t("auto.any")),
+    ...AUTO_TERRAINS.map((terrain) => option(terrain, t("auto.prefer", { terrain: t(`terrain.${terrain}`) }))),
+  );
+}
+
+ui.autoColonize.addEventListener("change", () => {
+  const v = ui.autoColonize.value;
+  connection?.send({ type: "setAutomation", colonize: v === "off" ? null : v });
+});
+ui.autoUpgrades.addEventListener("change", () => connection?.send({ type: "setAutomation", upgrades: ui.autoUpgrades.checked }));
+
+function renderAutomation(g: GameState): void {
+  const unlocked = automationUnlocked(g);
+  ui.autoColonize.disabled = !unlocked.colonize;
+  ui.autoUpgrades.disabled = !unlocked.upgrades;
+  if (document.activeElement !== ui.autoColonize) ui.autoColonize.value = g.automation.colonize ?? "off";
+  ui.autoUpgrades.checked = g.automation.upgrades;
+  for (const o of ui.autoColonize.options) if (o.value === "wetland") o.hidden = !canColonizeTerrain(g, "wetland");
+  ui.autoNote.textContent = !unlocked.colonize
+    ? t("auto.lockedColonize", { value: fmt(AUTOMATION.colonizeAt) })
+    : !unlocked.upgrades
+      ? t("auto.lockedUpgrades", { value: fmt(AUTOMATION.upgradesAt) })
+      : t("auto.ready");
+}
 
 const mutationRows = new Map<string, { li: HTMLElement; button: HTMLButtonElement }>();
 
@@ -655,6 +808,8 @@ function render(): void {
   ui.trophies.textContent = String(game.trophies);
   renderPhase(game);
   renderMutations(game);
+  renderSpores(game);
+  renderAutomation(game);
   ui.strain.hidden = strainDeferred || game.strain !== null || ownedCount(game) > 1;
 
   for (const li of ui.upgradeList.children) {
@@ -746,7 +901,7 @@ function renderTile(g: GameState): void {
     if (tile.exhaustion > 0.005) facts.push(["tile.exhaustion", percent(tile.exhaustion)]);
     const cost = colonizationCost(g, tile, now);
     facts.push(["tile.cost", TERRAIN_STATS[tile.terrain].paidInEnzymes ? t("tile.costEnzymes", { value: fmt(cost) }) : fmt(cost)]);
-    facts.push(["tile.growth", formatDuration(growthDurationMs(tile.terrain, g.upgrades, effectsAt(g, now).growthTime))]);
+    facts.push(["tile.growth", formatDuration(growthDurationMs(tile.terrain, g.upgrades, growthTimeFactor(g, now)))]);
     note = terrainNote(tile.terrain);
     const position = queueIndex(g, tile);
     if (position >= 0) {

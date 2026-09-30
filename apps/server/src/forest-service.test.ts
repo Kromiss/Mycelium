@@ -154,6 +154,15 @@ describe("forests", () => {
     expect(a.client.last("state")!.game.mutations).toEqual(["digestiveEnzymes"]);
     service.chooseStrain(a.account.id, "armillaria", a.client);
     expect(a.client.last("actionError")?.error).toBe("strain_chosen"); // It already owns a second tile.
+    service.fructify(a.account.id, 2, a.client);
+    expect(a.client.last("actionError")?.error).toBe("no_carpophore");
+    service.buySporeUpgrade(a.account.id, "production", a.client);
+    expect(a.client.last("actionError")?.error).toBe("not_enough_spores");
+    service.setAutomation(a.account.id, { upgrades: true }, a.client);
+    expect(a.client.last("actionError")?.error).toBe("locked");
+    forest.players.get(a.account.id)!.biomass = 100_000;
+    service.setAutomation(a.account.id, { colonize: "any" }, a.client);
+    expect(a.client.last("state")!.game.automation).toEqual({ colonize: "any", upgrades: false });
     const stranger = new Spy();
     service.colonize(a.account.id, target.q, target.r, stranger);
     expect(stranger.last("actionError")?.error).toBe("not_authenticated");

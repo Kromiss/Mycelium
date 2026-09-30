@@ -1,5 +1,7 @@
 import {
+  AUTOMATION,
   ECONOMY,
+  FRUITING,
   ENZYMES_UNLOCK_TILES,
   EXHAUSTION,
   HEART_MOVE_COOLDOWN_MS,
@@ -11,16 +13,21 @@ import {
   OFFLINE,
   QUEUE_MAX,
   ROOTS,
+  SPORE_COST_GROWTH,
+  SPORE_UPGRADE_IDS,
+  SPORE_UPGRADES,
   STRUCTURE_IDS,
   STRAIN_IDS,
   STRAINS,
   STRUCTURES,
   TERRAIN_STATS,
+  TERRAINS as TERRAIN_IDS,
   TICK_MS,
   TRANSPORT,
   UPGRADE_IDS,
   UPGRADE_STATS,
   type MutationId,
+  type SporeUpgradeId,
   type StrainId,
   type StructureId,
   type Terrain,
@@ -69,6 +76,15 @@ export interface Tile extends Hex {
 }
 
 export type Upgrades = Record<UpgradeId, number>;
+export type SporeUpgrades = Record<SporeUpgradeId, number>;
+
+/** Automations switched on by the player (GDD §9); each one is unlocked by biomass first. */
+export interface Automation {
+  /** Auto-colonisation: preferred terrain, "any" for no preference, null when off. */
+  colonize: Terrain | "any" | null;
+  /** Auto-reinvestment in upgrades. */
+  upgrades: boolean;
+}
 
 export interface GameState {
   /** Player id: tiles with this `owner` are this player's. */
@@ -89,6 +105,12 @@ export interface GameState {
   strain: StrainId | null;
   /** Mutations taken this season (GDD §4.2), in the order they were taken. */
   mutations: MutationId[];
+  /** Spores from fruiting (GDD §5), spent in the Spore shop. */
+  spores: number;
+  sporeUpgrades: SporeUpgrades;
+  /** Times the player fruited this season. */
+  fruitings: number;
+  automation: Automation;
   /** The Cœur: nutrients flow to it (GDD §2.4). */
   heart: Hex;
   /** Last time the Cœur was moved, null if never. */
@@ -136,12 +158,44 @@ export type ActionError =
   | "mutation_locked"
   | "no_mutation_point"
   | "unknown_strain"
-  | "strain_chosen";
+  | "strain_chosen"
+  | "no_carpophore"
+  | "invalid_radius"
+  | "nothing_to_fruit"
+  | "unknown_spore_upgrade"
+  | "not_enough_spores"
+  | "invalid_automation";
 
 export type ActionResult = { ok: true } | { ok: false; error: ActionError };
 
 export function emptyUpgrades(): Upgrades {
   return Object.fromEntries(UPGRADE_IDS.map((id) => [id, 0])) as Upgrades;
+}
+
+export function emptySporeUpgrades(): SporeUpgrades {
+  return Object.fromEntries(SPORE_UPGRADE_IDS.map((id) => [id, 0])) as SporeUpgrades;
+}
+
+/** Spore shop levels from untrusted data. */
+export function normalizeSporeUpgrades(raw: unknown): SporeUpgrades {
+  const out = emptySporeUpgrades();
+  if (typeof raw === "object" && raw !== null) {
+    for (const [id, level] of Object.entries(raw)) {
+      if ((SPORE_UPGRADE_IDS as readonly string[]).includes(id) && Number.isInteger(level) && (level as number) >= 0) out[id as SporeUpgradeId] = level as number;
+    }
+  }
+  return out;
+}
+
+/** Automation settings from untrusted data. */
+export function normalizeAutomation(raw: unknown): Automation {
+  const out: Automation = { colonize: null, upgrades: false };
+  if (typeof raw === "object" && raw !== null) {
+    const r = raw as Record<string, unknown>;
+    if (r.colonize === "any" || (typeof r.colonize === "string" && (TERRAIN_IDS as readonly string[]).includes(r.colonize))) out.colonize = r.colonize as Terrain | "any";
+    out.upgrades = r.upgrades === true;
+  }
+  return out;
 }
 
 /** Upgrade levels from untrusted data: unknown ids dropped, missing or invalid levels at 0. */
@@ -207,6 +261,10 @@ export function newPlayer(
     mondayBonus: 0,
     strain: null,
     mutations: [],
+    spores: 0,
+    sporeUpgrades: emptySporeUpgrades(),
+    fruitings: 0,
+    automation: { colonize: null, upgrades: false },
     heart: { q: spawn.q, r: spawn.r },
     heartMovedAt: null,
     nutrients: ECONOMY.startingNutrients,
@@ -319,7 +377,7 @@ export function earnedMutationPoints(biomass: number): number {
 
 /** Points left to spend. */
 export function mutationPoints(state: GameState): number {
-  return earnedMutationPoints(state.biomass) - state.mutations.length;
+  return earnedMutationPoints(state.biomass) + state.sporeUpgrades.mutationPoint - state.mutations.length;
 }
 
 /** The branch of a mutation, and the mutation it requires (null for the first of a branch). */
@@ -386,9 +444,11 @@ export function terrainFactor(state: GameState, terrain: Terrain): number {
   return 1;
 }
 
-/** Hyphae growth time multiplier of the strain (Pleurote). */
-export function strainGrowthFactor(state: GameState): number {
-  return state.strain === "pleurotus" ? STRAINS.pleurotus.growthTime : 1;
+/** Hyphae growth time multiplier at `at`: the day's phase, the strain (Pleurote) and the Spore shop. */
+export function growthTimeFactor(state: GameState, at: number): number {
+  const strain = state.strain === "pleurotus" ? STRAINS.pleurotus.growthTime : 1;
+  const spores = Math.pow(1 - SPORE_UPGRADES.growth.perLevel, state.sporeUpgrades.growth);
+  return effectsAt(state, at).growthTime * strain * spores;
 }
 
 /** Border pressure multiplier (Hyphes agressives, Cordyceps). */
@@ -406,9 +466,13 @@ export function conquestFactor(state: GameState): number {
   return (hasMutation(state, "plunder") ? MUTATIONS.plunder : 1) * (state.strain === "cordyceps" ? STRAINS.cordyceps.conquestBonus : 1);
 }
 
-/** Production multiplier from mutations and strain that does not depend on the map (Enzymes digestives, Cordyceps, Armillaire). */
+/**
+ * Production multiplier from mutations, strain and Spores that does not depend on the map (Enzymes
+ * digestives, Cordyceps, Armillaire, Spore shop).
+ */
 export function traitProduction(state: GameState, at: number): number {
   let m = hasMutation(state, "digestiveEnzymes") ? 1 + MUTATIONS.digestiveEnzymes : 1;
+  m *= 1 + SPORE_UPGRADES.production.perLevel * state.sporeUpgrades.production;
   if (state.strain === "cordyceps") m *= STRAINS.cordyceps.production;
   if (state.strain === "armillaria" && state.calendar) m *= STRAINS.armillaria.monday + STRAINS.armillaria.perDay * phaseAt(at).index;
   return m;
@@ -537,7 +601,12 @@ export function enzymeRate(state: GameState, at: number = state.updatedAt): numb
 
 /** Biomass gained per second right now (the score), phase included (0 once the season is frozen). */
 export function biomassRate(state: GameState, at: number = state.updatedAt): number {
-  return productionRate(state, at) * conversionRate(state.upgrades) * effectsAt(state, at).biomass;
+  return productionRate(state, at) * biomassConversion(state) * effectsAt(state, at).biomass;
+}
+
+/** Share of the player's production credited as Biomass: upgrades and Spore shop. */
+export function biomassConversion(state: GameState): number {
+  return conversionRate(state.upgrades) * (1 + SPORE_UPGRADES.conversion.perLevel * state.sporeUpgrades.conversion);
 }
 
 /** Share of the production credited as Biomass (GDD §10 `taux_conversion`). */
@@ -734,6 +803,156 @@ export function demolish(state: GameState, h: Hex, now: number): ActionResult {
   return { ok: true };
 }
 
+// ---------------------------------------------------------------------------
+// Fruiting, Spores and automations (GDD §5, §9)
+
+/** The player's grown, connected Carpophores (GDD §4.1: needed to fruit). */
+export function carpophores(state: GameState, hops: Map<string, number> = networkHops(state)): number {
+  let n = 0;
+  for (const k of hops.keys()) if (state.tiles.get(k)!.structure === "carpophore") n++;
+  return n;
+}
+
+export interface FruitingPreview {
+  /** Tiles released: the player's tiles farther than `radius` from the Cœur. */
+  lost: Tile[];
+  /** Their value: what colonising them costs right now. */
+  value: number;
+  spores: number;
+}
+
+/**
+ * What fruiting with this radius would give (GDD §5): `floor((value / 1e4) ^ 0.6)` Spores, +25 % per
+ * connected Carpophore, the value being the current colonisation cost of every tile given up.
+ */
+export function fruitingPreview(state: GameState, radius: number, at: number = state.updatedAt): FruitingPreview {
+  const lost = [...state.tiles.values()].filter((t) => t.owner === state.id && hexDistance(state.heart, t) > radius);
+  let value = 0;
+  for (const t of lost) if (!TERRAIN_STATS[t.terrain].paidInEnzymes) value += colonizationCost(state, t, at);
+  const base = Math.pow(value / FRUITING.valueDivisor, FRUITING.exponent);
+  const spores = Math.floor(base * (1 + STRUCTURES.carpophoreSporeBonus * carpophores(state)));
+  return { lost, value, spores };
+}
+
+export function checkFructify(state: GameState, radius: number): ActionResult {
+  if (!Number.isInteger(radius) || radius < FRUITING.minRadius || radius > 1000) return { ok: false, error: "invalid_radius" };
+  if (carpophores(state) === 0) return { ok: false, error: "no_carpophore" };
+  if (!fruitingPreview(state, radius).lost.length) return { ok: false, error: "nothing_to_fruit" };
+  return { ok: true };
+}
+
+/**
+ * Fruits (GDD §5): every tile farther than `radius` from the Cœur is released for the neighbours, in
+ * exchange for Spores. The season's biomass is kept, and colonising is cheap again.
+ */
+export function fructify(state: GameState, radius: number, now: number): ActionResult {
+  const check = checkFructify(state, radius);
+  if (!check.ok) return check;
+  const { lost, spores } = fruitingPreview(state, radius, now);
+  for (const t of lost) {
+    t.owner = null;
+    t.structure = null;
+    t.growthEndsAt = null;
+    t.growthStartedAt = null;
+    t.disconnectedSince = null;
+    t.capture = null;
+  }
+  state.queue = [];
+  state.spores += spores;
+  state.fruitings += 1;
+  refreshConnections(state, now);
+  return check;
+}
+
+export function sporeUpgradeCost(id: SporeUpgradeId, level: number): number {
+  return SPORE_UPGRADES[id].baseCost * Math.pow(SPORE_COST_GROWTH, level);
+}
+
+export function checkBuySporeUpgrade(state: GameState, id: string): ActionResult {
+  if (!(SPORE_UPGRADE_IDS as readonly string[]).includes(id)) return { ok: false, error: "unknown_spore_upgrade" };
+  const upgrade = id as SporeUpgradeId;
+  if (state.spores < sporeUpgradeCost(upgrade, state.sporeUpgrades[upgrade])) return { ok: false, error: "not_enough_spores" };
+  return { ok: true };
+}
+
+/** Buys a Spore shop level: a bonus for the rest of the week. */
+export function buySporeUpgrade(state: GameState, id: string): ActionResult {
+  const check = checkBuySporeUpgrade(state, id);
+  if (!check.ok) return check;
+  const upgrade = id as SporeUpgradeId;
+  state.spores -= sporeUpgradeCost(upgrade, state.sporeUpgrades[upgrade]);
+  state.sporeUpgrades[upgrade] += 1;
+  return check;
+}
+
+/** Automations the season's biomass has unlocked (GDD §9). */
+export function automationUnlocked(state: GameState): { colonize: boolean; upgrades: boolean } {
+  return { colonize: state.biomass >= AUTOMATION.colonizeAt, upgrades: state.biomass >= AUTOMATION.upgradesAt };
+}
+
+/** Switches automations on or off; each one must be unlocked first. */
+export function setAutomation(state: GameState, change: Partial<Automation>, now: number): ActionResult {
+  const unlocked = automationUnlocked(state);
+  if (change.colonize !== undefined) {
+    const c = change.colonize;
+    if (c !== null && c !== "any" && !(TERRAIN_IDS as readonly string[]).includes(c)) return { ok: false, error: "invalid_automation" };
+    if (c !== null && !unlocked.colonize) return { ok: false, error: "locked" };
+  }
+  if (change.upgrades === true && !unlocked.upgrades) return { ok: false, error: "locked" };
+  if (change.colonize !== undefined) state.automation.colonize = change.colonize;
+  if (change.upgrades !== undefined) state.automation.upgrades = change.upgrades;
+  startQueued(state, now);
+  return { ok: true };
+}
+
+/**
+ * Auto-colonisation: the cheapest wild tile next to the network, of the preferred terrain when there
+ * is one (paid in nutrients only). Null when nothing can be colonised.
+ */
+export function autoColonizeTarget(state: GameState, at: number): Tile | null {
+  const pref = state.automation.colonize;
+  let best: Tile | null = null;
+  let bestKey: [number, number, string] | null = null;
+  const seen = new Set<string>();
+  for (const t of state.tiles.values()) {
+    if (t.owner !== state.id || t.growthEndsAt !== null) continue;
+    for (const n of hexNeighbors(t)) {
+      const k = hexKey(n);
+      if (seen.has(k)) continue;
+      seen.add(k);
+      const c = state.tiles.get(k);
+      if (!c || c.owner !== null || (c.reservedFor !== null && c.reservedFor !== state.id)) continue;
+      if (!canColonizeTerrain(state, c.terrain) || TERRAIN_STATS[c.terrain].paidInEnzymes) continue;
+      const key: [number, number, string] = [pref === null || pref === "any" || c.terrain === pref ? 0 : 1, colonizationCost(state, c, at), k];
+      if (!bestKey || key[0] < bestKey[0] || (key[0] === bestKey[0] && (key[1] < bestKey[1] || (key[1] === bestKey[1] && key[2] < bestKey[2])))) {
+        best = c;
+        bestKey = key;
+      }
+    }
+  }
+  return best;
+}
+
+/**
+ * Auto-reinvestment: buys the cheapest upgrades while the nutrients left still pay for the next
+ * colonisation of the queue. Returns true if something was bought.
+ */
+function autoInvest(state: GameState, at: number): boolean {
+  if (!state.automation.upgrades || !automationUnlocked(state).upgrades) return false;
+  const head = state.queue[0] ? state.tiles.get(hexKey(state.queue[0])) : undefined;
+  const reserve = head && head.owner === null && !TERRAIN_STATS[head.terrain].paidInEnzymes ? colonizationCost(state, head, at) : 0;
+  let bought = false;
+  for (;;) {
+    let cheapest: UpgradeId | null = null;
+    for (const id of UPGRADE_IDS) if (cheapest === null || upgradeCost(id, state.upgrades[id]) < upgradeCost(cheapest, state.upgrades[cheapest])) cheapest = id;
+    const cost = upgradeCost(cheapest!, state.upgrades[cheapest!]);
+    if (state.nutrients - cost < reserve) return bought;
+    state.nutrients -= cost;
+    state.upgrades[cheapest!] += 1;
+    bought = true;
+  }
+}
+
 /** GDD §3: Enzymes appear from the 15th tile or from Tuesday (the second day of the season), and stay. */
 export function refreshUnlocks(state: GameState, now: number): void {
   if (state.enzymesUnlocked) return;
@@ -783,7 +1002,7 @@ export function advance(state: GameState, to: number): void {
   let plan = planWindow(state, t);
 
   for (;;) {
-    const waiting = plan.queueWaiting ? (Math.floor(t / TICK_MS) + 1) * TICK_MS : Infinity;
+    const waiting = plan.queueWaiting || plan.autoInvest ? (Math.floor(t / TICK_MS) + 1) * TICK_MS : Infinity;
     const event = Math.min(plan.nextEvent, waiting);
     const next = Math.min(to, event);
     integrate(state, plan, next - t);
@@ -818,9 +1037,20 @@ export function advance(state: GameState, to: number): void {
       changed = true; // The offline threshold also changes the window.
     }
     if (changed) refreshConnections(state, t);
-    if (startQueued(state, t)) changed = true;
-    if (changed) plan = planWindow(state, t);
-    refreshUnlocks(state, t);
+    // While the queue only waits for the purse, nothing can start: skip the check (a speed-up only).
+    const waitingForPurse =
+      !changed && plan.queueCost !== null && (plan.queueCost.enzymes ? state.enzymes : state.nutrients) < plan.queueCost.amount;
+    if (!waitingForPurse && startQueued(state, t)) changed = true;
+    // Automatic upgrades happen on the 5 s grid only, so the result does not depend on how often
+    // `advance` is called.
+    if (plan.autoInvest && t % TICK_MS === 0 && autoInvest(state, t)) {
+      changed = true;
+      if (startQueued(state, t)) changed = true;
+    }
+    if (changed) {
+      plan = planWindow(state, t);
+      refreshUnlocks(state, t);
+    }
     if (t >= to) break;
   }
   refreshUnlocks(state, to);
@@ -846,6 +1076,10 @@ interface Window {
   /** Wear stops counting for production at this level (Usure lente). */
   wearCap: number;
   queueWaiting: boolean;
+  /** Auto-reinvestment is on: check the upgrades on the 5 s grid. */
+  autoInvest: boolean;
+  /** What the queue's first tile costs while it waits for the purse (null: it may start or be dropped). */
+  queueCost: { amount: number; enzymes: boolean } | null;
 }
 
 function planWindow(state: GameState, t: number): Window {
@@ -884,8 +1118,28 @@ function planWindow(state: GameState, t: number): Window {
     enzymesPerMs: enzymes,
     wearCap: wearCap(state),
     nextEvent: Math.max(next, t),
-    queueWaiting: state.queue.length > 0 && !growing,
+    // Auto-colonisation keeps the queue busy: it may plan a tile at any grid step.
+    queueWaiting: (state.queue.length > 0 || (state.automation.colonize !== null && automationUnlocked(state).colonize)) && !growing,
+    autoInvest: state.automation.upgrades && automationUnlocked(state).upgrades,
+    queueCost: growing ? null : waitingCost(state, t),
   };
+}
+
+/** Cost of the queue's first tile if it is still valid, null otherwise (see `startQueued`). */
+function waitingCost(state: GameState, t: number): { amount: number; enzymes: boolean } | null {
+  const head = state.queue[0];
+  const tile = head ? state.tiles.get(hexKey(head)) : undefined;
+  if (
+    !tile ||
+    tile.owner !== null ||
+    (tile.reservedFor !== null && tile.reservedFor !== state.id) ||
+    !canColonizeTerrain(state, tile.terrain) ||
+    !isAdjacentToNetwork(state, tile) ||
+    (TERRAIN_STATS[tile.terrain].paidInEnzymes && !state.enzymesUnlocked)
+  ) {
+    return null;
+  }
+  return { amount: colonizationCost(state, tile, t), enzymes: TERRAIN_STATS[tile.terrain].paidInEnzymes === true };
 }
 
 /** Accrues production and updates exhaustion over `dt` ms inside one window. */
@@ -907,7 +1161,7 @@ function integrate(state: GameState, w: Window, dt: number): void {
   produced *= w.factor;
   state.nutrients += produced;
   state.enzymes += w.enzymesPerMs * dt * w.factor;
-  state.biomass += produced * conversionRate(state.upgrades) * w.biomass;
+  state.biomass += produced * biomassConversion(state) * w.biomass;
 }
 
 /** Marks the player's tiles as connected or disconnected (disconnected ones start withering). */
@@ -924,9 +1178,13 @@ export function refreshConnections(state: GameState, now: number): void {
   }
 }
 
-/** Starts queued colonisations while possible. Returns true if one started. */
+/** Starts queued colonisations while possible (planning one first with auto-colonisation). Returns true if one started. */
 function startQueued(state: GameState, now: number): boolean {
   let started = false;
+  if (state.queue.length === 0 && state.automation.colonize !== null && automationUnlocked(state).colonize && growingTiles(state).length === 0) {
+    const target = autoColonizeTarget(state, now);
+    if (target) state.queue.push({ q: target.q, r: target.r });
+  }
   while (state.queue.length > 0 && growingTiles(state).length < ECONOMY.maxConcurrentGrowths) {
     const head = state.queue[0]!;
     const tile = state.tiles.get(hexKey(head));
@@ -953,7 +1211,7 @@ function startQueued(state: GameState, now: number): boolean {
     tile.capture = null;
     tile.structure = null;
     tile.growthStartedAt = now;
-    tile.growthEndsAt = now + growthDurationMs(tile.terrain, state.upgrades, effectsAt(state, now).growthTime * strainGrowthFactor(state));
+    tile.growthEndsAt = now + growthDurationMs(tile.terrain, state.upgrades, growthTimeFactor(state, now));
     tile.disconnectedSince = null;
     state.queue.shift();
     started = true;
@@ -976,6 +1234,8 @@ export function clonePlayer(state: GameState, tiles: Map<string, Tile>): GameSta
     heart: { ...state.heart },
     upgrades: { ...state.upgrades },
     mutations: [...state.mutations],
+    sporeUpgrades: { ...state.sporeUpgrades },
+    automation: { ...state.automation },
     queue: state.queue.map((h) => ({ ...h })),
     tiles,
   };

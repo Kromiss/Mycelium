@@ -194,8 +194,84 @@ button.ghost {
   padding: 14px;
 }
 
-.panel-tabs {
+.upgrades .panel-tabs {
   margin: 0 0 12px;
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.automation {
+  margin: 0 0 12px;
+  padding: 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  font-family: system-ui, sans-serif;
+  font-size: 0.82rem;
+}
+
+.automation h3 {
+  margin: 0 0 6px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.auto-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 4px 0;
+}
+
+.auto-row select {
+  font: inherit;
+  color: var(--fg);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  padding: 3px 6px;
+}
+
+.auto-row input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--glow);
+}
+
+.auto-note {
+  margin: 4px 0 0;
+  font-size: 0.74rem;
+  color: var(--muted);
+}
+
+.fruit-radius {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 6px 0;
+  font-family: system-ui, sans-serif;
+}
+
+.fruit-radius button {
+  min-width: 34px;
+}
+
+.fruit-preview {
+  margin: 0 0 8px;
+  font-family: system-ui, sans-serif;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+#fruit-go {
+  width: 100%;
+}
+
+#fruit-go.confirm {
+  background: rgba(240, 138, 108, 0.25);
+  border-color: var(--danger);
 }
 
 .panel-tabs .tab.attention {
@@ -203,10 +279,15 @@ button.ghost {
 }
 
 .panel-tabs .tab {
+  min-width: 0;
+  padding: 6px 4px;
   font-family: system-ui, sans-serif;
-  font-size: 0.78rem;
-  letter-spacing: 0.08em;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .strain-line,

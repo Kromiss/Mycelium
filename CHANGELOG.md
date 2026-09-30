@@ -5,6 +5,40 @@ versions [semver](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-09-30
+
+M5 — Profondeur : économie (GDD §15.5).
+
+### Added
+- **Nouveaux terrains** (§2.2) : Souche (très riche, au centre), Racines d'arbre (+3 % de production
+  pour tout le réseau par case), Roche (se paie en Enzymes, rempart : les cases voisines du même
+  joueur sont prises deux fois moins vite), Sol acide (riche, s'use en 2 h). Roche et Racines restent
+  hors des zones de départ, de la même façon dans chaque part.
+- **Structures** (§4.1), une par case, prix × 1,5 à chaque structure possédée : Nœud de digestion
+  (+50 %), Glande enzymatique (Enzymes, case −50 %), Réservoir (humidité pour ses cases voisines),
+  Rhizomorphe (pas de perte de transport, prise ×0,5), Sclérote (imprenable, un seul), Carpophore
+  (vision 3, visible de tous, nécessaire pour fructifier). Perdues avec la case.
+- **Enzymes** (§3), débloquées à la 15ᵉ case ou le mardi.
+- **Mutations** (§4.2) : un point à 20 k, 60 k, 180 k… de biomasse ; 15 mutations en trois branches
+  (Décomposeur, Parasite, Symbiote), prises dans l'ordre, sans retour en arrière.
+- **Souches** (§4.3), choisies avant la première case : Pleurote, Armillaire, Cordyceps, Truffe.
+- **Fructification** (§5) : on garde les cases à une distance choisie du Cœur (2 ou plus) et on libère
+  le reste contre des Spores ; il faut un Carpophore. **Boutique de Spores** : Vigueur, Propagation
+  rapide, Fructifications, Dérive génétique.
+- **Automatisations** (§9) : colonisation automatique (terrain préféré) à 100 k de biomasse, achat
+  automatique des améliorations à 1 M ; elles tournent aussi hors ligne.
+- Client : Enzymes dans la barre du haut, liste de construction dans le panneau de case, onglets
+  Mutations et Spores, choix de la souche en début de saison, cases libérées par une fructification
+  surlignées sur la carte (EN + FR).
+- Simulation d'équilibre (`pnpm --filter @mycelium/shared simulate:balance`) : les 12 combinaisons
+  souche × branche jouent chaque place d'une même carte ; lancée en CI avec le test de fructification.
+- Migrations `0007_structures_enzymes`, `0008_mutations_strains`, `0009_fruiting_automation`.
+
+### Changed
+- Coûts de colonisation +10 % (Litière 4 000, Humus 8 000, Bois mort 20 000) pour garder le rythme
+  de remplissage malgré les structures : 90 % de la forêt vers le jour 3,8.
+- Robots de test : souche, mutations, structures, et fructification pour la moitié d'entre eux.
+
 ## [0.5.0] - 2026-09-30
 
 M4 — Saison (GDD §15.4).

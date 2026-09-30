@@ -4,7 +4,8 @@ import {
   advance,
   capturedFactor,
   conquestFactor,
-  conversionRate,
+  biomassConversion,
+  emptySporeUpgrades,
   hasMutation,
   pressureFactor,
   emptyUpgrades,
@@ -264,7 +265,7 @@ function conquer(attacker: GameState, tile: Tile): void {
   if (!keep) tile.structure = null;
   attacker.trophies += 1;
   const perSecond = tileYield(tile.terrain, attacker.upgrades) * richness(attacker, tile);
-  attacker.biomass += ((perSecond * BORDERS.conquestBonusMs) / 1000) * conversionRate(attacker.upgrades) * conquestFactor(attacker);
+  attacker.biomass += ((perSecond * BORDERS.conquestBonusMs) / 1000) * biomassConversion(attacker) * conquestFactor(attacker);
 }
 
 /**
@@ -370,6 +371,10 @@ function emptySnapshot(dto: ForestDto): GameSnapshot {
     mondayBonus: 0,
     strain: null,
     mutations: [],
+    spores: 0,
+    sporeUpgrades: emptySporeUpgrades(),
+    fruitings: 0,
+    automation: { colonize: null, upgrades: false },
     heart: dto.spawns[0]!,
     heartMovedAt: null,
     tiles: [],

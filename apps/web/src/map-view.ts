@@ -66,6 +66,8 @@ export class MapView {
   private terrainSignature = "";
   private networkSignature = "";
   private selected: Hex | null = null;
+  /** Tiles to outline, e.g. those a fruiting would release. */
+  private highlighted: Set<string> | null = null;
   private now: () => number = Date.now;
   private onSelect: (h: Hex | null) => void = () => {};
 
@@ -126,6 +128,10 @@ export class MapView {
 
   select(h: Hex | null): void {
     this.selected = h;
+  }
+
+  highlight(keys: Set<string> | null): void {
+    this.highlighted = keys;
   }
 
   zoomBy(factor: number): void {
@@ -380,6 +386,15 @@ export class MapView {
       const r = SIZE * 0.72;
       fx.moveTo(x + r * Math.cos(start), y + r * Math.sin(start));
       fx.arc(x, y, r, start, start + Math.min(1, t.capture.progress) * Math.PI * 2).stroke({ width: 4, color, alpha: 0.6 + 0.4 * pulse });
+    }
+
+    if (this.highlighted) {
+      for (const k of this.highlighted) {
+        const tile = game.tiles.get(k);
+        if (!tile) continue;
+        const { x, y } = hexToPixel(tile, SIZE);
+        fx.poly(hexPoints(x, y, SIZE - 3)).fill({ color: WITHER, alpha: 0.12 + 0.12 * pulse }).stroke({ width: 2, color: WITHER, alpha: 0.8 });
+      }
     }
 
     if (this.selected) {

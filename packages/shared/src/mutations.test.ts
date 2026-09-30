@@ -77,7 +77,7 @@ describe("Décomposeur", () => {
     expect(productionRate(s)).toBeCloseTo(before * (1 + MUTATIONS.digestiveEnzymes), 10);
   });
 
-  it("Usure lente: wear stops counting at 25 %", () => {
+  it("Usure lente: wear stops counting earlier", () => {
     const s = game();
     own(s, hex(1, 0));
     const tile = tileAt(s, hex(1, 0));
@@ -211,22 +211,22 @@ describe("Parasite", () => {
 });
 
 describe("Symbiote", () => {
-  it("Mycorhize: Roots ×2", () => {
+  it("Mycorhize: stronger Roots", () => {
     const s = game("roots");
     own(s, hex(1, 0));
     const tile = tileAt(s, hex(1, 0));
     const before = tileProduction(s, tile);
     give(s, "mycorrhiza");
     const bonusBefore = 1 + ROOTS.networkBonus;
-    const bonusAfter = 1 + ROOTS.networkBonus * 2;
-    expect(tileProduction(s, tile)).toBeCloseTo((before / bonusBefore) * 2 * bonusAfter, 10);
+    const bonusAfter = 1 + ROOTS.networkBonus * MUTATIONS.mycorrhiza;
+    expect(tileProduction(s, tile)).toBeCloseTo((before / bonusBefore) * MUTATIONS.mycorrhiza * bonusAfter, 10);
   });
 
-  it("Cordons mycéliens: transport loss −50 %", () => {
+  it("Cordons mycéliens: no transport loss", () => {
     const s = game();
     own(s, hex(1, 0), hex(2, 0));
     give(s, "mycelialCords");
-    expect(tileProduction(s, tileAt(s, hex(2, 0)))).toBeCloseTo(TERRAIN_STATS.humus.yieldPerSecond * (1 - TRANSPORT.lossPerHop), 10);
+    expect(tileProduction(s, tileAt(s, hex(2, 0)))).toBeCloseTo(TERRAIN_STATS.humus.yieldPerSecond * (1 - 2 * TRANSPORT.lossPerHop * MUTATIONS.mycelialCords), 10);
   });
 
   it("Résilience: your tiles are taken 25 % slower", () => {
@@ -279,14 +279,14 @@ describe("strains (GDD §4.3)", () => {
     expect(timeToTake(f, border)).toBeCloseTo(BORDERS.captureMs.humus / STRAINS.pleurotus.capturedSpeed, -4);
   });
 
-  it("Armillaire: ×0.85 on Monday up to ×1.15 on Sunday", () => {
+  it("Armillaire: grows from Monday to Sunday", () => {
     const f = newForest(5, Date.UTC(2026, 9, 5, 8), 4);
     const p = joinForest(f, "p", Date.UTC(2026, 9, 5, 8))!;
     const monday = productionRate(p, Date.UTC(2026, 9, 5, 9));
     const sunday = productionRate(p, Date.UTC(2026, 9, 11, 9));
     chooseStrain(p, "armillaria");
-    expect(productionRate(p, Date.UTC(2026, 9, 5, 9))).toBeCloseTo(monday * 0.85, 10);
-    expect(productionRate(p, Date.UTC(2026, 9, 11, 9))).toBeCloseTo(sunday * 1.15, 10);
+    expect(productionRate(p, Date.UTC(2026, 9, 5, 9))).toBeCloseTo(monday * STRAINS.armillaria.monday, 10);
+    expect(productionRate(p, Date.UTC(2026, 9, 11, 9))).toBeCloseTo(sunday * (STRAINS.armillaria.monday + 6 * STRAINS.armillaria.perDay), 10);
   });
 
   it("Cordyceps: pressure +20 %, production −10 %", () => {
@@ -298,7 +298,7 @@ describe("strains (GDD §4.3)", () => {
     expect(productionRate(a)).toBeCloseTo(prod * STRAINS.cordyceps.production, 10);
   });
 
-  it("Truffe: hidden from far sight, Roots +50 %", () => {
+  it("Truffe: hidden from far sight, stronger Roots", () => {
     const { f, a, b } = duel();
     give(a, "bioluminescence");
     b.strain = "truffle";
@@ -309,7 +309,8 @@ describe("strains (GDD §4.3)", () => {
     own(s, hex(1, 0));
     const before = tileProduction(s, tileAt(s, hex(1, 0)));
     s.strain = "truffle";
-    const ratio = (1.5 * (1 + ROOTS.networkBonus * 1.5)) / (1 + ROOTS.networkBonus);
+    const k = STRAINS.truffle.roots;
+    const ratio = (k * (1 + ROOTS.networkBonus * k)) / (1 + ROOTS.networkBonus);
     expect(tileProduction(s, tileAt(s, hex(1, 0)))).toBeCloseTo(before * ratio, 10);
   });
 });

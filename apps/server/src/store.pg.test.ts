@@ -70,6 +70,10 @@ describe.each(stores)("%s store", (_name, make) => {
     pa.enzymesUnlocked = true;
     pa.strain = "truffle";
     pa.mutations = ["mycorrhiza", "mycelialCords"];
+    pa.spores = 17;
+    pa.sporeUpgrades.production = 2;
+    pa.fruitings = 1;
+    pa.automation = { colonize: "litter", upgrades: true };
     resolveBorders(forest, 5_000, T0 + 3_600_000);
     await store.saveForest(record.id, forest);
 
