@@ -6,7 +6,7 @@ Lis ce fichier en entier avant d'agir, puis le fichier de `docs/` qui correspond
 ## Le projet
 
 Mycelium est un jeu incrémental compétitif, web-first et gratuit : chaque joueur fait croître un
-mycélium sur une carte hexagonale à conquérir, avec du PvP, 20 à 30 joueurs par forêt (serveur) et un
+mycélium sur une carte hexagonale à conquérir, avec du PvP, 12 joueurs par forêt (serveur) et un
 wipe chaque semaine ; l'objectif est de finir en tête du classement. Les détails de game design se
 décident avec le propriétaire (Kromiss) : ne pas inventer de règle de jeu sans lui demander.
 

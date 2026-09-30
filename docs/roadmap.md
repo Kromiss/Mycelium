@@ -19,7 +19,8 @@ des points de départ à équilibrer, centralisés dans `packages/shared`.
 | M5 Profondeur : économie | 0.6.0 | étape 5 | Structures, mutations, souches, fructification | ✅ (testé en local) |
 | M6 Profondeur : conflit & événements | 0.7.0 | étape 5 | Actions actives, événements, world boss | ✅ (testé en local) |
 | M7 Social | 0.8.0 | étape 6 | Alliances, ligues, récompenses | ✅ (testé en local) |
-| M8 Bêta fermée | 0.9.0 | — | Plusieurs forêts, équilibrage, charge | à faire |
+| M8 Incrémental : enrichissement & cohésion | 0.9.0 | — | Niveaux de case, Bourgeons, bonus des cases collées, nouveau visuel | à faire |
+| M9 Bêta fermée | 0.10.0 | — | Plusieurs forêts, équilibrage, charge | à faire |
 | Lancement | 1.0.0 | — | Ouverture publique | — |
 
 ---
@@ -274,7 +275,7 @@ Constats des simulations :
   au plancher de 7 cases (23 sans les actions). L'écart de biomasse entre premier et dernier s'élargit
   aussi (×130 à ×220 sur une semaine simulée, contre ×54 avant M6), mais aucune règle ne l'explique à
   elle seule d'après les variantes testées, et une seule semaine varie beaucoup. Leviers possibles :
-  ligues (M7), rattrapage (M8), anti-acharnement plus fort ; à trancher avec de vrais joueurs.
+  ligues (M7), rattrapage (M9), anti-acharnement plus fort ; à trancher avec de vrais joueurs.
 
 ## M7 — Social (0.8.0) — GDD §15.6
 
@@ -312,7 +313,7 @@ chat et notifications, puis pactes, Signaux et Ruine, puis classements, ligues e
 - **Ligues** Bronze, Argent, Or, Diamant, Mycélium Primordial ; départ en Bronze ; chaque semaine les
   3 premiers montent, les 3 derniers descendent (joueurs ayant joué au moins un jour) ; 2 semaines
   d'absence = −1 ligue. On rejoint une forêt de sa ligue qui a de la place, sinon de la ligue la plus
-  proche ; une forêt ne s'ouvre que quand toutes sont pleines (le vrai découpage vient en M8).
+  proche ; une forêt ne s'ouvre que quand toutes sont pleines (le vrai découpage vient en M9).
 - **Récompenses** : titres (un par classement + un par ligue, un affiché à côté du pseudo), couleurs de
   réseau (podium, ligues ; le serveur évite les doublons dans une forêt), 4 skins de Carpophore par
   paliers, souche **Moisissure** après 3 saisons jouées (sur les cases usées à 20 % ou plus :
@@ -348,7 +349,50 @@ saison, profil après le wipe) et par les tests. Choix de réalisation à valide
   limite de durée (pas de purge). Les signalements sont dans la table `chat_reports` et le journal du
   serveur, sans écran d'administration pour l'instant.
 
-## M8 — Bêta fermée (0.9.0)
+## M8 — Incrémental : enrichissement & cohésion (0.9.0)
+
+Contexte : après les essais de fin septembre 2026, le jeu passe sans brouillard et avec 5× plus de
+cases, plus petites (`FOG_ENABLED = false`, `TILE_SCALE = 5`, mergé sur `dev`). Objectif du jalon :
+donner beaucoup plus d'actions par minute à qui joue en continu, sans punir l'occasionnel (pilier 2),
+rendre les cases collées plus fortes que les filaments, et retravailler le visuel des cases.
+
+✅ Décidé : **paquet proposé retenu** comme base du jalon (valeurs à équilibrer avec les robots).
+- **Enrichissement des cases** : chaque case possédée a un niveau, acheté instantanément en Nutriments,
+  coût `base_case × 1,12 ^ niveau`, +8 % de production de la case par niveau ; **paliers** à 10, 25, 50,
+  100… qui doublent la production de la case. Achat ×1 / ×10 / Max, et « Enrichir tout le bloc ».
+- **Bourgeons** : toutes les 2 à 4 min, un bourgeon pousse sur une case au hasard du réseau ; le cliquer
+  donne 60 s de production ; il fane après 5 min. Plafond visé : ~10 % de la production totale.
+- **Liens avec l'existant** : une case prise garde la moitié de ses niveaux ; la fructification rend des
+  Spores selon les niveaux sacrifiés ; l'achat automatique (déjà débloqué à 1 M de biomasse) enrichit
+  au plus une case par minute, pour que le joueur actif garde l'avance.
+- **Cohésion** (voisines possédées par la même colonie, 0 à 6) : production +5 % par voisine (max
+  +30 %) ; en défense, pression adverse −8 % par voisine et temps de prise +15 % par voisine.
+  **Rosace** (case entourée de 6 voisines) : impossible à cibler par une Coupure, ses niveaux
+  d'Enrichissement comptent +10 %. La cohésion remplace la `densité_réseau_local` de la formule de
+  pression (§6.1) au lieu de s'y ajouter.
+- **Visuel des cases** : frontières internes effacées, la colonie se dessine comme une seule tache avec
+  un contour sur le bord extérieur, plus épais sur les cases cohésives ; le niveau se voit (filaments
+  fins, tapis dense vers 25, champignons aux paliers 50 et 100) ; terrain reconnaissable sous le
+  mycélium, délavé par l'usure ; états animés (case en train d'être prise, bourgeon, case coupée).
+  Part du travail déjà fait sur `dev` (contours de colonie, Cœur mis en valeur).
+
+À faire :
+- Niveaux de case en base (migration), règles et coûts dans `packages/shared` avec tests ; protocole et
+  actions serveur (achat ×1/×10/Max, bloc) ; hors-ligne et achat automatique.
+- Bourgeons côté serveur (tirage, expiration, gain) ; les robots actifs les ramassent, les occasionnels non.
+- Cohésion dans la production et la pression ; Rosace et Coupure ; niveaux gardés à moitié à la prise ;
+  Spores de la fructification.
+- Client : panneau de case (niveau, prochain palier, boutons), bourgeons cliquables, nouveau rendu des
+  colonies et des niveaux ; textes EN + FR.
+- Rééquilibrage : `simulate:forest` (forêt pleine vers le 4ᵉ–5ᵉ jour, avec l'Enrichissement qui
+  multiplie la production et le coût `1,13 ^ nb_cases`), `simulate:profiles` (écart actif / occasionnel
+  raisonnable, objectif du §9 tenu), `simulate:balance` (souches et branches).
+
+**Terminé quand** : un joueur connecté a toujours un achat utile à faire à la minute, un profil
+« 3 × 10 min/jour » reste dans la cible du §9, une colonie compacte résiste nettement mieux qu'un
+filament, et on lit d'un coup d'œil le niveau et la solidité d'une colonie sur la carte.
+
+## M9 — Bêta fermée (0.10.0)
 
 - Plusieurs forêts en parallèle, répartition par ligue.
 - Test de charge : 30 joueurs actifs par forêt, plusieurs forêts, tick à 5 s tenu.
