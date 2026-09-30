@@ -5,6 +5,10 @@ versions [semver](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-09-30
+
+M6 — Profondeur : conflit & événements (GDD §15.5).
+
 ### Added
 - **Actions actives** (GDD §6.2), payées en Enzymes, avec une recharge par action, interdites le
   lundi, sur une case ennemie collée à son réseau : **Assaut** (30, 4 h : prise 4× plus rapide pendant
@@ -32,6 +36,22 @@ versions [semver](https://semver.org/lang/fr/).
 - Client : panneau « Événements » (à venir, en cours, vie du boss et sa part), zones sur la carte, barre
   de vie, alertes (annonce, cases perdues, récompenses), terrains Carcasse et Arbre mourant (EN + FR).
 - Migration `0011_forest_events`.
+- **Journal de la nuit** (§11) : au retour, qui a pris combien de cases, le Cœur perdu, les actions
+  subies et ce que chaque événement a pris ou rapporté. **Alertes en jeu** : un voisin commence à pousser
+  sur ta frontière, une action te touche, la saison se termine dans moins d'une heure ; les alertes
+  s'empilent (3 au plus).
+- Robots de test : une Glande enzymatique à 20 cases, puis les actions actives ; `simulate:forest`
+  compte les actions, les Cœurs pris, les pertes dues aux événements et les Arbres mourants.
+- Test de simulation « Terminé quand » de M6 : coupures, retournements, Arbre mourant partagé, personne
+  sous le plancher.
+
+### Changed
+- Le plancher de 7 cases arrête aussi le dépérissement des cases déconnectées.
+- Chiffres d'équilibrage de M5 validés (Armillaire ×0,95 → ×1,25, Pleurote +15 %, Truffe +30 %,
+  Mycorhize ×4, Cordons sans perte, Usure lente à 30 %).
+
+### Fixed
+- Le panneau des événements garde ses lignes d'un affichage à l'autre, pour que les clics portent.
 - Robots de test : option **`aim`** dans le plan d'un robot (`BotPlan`) : `"centre"` fonce vers le
   centre riche, `"home"` reste dans sa part (bord et anneau, jamais le centre) et évite les cases
   collées à un voisin. Sans `aim`, rien ne change.

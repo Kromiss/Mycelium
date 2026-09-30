@@ -12,3 +12,4 @@ export * from "./season";
 
 export const GAME_NAME = "Mycelium";
 export { botPlay } from "./sim/week";
+export { botAct } from "./sim/fight";

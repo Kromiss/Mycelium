@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  ANTI_FRUSTRATION,
   ECONOMY,
   EXHAUSTION,
   HEART_MOVE_COOLDOWN_MS,
@@ -34,6 +35,7 @@ import {
   unqueue,
   upgradeCost,
   type GameState,
+  ownedCount,
 } from "./game";
 import { hex, hexKey, type Hex } from "./hex";
 import { fromSnapshot, toSnapshot } from "./protocol";
@@ -254,6 +256,7 @@ describe("network and transport", () => {
   it("stops producing on disconnected tiles, then loses them", () => {
     const s = game("humus");
     own(s, hex(1, 0), hex(2, 0), hex(3, 0));
+    own(s, hex(-1, 0), hex(-2, 0), hex(-1, 1), hex(0, -1), hex(0, 1), hex(1, -1)); // Above the M6 floor after the cut.
     // Cut the link at (1, 0) by hand (no player can do it before M3).
     tileAt(s, hex(1, 0)).owner = null;
     advance(s, T0 + 1_000);
@@ -262,6 +265,17 @@ describe("network and transport", () => {
     advance(s, T0 + TRANSPORT.witherMs);
     expect(tileAt(s, hex(2, 0)).owner).toBeNull();
     expect(tileAt(s, hex(3, 0)).owner).toBeNull();
+  });
+
+  it("never lets disconnected tiles wither below the floor of 7 tiles (M6)", () => {
+    const s = game("humus");
+    own(s, hex(1, 0), hex(2, 0), hex(3, 0), hex(4, 0), hex(-1, 0), hex(0, 1));
+    expect(ownedCount(s)).toBe(ANTI_FRUSTRATION.floorTiles);
+    tileAt(s, hex(1, 0)).owner = null;
+    tileAt(s, hex(-1, 1)).owner = "solo"; // Back to 7 tiles, 3 of them cut off.
+    advance(s, T0 + 3 * TRANSPORT.witherMs);
+    expect(ownedCount(s)).toBe(ANTI_FRUSTRATION.floorTiles);
+    expect(tileProduction(s, tileAt(s, hex(3, 0)))).toBe(0);
   });
 
   it("moves the Cœur once per day, onto the connected network", () => {

@@ -215,6 +215,48 @@ describe("forests", () => {
     expect(hexKey({ q: 1, r: 0 })).toBe("1,0");
   });
 
+  it("tells an absent player who took their tiles, and alerts the present ones (GDD §11)", async () => {
+    const { service, wait } = await setup();
+    const a = await play(service, "Alpha");
+    const b = await play(service, "Bravo");
+    const forest = service.forestState(a.account.id)!;
+    const pa = forest.players.get(a.account.id)!;
+    const pb = forest.players.get(b.account.id)!;
+    for (const t of forest.tiles.values()) {
+      if (t.terrain === "wetland") t.terrain = "humus";
+      t.owner = null;
+    }
+    pa.heart = { q: -2, r: 0 };
+    for (const [q, r] of [[-2, 0], [-1, 0], [0, 0], [-1, 1], [0, -1], [0, 1], [1, -1], [-2, 1], [-1, -1]]) forest.tiles.get(`${q},${r}`)!.owner = pa.id;
+    pb.heart = { q: 3, r: 0 };
+    for (const [q, r] of [[3, 0], [2, 0], [1, 0], [4, 0], [5, 0], [4, -1], [5, -1], [6, -1]]) forest.tiles.get(`${q},${r}`)!.owner = pb.id;
+    forest.tiles.get("1,0")!.terrain = "litter";
+    (pa as { joinedAt: number }).joinedAt -= 2 * BORDERS.protectedMs;
+    (pb as { joinedAt: number }).joinedAt -= 2 * BORDERS.protectedMs;
+    await service.tick();
+    // A present defender is warned when the neighbour starts pushing.
+    wait(60_000);
+    await service.tick();
+    const alerts = b.client.messages.flatMap((m) => (m.type === "state" ? m.alerts : []));
+    expect(alerts).toContainEqual({ type: "attacked", by: a.account.id, q: 1, r: 0 });
+    // An action is reported to its victim on the next tick.
+    pa.enzymesUnlocked = true;
+    pa.enzymes = 100;
+    service.act(a.account.id, "toxin", 1, 0, a.client);
+    expect(a.client.last("actionError")).toBeUndefined();
+    await service.tick();
+    expect(b.client.last("state")!.alerts).toContainEqual({ type: "action", action: "toxin", by: a.account.id, q: 1, r: 0 });
+    await service.detach(b.account.id, b.client);
+    for (let i = 0; i < 12; i++) {
+      wait(60_000);
+      await service.tick();
+    }
+    const back = new Spy();
+    await service.attach(b.account, back);
+    const journal = back.last("ready")!.away?.journal;
+    expect(journal).toContainEqual({ type: "lostTo", name: "Alpha", tiles: 1 });
+  });
+
   it("announces the season's events and runs the Dying tree (GDD §7)", async () => {
     // Thursday 13:00 Paris: the Dying tree of 14:00 is announced.
     const { service, wait } = await setup({ at: Date.UTC(2026, 9, 8, 10, 30) });

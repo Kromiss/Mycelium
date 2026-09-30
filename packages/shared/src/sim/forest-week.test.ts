@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { ANTI_FRUSTRATION } from "../balance";
 import { formatForestReport, simulateForestWeek } from "./forest-week";
 import { NEUTRAL_PLAN } from "./week";
 
@@ -33,3 +34,25 @@ describe("forest week pacing", () => {
     }
   }, 120_000);
 });
+
+/**
+ * Roadmap M6, "Terminé quand": a test season sees cuts, reversals and at least one shared world boss,
+ * without an absent player losing everything. Robots with their default plans, at war.
+ */
+describe("conflict and events week", () => {
+  const result = simulateForestWeek({ days: 5, stepMs: 180_000, decisionEveryMinutes: 15 });
+
+  it("has cuts, a shared Dying tree, reversals, and nobody below the floor", () => {
+    console.log(formatForestReport(result));
+    const c = result.conflict;
+    expect(c.actions.cut).toBeGreaterThan(0);
+    expect(c.actions.assault + c.actions.toxin + c.actions.siphon).toBeGreaterThan(0);
+    expect(c.bosses.length).toBeGreaterThanOrEqual(1);
+    expect(c.bosses[0]!.contributors).toBeGreaterThanOrEqual(2);
+    expect(c.minTiles).toBeGreaterThanOrEqual(ANTI_FRUSTRATION.floorTiles);
+    // Reversals: someone overtakes someone else between day 3 and day 5.
+    const order = (d: number) => [...result.snapshots.find((x) => x.hour === d * 24)!.players].sort((a, b) => b.biomass - a.biomass).map((p) => p.id);
+    expect(order(5)).not.toEqual(order(3));
+  }, 300_000);
+});
+

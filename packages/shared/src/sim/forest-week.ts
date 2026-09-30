@@ -3,7 +3,9 @@
  * real rules (economy, borders, protections). Used by `forest-week.test.ts` in CI and by
  * `pnpm --filter @mycelium/shared simulate:forest`.
  */
-import { FOREST } from "../balance";
+import { FOREST, type ActionId, type EventKind } from "../balance";
+import { resolveEvents } from "../events";
+import { botAct } from "./fight";
 import { advanceForest, joinForest, newForest, resolveBorders, type CaptureEvent } from "../forest";
 import { ringAt, type Ring } from "../forestgen";
 import { goOffline, goOnline, networkHops, productionRate } from "../game";
@@ -27,6 +29,10 @@ export interface ForestSimOptions {
   profileOf?: (i: number) => Profile;
   /** Strain and mutation branches of robot i (from its id by default). */
   planOf?: (i: number, id: string) => BotPlan;
+  /** M6: robots use the active actions (default true). */
+  fight?: boolean;
+  /** M6: the season's events happen (default true). */
+  events?: boolean;
 }
 
 export interface ForestSnapshot {
@@ -59,6 +65,18 @@ export interface ForestSimResult {
   spawns: Record<string, { q: number; r: number }>;
   /** Hours at which the forest reached 50 %, 90 % and 100 % occupancy (null if never). */
   filled: { half: number | null; ninety: number | null; full: number | null };
+  /** M6: actions used, Cœurs taken, tiles lost to events, and the world bosses. */
+  conflict: ConflictStats;
+}
+
+export interface ConflictStats {
+  actions: Record<ActionId, number>;
+  hearts: number;
+  eventLosses: number;
+  events: Partial<Record<EventKind, number>>;
+  bosses: Array<{ hour: number; contributors: number; killed: boolean }>;
+  /** Fewest tiles any player held at the end. */
+  minTiles: number;
 }
 
 /** Alternates active (12 h/day) and casual (3 × 10 min/day) robots. */
@@ -73,6 +91,8 @@ export function simulateForestWeek(options: ForestSimOptions = {}): ForestSimRes
     decisionEveryMinutes = 5,
     profileOf = MIXED_PROFILES,
     planOf = (_i: number, id: string) => defaultPlan(id),
+    fight = true,
+    events = true,
   } = options;
   // The forest opens on Monday 00:00 Paris, like a real season (phases follow the calendar).
   const t0 = seasonAt(Date.UTC(2026, 9, 5, 12)).start;
@@ -117,6 +137,7 @@ export function simulateForestWeek(options: ForestSimOptions = {}): ForestSimRes
     });
   };
 
+  const conflict: ConflictStats = { actions: { assault: 0, toxin: 0, cut: 0, siphon: 0 }, hearts: 0, eventLosses: 0, events: {}, bosses: [], minTiles: 0 };
   const wasOnline = new Map<string, boolean>();
   for (let t = t0 + stepMs; t <= t0 + days * DAY; t += stepMs) {
     for (const j of pending.filter((x) => x.at <= t && !forest.players.has(x.id))) {
@@ -134,6 +155,14 @@ export function simulateForestWeek(options: ForestSimOptions = {}): ForestSimRes
     advanceForest(forest, t);
     for (const e of resolveBorders(forest, stepMs, t)) {
       captures.push({ ...e, hour: (t - t0) / HOUR, ring: ringAt(forest.radius, e) });
+      if (e.heart) conflict.hearts++;
+    }
+    for (const o of events ? resolveEvents(forest, stepMs, t) : []) {
+      conflict.eventLosses += o.lost.length;
+      if (o.phase === "started") conflict.events[o.event.kind] = (conflict.events[o.event.kind] ?? 0) + 1;
+      if (o.phase === "ended" && o.event.kind === "tree") {
+        conflict.bosses.push({ hour: (t - t0) / HOUR, contributors: o.rewards.length, killed: o.event.killed === true });
+      }
     }
     if ((t - t0) % (decisionEveryMinutes * MINUTE) === 0) {
       for (const p of forest.players.values()) {
@@ -141,6 +170,8 @@ export function simulateForestWeek(options: ForestSimOptions = {}): ForestSimRes
         if (!online(profile, t)) continue;
         const sessionStart = !online(profile, t - decisionEveryMinutes * MINUTE);
         botPlay(p, t, sessionStart, plans.get(p.id));
+        const used = fight ? botAct(forest, p, t) : null;
+        if (used) conflict.actions[used.action]++;
       }
     }
     const occ = occupied();
@@ -168,6 +199,7 @@ export function simulateForestWeek(options: ForestSimOptions = {}): ForestSimRes
     hearts: Object.fromEntries([...forest.players.values()].map((p) => [p.id, { ...p.heart }])),
     spawns: Object.fromEntries([...forest.players.values()].map((p) => [p.id, { ...p.spawn }])),
     filled,
+    conflict: { ...conflict, minTiles: Math.min(...[...forest.players.keys()].map((id) => [...forest.tiles.values()].filter((x) => x.owner === id).length)) },
   };
 }
 
@@ -176,6 +208,12 @@ export function formatForestReport(r: ForestSimResult): string {
   const lines = [
     `forest radius ${r.radius}, ${r.landTiles} land tiles; 50 % at ${fmtH(r.filled.half)}, 90 % at ${fmtH(r.filled.ninety)}, full at ${fmtH(r.filled.full)}`,
   ];
+  const c = r.conflict;
+  lines.push(
+    `  actions ${Object.entries(c.actions).map(([k, v]) => `${k} ${v}`).join(", ")}; hearts taken ${c.hearts}; tiles lost to events ${c.eventLosses}; ` +
+      `events ${Object.entries(c.events).map(([k, v]) => `${k} ${v}`).join(", ")}; ` +
+      `bosses ${c.bosses.map((b) => `h${b.hour.toFixed(0)}: ${b.contributors} players${b.killed ? ", killed" : ""}`).join("; ") || "none"}; fewest tiles at the end ${c.minTiles}`,
+  );
   for (const s of r.snapshots.filter((x) => x.hour % 24 === 0 && x.hour > 0)) {
     const tiles = s.players.map((p) => p.tiles);
     const bio = s.players.map((p) => p.biomass);

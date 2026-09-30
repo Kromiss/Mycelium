@@ -601,10 +601,25 @@ button.ghost {
   border: 1px solid var(--panel-border);
 }
 
-.toast {
+.toasts {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
   bottom: calc(24px + env(safe-area-inset-bottom));
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  pointer-events: none;
+}
+
+.toast {
+  position: static;
+  transform: none;
   border-color: rgba(240, 138, 108, 0.5);
   color: var(--danger);
+  text-align: center;
 }
 
 .toast.good {
@@ -691,8 +706,8 @@ button.ghost {
 /* Events (GDD §7) -------------------------------------------------------- */
 
 .event-panel {
-  left: 16px;
-  bottom: calc(52px + env(safe-area-inset-bottom));
+  top: 86px;
+  left: 282px;
   width: 250px;
   padding: 8px 12px;
   font-family: system-ui, sans-serif;
@@ -977,7 +992,12 @@ button.ghost {
     display: block;
   }
 
+  body.has-events .hint {
+    display: none;
+  }
+
   .event-panel {
+    top: auto;
     left: 12px;
     right: auto;
     bottom: calc(12px + env(safe-area-inset-bottom));

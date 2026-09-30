@@ -17,7 +17,7 @@ des points de départ à équilibrer, centralisés dans `packages/shared`.
 | M3 Multijoueur minimal | 0.4.0 | étape 3 | Forêt partagée, frontières, classement | ✅ (testé en local) |
 | M4 Saison | 0.5.0 | étape 4 | Semaine, phases journalières, wipe | ✅ (testé en local) |
 | M5 Profondeur : économie | 0.6.0 | étape 5 | Structures, mutations, souches, fructification | ✅ (testé en local) |
-| M6 Profondeur : conflit & événements | 0.7.0 | étape 5 | Actions actives, événements, world boss | à faire |
+| M6 Profondeur : conflit & événements | 0.7.0 | étape 5 | Actions actives, événements, world boss | ✅ (testé en local) |
 | M7 Social | 0.8.0 | étape 6 | Alliances, ligues, récompenses | à faire |
 | M8 Bêta fermée | 0.9.0 | — | Plusieurs forêts, équilibrage, charge | à faire |
 | Lancement | 1.0.0 | — | Ouverture publique | — |
@@ -245,6 +245,36 @@ les chiffres d'équilibrage de M5 marqués « à valider » sont acquis. Livrais
   la production, PV ≈ 2 h de production de la forêt, 6 h au plus ; biomasse et Enzymes au prorata,
   Trophée au meilleur contributeur.
 - **Journal de la nuit** et alertes en jeu (navigateur / e-mail : décision de M7).
+
+Livré en 0.7.0, validé en local (`BOTS=11 TIME_SCALE=120` : annonces, Chute d'arbres, Nématodes, Arbre
+mourant digéré par les robots) et par simulation. Choix de réalisation à valider (dans `balance.ts`) :
+- Coupure : aussi interdite sur un Cœur ; les cases coupées ne produisent plus mais ne dépérissent pas.
+  Toxine et Siphon touchent seulement les cases du même propriétaire ; le Siphon donne au lanceur des
+  nutriments et la biomasse qu'ils lui auraient rapportée.
+- **Le plancher de 7 cases arrête aussi le dépérissement** des cases déconnectées (sinon une coupure
+  faisait passer sous le plancher).
+- Événements tirés de la graine à l'ouverture de la forêt (heure et type), placés à l'annonce ; entre
+  8 h et 20 h ; plus forts au centre = Orage +75 %, Incendie de rayon 3, Sanglier ×1,5, Nématodes plus
+  résistants et plus voraces. Carcasse : 12 nutriments/s, 6 000 de coût. Nématodes : vie = 1,5 h de
+  production des cases de la zone (50 k au moins), une case toutes les 30 min, prime = ½ de ce qu'on a
+  digéré. Arbre mourant : 2 h de production de la forêt (200 k au moins), digéré par **toute** la
+  production des colonies qui le touchent ; biomasse = ¼ de ce qu'on a digéré, 300 Enzymes au prorata,
+  Trophée au meilleur ; placé sur l'amas du centre qui a le moins de cases prises ; il laisse 7 Souches.
+- Journal de la nuit et alertes gardés en mémoire (perdus au redémarrage du serveur) ; une alerte de
+  frontière au plus toutes les 30 min par voisin ; alerte « fin de saison dans 1 h » côté client.
+- Robots : une Glande à 20 cases, puis au plus une action par décision (Assaut, Coupure, Siphon, Toxine).
+
+Constats des simulations :
+- Rythme inchangé : la forêt se remplit au même jour qu'avant M6 avec la même configuration.
+- Équilibre des souches et des branches tenu : rang moyen de 6,3 à 6,7 sur 12 forêts (6,5 = milieu) ;
+  une fructification au jour 3 rapporte +29 %.
+- Semaine test : des coupures, des retournements au classement, chaque Arbre mourant partagé par 2 à 4
+  colonies, personne sous 7 cases. Les Cœurs ne tombent presque jamais (0 dans les simulations).
+- **Point ouvert** : quand les robots utilisent les actions, la colonie la plus faible finit en général
+  au plancher de 7 cases (23 sans les actions). L'écart de biomasse entre premier et dernier s'élargit
+  aussi (×130 à ×220 sur une semaine simulée, contre ×54 avant M6), mais aucune règle ne l'explique à
+  elle seule d'après les variantes testées, et une seule semaine varie beaucoup. Leviers possibles :
+  ligues (M7), rattrapage (M8), anti-acharnement plus fort ; à trancher avec de vrais joueurs.
 
 ## M7 — Social (0.8.0) — GDD §15.6
 

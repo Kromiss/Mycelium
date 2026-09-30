@@ -1,4 +1,4 @@
-import { ACTION_IDS, TERRAINS, type ActionId, type MutationId, type StrainId, type StructureId, type Terrain, type UpgradeId } from "./balance";
+import { ACTION_IDS, TERRAINS, type ActionId, type EventKind, type MutationId, type StrainId, type StructureId, type Terrain, type UpgradeId } from "./balance";
 import {
   isMutationId,
   isStrainId,
@@ -313,6 +313,8 @@ export type ServerMessage =
       /** Events announced or under way (GDD §7), and what they did to this player since the last state. */
       forestEvents: EventDto[];
       eventNotices: EventNotice[];
+      /** In-game alerts for this player since the last state (GDD §11). */
+      alerts: Alert[];
     }
   | { type: "leaderboard"; leaderboard: Leaderboard }
   | { type: "actionError"; error: ActionError | "not_authenticated" };
@@ -327,6 +329,19 @@ export interface CaptureNotice {
   heart?: true;
 }
 
+/** In-game alerts (GDD §11): a border fight starts on one of your tiles, an action hits you. */
+export type Alert =
+  | { type: "attacked"; by: string; q: number; r: number }
+  | { type: "action"; action: ActionId; by: string; q: number; r: number };
+
+/** One line of the night journal (GDD §11 "Journal de la nuit"); names are resolved by the server. */
+export type JournalLine =
+  | { type: "lostTo"; name: string; tiles: number }
+  | { type: "wonFrom"; name: string; tiles: number }
+  | { type: "heartLost"; name: string }
+  | { type: "action"; action: ActionId; name: string; count: number }
+  | { type: "event"; kind: EventKind; tiles: number; biomass: number; enzymes: number; trophy: boolean };
+
 /** What the game produced while the player was away (shown when they come back). */
 export interface AwaySummary {
   awayMs: number;
@@ -337,6 +352,8 @@ export interface AwaySummary {
   /** Tiles taken from neighbours, and lost to them. */
   won: number;
   lost: number;
+  /** What happened, by neighbour and by event (M6). */
+  journal: JournalLine[];
 }
 
 /** Messages sent by the client over the WebSocket. */

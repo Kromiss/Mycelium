@@ -76,6 +76,8 @@ import {
   type Tile,
   type EventDto,
   type EventNotice,
+  type Alert,
+  type JournalLine,
   NEMATODES,
   STORM,
   EVENTS,
@@ -174,6 +176,8 @@ let clock = { server: 0, local: 0, scale: 1 };
 let owners = new Map<string, OwnerInfo>();
 /** Events announced or under way in the forest (GDD §7). */
 let forestEvents: EventDto[] = [];
+/** Season whose last-hour alert was shown. */
+let seasonEndAlerted = 0;
 let board: Leaderboard | null = null;
 let forestNumber = 0;
 let history: SeasonResult[] = [];
@@ -183,7 +187,6 @@ let authMode: "login" | "register" = "register";
 let selected: Hex | null = null;
 let connection: Connection | null = null;
 let mapView: MapView | null = null;
-let toastTimer: number | undefined;
 /** Whether Enzymes were unlocked at the last snapshot, to announce the unlock once. */
 let enzymesKnown: boolean | null = null;
 /** The player closed the strain picker with "later" in this session. */
@@ -332,6 +335,7 @@ function onMessage(msg: ServerMessage): void {
       applySnapshot(msg.game, msg.owners, msg.serverTime);
       for (const e of msg.events) announce(e);
       for (const n of msg.eventNotices ?? []) announceEvent(n);
+      for (const a of msg.alerts ?? []) alert(a);
       break;
     case "leaderboard":
       board = msg.leaderboard;
@@ -371,6 +375,38 @@ function announce(e: CaptureNotice): void {
   toast(t(key, { name }), e.kind === "won" ? "good" : "bad");
 }
 
+function alert(a: Alert): void {
+  const name = owners.get(a.by)?.name ?? "?";
+  if (a.type === "attacked") toast(t("alert.attacked", { name }));
+  else toast(t("alert.action", { name, action: t(`action.${a.action}.name`) }));
+}
+
+function journalText(line: JournalLine): string {
+  switch (line.type) {
+    case "heartLost":
+      return t("journal.heartLost", { name: line.name });
+    case "lostTo":
+      return t("journal.lostTo", { name: line.name, tiles: line.tiles });
+    case "wonFrom":
+      return t("journal.wonFrom", { name: line.name, tiles: line.tiles });
+    case "action":
+      return t("journal.action", { name: line.name, action: t(`action.${line.action}.name`), count: line.count });
+    case "event": {
+      const event = t(`event.${line.kind}`);
+      const parts: string[] = [];
+      if (line.tiles > 0) parts.push(t("journal.eventLost", { event, tiles: line.tiles }));
+      if (line.biomass > 0) {
+        const reward =
+          line.enzymes > 0
+            ? t("journal.eventRewardEnzymes", { event, biomass: fmt(line.biomass), enzymes: fmt(line.enzymes) })
+            : t("journal.eventReward", { event, biomass: fmt(line.biomass) });
+        parts.push(line.trophy ? reward + t("journal.trophy") : reward);
+      }
+      return parts.join(" · ");
+    }
+  }
+}
+
 function setForestEvents(list: EventDto[]): void {
   forestEvents = list;
   mapView?.setEvents(list);
@@ -398,27 +434,49 @@ function announceEvent(n: EventNotice): void {
   }
 }
 
+/** Lines of the events panel, kept across renders so that clicks always land (by event id). */
+const eventItems = new Map<number, { li: HTMLLIElement; button: HTMLButtonElement }>();
+
 /** The events panel: what is coming and what is under way, most urgent first (GDD §7, §11). */
 function renderEvents(now: number): void {
   const list = [...forestEvents].sort((a, b) => (a.status === b.status ? a.startsAt - b.startsAt : a.status === "active" ? -1 : 1));
   ui.eventPanel.hidden = list.length === 0;
-  const items = list.map((e) => {
-    const li = document.createElement("li");
-    li.classList.toggle("active", e.status === "active");
-    const button = document.createElement("button");
-    button.type = "button";
+  document.body.classList.toggle("has-events", list.length > 0);
+  const ids = new Set(list.map((e) => e.id));
+  for (const [id, item] of eventItems) {
+    if (!ids.has(id)) {
+      item.li.remove();
+      eventItems.delete(id);
+    }
+  }
+  list.forEach((e, i) => {
+    let item = eventItems.get(e.id);
+    if (!item) {
+      const li = document.createElement("li");
+      const button = document.createElement("button");
+      button.type = "button";
+      button.addEventListener("click", () => {
+        const current = forestEvents.find((x) => x.id === e.id);
+        if (current) {
+          selectTile({ q: current.q, r: current.r });
+          mapView?.centerOn({ q: current.q, r: current.r });
+        }
+      });
+      li.append(button);
+      item = { li, button };
+      eventItems.set(e.id, item);
+    }
     const name = t(`event.${e.kind}`);
     let text: string;
     if (e.status === "announced") text = t("event.in", { name, time: formatDuration(e.startsAt - now) });
     else if (e.life !== undefined) text = t("event.life", { name, life: percent(e.life), share: percent(e.share ?? 0) });
     else text = t("event.active", { name, time: formatDuration(e.endsAt - now) });
-    button.textContent = text;
-    button.title = eventDescription(e);
-    button.addEventListener("click", () => selectTile({ q: e.q, r: e.r }));
-    li.append(button);
-    return li;
+    item.li.classList.toggle("active", e.status === "active");
+    if (item.button.textContent !== text) item.button.textContent = text;
+    const title = eventDescription(e);
+    if (item.button.title !== title) item.button.title = title;
+    if (ui.eventList.children[i] !== item.li) ui.eventList.insertBefore(item.li, ui.eventList.children[i] ?? null);
   });
-  ui.eventList.replaceChildren(...items);
 }
 
 function eventDescription(e: EventDto): string {
@@ -528,6 +586,11 @@ function renderPhase(g: GameState): void {
   const now = serverNow();
   const phase = phaseAt(now);
   const season = seasonAt(now);
+  // GDD §11: "fin de saison dans 1 h".
+  if (!phase.frozen && season.freezeAt - now <= 3_600_000 && seasonEndAlerted !== season.start) {
+    seasonEndAlerted = season.start;
+    toast(t("alert.seasonEnd"), "good");
+  }
   ui.phase.classList.toggle("frozen", phase.frozen);
   ui.phaseName.textContent = t("phase.title", {
     day: t(`day.${phase.index}` as MessageKey),
@@ -1145,8 +1208,12 @@ function showAway(away: AwaySummary): void {
   ui.awayTitle.textContent = t("away.title", { time: formatDuration(away.awayMs) });
   const lines = [t("away.nutrients", { value: fmt(away.nutrients) }), t("away.biomass", { value: fmt(away.biomass) })];
   if (away.colonized > 0) lines.push(t("away.colonized", { count: away.colonized }));
-  if (away.won > 0) lines.push(t("away.won", { count: away.won }));
-  if (away.lost > 0) lines.push(t("away.lost", { count: away.lost }));
+  const journal = (away.journal ?? []).map(journalText).filter((x) => x !== "");
+  if (journal.length > 0) lines.push(...journal);
+  else {
+    if (away.won > 0) lines.push(t("away.won", { count: away.won }));
+    if (away.lost > 0) lines.push(t("away.lost", { count: away.lost }));
+  }
   ui.awayList.replaceChildren(
     ...lines.map((line) => {
       const li = document.createElement("li");
@@ -1163,12 +1230,18 @@ function setStatus(key: MessageKey | null): void {
   if (key) ui.status.textContent = t(key);
 }
 
+/** Stacked notices (up to 3 at once), each gone after a few seconds. */
 function toast(text: string, tone: "good" | "bad" = "bad"): void {
-  ui.toast.textContent = text;
-  ui.toast.classList.toggle("good", tone === "good");
+  const item = document.createElement("div");
+  item.className = tone === "good" ? "toast good" : "toast";
+  item.textContent = text;
+  ui.toast.append(item);
+  while (ui.toast.childElementCount > 3) ui.toast.firstElementChild!.remove();
   ui.toast.hidden = false;
-  clearTimeout(toastTimer);
-  toastTimer = window.setTimeout(() => (ui.toast.hidden = true), 2800);
+  window.setTimeout(() => {
+    item.remove();
+    if (ui.toast.childElementCount === 0) ui.toast.hidden = true;
+  }, 4000);
 }
 
 // Client-side prediction between server ticks: the same rules, run on the server's clock.

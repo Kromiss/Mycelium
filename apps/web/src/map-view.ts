@@ -181,6 +181,14 @@ export class MapView {
     this.world.position.set(width / 2 - x * scale, height / 2 - y * scale);
   }
 
+  /** Moves the view so that `h` is in the middle, keeping the zoom. */
+  centerOn(h: Hex): void {
+    const { width, height } = this.app.screen;
+    const scale = this.world.scale.x;
+    const { x, y } = hexToPixel(h, SIZE);
+    this.world.position.set(width / 2 - x * scale, height / 2 - y * scale);
+  }
+
   // -------------------------------------------------------------------------
   // Drawing
 

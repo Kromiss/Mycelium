@@ -7,6 +7,8 @@
  * Used by `profiles.test.ts` and `pnpm --filter @mycelium/shared simulate:profiles`.
  */
 import { FOREST } from "../balance";
+import { resolveEvents } from "../events";
+import { botAct } from "./fight";
 import { advanceForest, joinForest, newForest, resolveBorders } from "../forest";
 import { ringAt, type Ring } from "../forestgen";
 import { goOffline, goOnline, networkHops, productionRate } from "../game";
@@ -167,12 +169,14 @@ export function simulateProfiles(options: ProfileSimOptions = {}): ProfileSimRes
       tally.get(e.from)!.lost++;
       captures.push({ ...e, hour: (t - t0) / HOUR, ring: ringAt(forest.radius, e) });
     }
+    resolveEvents(forest, stepMs, t);
     if ((t - t0) % DECISION_MS === 0) {
       for (const p of forest.players.values()) {
         const { schedule } = profileOf.get(p.id)!;
         if (!isOnline(schedule, inDay)) continue;
         // Each short session is a new session; the always-online robot starts one a day.
         botPlay(p, t, schedule === "every3h" || inDay === 0, plans.get(p.id));
+        botAct(forest, p, t);
       }
     }
     if ((t - t0) % (snapshotEveryHours * HOUR) === 0) snapshot(t);

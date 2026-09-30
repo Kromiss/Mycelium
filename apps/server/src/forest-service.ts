@@ -42,6 +42,11 @@ import {
   type AwaySummary,
   type CaptureNotice,
   type EventDto,
+  type Alert,
+  type ActionId,
+  type EventKind,
+  type JournalLine,
+  botAct,
   type ForestState,
   type GameState,
   type Leaderboard,
@@ -82,6 +87,21 @@ interface AwayMark {
   lost: number;
 }
 
+/** What happened to a player while they were away, for the night journal (GDD §11). */
+interface Journal {
+  lostTo: Map<string, number>;
+  wonFrom: Map<string, number>;
+  heartLost: string[];
+  /** "action|caster" → times. */
+  actions: Map<string, number>;
+  events: Map<EventKind, { tiles: number; biomass: number; enzymes: number; trophy: boolean }>;
+}
+
+const newJournal = (): Journal => ({ lostTo: new Map(), wonFrom: new Map(), heartLost: [], actions: new Map(), events: new Map() });
+
+/** A border fight on the same tiles by the same neighbour is announced at most this often. */
+const ATTACK_ALERT_MS = 30 * 60_000;
+
 interface LiveForest {
   record: ForestRecord;
   forest: ForestState;
@@ -91,6 +111,11 @@ interface LiveForest {
   won: Map<string, number>;
   lost: Map<string, number>;
   away: Map<string, AwayMark>;
+  journal: Map<string, Journal>;
+  /** Alerts waiting for the next state message, by player. */
+  alerts: Map<string, Alert[]>;
+  /** Last "attacked" alert per defender|attacker (game time). */
+  attackAlerted: Map<string, number>;
   saving: Promise<void>;
 }
 
@@ -274,6 +299,7 @@ export class ForestService {
     advanceForest(live.forest, now);
     const player = live.forest.players.get(playerId)!;
     goOffline(player, now);
+    live.journal.set(playerId, newJournal());
     live.away.set(playerId, {
       biomass: player.biomass,
       tiles: countTiles(live.forest, playerId),
@@ -326,7 +352,13 @@ export class ForestService {
 
   /** Active action on an enemy tile (GDD §6.2); it changes the victim's tiles too. */
   act(playerId: string, action: string, q: number, r: number, client: GameClient): void {
-    this.act_(playerId, client, (p, now, forest) => act(forest, p.id, action, { q, r }, now));
+    this.act_(playerId, client, (p, now, forest) => {
+      const victim = forest.tiles.get(`${q},${r}`)?.owner ?? null;
+      const result = act(forest, p.id, action, { q, r }, now);
+      const live = this.liveOf(playerId);
+      if (result.ok && victim && live) this.recordAction(live, victim, action as ActionId, p.id, q, r);
+      return result;
+    });
   }
 
   setAutomation(playerId: string, change: { colonize?: string | null; upgrades?: boolean }, client: GameClient): void {
@@ -345,21 +377,44 @@ export class ForestService {
     await Promise.all(
       [...this.forests.values()].map(async (live) => {
         advanceForest(live.forest, now);
+        const before = new Map<string, string>();
+        for (const [k, t] of live.forest.tiles) if (t.capture) before.set(k, t.capture.by);
         const events = resolveBorders(live.forest, dt, now);
+        this.alertAttacks(live, before, now);
         const happenings = resolveEvents(live.forest, dt, now);
         for (const h of happenings) {
-          for (const l of h.lost) live.lost.set(l.player, (live.lost.get(l.player) ?? 0) + 1);
+          for (const l of h.lost) {
+            live.lost.set(l.player, (live.lost.get(l.player) ?? 0) + 1);
+            this.journalEvent(live, l.player, h.event.kind).tiles++;
+          }
+          for (const r of h.rewards) {
+            const j = this.journalEvent(live, r.player, h.event.kind);
+            j.biomass += r.biomass;
+            j.enzymes += r.enzymes;
+            j.trophy ||= r.trophy;
+          }
         }
         const notices = new Map<string, CaptureNotice[]>();
         for (const e of events) {
           live.won.set(e.to, (live.won.get(e.to) ?? 0) + 1);
           live.lost.set(e.from, (live.lost.get(e.from) ?? 0) + 1);
+          const lostJ = this.journalOf(live, e.from);
+          lostJ.lostTo.set(e.to, (lostJ.lostTo.get(e.to) ?? 0) + 1);
+          if (e.heart) lostJ.heartLost.push(e.to);
+          const wonJ = this.journalOf(live, e.to);
+          wonJ.wonFrom.set(e.from, (wonJ.wonFrom.get(e.from) ?? 0) + 1);
           const heart = e.heart ? { heart: true as const } : {};
           push(notices, e.to, { q: e.q, r: e.r, kind: "won", other: e.from, ...heart });
           push(notices, e.from, { q: e.q, r: e.r, kind: "lost", other: e.to, ...heart });
         }
         for (const [id, account] of live.members) {
-          if (account.isBot) botPlay(live.forest.players.get(id)!, now, Math.floor(now / BOT_SESSION_MS) !== Math.floor((now - dt) / BOT_SESSION_MS));
+          if (account.isBot) {
+            const bot = live.forest.players.get(id)!;
+            botPlay(bot, now, Math.floor(now / BOT_SESSION_MS) !== Math.floor((now - dt) / BOT_SESSION_MS));
+            const used = botAct(live.forest, bot, now);
+            // Tell the victim, as for a human caster.
+            if (used) this.recordAction(live, used.victim, used.action, id, used.q, used.r);
+          }
         }
         await this.scores.publish(
           live.record.seasonStart,
@@ -367,7 +422,10 @@ export class ForestService {
           [...live.forest.players.values()].map((p) => [p.id, p.biomass] as const),
         );
         for (const [id, clients] of live.clients) {
-          if (clients.size === 0) continue;
+          if (clients.size === 0) {
+            live.alerts.delete(id);
+            continue;
+          }
           const player = live.forest.players.get(id)!;
           const { game, owners } = this.view(live, player);
           const board = await this.leaderboard(live, id);
@@ -380,10 +438,12 @@ export class ForestService {
               events: notices.get(id) ?? [],
               forestEvents: this.eventsFor(live, id),
               eventNotices: eventNotices(happenings, id),
+              alerts: live.alerts.get(id) ?? [],
             });
             c.send({ type: "leaderboard", leaderboard: board });
           }
         }
+        live.alerts.clear();
         if (this.ticks % SAVE_EVERY_TICKS === 0) this.save(live);
       }),
     );
@@ -414,7 +474,7 @@ export class ForestService {
     refreshToxins(live.forest); // Toxines and captures change the neighbours' tiles.
     const { game, owners } = this.view(live, player);
     const forestEvents = this.eventsFor(live, playerId);
-    for (const c of live.clients.get(playerId)!) c.send({ type: "state", game, owners, serverTime: now, events: [], forestEvents, eventNotices: [] });
+    for (const c of live.clients.get(playerId)!) c.send({ type: "state", game, owners, serverTime: now, events: [], forestEvents, eventNotices: [], alerts: [] });
   }
 
   /** What a player sees: their game, the tiles near their network, and who owns them. */
@@ -429,6 +489,61 @@ export class ForestService {
     }
     const counts = tileCounts(live.forest);
     return { game, owners: [...ids].map((id) => this.ownerInfo(live, id, counts)) };
+  }
+
+  private journalOf(live: LiveForest, playerId: string): Journal {
+    let j = live.journal.get(playerId);
+    if (!j) {
+      j = newJournal();
+      live.journal.set(playerId, j);
+    }
+    return j;
+  }
+
+  private journalEvent(live: LiveForest, playerId: string, kind: EventKind): { tiles: number; biomass: number; enzymes: number; trophy: boolean } {
+    const j = this.journalOf(live, playerId);
+    let e = j.events.get(kind);
+    if (!e) {
+      e = { tiles: 0, biomass: 0, enzymes: 0, trophy: false };
+      j.events.set(kind, e);
+    }
+    return e;
+  }
+
+  /** An action hit `victim`: an alert now, a line in their journal. */
+  private recordAction(live: LiveForest, victim: string, action: ActionId, by: string, q: number, r: number): void {
+    const key = `${action}|${by}`;
+    const j = this.journalOf(live, victim);
+    j.actions.set(key, (j.actions.get(key) ?? 0) + 1);
+    pushAlert(live, victim, { type: "action", action, by, q, r });
+  }
+
+  /** Alerts the owners of tiles on which a neighbour just started pushing (throttled per neighbour). */
+  private alertAttacks(live: LiveForest, before: Map<string, string>, now: number): void {
+    for (const [k, t] of live.forest.tiles) {
+      if (!t.capture || !t.owner || before.get(k) === t.capture.by) continue;
+      const key = `${t.owner}|${t.capture.by}`;
+      const last = live.attackAlerted.get(key);
+      if (last !== undefined && now - last < ATTACK_ALERT_MS) continue;
+      live.attackAlerted.set(key, now);
+      pushAlert(live, t.owner, { type: "attacked", by: t.capture.by, q: t.q, r: t.r });
+    }
+  }
+
+  private journalLines(live: LiveForest, playerId: string): JournalLine[] {
+    const j = live.journal.get(playerId);
+    if (!j) return [];
+    const name = (id: string) => live.members.get(id)?.name ?? "?";
+    const lines: JournalLine[] = [];
+    for (const by of j.heartLost) lines.push({ type: "heartLost", name: name(by) });
+    for (const [id, n] of [...j.lostTo].sort((a, b) => b[1] - a[1])) lines.push({ type: "lostTo", name: name(id), tiles: n });
+    for (const [id, n] of [...j.wonFrom].sort((a, b) => b[1] - a[1])) lines.push({ type: "wonFrom", name: name(id), tiles: n });
+    for (const [key, n] of j.actions) {
+      const [action, by] = key.split("|") as [ActionId, string];
+      lines.push({ type: "action", action, name: name(by), count: n });
+    }
+    for (const [kind, e] of j.events) lines.push({ type: "event", kind, ...e });
+    return lines;
   }
 
   private eventsFor(live: LiveForest, playerId: string): EventDto[] {
@@ -521,6 +636,8 @@ export class ForestService {
     const since = player.lastSeenAt;
     const mark = live.away.get(player.id);
     live.away.delete(player.id);
+    const journal = this.journalLines(live, player.id);
+    live.journal.delete(player.id);
     if (since === null || now <= since || !mark) return undefined;
     const won = (live.won.get(player.id) ?? 0) - mark.won;
     const lost = (live.lost.get(player.id) ?? 0) - mark.lost;
@@ -532,6 +649,7 @@ export class ForestService {
       colonized: countTiles(live.forest, player.id) - mark.tiles - won + lost,
       won,
       lost,
+      journal,
     };
   }
 
@@ -583,6 +701,9 @@ export class ForestService {
       won: new Map(),
       lost: new Map(),
       away: new Map(),
+      journal: new Map(),
+      alerts: new Map(),
+      attackAlerted: new Map(),
       saving: Promise.resolve(),
     };
     this.forests.set(record.id, live);
@@ -614,6 +735,10 @@ function countTiles(forest: ForestState, playerId: string): number {
   let n = 0;
   for (const t of forest.tiles.values()) if (t.owner === playerId) n++;
   return n;
+}
+
+function pushAlert(live: LiveForest, playerId: string, alert: Alert): void {
+  push(live.alerts, playerId, alert);
 }
 
 function push<T>(map: Map<string, T[]>, key: string, value: T): void {

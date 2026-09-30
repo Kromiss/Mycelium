@@ -198,6 +198,7 @@ describe("structures (GDD §4.1)", () => {
   it("are lost with the tile when it withers", () => {
     const s = game();
     own(s, hex(1, 0), hex(2, 0));
+    own(s, hex(-1, 0), hex(-1, 1), hex(0, -1), hex(0, 1), hex(1, -1), hex(-2, 0)); // Above the M6 floor of 7 tiles.
     build(s, hex(2, 0), "node", T0);
     tileAt(s, hex(1, 0)).owner = null; // Cut.
     advance(s, T0 + 2 * HOUR);

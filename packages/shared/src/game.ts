@@ -1,5 +1,6 @@
 import {
   ACTION_EFFECTS,
+  ANTI_FRUSTRATION,
   AUTOMATION,
   CENTRE_RISK,
   ECONOMY,
@@ -1098,6 +1099,8 @@ export function advance(state: GameState, to: number): void {
 
     let changed = false;
     if (plan.nextEvent <= t) {
+      // M6 floor: a colony down to 7 tiles loses no more, withering included.
+      let owned = ownedCount(state);
       for (const tile of state.tiles.values()) {
         if (tile.owner !== state.id) continue;
         if (tile.growthEndsAt !== null && tile.growthEndsAt <= t) {
@@ -1111,7 +1114,8 @@ export function advance(state: GameState, to: number): void {
           tile.exhaustion = 0;
           changed = true;
         }
-        if (tile.disconnectedSince !== null && t - tile.disconnectedSince >= TRANSPORT.witherMs) {
+        if (tile.disconnectedSince !== null && t - tile.disconnectedSince >= TRANSPORT.witherMs && owned > ANTI_FRUSTRATION.floorTiles) {
+          owned--;
           tile.owner = null;
           tile.structure = null;
           tile.capture = null;
@@ -1181,6 +1185,7 @@ function planWindow(state: GameState, t: number): Window {
   let enzymes = 0;
   let next = Infinity;
   let growing = false;
+  const canWither = ownedCount(state) > ANTI_FRUSTRATION.floorTiles;
   for (const tile of state.tiles.values()) {
     if (tile.owner !== state.id) continue;
     const lifetime = lifetimeMs(state, tile);
@@ -1203,7 +1208,7 @@ function planWindow(state: GameState, t: number): Window {
       growing = true;
       next = Math.min(next, tile.growthEndsAt);
     }
-    if (tile.disconnectedSince !== null) next = Math.min(next, tile.disconnectedSince + TRANSPORT.witherMs);
+    if (tile.disconnectedSince !== null && canWither) next = Math.min(next, tile.disconnectedSince + TRANSPORT.witherMs);
     // Timed effects change production or the network when they end.
     for (const e of tile.effects) if (e.until > t) next = Math.min(next, e.until);
   }
