@@ -24,7 +24,7 @@ export interface TerrainStats {
   readonly baseCost: number;
   /** Hyphae growth time before the tile is colonised, in seconds (GDD §2.3: 30 s to a few minutes). PLACEHOLDER. */
   readonly growthSeconds: number;
-  /** `durée_vie_terrain` (GDD §10): occupied time after which the tile is fully exhausted, in ms. DECIDED. */
+  /** Occupied time after which the tile's wear reaches its cap (EXHAUSTION.max), in ms. DECIDED. */
   readonly lifetimeMs: number;
   /** Nutrient reserve of a fresh tile, stored in `hex.reserve`. Unused by the rules (exhaustion is time-based). */
   readonly reserve: number;
@@ -32,11 +32,11 @@ export interface TerrainStats {
 
 export const TERRAIN_STATS: Readonly<Record<Terrain, TerrainStats>> = {
   // GDD §2.2: low yield, very low cost — ideal to spread fast.
-  litter: { colonizable: true, yieldPerSecond: 0.5, baseCost: 3_000, growthSeconds: 30, lifetimeMs: 2 * HOUR, reserve: 500 },
+  litter: { colonizable: true, yieldPerSecond: 0.5, baseCost: 3_600, growthSeconds: 30, lifetimeMs: 2 * HOUR, reserve: 500 },
   // GDD §2.2: medium yield, low cost — the base terrain.
-  humus: { colonizable: true, yieldPerSecond: 1, baseCost: 6_000, growthSeconds: 60, lifetimeMs: 8 * HOUR, reserve: 2_000 },
+  humus: { colonizable: true, yieldPerSecond: 1, baseCost: 7_200, growthSeconds: 60, lifetimeMs: 8 * HOUR, reserve: 2_000 },
   // GDD §2.2: high yield, medium cost; exhausts, then becomes Humus.
-  deadwood: { colonizable: true, yieldPerSecond: 3, baseCost: 15_000, growthSeconds: 120, lifetimeMs: 4 * HOUR, reserve: 5_000 },
+  deadwood: { colonizable: true, yieldPerSecond: 3, baseCost: 18_000, growthSeconds: 120, lifetimeMs: 4 * HOUR, reserve: 5_000 },
   // GDD §2.2: cannot be colonised without a mutation; boosts humidity of adjacent tiles.
   wetland: { colonizable: false, yieldPerSecond: 0, baseCost: 0, growthSeconds: 0, lifetimeMs: 0, reserve: 0 },
 };
@@ -61,22 +61,23 @@ export const ECONOMY = {
   biomassConversionRate: 0.1,
   /**
    * Colonisation cost: `base × (1 + distanceFactor × dist_cœur) × sizeFactor ^ nb_cases` (GDD §2.3).
-   * sizeFactor tuned from the GDD's 1.02 to 1.08: each tile makes the next one 8 % dearer.
+   * sizeFactor tuned from the GDD's 1.02 to 1.13: each tile makes the next one 13 % dearer.
    */
   distanceFactor: 0.05,
-  sizeFactor: 1.08,
+  sizeFactor: 1.13,
   /** Upgrade cost: `base × upgradeCostGrowth ^ level` (GDD §10). */
   upgradeCostGrowth: 1.15,
   /** How many colonisations may grow at the same time; the others wait in the queue. PLACEHOLDER. */
   maxConcurrentGrowths: 1,
 } as const;
 
-/** Exhaustion (GDD §2.3, §10): `épuisement = min(max, temps_occupé / durée_vie_terrain)`. */
+/**
+ * Exhaustion / wear (GDD §2.3, §10), DECIDED: a producing tile wears down steadily and its wear stops
+ * at 40 %, so a worn tile still yields 60 %. It reaches the cap after its terrain's `lifetimeMs`.
+ * There is no regeneration: wear stays on the tile, even if it changes hands.
+ */
 export const EXHAUSTION = {
-  /** Cap of the exhaustion: an exhausted tile still yields 10 %. GDD §10. */
-  max: 0.9,
-  /** A resting tile (not producing) recovers this many times slower than it exhausts. DECIDED. */
-  regenSlowdown: 4,
+  max: 0.4,
 } as const;
 
 /** Nutrient transport to the Cœur (GDD §2.4). */

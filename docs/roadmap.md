@@ -70,14 +70,15 @@ Livré en 0.2.0. Choix de réalisation à valider en équilibrage (tous dans `pa
 ## M2 — Réseau & transport (0.3.0) — GDD §15.2
 
 ✅ Décidé : épuisement complet (90 %) en **2 h** pour la Litière, **8 h** pour l'Humus, **4 h** pour le
-Bois mort (qui devient alors de l'Humus) ; régénération au repos **4 fois plus lente** ; file d'expansion
+Bois mort (qui devient alors de l'Humus) ; régénération au repos **4 fois plus lente** *(remplacé en M3 :
+usure plafonnée à 40 %, sans régénération)* ; file d'expansion
 de **10 cases** ; hors-ligne **100 % pendant 8 h puis palier à 25 %** ; **zones humides** ajoutées
 (infranchissables, bonus d'humidité aux cases voisines).
 
 - Le **Cœur** : case de départ, déplaçable 1×/jour (§2.4).
 - **Graphe de transport** : perte de 1 % par saut jusqu'au Cœur ; cases **déconnectées** qui cessent
   de produire puis dépérissent (§2.4).
-- **Épuisement** des cases et régénération lente (§2.3, formule §10).
+- **Épuisement** des cases (§2.3, formule §10).
 - **Hors-ligne** : calcul analytique à la reconnexion (100 % pendant 8 h puis décroissance, §9, §12).
 - **File d'expansion** exécutée pendant l'absence (§9) ; **Humidité** comme multiplicateur (§3).
 - Script de simulation d'une semaine solo lancé en CI : vérifie la courbe (~10 nutriments/s le lundi
@@ -103,7 +104,8 @@ avec ~50 % de la biomasse du joueur 12 h/jour.
 ## M3 — Multijoueur minimal (0.4.0) — GDD §15.3
 
 ✅ Décidé : carte du **§2.5 validée** (parts symétriques, bord sûr, centre riche), forêts de **12 joueurs** ;
-rythme : une forêt doit être **pleine vers le 4ᵉ–5ᵉ jour**, réglé uniquement par les chiffres ; connexion par
+rythme : une forêt doit être **pleine vers le 4ᵉ–5ᵉ jour**, réglé uniquement par les chiffres ; **usure
+plafonnée à 40 %, sans régénération** (une case usée garde 60 % de sa production) ; connexion par
 **pseudo + mot de passe** ; temps de prise d'une case **selon le terrain, de 10 min à 2 h** ; tests
 **en local avec des robots** (le VPS attendra).
 
@@ -122,8 +124,8 @@ se prennent des cases et voient le classement bouger en direct.
 Livré en 0.4.0, validé en local (`BOTS=11 TIME_SCALE=60`) plutôt que sur staging. Choix de réalisation
 à valider (dans `packages/shared/src/balance.ts`) :
 - ~50 cases par joueur, départs à 85 % du rayon, anneaux à 1/3 et 2/3 du rayon ;
-- rythme réglé avec `simulate:forest` : coûts de base Litière 3 000 / Humus 6 000 / Bois mort 15 000,
-  `1,08 ^ nb_cases` au lieu de `1,02`, améliorations de 7 500 à 18 000, 10 000 nutriments au départ ;
+- rythme réglé avec `simulate:forest` : coûts de base Litière 3 600 / Humus 7 200 / Bois mort 18 000,
+  `1,13 ^ nb_cases` au lieu de `1,02`, améliorations de 7 500 à 18 000, 10 000 nutriments au départ ;
 - mélange de terrains par anneau, bord qui s'épuise 1,5× moins vite, 6 % de zones humides ;
 - `densité_réseau_local` = cases du joueur à 2 cases ou moins (pondérées par l'humidité) ; prise à
   pleine vitesse dès que l'attaquant pousse 2× plus fort, rien sous l'égalité ; captures : Litière
@@ -133,12 +135,10 @@ Livré en 0.4.0, validé en local (`BOTS=11 TIME_SCALE=60`) plutôt que sur stag
 - la zone de départ (rayon 2) est réservée à son joueur pendant 24 h, et tant que la part est libre ;
 - « biomasse qui compte double au centre » et le reste des risques du centre sont laissés à M6.
 
-Constat avec 12 robots sur une semaine (6 actifs, 6 occasionnels) : ~38 % de la forêt occupée le
-premier jour, 90 % au jour 3,5 (entre 3,5 et 4,7 selon la carte), 98 % au jour 5. Points ouverts :
-- les cases possédées ne se régénèrent jamais (on ne peut pas les mettre au repos) : au bout d'une
-  journée tout le réseau tourne à 10 % et la production de chacun baisse ;
-- le joueur qui atteint le centre en premier prend beaucoup d'avance (×4 sur le 2ᵉ), et un joueur coincé
-  entre deux voisins sur le bord pauvre ne progresse presque plus après le 3ᵉ jour.
+Constat avec 12 robots sur une semaine (6 actifs, 6 occasionnels), sur trois cartes : 25 à 33 % de la
+forêt occupée le premier jour, 90 % entre le jour 3,6 et le jour 5, 89 à 98 % au jour 5. Point ouvert :
+le premier joueur au centre prend beaucoup d'avance, et un joueur coincé entre deux voisins sur le bord
+pauvre stagne à partir du 3ᵉ jour (réponses prévues en M5–M6).
 
 ## M4 — Saison (0.5.0) — GDD §15.4
 

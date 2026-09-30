@@ -39,7 +39,11 @@ M3 — Multijoueur minimal (GDD §15.3).
 - **Rythme de début ralenti** : coûts de colonisation de base ×600 (Litière 3 000, Humus 6 000,
   Bois mort 15 000), chaque case rend la suivante 8 % plus chère (au lieu de 2 %), améliorations
   ×300, 10 000 nutriments au départ. Avant, une forêt se remplissait en quelques heures ;
-  maintenant environ un tiers le premier jour, 90 % vers le jour 3,5–4,5, presque tout au jour 5.
+  maintenant environ un tiers le premier jour, 90 % vers le jour 3,5–5, presque tout au jour 5 ;
+  valeurs finales : coûts de base Litière 3 600, Humus 7 200, Bois mort 18 000, `1,13 ^ nb_cases`.
+- **Usure plafonnée à 40 %, sans régénération** : une case usée garde 60 % de sa production (au lieu
+  de 10 %). L'usure atteint son plafond au bout de la même durée qu'avant (Litière 2 h, Humus 8 h, Bois
+  mort 4 h, qui devient alors de l'Humus) et ne redescend jamais, même si la case change de mains.
 - Les parties solo de M1–M2 ne sont plus jouées : un compte existant repart de zéro dans une forêt.
 - Coloniser une case d'une autre colonie est impossible : les frontières se gagnent par pression.
 

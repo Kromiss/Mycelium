@@ -147,14 +147,6 @@ describe("joining a forest", () => {
     expect(zoneOfB.reservedFor).toBeNull();
   });
 
-  it("lets wild tiles recover", () => {
-    const f = newForest(7, T0, 6);
-    joinForest(f, "a", T0);
-    const wild = [...f.tiles.values()].find((t) => t.owner === null && t.terrain === "humus")!;
-    wild.exhaustion = 0.5;
-    advanceForest(f, T0 + TERRAIN_STATS.humus.lifetimeMs);
-    expect(wild.exhaustion).toBeLessThan(0.5);
-  });
 });
 
 /**

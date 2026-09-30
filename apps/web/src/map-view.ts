@@ -1,5 +1,6 @@
 import {
   checkColonize,
+  EXHAUSTION,
   growthProgress,
   hashFloat,
   hexKey,
@@ -185,8 +186,9 @@ export class MapView {
 
     for (const t of game.tiles.values()) {
       const { x, y } = hexToPixel(t, SIZE);
-      // Exhaustion darkens the ground, owned or not (resting tiles recover slowly).
-      if (t.exhaustion > 0.01) net.poly(hexPoints(x, y, SIZE - 1)).fill({ color: 0x000000, alpha: t.exhaustion * 0.45 });
+      // Wear darkens the ground, owned or not (it never goes away).
+      const wear = t.exhaustion / EXHAUSTION.max;
+      if (wear > 0.02) net.poly(hexPoints(x, y, SIZE - 1)).fill({ color: 0x000000, alpha: wear * 0.35 });
       if (t.owner === null) continue;
       if (t.owner !== game.id) {
         // Another player's tile.
@@ -201,7 +203,7 @@ export class MapView {
         net.poly(hexPoints(x, y, SIZE - 1)).fill({ color: WITHER, alpha: 0.28 });
         net.poly(hexPoints(x, y, SIZE - 2.5)).stroke({ width: 1.5, color: WITHER, alpha: 0.7 });
       } else {
-        net.poly(hexPoints(x, y, SIZE - 1)).fill({ color: GLOW, alpha: 0.2 * (1 - t.exhaustion * 0.6) });
+        net.poly(hexPoints(x, y, SIZE - 1)).fill({ color: GLOW, alpha: 0.2 * (1 - (t.exhaustion / EXHAUSTION.max) * 0.4) });
         net.poly(hexPoints(x, y, SIZE - 2.5)).stroke({ width: 1.5, color: MYCELIUM, alpha: 0.35 });
       }
     }
@@ -226,7 +228,7 @@ export class MapView {
     }
     for (const t of connected) {
       const { x, y } = hexToPixel(t, SIZE);
-      net.circle(x, y, 4).fill({ color: MYCELIUM, alpha: 0.9 - t.exhaustion * 0.5 });
+      net.circle(x, y, 4).fill({ color: MYCELIUM, alpha: 0.9 - (t.exhaustion / EXHAUSTION.max) * 0.3 });
     }
 
     // Planned path: dotted links from each queued tile to where it will grow from.

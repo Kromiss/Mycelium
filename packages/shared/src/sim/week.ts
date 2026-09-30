@@ -2,7 +2,7 @@
  * Solo week simulation (roadmap M2): a simple bot plays a week with a given schedule, using the
  * real rules. Used by the CI test `sim.test.ts` and by `pnpm --filter @mycelium/shared simulate`.
  */
-import { QUEUE_MAX, TERRAIN_STATS, UPGRADE_STATS, type UpgradeId } from "../balance";
+import { EXHAUSTION, QUEUE_MAX, TERRAIN_STATS, UPGRADE_STATS, type UpgradeId } from "../balance";
 import {
   advance,
   buyUpgrade,
@@ -109,7 +109,7 @@ export function botPlay(state: GameState, now: number, sessionStart: boolean): v
 
 /** Expected biomass per second per nutrient spent on a wild tile. */
 function tileValue(state: GameState, tile: Tile): number {
-  const perSecond = tileYield(tile.terrain, state.upgrades) * richness(state, tile) * humidity(state, tile) * 0.6; // ~average exhaustion
+  const perSecond = tileYield(tile.terrain, state.upgrades) * richness(state, tile) * humidity(state, tile) * (1 - EXHAUSTION.max * 0.75); // ~average wear
   return (perSecond * conversionRate(state.upgrades)) / colonizationCost(state, tile);
 }
 

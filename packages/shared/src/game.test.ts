@@ -27,7 +27,6 @@ import {
   networkHops,
   newGame,
   productionRate,
-  rest,
   SOLO_PLAYER,
   tileProduction,
   tileYield,
@@ -296,7 +295,7 @@ describe("production", () => {
     const s = game();
     s.nutrients = 0;
     advance(s, T0 + 10_000);
-    const e = 10_000 / TERRAIN_STATS.humus.lifetimeMs;
+    const e = (EXHAUSTION.max * 10_000) / TERRAIN_STATS.humus.lifetimeMs;
     expect(s.nutrients).toBeCloseTo(10 * (1 - e / 2), 8);
     expect(s.biomass).toBeCloseTo(s.nutrients * ECONOMY.biomassConversionRate, 10);
     s.upgrades.biomassConversion = 5;
@@ -337,15 +336,18 @@ describe("production", () => {
 });
 
 describe("exhaustion", () => {
-  it("wears a producing tile down to 10 % over its lifetime", () => {
+  it("wears a producing tile down to its cap over its lifetime, then stops", () => {
     const s = game("litter");
     own(s, hex(1, 0));
     const L = TERRAIN_STATS.litter.lifetimeMs;
     advance(s, T0 + L / 2);
-    expect(tileAt(s, hex(1, 0)).exhaustion).toBeCloseTo(0.5, 10);
-    advance(s, T0 + 2 * L);
+    expect(tileAt(s, hex(1, 0)).exhaustion).toBeCloseTo(EXHAUSTION.max / 2, 10);
+    advance(s, T0 + L);
+    expect(tileAt(s, hex(1, 0)).exhaustion).toBeCloseTo(EXHAUSTION.max, 10);
+    advance(s, T0 + 10 * L);
     expect(tileAt(s, hex(1, 0)).exhaustion).toBe(EXHAUSTION.max);
-    expect(tileProduction(s, tileAt(s, hex(1, 0)))).toBeCloseTo(0.5 * 0.1 * 0.99, 10);
+    // A worn tile keeps 60 % of its yield.
+    expect(tileProduction(s, tileAt(s, hex(1, 0)))).toBeCloseTo(0.5 * (1 - EXHAUSTION.max) * 0.99, 10);
   });
 
   it("integrates the decline exactly", () => {
@@ -353,29 +355,31 @@ describe("exhaustion", () => {
     s.nutrients = 0;
     tileAt(s, hex(0, 0)).terrain = "litter";
     const L = TERRAIN_STATS.litter.lifetimeMs;
-    advance(s, T0 + L);
-    // ∫0^0.9L (1 − τ/L) dτ + 0.1L × 0.1 = 0.9L − 0.405L + 0.01L = 0.505L
-    expect(s.nutrients).toBeCloseTo((0.5 * 0.505 * L) / 1000, 6);
+    const m = EXHAUSTION.max;
+    advance(s, T0 + 2 * L);
+    // ∫0^L (1 − mτ/L) dτ + L × (1 − m) = L(1 − m/2) + L(1 − m)
+    expect(s.nutrients).toBeCloseTo((0.5 * L * (1 - m / 2 + 1 - m)) / 1000, 6);
   });
 
-  it("turns exhausted Dead wood into fresh Humus", () => {
+  it("turns worn-out Dead wood into fresh Humus", () => {
     const s = game("deadwood");
     own(s, hex(1, 0));
-    advance(s, T0 + EXHAUSTION.max * TERRAIN_STATS.deadwood.lifetimeMs + 1);
+    advance(s, T0 + TERRAIN_STATS.deadwood.lifetimeMs + 1);
     const t = tileAt(s, hex(1, 0));
     expect(t.terrain).toBe("humus");
     expect(t.exhaustion).toBeLessThan(0.001);
   });
 
-  it("recovers slowly while resting", () => {
+  it("never regenerates", () => {
     const s = game("litter");
-    const t = tileAt(s, hex(2, 2));
-    t.exhaustion = 0.5;
-    const L = TERRAIN_STATS.litter.lifetimeMs;
-    rest(t, L, L);
-    expect(t.exhaustion).toBeCloseTo(0.5 - 1 / EXHAUSTION.regenSlowdown, 10);
-    rest(t, L, 10 * L);
-    expect(t.exhaustion).toBe(0);
+    const wild = tileAt(s, hex(2, 2));
+    wild.exhaustion = 0.3;
+    own(s, hex(1, 0));
+    tileAt(s, hex(1, 0)).exhaustion = 0.2;
+    tileAt(s, hex(1, 0)).owner = null; // Lost: wear stays on the tile.
+    advance(s, T0 + 48 * HOUR);
+    expect(wild.exhaustion).toBe(0.3);
+    expect(tileAt(s, hex(1, 0)).exhaustion).toBe(0.2);
   });
 });
 

@@ -33,7 +33,7 @@ export interface Tile extends Hex {
   growthEndsAt: number | null;
   /** When growing: start of the hyphae growth (ms since epoch); null otherwise or if unknown. */
   growthStartedAt: number | null;
-  /** 0 (fresh) to EXHAUSTION.max. Grows while the tile produces, recovers while it rests. */
+  /** Wear, from 0 (fresh) to EXHAUSTION.max. Grows while the tile produces, never recovers. */
   exhaustion: number;
   /** When an owned tile lost its link to its owner's Cœur (ms since epoch), null while connected. */
   disconnectedSince: number | null;
@@ -232,7 +232,7 @@ export function richness(state: GameState, h: Hex): number {
   return richnessAt(state.layout, state.radius, h);
 }
 
-/** Occupied time after which the tile is fully exhausted, in ms (longer on the forest rim). */
+/** Occupied time after which the tile's wear reaches its cap, in ms (longer on the forest rim). */
 export function lifetimeMs(state: GameState, tile: Tile): number {
   return TERRAIN_STATS[tile.terrain].lifetimeMs * lifetimeFactorAt(state.layout, state.radius, tile);
 }
@@ -490,7 +490,6 @@ interface Producer {
 /** What stays constant until the next event: who produces, who rests, when the next event is. */
 interface Window {
   producers: Producer[];
-  resting: Tile[];
   factor: number;
   nextEvent: number;
   queueWaiting: boolean;
@@ -499,19 +498,18 @@ interface Window {
 function planWindow(state: GameState, t: number): Window {
   const hops = networkHops(state);
   const producers: Producer[] = [];
-  const resting: Tile[] = [];
   let next = Infinity;
   let growing = false;
   for (const tile of state.tiles.values()) {
-    if (tile.owner !== state.id) continue; // Wild tiles recover at the forest level (see forest.ts).
+    if (tile.owner !== state.id) continue;
     const lifetime = lifetimeMs(state, tile);
     const d = hops.get(hexKey(tile));
     if (isGrown(state, tile) && d !== undefined) {
       producers.push({ tile, basePerMs: baseProduction(state, tile, d) / 1000, lifetime });
       // Rounded up to a whole ms so every event time stays an integer (it is stored as a timestamp).
-      if (tile.terrain === "deadwood") next = Math.min(next, t + Math.ceil(Math.max(0, EXHAUSTION.max - tile.exhaustion) * lifetime));
-    } else if (tile.exhaustion > 0 && lifetime > 0) {
-      resting.push(tile);
+      if (tile.terrain === "deadwood") {
+        next = Math.min(next, t + Math.ceil((Math.max(0, EXHAUSTION.max - tile.exhaustion) * lifetime) / EXHAUSTION.max));
+      }
     }
     if (tile.growthEndsAt !== null) {
       growing = true;
@@ -524,7 +522,6 @@ function planWindow(state: GameState, t: number): Window {
   }
   return {
     producers,
-    resting,
     factor: offlineFactor(state, t),
     nextEvent: Math.max(next, t),
     queueWaiting: state.queue.length > 0 && !growing,
@@ -536,22 +533,17 @@ function integrate(state: GameState, w: Window, dt: number): void {
   if (dt <= 0) return;
   let produced = 0;
   for (const p of w.producers) {
-    // ∫ (1 − e(τ)) dτ with e rising at 1/lifetime per ms, capped at EXHAUSTION.max.
+    // ∫ (1 − e(τ)) dτ with e rising at max/lifetime per ms, capped at EXHAUSTION.max.
+    const rate = EXHAUSTION.max / p.lifetime;
     const e0 = p.tile.exhaustion;
-    const rising = Math.min(dt, Math.max(0, (EXHAUSTION.max - e0) * p.lifetime));
-    const freshMs = rising * (1 - e0) - (rising * rising) / (2 * p.lifetime) + (dt - rising) * (1 - EXHAUSTION.max);
+    const rising = Math.min(dt, Math.max(0, (EXHAUSTION.max - e0) / rate));
+    const freshMs = rising * (1 - e0) - (rate * rising * rising) / 2 + (dt - rising) * (1 - EXHAUSTION.max);
     produced += p.basePerMs * freshMs;
-    p.tile.exhaustion = Math.min(EXHAUSTION.max, e0 + dt / p.lifetime);
+    p.tile.exhaustion = Math.min(EXHAUSTION.max, e0 + dt * rate);
   }
-  for (const tile of w.resting) rest(tile, lifetimeMs(state, tile), dt);
   produced *= w.factor;
   state.nutrients += produced;
   state.biomass += produced * conversionRate(state.upgrades);
-}
-
-/** A resting tile recovers (GDD §2.3: "se régénère lentement"). */
-export function rest(tile: Tile, lifetime: number, dt: number): void {
-  if (tile.exhaustion > 0 && lifetime > 0) tile.exhaustion = Math.max(0, tile.exhaustion - dt / (lifetime * EXHAUSTION.regenSlowdown));
 }
 
 /** Marks the player's tiles as connected or disconnected (disconnected ones start withering). */

@@ -129,6 +129,7 @@ describe("forests", () => {
     const target = [...forest.tiles.values()].find(
       (t) => t.owner === null && t.terrain !== "wetland" && Math.abs(t.q - spawn.q) + Math.abs(t.r - spawn.r) + Math.abs(t.q + t.r - spawn.q - spawn.r) === 2,
     )!;
+    forest.players.get(a.account.id)!.nutrients = 1e9; // Any neighbour is affordable.
     service.colonize(a.account.id, target.q, target.r, a.client);
     expect(a.client.last("state")!.game.tiles.find((t) => t.q === target.q && t.r === target.r)?.owner).toBe(a.account.id);
     service.colonize(a.account.id, 99, 99, a.client);

@@ -7,8 +7,6 @@ import {
   networkHops,
   newPlayer,
   refreshConnections,
-  lifetimeMs,
-  rest,
   richness,
   tileYield,
   wildTile,
@@ -22,7 +20,7 @@ import { fromSnapshot, toSnapshot, type GameSnapshot, type TileDto } from "./pro
 /**
  * A forest (GDD §2.1): one shared map, 20 to 30 players. Each player's economy runs with the rules
  * of game.ts on the shared tiles; this file adds what involves several players: joining, wild
- * tiles recovering, border pressure and captures (GDD §6.1), and what each player can see.
+ * border pressure and captures (GDD §6.1), and what each player can see.
  */
 export interface ForestState {
   readonly seed: number;
@@ -104,15 +102,11 @@ export function refreshReservations(forest: ForestState, now: number): void {
   });
 }
 
-/** Runs every player's economy up to `to`, and lets wild tiles recover. */
+/** Runs every player's economy up to `to`. */
 export function advanceForest(forest: ForestState, to: number): void {
   const dt = to - forest.updatedAt;
   if (dt <= 0) return;
   refreshReservations(forest, forest.updatedAt);
-  const anyPlayer = forest.players.values().next().value;
-  for (const tile of forest.tiles.values()) {
-    if (tile.owner === null && tile.exhaustion > 0 && anyPlayer) rest(tile, lifetimeMs(anyPlayer, tile), dt);
-  }
   for (const p of forest.players.values()) advance(p, to);
   forest.updatedAt = to;
   refreshReservations(forest, to);
