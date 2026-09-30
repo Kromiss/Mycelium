@@ -12,10 +12,12 @@ import {
   isValidPassword,
   isValidPlayerName,
   joinForest,
+  mondayBonusFor,
   moveHeart,
   newForest,
   randomSeed,
   resolveBorders,
+  seasonAt,
   TICK_MS,
   toSnapshot,
   unqueue,
@@ -29,12 +31,13 @@ import {
   type Leaderboard,
   type LeaderboardEntry,
   type OwnerInfo,
+  type SeasonResult,
   type ServerMessage,
   type SessionResponse,
 } from "@mycelium/shared";
 import { hashPassword, hashToken, newToken, RateLimiter, verifyPassword } from "./auth";
 import { MemoryScoreBoard, type ScoreBoard } from "./leaderboard";
-import { NameTakenError, type Account, type ForestRecord, type GameStore } from "./store";
+import { NameTakenError, type Account, type ForestRecord, type GameStore, type Standing } from "./store";
 
 /** Anything we can push server messages to (a WebSocket in production, a spy in tests). */
 export interface GameClient {
@@ -76,6 +79,7 @@ interface LiveForest {
 }
 
 const SAVE_EVERY_TICKS = 3;
+const HISTORY_SIZE = 5;
 const BOT_SESSION_MS = 6 * 3_600_000;
 
 /**
@@ -119,7 +123,7 @@ export class ForestService {
     return this.clockBase + (this.realNow() - this.realBase) * this.timeScale;
   }
 
-  /** Loads every forest, adds the robots, and starts ticking. */
+  /** Loads every forest, ends those whose season is over, adds the robots, and starts ticking. */
   async start(options: { tick?: boolean } = {}): Promise<void> {
     for (const record of await this.store.listForests()) {
       const loaded = await this.store.loadForest(record.id);
@@ -130,6 +134,7 @@ export class ForestService {
     this.clockBase = latest;
     this.realBase = this.realNow();
     this.lastTick = this.now();
+    await this.rollSeasons(this.now());
     if (this.bots > 0) await this.addBots(this.bots);
     if (options.tick !== false) {
       const period = Math.max(250, TICK_MS / Math.min(this.timeScale, 20));
@@ -225,13 +230,20 @@ export class ForestService {
     client.send({
       type: "ready",
       player: { id: account.id, name: account.name },
-      forest: { id: live.record.id, number: live.record.number, capacity: live.forest.layout.capacity, players: live.forest.players.size },
+      forest: {
+        id: live.record.id,
+        number: live.record.number,
+        capacity: live.forest.layout.capacity,
+        players: live.forest.players.size,
+        seasonStart: live.record.seasonStart,
+      },
       game,
       owners,
       serverTime: now,
       timeScale: this.timeScale,
       away,
       needsPassword: account.passwordHash === null,
+      history: await this.store.seasonHistory(account.id, HISTORY_SIZE),
     });
     client.send({ type: "leaderboard", leaderboard: await this.leaderboard(live, account.id) });
     return true;
@@ -277,6 +289,9 @@ export class ForestService {
     const dt = now - this.lastTick;
     this.lastTick = now;
     this.ticks++;
+    if (await this.rollSeasons(now)) {
+      if (this.bots > 0) await this.addBots(this.bots);
+    }
     await Promise.all(
       [...this.forests.values()].map(async (live) => {
         advanceForest(live.forest, now);
@@ -291,7 +306,11 @@ export class ForestService {
         for (const [id, account] of live.members) {
           if (account.isBot) botPlay(live.forest.players.get(id)!, now, Math.floor(now / BOT_SESSION_MS) !== Math.floor((now - dt) / BOT_SESSION_MS));
         }
-        await this.scores.publish(live.record.id, [...live.forest.players.values()].map((p) => [p.id, p.biomass] as const));
+        await this.scores.publish(
+          live.record.seasonStart,
+          live.record.id,
+          [...live.forest.players.values()].map((p) => [p.id, p.biomass] as const),
+        );
         for (const [id, clients] of live.clients) {
           if (clients.size === 0) continue;
           const player = live.forest.players.get(id)!;
@@ -352,9 +371,22 @@ export class ForestService {
   }
 
   private async leaderboard(live: LiveForest, playerId: string): Promise<Leaderboard> {
+    const ranked = this.ranking(live);
+    const me = ranked.findIndex((e) => e.id === playerId);
+    return {
+      top: ranked.slice(0, 10),
+      around: ranked.slice(Math.max(0, me - 2), me + 3),
+      rank: me + 1,
+      players: ranked.length,
+      global: await this.scores.globalRank(live.record.seasonStart, playerId),
+    };
+  }
+
+  /** Forest ranking by cumulated biomass (GDD §8.1), trophies breaking ties. */
+  private ranking(live: LiveForest): LeaderboardEntry[] {
     const tiles = new Map<string, number>();
     for (const t of live.forest.tiles.values()) if (t.owner) tiles.set(t.owner, (tiles.get(t.owner) ?? 0) + 1);
-    const ranked: LeaderboardEntry[] = [...live.forest.players.values()]
+    return [...live.forest.players.values()]
       .sort((a, b) => b.biomass - a.biomass || b.trophies - a.trophies || a.id.localeCompare(b.id))
       .map((p, i) => ({
         rank: i + 1,
@@ -364,14 +396,54 @@ export class ForestService {
         trophies: p.trophies,
         tiles: tiles.get(p.id) ?? 0,
       }));
-    const me = ranked.findIndex((e) => e.id === playerId);
-    return {
-      top: ranked.slice(0, 10),
-      around: ranked.slice(Math.max(0, me - 2), me + 3),
-      rank: me + 1,
-      players: ranked.length,
-      global: await this.scores.globalRank(playerId),
-    };
+  }
+
+  /**
+   * Ends every forest whose season is over (GDD §7: classement figé dimanche 23h59, wipe lundi
+   * 00h00): standings are archived, connected players are told, and the forest is dropped. Players
+   * join a new forest of the new season when they come back. Returns true if a forest ended.
+   */
+  private async rollSeasons(now: number): Promise<boolean> {
+    let ended = false;
+    for (const live of [...this.forests.values()]) {
+      const season = seasonAt(live.record.seasonStart);
+      if (now < season.end) continue;
+      ended = true;
+      advanceForest(live.forest, season.end);
+      const ranking = this.ranking(live);
+      const standings: Standing[] = ranking.map((e) => ({
+        playerId: e.id,
+        rank: e.rank,
+        players: ranking.length,
+        biomass: e.biomass,
+        trophies: e.trophies,
+        tiles: e.tiles,
+      }));
+      await live.saving;
+      await this.store.endForest(live.record.id, standings, season.end);
+      this.log(`season week ${season.week} ended for forest #${live.record.number} (${ranking.length} players)`);
+      for (const [id, clients] of live.clients) {
+        const mine = standings.find((st) => st.playerId === id);
+        const result: SeasonResult | null = mine
+          ? {
+              seasonStart: season.start,
+              week: season.week,
+              year: season.year,
+              forestNumber: live.record.number,
+              rank: mine.rank,
+              players: mine.players,
+              biomass: mine.biomass,
+              trophies: mine.trophies,
+              tiles: mine.tiles,
+              seed: live.forest.seed,
+            }
+          : null;
+        for (const c of clients) c.send({ type: "seasonEnded", result });
+      }
+      this.forests.delete(live.record.id);
+      for (const id of live.forest.players.keys()) this.playerForest.delete(id);
+    }
+    return ended;
   }
 
   private comeBack(live: LiveForest, player: GameState, now: number): AwaySummary | undefined {
@@ -402,12 +474,17 @@ export class ForestService {
     const existing = this.liveOf(account.id);
     if (existing) return existing;
     const now = this.now();
+    const season = seasonAt(now);
     let live = [...this.forests.values()]
       .sort((a, b) => a.record.number - b.record.number)
-      .find((f) => freeSlices(f.forest).length > 0);
+      .find((f) => f.record.seasonStart === season.start && freeSlices(f.forest).length > 0);
     live ??= await this.createForest();
     const player = joinForest(live.forest, account.id, now);
     if (!player) return null;
+    // GDD §8.2: Monday bonus from last week's rank in their forest.
+    const previousStart = seasonAt(season.start - 1).start;
+    const previous = (await this.store.seasonHistory(account.id, 1)).find((r) => r.seasonStart === previousStart) ?? null;
+    player.mondayBonus = mondayBonusFor(previous);
     live.members.set(account.id, account);
     this.playerForest.set(account.id, live.record.id);
     this.save(live);
@@ -417,8 +494,9 @@ export class ForestService {
 
   private createForest(): Promise<LiveForest> {
     this.creating ??= (async () => {
-      const forest = newForest(randomSeed(), this.now(), this.capacity);
-      const record = await this.store.createForest(forest);
+      const now = this.now();
+      const forest = newForest(randomSeed(), now, this.capacity);
+      const record = await this.store.createForest(forest, seasonAt(now).start);
       this.log(`created forest #${record.number}`);
       return this.adopt(record, forest, new Map());
     })().finally(() => (this.creating = null));

@@ -6,6 +6,7 @@ export * from "./hex";
 export * from "./mapgen";
 export * from "./protocol";
 export * from "./rng";
+export * from "./season";
 
 export const GAME_NAME = "Mycelium";
 export { botPlay } from "./sim/week";

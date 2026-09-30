@@ -33,6 +33,11 @@
         <span class="res-label" data-i18n="res.queue"></span>
         <span class="res-value" id="queue">0/10</span>
       </div>
+      <div class="phase" id="phase">
+        <span class="phase-name" id="phase-name"></span>
+        <span class="phase-desc" id="phase-desc"></span>
+        <span class="phase-clock" id="phase-clock"></span>
+      </div>
       <div class="topbar-end">
         <span class="forest-label" id="forest-label"></span>
         <span class="player" id="player-name"></span>
@@ -82,6 +87,18 @@
       </div>
     </div>
 
+    <div class="overlay" id="season-end" hidden>
+      <div class="guest-card season-card">
+        <p class="tagline" id="season-end-week"></p>
+        <h2 id="season-end-title"></h2>
+        <p id="season-end-rank"></p>
+        <p class="muted" id="season-end-stats"></p>
+        <p class="muted" id="season-end-bonus" hidden></p>
+        <p class="muted mono" id="season-end-seed"></p>
+        <button type="button" class="primary" id="season-end-next" data-i18n="seasonEnd.next"></button>
+      </div>
+    </div>
+
     <div class="overlay" id="auth" hidden>
       <form class="guest-card" id="auth-form" novalidate>
         <div class="guest-brand" id="auth-brand"></div>
@@ -120,7 +137,7 @@
       <div class="guest-card board-card">
         <h2 data-i18n="board.title"></h2>
         <p class="muted" id="board-global"></p>
-        <table>
+        <table id="board-table">
           <thead>
             <tr>
               <th>#</th>
@@ -132,6 +149,8 @@
           </thead>
           <tbody id="board-rows"></tbody>
         </table>
+        <h3 data-i18n="history.title"></h3>
+        <ul class="history" id="history"></ul>
         <button type="button" class="primary" id="board-close" data-i18n="board.close"></button>
       </div>
     </div>

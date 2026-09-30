@@ -1,10 +1,11 @@
 import {
   advance,
+  biomassRate,
   checkBuyUpgrade,
   checkColonize,
   checkMoveHeart,
   colonizationCost,
-  conversionRate,
+  effectsAt,
   fromSnapshot,
   GAME_NAME,
   growingTiles,
@@ -12,14 +13,17 @@ import {
   heartReadyAt,
   HUMIDITY,
   humidity,
+  mondayBonusFor,
   hexEquals,
   hexKey,
   networkHops,
+  phaseAt,
   richness,
   ownedCount,
   productionRate,
   QUEUE_MAX,
   queueIndex,
+  seasonAt,
   tileProduction,
   tileYield,
   TRANSPORT,
@@ -33,6 +37,7 @@ import {
   type Leaderboard,
   type LeaderboardEntry,
   type OwnerInfo,
+  type SeasonResult,
   type GameState,
   type Hex,
   type ServerMessage,
@@ -89,6 +94,12 @@ const ui = {
   board: $("board"),
   boardGlobal: $("board-global"),
   boardRows: $("board-rows"),
+  history: $("history"),
+  phase: $("phase"),
+  phaseName: $("phase-name"),
+  phaseDesc: $("phase-desc"),
+  phaseClock: $("phase-clock"),
+  seasonEnd: $("season-end"),
 };
 
 let game: GameState | null = null;
@@ -97,6 +108,8 @@ let clock = { server: 0, local: 0, scale: 1 };
 let owners = new Map<string, OwnerInfo>();
 let board: Leaderboard | null = null;
 let forestNumber = 0;
+let history: SeasonResult[] = [];
+let lastResult: SeasonResult | null = null;
 let token: string | null = loadToken();
 let authMode: "login" | "register" = "register";
 let selected: Hex | null = null;
@@ -121,6 +134,8 @@ onLangChange(() => {
   setAuthMode(authMode);
   if (forestNumber) ui.forestLabel.textContent = t("forest.label", { number: forestNumber });
   renderBoard();
+  renderHistory();
+  if (!ui.seasonEnd.hidden) showSeasonEnd(lastResult);
   render();
 });
 $("lang-btn").addEventListener("click", () => setLang(lang() === "en" ? "fr" : "en"));
@@ -224,6 +239,8 @@ function onMessage(msg: ServerMessage): void {
       forestNumber = msg.forest.number;
       ui.forestLabel.textContent = t("forest.label", { number: forestNumber });
       clock.scale = msg.timeScale;
+      history = msg.history;
+      renderHistory();
       applySnapshot(msg.game, msg.owners, msg.serverTime);
       if (msg.away) showAway(msg.away);
       if (msg.needsPassword) ui.password.hidden = false;
@@ -235,6 +252,9 @@ function onMessage(msg: ServerMessage): void {
     case "leaderboard":
       board = msg.leaderboard;
       renderBoard();
+      break;
+    case "seasonEnded":
+      showSeasonEnd(msg.result);
       break;
     case "authError":
       // The saved session no longer exists (signed out elsewhere, or a local server without database restarted).
@@ -322,6 +342,89 @@ function renderBoard(): void {
 ui.miniBoard.addEventListener("click", () => (ui.board.hidden = false));
 $("board-close").addEventListener("click", () => (ui.board.hidden = true));
 
+// Seasons (GDD §7, §8.2): weekly phases, the Sunday freeze, then the wipe and a new forest.
+
+function renderHistory(): void {
+  if (history.length === 0) {
+    const li = document.createElement("li");
+    li.className = "muted";
+    li.textContent = t("history.empty");
+    ui.history.replaceChildren(li);
+    return;
+  }
+  ui.history.replaceChildren(
+    ...history.map((r) => {
+      const li = document.createElement("li");
+      li.textContent = t("history.row", { week: r.week, forest: r.forestNumber, rank: r.rank, players: r.players, biomass: fmt(r.biomass) });
+      const seed = document.createElement("small");
+      seed.className = "mono";
+      seed.textContent = t("history.seed", { seed: r.seed });
+      li.append(seed);
+      return li;
+    }),
+  );
+}
+
+/** Days and hours above a day, then the usual short format. */
+function formatLong(ms: number): string {
+  if (ms < 86_400_000) return formatDuration(ms);
+  const hours = Math.floor(ms / 3_600_000);
+  return t("time.daysHours", { days: Math.floor(hours / 24), hours: hours % 24 });
+}
+
+function renderPhase(g: GameState): void {
+  ui.phase.hidden = !g.calendar;
+  if (!g.calendar) return;
+  const now = serverNow();
+  const phase = phaseAt(now);
+  const season = seasonAt(now);
+  ui.phase.classList.toggle("frozen", phase.frozen);
+  ui.phaseName.textContent = t("phase.title", {
+    day: t(`day.${phase.index}` as MessageKey),
+    phase: t(`phase.${phase.id}.name` as MessageKey),
+  });
+  let desc = t(`phase.${phase.id}.desc` as MessageKey);
+  if (phase.id === "germination" && g.mondayBonus > 0) desc += ` · ${t("season.mondayBonus", { bonus: Math.round(g.mondayBonus * 100) })}`;
+  ui.phaseDesc.textContent = desc;
+  ui.phaseClock.textContent = phase.frozen
+    ? t("season.frozen")
+    : `${t("season.week", { week: season.week })} · ${t("season.endsIn", { time: formatLong(season.freezeAt - now) })}`;
+}
+
+function showSeasonEnd(result: SeasonResult | null): void {
+  lastResult = result;
+  // Without a result (no forest this week), the season that just ended is the one an hour ago.
+  const week = result?.week ?? seasonAt(serverNow() - 3_600_000).week;
+  $("season-end-week").textContent = t("season.week", { week });
+  $("season-end-title").textContent = t("seasonEnd.title", { week });
+  $("season-end-rank").textContent = result
+    ? t("seasonEnd.rank", { rank: result.rank, players: result.players, forest: result.forestNumber })
+    : t("seasonEnd.none");
+  const stats = $("season-end-stats");
+  stats.hidden = !result;
+  if (result) stats.textContent = t("seasonEnd.stats", { biomass: fmt(result.biomass), tiles: result.tiles, trophies: result.trophies });
+  const seed = $("season-end-seed");
+  seed.hidden = !result;
+  if (result) seed.textContent = t("seasonEnd.seed", { seed: result.seed });
+  const bonus = Math.round(mondayBonusFor(result) * 100);
+  const bonusLine = $("season-end-bonus");
+  bonusLine.hidden = bonus === 0;
+  bonusLine.textContent = t("seasonEnd.bonus", { bonus });
+  ui.seasonEnd.hidden = false;
+}
+
+$("season-end-next").addEventListener("click", () => {
+  ui.seasonEnd.hidden = true;
+  ui.board.hidden = true;
+  selectTile(null);
+  // The old forest is gone: reconnect and the server places the player in a forest of the new season.
+  connection?.stop();
+  connection = null;
+  game = null;
+  board = null;
+  if (token) void startGame(token);
+});
+
 // Two persistent buttons whose action is set on each render (rebuilding them would eat clicks).
 const actionButtons = [0, 1].map(() => {
   const b = document.createElement("button");
@@ -383,10 +486,11 @@ function render(): void {
   ui.nutrients.textContent = fmt(game.nutrients);
   ui.nutrientsRate.textContent = t("res.perSecond", { value: fmt(rate) });
   ui.biomass.textContent = fmt(game.biomass);
-  ui.biomassRate.textContent = t("res.perSecond", { value: fmt(rate * conversionRate(game.upgrades)) });
+  ui.biomassRate.textContent = t("res.perSecond", { value: fmt(biomassRate(game)) });
   ui.tiles.textContent = String(ownedCount(game));
   ui.queue.textContent = `${game.queue.length}/${QUEUE_MAX}`;
   ui.trophies.textContent = String(game.trophies);
+  renderPhase(game);
 
   for (const li of ui.upgradeList.children) {
     const id = (li as HTMLElement).dataset.id!;
@@ -470,8 +574,8 @@ function renderTile(g: GameState): void {
   } else {
     facts.push(["tile.yield", t("tile.yieldValue", { value: fmt(tileYield(tile.terrain, g.upgrades) * richness(g, tile) * humidity(g, tile)) })]);
     if (tile.exhaustion > 0.005) facts.push(["tile.exhaustion", percent(tile.exhaustion)]);
-    facts.push(["tile.cost", fmt(colonizationCost(g, tile))]);
-    facts.push(["tile.growth", formatDuration(growthDurationMs(tile.terrain, g.upgrades))]);
+    facts.push(["tile.cost", fmt(colonizationCost(g, tile, now))]);
+    facts.push(["tile.growth", formatDuration(growthDurationMs(tile.terrain, g.upgrades, effectsAt(g, now).growthTime))]);
     if (tile.terrain === "deadwood") note = t("tile.deadwoodNote");
     const position = queueIndex(g, tile);
     if (position >= 0) {
@@ -479,7 +583,7 @@ function renderTile(g: GameState): void {
       actions.push({ label: t("tile.unqueue"), action: "unqueue", disabled: false, primary: false });
     } else {
       const check = checkColonize(g, tile);
-      const immediate = g.queue.length === 0 && growingTiles(g).length === 0 && g.nutrients >= colonizationCost(g, tile);
+      const immediate = g.queue.length === 0 && growingTiles(g).length === 0 && g.nutrients >= colonizationCost(g, tile, now);
       actions.push({
         label: immediate ? t("tile.colonize") : t("tile.queueAdd", { count: g.queue.length + 1, max: QUEUE_MAX }),
         action: "colonize",

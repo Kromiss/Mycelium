@@ -112,6 +112,8 @@ body:not(.in-game) :is(.topbar, .upgrades, .tile-panel, .hint, .map-controls, .m
 
 .topbar-end {
   margin-left: auto;
+  flex-shrink: 0;
+  white-space: nowrap;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -400,6 +402,77 @@ button.ghost {
   color: var(--muted);
 }
 
+/* Season phase ----------------------------------------------------------- */
+
+.phase {
+  display: grid;
+  gap: 1px;
+  margin-left: 12px;
+  padding-left: 16px;
+  border-left: 1px solid var(--panel-border);
+  font-family: system-ui, sans-serif;
+  min-width: 0;
+  max-width: 380px;
+}
+
+.phase-name {
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--glow);
+}
+
+.phase-desc {
+  font-size: 0.82rem;
+}
+
+.phase-clock {
+  font-size: 0.74rem;
+  color: var(--muted);
+}
+
+.phase.frozen .phase-clock {
+  color: var(--biomass);
+}
+
+.season-card h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 500;
+}
+
+.season-card p {
+  margin: 0;
+}
+
+.mono {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+.board-card h3 {
+  margin: 12px 0 0;
+  font-size: 0.8rem;
+  font-family: system-ui, sans-serif;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.history {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 4px;
+  font-family: system-ui, sans-serif;
+  font-size: 0.85rem;
+}
+
+.history small {
+  color: var(--muted);
+  margin-left: 6px;
+}
+
 /* Leaderboard ------------------------------------------------------------ */
 
 .mini-board {
@@ -590,6 +663,19 @@ button.ghost {
     display: none;
   }
 
+  .phase {
+    order: 10;
+    flex-basis: 100%;
+    margin-left: 0;
+    padding-left: 0;
+    border-left: none;
+    max-width: none;
+  }
+
+  .phase-desc {
+    font-size: 0.76rem;
+  }
+
   .res-value {
     font-size: 1.05rem;
   }
@@ -619,6 +705,8 @@ button.ghost {
     left: 12px;
     right: 64px;
     max-width: none;
+    /* Above the compact leaderboard button. */
+    bottom: calc(56px + env(safe-area-inset-bottom));
   }
 
   .map-controls {

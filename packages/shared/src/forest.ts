@@ -16,6 +16,7 @@ import {
 } from "./game";
 import { hexDistance, hexEquals, hexesInRadius, hexKey, hexNeighbors, type Hex } from "./hex";
 import { fromSnapshot, toSnapshot, type GameSnapshot, type TileDto } from "./protocol";
+import { phaseAt } from "./season";
 
 /**
  * A forest (GDD §2.1): one shared map, 20 to 30 players. Each player's economy runs with the rules
@@ -30,6 +31,8 @@ export interface ForestState {
   readonly spawns: readonly Hex[];
   readonly tiles: Map<string, Tile>;
   readonly players: Map<string, GameState>;
+  /** Follows the weekly calendar (GDD §7). */
+  readonly calendar: boolean;
   updatedAt: number;
 }
 
@@ -40,7 +43,12 @@ export interface CaptureEvent {
   to: string;
 }
 
-export function newForest(seed: number, now: number, capacity: number = FOREST.capacity): ForestState {
+export function newForest(
+  seed: number,
+  now: number,
+  capacity: number = FOREST.capacity,
+  options: { calendar?: boolean } = {},
+): ForestState {
   const map = generateForestMap(seed, capacity);
   const tiles = new Map<string, Tile>();
   for (const t of map.tiles) tiles.set(hexKey(t), wildTile(t, t.terrain));
@@ -51,6 +59,7 @@ export function newForest(seed: number, now: number, capacity: number = FOREST.c
     spawns: map.spawns,
     tiles,
     players: new Map(),
+    calendar: options.calendar ?? true,
     updatedAt: now,
   };
   refreshReservations(forest, now);
@@ -147,6 +156,9 @@ export function captureSpeed(attack: number, defence: number): number {
  * terrain's capture time at full speed, and falls back when the pressure drops.
  */
 export function resolveBorders(forest: ForestState, dt: number, now: number): CaptureEvent[] {
+  // GDD §7: no PvP on Monday, nothing moves once the season is frozen; other days speed it up or down.
+  const phaseSpeed = forest.calendar ? phaseAt(now).effects.captureSpeed : 1;
+  if (phaseSpeed === 0) return [];
   const connected = new Map<string, Map<string, number>>();
   for (const p of forest.players.values()) connected.set(p.id, networkHops(p));
   const events: CaptureEvent[] = [];
@@ -183,7 +195,7 @@ export function resolveBorders(forest: ForestState, dt: number, now: number): Ca
     }
     if (!tile.capture || tile.capture.by !== best.id) tile.capture = { by: best.id, progress: 0 };
     const shielded = defender.lastSeenAt !== null && now - defender.lastSeenAt >= BORDERS.shieldAfterMs;
-    tile.capture.progress += (dt / duration) * best.speed * (shielded ? BORDERS.shieldFactor : 1);
+    tile.capture.progress += (dt / duration) * best.speed * phaseSpeed * (shielded ? BORDERS.shieldFactor : 1);
     if (tile.capture.progress >= 1 - 1e-9) {
       const attacker = forest.players.get(best.id)!;
       events.push({ q: tile.q, r: tile.r, from: defender.id, to: attacker.id });
@@ -230,6 +242,7 @@ export interface ForestDto {
   radius: number;
   capacity: number;
   spawns: Hex[];
+  calendar: boolean;
   updatedAt: number;
   tiles: TileDto[];
   players: GameSnapshot[];
@@ -244,6 +257,7 @@ export function serializeForest(forest: ForestState): ForestDto {
     radius: forest.radius,
     capacity: forest.layout.capacity,
     spawns: forest.spawns.map((h) => ({ q: h.q, r: h.r })),
+    calendar: forest.calendar,
     updatedAt: forest.updatedAt,
     tiles,
     players: [...forest.players.values()].map((p) => toSnapshot(p, none)),
@@ -264,6 +278,7 @@ export function deserializeForest(dto: ForestDto): ForestState {
     spawns: dto.spawns.map((h) => ({ q: h.q, r: h.r })),
     tiles,
     players,
+    calendar: dto.calendar ?? true,
     updatedAt: dto.updatedAt,
   };
   refreshReservations(forest, forest.updatedAt);
@@ -283,6 +298,8 @@ function emptySnapshot(dto: ForestDto): GameSnapshot {
     spawn: dto.spawns[0]!,
     joinedAt: dto.updatedAt,
     trophies: 0,
+    calendar: dto.calendar ?? true,
+    mondayBonus: 0,
     heart: dto.spawns[0]!,
     heartMovedAt: null,
     tiles: [],

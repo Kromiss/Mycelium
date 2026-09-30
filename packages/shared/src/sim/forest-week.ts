@@ -8,6 +8,7 @@ import { advanceForest, joinForest, newForest, resolveBorders, type CaptureEvent
 import { ringAt, type Ring } from "../forestgen";
 import { goOffline, goOnline, networkHops, productionRate } from "../game";
 import { hexKey } from "../hex";
+import { seasonAt } from "../season";
 import { PROFILES, botPlay, type Profile } from "./week";
 
 const MINUTE = 60_000;
@@ -61,7 +62,8 @@ export function simulateForestWeek(options: ForestSimOptions = {}): ForestSimRes
     decisionEveryMinutes = 5,
     profileOf = MIXED_PROFILES,
   } = options;
-  const t0 = Date.UTC(2026, 9, 5); // A Monday, 00:00 UTC: the forest opens.
+  // The forest opens on Monday 00:00 Paris, like a real season (phases follow the calendar).
+  const t0 = seasonAt(Date.UTC(2026, 9, 5, 12)).start;
   const forest = newForest(seed, t0, capacity);
   const profiles = new Map<string, Profile>();
   const pending = Array.from({ length: capacity }, (_, i) => {
@@ -73,7 +75,7 @@ export function simulateForestWeek(options: ForestSimOptions = {}): ForestSimRes
   const occupied = () => [...forest.tiles.values()].filter((t) => t.owner !== null).length / land;
 
   const online = (profile: Profile, t: number) => {
-    const inDay = t % DAY;
+    const inDay = (t - t0) % DAY; // Paris wall-clock time of day (no DST change that week).
     return profile.sessions.some(([h, m]) => inDay >= h * HOUR && inDay < h * HOUR + m * MINUTE);
   };
 

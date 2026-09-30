@@ -15,7 +15,7 @@ des points de départ à équilibrer, centralisés dans `packages/shared`.
 | M1 Proto solo | 0.2.0 | étape 1 | Une carte, coloniser, produire, s'améliorer | ✅ |
 | M2 Réseau & transport | 0.3.0 | étape 2 | Cœur, pertes, épuisement, hors-ligne | ✅ |
 | M3 Multijoueur minimal | 0.4.0 | étape 3 | Forêt partagée, frontières, classement | ✅ (testé en local) |
-| M4 Saison | 0.5.0 | étape 4 | Semaine, phases journalières, wipe | à faire |
+| M4 Saison | 0.5.0 | étape 4 | Semaine, phases journalières, wipe | ✅ (testé en local) |
 | M5 Profondeur : économie | 0.6.0 | étape 5 | Structures, mutations, souches, fructification | à faire |
 | M6 Profondeur : conflit & événements | 0.7.0 | étape 5 | Actions actives, événements, world boss | à faire |
 | M7 Social | 0.8.0 | étape 6 | Alliances, ligues, récompenses | à faire |
@@ -151,6 +151,26 @@ pauvre stagne à partir du 3ᵉ jour (réponses prévues en M5–M6).
 
 **Terminé quand** : sur staging, une saison accélérée (7 « jours » de quelques minutes) enchaîne ses
 phases, se fige, archive son classement et redémarre seule.
+
+✅ Décidé : **paquet de phases proposé** — Germination (pousse ×2, pas de capture), Printemps
+(production +20 %), Été (−25 % sauf près des zones humides), Chute (captures ×2), Automne
+(colonisation −30 %, Bois mort +50 %), Gel (production −30 %, captures ×0,5), Décomposition finale
+(biomasse ×1,5, captures ×1,5).
+✅ Décidé : **wipe = nouvelles forêts** : les comptes sont gardés, la forêt de la semaine est archivée
+puis effacée, chaque joueur rejoint une nouvelle forêt à sa première connexion de la semaine.
+
+Livré en 0.5.0, validé en local (`BOTS=11 TIME_SCALE=1200` : une fin de semaine en 5 minutes, phases,
+fin de saison, historique, bonus du lundi et nouvelle forêt) plutôt que sur staging. Choix de
+réalisation à valider (dans `packages/shared/src/season.ts`) :
+- les phases changent à minuit, heure de Paris ; après le gel du dimanche 23 h 59, plus rien ne compte
+  (biomasse et captures arrêtées) jusqu'au wipe ;
+- le bonus du lundi s'applique à la production (donc aussi à la biomasse), seulement le lundi ;
+- les paliers se calculent sur le rang dans la forêt (« top 10 % » = rang ≤ 10 % des joueurs) ;
+- un joueur sans forêt la semaine précédente n'a pas de bonus ;
+- l'historique garde les 5 dernières saisons à l'écran (toutes en base).
+
+Le rythme de la forêt reste dans la cible avec les phases : 90 % occupée entre le jour 3,2 et le
+jour 4,9 selon la carte.
 
 ## M5 — Profondeur : économie (0.6.0) — GDD §15.5
 

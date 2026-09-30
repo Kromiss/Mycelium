@@ -27,6 +27,8 @@ export interface GameSnapshot {
   spawn: Hex;
   joinedAt: number;
   trophies: number;
+  calendar: boolean;
+  mondayBonus: number;
   heart: Hex;
   heartMovedAt: number | null;
   /** Visible tiles only (GDD §2.1 fog); the rest of the forest is unknown to the client. */
@@ -67,6 +69,8 @@ export function toSnapshot(state: GameState, visible?: Set<string>): GameSnapsho
     spawn: { q: state.spawn.q, r: state.spawn.r },
     joinedAt: state.joinedAt,
     trophies: state.trophies,
+    calendar: state.calendar,
+    mondayBonus: state.mondayBonus,
     heart: { q: state.heart.q, r: state.heart.r },
     heartMovedAt: state.heartMovedAt,
     tiles,
@@ -106,6 +110,8 @@ export function fromSnapshot(s: GameSnapshot, seed = 0): GameState {
     spawn: { q: s.spawn.q, r: s.spawn.r },
     joinedAt: s.joinedAt,
     trophies: s.trophies,
+    calendar: s.calendar ?? false,
+    mondayBonus: s.mondayBonus ?? 0,
     heart: { q: s.heart.q, r: s.heart.r },
     heartMovedAt: s.heartMovedAt,
     nutrients: s.nutrients,
@@ -159,6 +165,24 @@ export interface ForestInfo {
   number: number;
   capacity: number;
   players: number;
+  /** Season the forest belongs to (Monday 00:00 Paris); it is wiped at the end of that week. */
+  seasonStart: number;
+}
+
+/** A finished season, as kept after the wipe (GDD §8.2 "Historique de saison"). */
+export interface SeasonResult {
+  seasonStart: number;
+  /** ISO week and year, e.g. "Semaine 38". */
+  week: number;
+  year: number;
+  forestNumber: number;
+  rank: number;
+  players: number;
+  biomass: number;
+  trophies: number;
+  tiles: number;
+  /** The forest's map seed, published once the season is over (GDD §12). */
+  seed: number;
 }
 
 /** Messages sent by the server over the WebSocket. */
@@ -178,7 +202,11 @@ export type ServerMessage =
       away?: AwaySummary;
       /** Account created as a guest (M1–M2): it should choose a password. */
       needsPassword: boolean;
+      /** Previous seasons of this player, most recent first. */
+      history: SeasonResult[];
     }
+  /** The season is over and the forest was wiped: `result` is the final standing (null if absent). */
+  | { type: "seasonEnded"; result: SeasonResult | null }
   | { type: "authError" }
   /** Sent every tick and after each action. `events` lists this player's lost and won tiles. */
   | { type: "state"; game: GameSnapshot; owners: OwnerInfo[]; serverTime: number; events: CaptureNotice[] }

@@ -23,7 +23,9 @@ Migrations : `DATABASE_URL=... pnpm --filter @mycelium/server migrate`.
 
 Tester à plusieurs en local : chaque navigateur (ou fenêtre privée) crée son compte. Pour remplir la
 forêt et accélérer le temps : `BOTS=11 TIME_SCALE=60 pnpm dev:server` (11 robots qui jouent seuls,
-1 minute réelle = 1 heure de jeu). Ces deux réglages sont refusés en production.
+1 minute réelle = 1 heure de jeu). Pour voir passer une semaine entière (phases, fin de saison, nouvelle
+forêt) : `TIME_SCALE=600`, soit une semaine en 17 minutes environ. Ces deux réglages sont refusés en
+production.
 
 Tests du stockage Postgres (ignorés sans base) : `TEST_DATABASE_URL=postgres://.../base_jetable pnpm test`
 — la base indiquée est **vidée** au début des tests.

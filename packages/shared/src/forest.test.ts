@@ -155,7 +155,7 @@ describe("joining a forest", () => {
  * protected. A pushes twice as hard: full speed.
  */
 function arena(): { f: ForestState; a: GameState; b: GameState; border: Hex } {
-  const f = newForest(11, T0 - 2 * DAY, 4);
+  const f = newForest(11, T0 - 2 * DAY, 4, { calendar: false });
   for (const t of f.tiles.values()) if (t.terrain === "wetland") t.terrain = "humus";
   const a = joinForest(f, "a", T0 - 2 * DAY)!;
   const b = joinForest(f, "b", T0 - 2 * DAY)!;

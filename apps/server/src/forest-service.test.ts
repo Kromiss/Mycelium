@@ -15,8 +15,13 @@ class Spy implements GameClient {
   }
 }
 
-async function setup(options: { capacity?: number; bots?: number; timeScale?: number } = {}) {
-  let real = Date.UTC(2026, 9, 5, 8);
+/** Thursday 8 October 2026, 10:00 Paris: an ordinary day of the season (PvP on, no modifier). */
+const THURSDAY = Date.UTC(2026, 9, 8, 8);
+/** Sunday 11 October 2026, 23:58 Paris: two minutes before the wipe. */
+const SUNDAY_LATE = Date.UTC(2026, 9, 11, 21, 58);
+
+async function setup(options: { capacity?: number; bots?: number; timeScale?: number; at?: number } = {}) {
+  let real = options.at ?? THURSDAY;
   const store = new MemoryStore();
   const service = new ForestService(store, { now: () => real, capacity: options.capacity ?? 4, bots: options.bots, timeScale: options.timeScale, log: () => {} });
   await service.start({ tick: false });
@@ -193,7 +198,7 @@ describe("forests", () => {
     wait(60_000);
     await service.tick();
     await service.stop();
-    const again = new ForestService(store, { now: () => Date.UTC(2026, 9, 5, 9), log: () => {} });
+    const again = new ForestService(store, { now: () => THURSDAY + 3_600_000, log: () => {} });
     await again.start({ tick: false });
     const back = new Spy();
     expect(await again.attach((await again.authenticate(a.token))!, back)).toBe(true);
@@ -230,3 +235,65 @@ describe("local testing helpers", () => {
     expect(service.now() - before).toBe(60_000);
   });
 });
+
+describe("seasons (GDD §7, §8.2)", () => {
+  it("freezes the score, archives the standings and wipes the forest on Monday", async () => {
+    const { service, wait } = await setup({ at: SUNDAY_LATE });
+    const a = await play(service, "Alpha");
+    const b = await play(service, "Bravo");
+    const forest = service.forestState(a.account.id)!;
+    forest.players.get(a.account.id)!.biomass = 5_000;
+    forest.players.get(b.account.id)!.biomass = 1_000;
+    wait(90_000); // 23:59:30: frozen.
+    await service.tick();
+    const frozen = forest.players.get(a.account.id)!.biomass;
+    wait(20_000);
+    await service.tick();
+    expect(forest.players.get(a.account.id)!.biomass).toBe(frozen);
+
+    wait(20_000); // Monday 00:00:10: wiped.
+    await service.tick();
+    const ended = a.client.last("seasonEnded")!;
+    expect(ended.result).toMatchObject({ week: 41, year: 2026, rank: 1, players: 2, seed: forest.seed });
+    expect(b.client.last("seasonEnded")!.result).toMatchObject({ rank: 2 });
+    expect(service.forestState(a.account.id)).toBeUndefined();
+    service.colonize(a.account.id, 0, 0, a.client);
+    expect(a.client.last("actionError")?.error).toBe("not_authenticated");
+
+    // Coming back: a new forest of the new season, with the history and the Monday bonus.
+    const back = new Spy();
+    await service.attach(a.account, back);
+    const ready = back.last("ready")!;
+    expect(ready.forest.id).not.toBe(ended.result && a.client.last("ready")!.forest.id);
+    expect(ready.forest.seasonStart).toBe(Date.UTC(2026, 9, 11, 22));
+    expect(ready.history).toHaveLength(1);
+    expect(ready.history[0]).toMatchObject({ rank: 1, forestNumber: a.client.last("ready")!.forest.number });
+    expect(ready.game.mondayBonus).toBe(0.05); // 1st of 2 = top 50 %.
+    expect(ready.game.biomass).toBe(0);
+  });
+
+  it("brings the robots back after the wipe", async () => {
+    const { service, wait } = await setup({ at: SUNDAY_LATE, capacity: 6, bots: 2 });
+    const a = await play(service, "Alpha");
+    wait(3 * 60_000);
+    await service.tick();
+    await service.tick();
+    const back = new Spy();
+    await service.attach(a.account, back);
+    const forest = service.forestState(a.account.id)!;
+    expect(forest.players.size).toBe(3);
+    expect(back.last("ready")!.forest.seasonStart).toBe(Date.UTC(2026, 9, 11, 22));
+  });
+
+  it("ends forests left over from a past season when the server starts", async () => {
+    const { service, store, wait } = await setup({ at: SUNDAY_LATE });
+    const a = await play(service, "Alpha");
+    await service.stop();
+    wait(3 * 3_600_000);
+    const later = new ForestService(store, { now: () => SUNDAY_LATE + 3 * 3_600_000, log: () => {} });
+    await later.start({ tick: false });
+    expect(await store.listForests()).toEqual([]);
+    expect(await store.seasonHistory(a.account.id, 5)).toHaveLength(1);
+  });
+});
+

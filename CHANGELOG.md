@@ -5,6 +5,29 @@ versions [semver](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-09-30
+
+M4 — Saison (GDD §15.4).
+
+### Added
+- **Saisons d'une semaine**, calées sur l'heure de Paris (heure d'été comprise) : une forêt appartient
+  à une semaine, son classement se fige le **dimanche à 23 h 59** et elle est archivée puis effacée le
+  **lundi à 0 h**. Les comptes sont gardés : chaque joueur rejoint une nouvelle forêt (nouvelle carte)
+  à sa première connexion de la semaine.
+- **Phases journalières** (§7, paquet validé) : lundi Germination (pousse 2× plus rapide, aucune
+  capture), mardi Printemps (production +20 %), mercredi Été (−25 %, sauf près des zones humides),
+  jeudi Chute (captures 2× plus rapides), vendredi Automne (colonisation −30 %, Bois mort +50 %),
+  samedi Gel (production −30 %, captures 2× plus lentes), dimanche Décomposition finale (biomasse ×1,5,
+  captures 1,5× plus rapides). Le changement de phase est intégré exactement, même hors ligne.
+- Bandeau de phase avec ses effets et le compte à rebours jusqu'à la fin de saison.
+- **Fin de saison** : écran « La semaine N est terminée » avec le rang, la biomasse, les cases, les
+  Trophées et la **graine de la carte, désormais publique** ; bouton pour rejoindre la nouvelle saison.
+- **Historique des saisons** (semaine, forêt, rang, biomasse, graine) dans le classement complet.
+- **Bonus de départ du lundi** selon le rang de la saison précédente : +10 % (top 10 %), +5 % (top 50 %),
+  +2 % (participant), sur la production du lundi uniquement.
+- Classements Redis séparés par saison (`lb:<saison>:…`, gardés deux semaines).
+- Migration `0006_seasons` (semaine des forêts, résultats de saison, bonus du lundi).
+
 ## [0.4.0] - 2026-09-30
 
 M3 — Multijoueur minimal (GDD §15.3).

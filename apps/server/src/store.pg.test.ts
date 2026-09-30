@@ -10,6 +10,8 @@ import { MemoryStore, NameTakenError, PgStore, type GameStore } from "./store";
 // (the database is wiped first). The memory store always runs the same contract.
 const url = process.env.TEST_DATABASE_URL;
 const T0 = Date.UTC(2026, 9, 5, 12);
+/** Monday 5 October 2026, 00:00 Paris. */
+const SEASON = Date.UTC(2026, 9, 4, 22);
 
 let pool: pg.Pool | undefined;
 
@@ -52,7 +54,7 @@ describe.each(stores)("%s store", (_name, make) => {
   it("saves and reloads a whole forest", async () => {
     const store = make();
     const forest = newForest(99, T0, 4);
-    const record = await store.createForest(forest);
+    const record = await store.createForest(forest, SEASON);
     const a = await store.createAccount(`Cleo${_name}`, "hash");
     const b = await store.createAccount(`Dan${_name}`, null, true);
     joinForest(forest, a.id, T0);
@@ -78,5 +80,47 @@ describe.each(stores)("%s store", (_name, make) => {
       expect(q.tiles).toBe(loaded.forest.tiles);
       expect({ ...q, tiles: null }).toEqual({ ...p, tiles: null });
     }
+  });
+
+  it("ends a forest, keeps the standings and the published seed", async () => {
+    const store = make();
+    const forest = newForest(4242, T0, 4);
+    const record = await store.createForest(forest, SEASON);
+    const a = await store.createAccount(`Eve${_name}`, "hash");
+    const b = await store.createAccount(`Finn${_name}`, "hash");
+    joinForest(forest, a.id, T0);
+    joinForest(forest, b.id, T0);
+    forest.players.get(a.id)!.mondayBonus = 0.05;
+    await store.saveForest(record.id, forest);
+    expect((await store.loadForest(record.id))!.forest.players.get(a.id)!.mondayBonus).toBe(0.05);
+
+    await store.endForest(
+      record.id,
+      [
+        { playerId: b.id, rank: 1, players: 2, biomass: 900, trophies: 3, tiles: 40 },
+        { playerId: a.id, rank: 2, players: 2, biomass: 500, trophies: 0, tiles: 30 },
+      ],
+      SEASON + 7 * 86_400_000,
+    );
+    expect((await store.listForests()).map((f) => f.id)).not.toContain(record.id);
+    expect(await store.loadForest(record.id)).toBeNull();
+    const history = await store.seasonHistory(a.id, 5);
+    expect(history).toEqual([
+      {
+        seasonStart: SEASON,
+        week: 41,
+        year: 2026,
+        forestNumber: record.number,
+        rank: 2,
+        players: 2,
+        biomass: 500,
+        trophies: 0,
+        tiles: 30,
+        seed: 4242,
+      },
+    ]);
+    // Ending twice changes nothing.
+    await store.endForest(record.id, [], SEASON + 7 * 86_400_000);
+    expect(await store.seasonHistory(b.id, 5)).toHaveLength(1);
   });
 });

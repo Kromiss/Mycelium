@@ -4,11 +4,13 @@ import {
   hexKey,
   normalizeUpgrades,
   refreshReservations,
+  seasonAt,
   serializeForest,
   TERRAIN_STATS,
   type ForestState,
   type GameState,
   type PlayerInfo,
+  type SeasonResult,
   type Terrain,
   type Tile,
 } from "@mycelium/shared";
@@ -31,6 +33,18 @@ export interface ForestRecord {
   id: string;
   /** Human-friendly number ("Forêt #12"). */
   number: number;
+  /** Monday 00:00 Paris of the season (week) the forest belongs to. */
+  seasonStart: number;
+}
+
+/** A player's final standing in a finished forest. */
+export interface Standing {
+  playerId: string;
+  rank: number;
+  players: number;
+  biomass: number;
+  trophies: number;
+  tiles: number;
 }
 
 export interface LoadedForest {
@@ -49,11 +63,16 @@ export interface GameStore {
   /** Session token, or the guest token of an M1–M2 account. */
   findAccountBySession(tokenHash: string): Promise<Account | null>;
   deleteSession(tokenHash: string): Promise<void>;
+  /** Forests still being played (not ended). */
   listForests(): Promise<ForestRecord[]>;
-  createForest(forest: ForestState): Promise<ForestRecord>;
+  createForest(forest: ForestState, seasonStart: number): Promise<ForestRecord>;
   loadForest(id: string): Promise<LoadedForest | null>;
   /** Saves every player and tile of the forest (players who joined become members). */
   saveForest(id: string, forest: ForestState): Promise<void>;
+  /** Ends a forest at the wipe: keeps its standings, releases its players. */
+  endForest(id: string, standings: Standing[], endedAt: number): Promise<void>;
+  /** A player's finished seasons, most recent first. */
+  seasonHistory(playerId: string, limit: number): Promise<SeasonResult[]>;
 }
 
 // ---------------------------------------------------------------------------
@@ -62,7 +81,8 @@ export interface GameStore {
 export class MemoryStore implements GameStore {
   private readonly accounts = new Map<string, Account>();
   private readonly sessions = new Map<string, string>();
-  private readonly forests = new Map<string, { record: ForestRecord; json: string }>();
+  private readonly forests = new Map<string, { record: ForestRecord; json: string; seed: number; ended: boolean }>();
+  private readonly results: Array<Standing & { seasonStart: number; forestId: string }> = [];
   private nextForest = 1;
 
   async createAccount(name: string, passwordHash: string | null, isBot = false): Promise<Account> {
@@ -98,18 +118,36 @@ export class MemoryStore implements GameStore {
   }
 
   async listForests(): Promise<ForestRecord[]> {
-    return [...this.forests.values()].map((f) => ({ ...f.record }));
+    return [...this.forests.values()].filter((f) => !f.ended).map((f) => ({ ...f.record }));
   }
 
-  async createForest(forest: ForestState): Promise<ForestRecord> {
-    const record = { id: randomUUID(), number: this.nextForest++ };
-    this.forests.set(record.id, { record, json: JSON.stringify(serializeForest(forest)) });
+  async createForest(forest: ForestState, seasonStart: number): Promise<ForestRecord> {
+    const record = { id: randomUUID(), number: this.nextForest++, seasonStart };
+    this.forests.set(record.id, { record, json: JSON.stringify(serializeForest(forest)), seed: forest.seed, ended: false });
     return { ...record };
+  }
+
+  async endForest(id: string, standings: Standing[]): Promise<void> {
+    const f = this.forests.get(id);
+    if (!f || f.ended) return;
+    f.ended = true;
+    for (const st of standings) this.results.push({ ...st, seasonStart: f.record.seasonStart, forestId: id });
+  }
+
+  async seasonHistory(playerId: string, limit: number): Promise<SeasonResult[]> {
+    return this.results
+      .filter((r) => r.playerId === playerId)
+      .sort((a, b) => b.seasonStart - a.seasonStart)
+      .slice(0, limit)
+      .map((r) => {
+        const f = this.forests.get(r.forestId)!;
+        return toResult(r.seasonStart, f.record.number, f.seed, r);
+      });
   }
 
   async loadForest(id: string): Promise<LoadedForest | null> {
     const f = this.forests.get(id);
-    if (!f) return null;
+    if (!f || f.ended) return null;
     const forest = deserializeForest(JSON.parse(f.json));
     const members = new Map<string, Account>();
     for (const pid of forest.players.keys()) {
@@ -142,6 +180,7 @@ interface PlayerRow extends AccountRow {
   spawn_r: number;
   joined_at: Date;
   trophies: number;
+  monday_bonus: number;
   nutrients: number;
   biomass: number;
   upgrades: Record<string, number>;
@@ -161,6 +200,27 @@ interface HexRow {
   disconnected_since: Date | null;
   capture_by: string | null;
   capture_progress: number | null;
+}
+
+function toResult(
+  seasonStart: number,
+  forestNumber: number,
+  seed: number,
+  r: Pick<Standing, "rank" | "players" | "biomass" | "trophies" | "tiles">,
+): SeasonResult {
+  const { week, year } = seasonAt(seasonStart);
+  return {
+    seasonStart,
+    week,
+    year,
+    forestNumber,
+    rank: r.rank,
+    players: r.players,
+    biomass: r.biomass,
+    trophies: r.trophies,
+    tiles: r.tiles,
+    seed,
+  };
 }
 
 const toDate = (ms: number | null) => (ms === null ? null : new Date(ms));
@@ -219,11 +279,69 @@ export class PgStore implements GameStore {
   }
 
   async listForests(): Promise<ForestRecord[]> {
-    const res = await this.pool.query<ForestRecord>("select id, number from forests order by number");
-    return res.rows;
+    const res = await this.pool.query<{ id: string; number: number; season_start: Date }>(
+      "select id, number, season_start from forests where ended_at is null order by number",
+    );
+    return res.rows.map((r) => ({ id: r.id, number: r.number, seasonStart: r.season_start.getTime() }));
   }
 
-  async createForest(forest: ForestState): Promise<ForestRecord> {
+  async endForest(id: string, standings: Standing[], endedAt: number): Promise<void> {
+    const client = await this.pool.connect();
+    try {
+      await client.query("begin");
+      const res = await client.query<{ season_start: Date }>(
+        "update forests set ended_at = $2 where id = $1 and ended_at is null returning season_start",
+        [id, new Date(endedAt)],
+      );
+      if (res.rows[0]) {
+        await client.query(
+          `insert into season_results (season_start, player_id, forest_id, rank, players, biomass, trophies, tiles)
+           select $1, t.player_id, $2, t.rank, t.players, t.biomass, t.trophies, t.tiles
+           from unnest($3::uuid[], $4::int[], $5::int[], $6::float8[], $7::int[], $8::int[])
+             as t(player_id, rank, players, biomass, trophies, tiles)
+           on conflict do nothing`,
+          [
+            res.rows[0].season_start,
+            id,
+            standings.map((s) => s.playerId),
+            standings.map((s) => s.rank),
+            standings.map((s) => s.players),
+            standings.map((s) => s.biomass),
+            standings.map((s) => s.trophies),
+            standings.map((s) => s.tiles),
+          ],
+        );
+        await client.query("update players set forest_id = null where forest_id = $1", [id]);
+      }
+      await client.query("commit");
+    } catch (err) {
+      await client.query("rollback");
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
+  async seasonHistory(playerId: string, limit: number): Promise<SeasonResult[]> {
+    const res = await this.pool.query<{
+      season_start: Date;
+      rank: number;
+      players: number;
+      biomass: number;
+      trophies: number;
+      tiles: number;
+      number: number;
+      seed: string;
+    }>(
+      `select r.season_start, r.rank, r.players, r.biomass, r.trophies, r.tiles, f.number, w.seed
+       from season_results r join forests f on f.id = r.forest_id join worlds w on w.id = f.world_id
+       where r.player_id = $1 order by r.season_start desc limit $2`,
+      [playerId, limit],
+    );
+    return res.rows.map((r) => toResult(r.season_start.getTime(), r.number, Number(r.seed), r));
+  }
+
+  async createForest(forest: ForestState, seasonStart: number): Promise<ForestRecord> {
     const client = await this.pool.connect();
     try {
       await client.query("begin");
@@ -232,9 +350,9 @@ export class PgStore implements GameStore {
         [forest.seed, forest.radius, forest.layout.capacity],
       );
       const worldId = world.rows[0]!.id;
-      const rec = await client.query<ForestRecord>(
-        "insert into forests (world_id, updated_at) values ($1, $2) returning id, number",
-        [worldId, new Date(forest.updatedAt)],
+      const rec = await client.query<{ id: string; number: number }>(
+        "insert into forests (world_id, updated_at, season_start) values ($1, $2, $3) returning id, number",
+        [worldId, new Date(forest.updatedAt), new Date(seasonStart)],
       );
       const tiles = [...forest.tiles.values()];
       await client.query(
@@ -250,7 +368,7 @@ export class PgStore implements GameStore {
         ],
       );
       await client.query("commit");
-      return rec.rows[0]!;
+      return { ...rec.rows[0]!, seasonStart };
     } catch (err) {
       await client.query("rollback");
       throw err;
@@ -268,9 +386,10 @@ export class PgStore implements GameStore {
       radius: number;
       capacity: number;
       updated_at: Date;
+      season_start: Date;
     }>(
-      `select f.id, f.number, f.world_id, w.seed, w.radius, w.capacity, f.updated_at
-       from forests f join worlds w on w.id = f.world_id where f.id = $1`,
+      `select f.id, f.number, f.world_id, w.seed, w.radius, w.capacity, f.updated_at, f.season_start
+       from forests f join worlds w on w.id = f.world_id where f.id = $1 and f.ended_at is null`,
       [id],
     );
     const row = res.rows[0];
@@ -300,7 +419,7 @@ export class PgStore implements GameStore {
     const seed = Number(row.seed);
     const players = await this.pool.query<PlayerRow>(
       `select id, name, password_hash, is_bot, heart_q, heart_r, heart_moved_at, spawn_q, spawn_r, joined_at, trophies,
-              nutrients, biomass, upgrades, queue, last_seen_at, updated_at
+              monday_bonus, nutrients, biomass, upgrades, queue, last_seen_at, updated_at
        from players where forest_id = $1`,
       [id],
     );
@@ -316,6 +435,8 @@ export class PgStore implements GameStore {
         spawn: { q: p.spawn_q, r: p.spawn_r },
         joinedAt: p.joined_at.getTime(),
         trophies: p.trophies,
+        calendar: true,
+        mondayBonus: p.monday_bonus,
         heart: { q: p.heart_q, r: p.heart_r },
         heartMovedAt: toMs(p.heart_moved_at),
         nutrients: p.nutrients,
@@ -334,10 +455,11 @@ export class PgStore implements GameStore {
       spawns: forestSpawns(row.capacity, row.radius),
       tiles,
       players: states,
+      calendar: true,
       updatedAt: row.updated_at.getTime(),
     };
     refreshReservations(forest, forest.updatedAt);
-    return { record: { id: row.id, number: row.number }, forest, members };
+    return { record: { id: row.id, number: row.number, seasonStart: row.season_start.getTime() }, forest, members };
   }
 
   async saveForest(id: string, forest: ForestState): Promise<void> {
@@ -356,12 +478,13 @@ export class PgStore implements GameStore {
           `update players set forest_id = $1, world_id = $2, heart_q = t.heart_q, heart_r = t.heart_r,
                   heart_moved_at = t.heart_moved_at, spawn_q = t.spawn_q, spawn_r = t.spawn_r, joined_at = t.joined_at,
                   trophies = t.trophies, nutrients = t.nutrients, biomass = t.biomass, upgrades = t.upgrades::jsonb,
-                  queue = t.queue::jsonb, last_seen_at = t.last_seen_at, updated_at = t.updated_at
+                  queue = t.queue::jsonb, last_seen_at = t.last_seen_at, updated_at = t.updated_at,
+                  monday_bonus = t.monday_bonus
            from unnest($3::uuid[], $4::int[], $5::int[], $6::timestamptz[], $7::int[], $8::int[], $9::timestamptz[],
                        $10::int[], $11::float8[], $12::float8[], $13::text[], $14::text[], $15::timestamptz[],
-                       $16::timestamptz[])
+                       $16::timestamptz[], $17::float8[])
              as t(id, heart_q, heart_r, heart_moved_at, spawn_q, spawn_r, joined_at, trophies, nutrients, biomass,
-                  upgrades, queue, last_seen_at, updated_at)
+                  upgrades, queue, last_seen_at, updated_at, monday_bonus)
            where players.id = t.id`,
           [
             id,
@@ -380,6 +503,7 @@ export class PgStore implements GameStore {
             ps.map((p) => JSON.stringify(p.queue)),
             ps.map((p) => toDate(p.lastSeenAt)),
             ps.map((p) => new Date(p.updatedAt)),
+            ps.map((p) => p.mondayBonus),
           ],
         );
       }

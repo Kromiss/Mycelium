@@ -16,6 +16,7 @@ import {
 import { lifetimeFactorAt, richnessAt, type MapLayout } from "./forestgen";
 import { hexDistance, hexEquals, hexKey, hexNeighbors, type Hex } from "./hex";
 import { generateMap, START_HEX } from "./mapgen";
+import { NEUTRAL_EFFECTS, nextPhaseChange, phaseAt, type PhaseEffects } from "./season";
 
 /**
  * Economy rules of one player (GDD §2.3, §2.4, §3, §9, §10). A player's `GameState` shares its
@@ -60,6 +61,10 @@ export interface GameState {
   readonly joinedAt: number;
   /** Tiles taken from other players (GDD §2.5 "Trophée"). */
   trophies: number;
+  /** Follows the weekly calendar and its daily phases (GDD §7). False for solo games and tests. */
+  readonly calendar: boolean;
+  /** Production bonus on Monday from the previous season's rank (GDD §8.2), e.g. 0.05. */
+  mondayBonus: number;
   /** The Cœur: nutrients flow to it (GDD §2.4). */
   heart: Hex;
   /** Last time the Cœur was moved, null if never. */
@@ -135,7 +140,7 @@ export function wildTile(h: Hex, terrain: Terrain): Tile {
 /** A new player's state on shared `tiles`: their spawn is colonised and becomes their Cœur. */
 export function newPlayer(
   id: string,
-  map: { seed: number; radius: number; layout: MapLayout; tiles: Map<string, Tile> },
+  map: { seed: number; radius: number; layout: MapLayout; tiles: Map<string, Tile>; calendar?: boolean },
   spawn: Hex,
   now: number,
 ): GameState {
@@ -155,6 +160,8 @@ export function newPlayer(
     spawn: { q: spawn.q, r: spawn.r },
     joinedAt: now,
     trophies: 0,
+    calendar: map.calendar ?? false,
+    mondayBonus: 0,
     heart: { q: spawn.q, r: spawn.r },
     heartMovedAt: null,
     nutrients: ECONOMY.startingNutrients,
@@ -237,6 +244,19 @@ export function lifetimeMs(state: GameState, tile: Tile): number {
   return TERRAIN_STATS[tile.terrain].lifetimeMs * lifetimeFactorAt(state.layout, state.radius, tile);
 }
 
+/** Modifiers in force at `at`: the day's phase (GDD §7), or none outside the calendar. */
+export function effectsAt(state: GameState, at: number): PhaseEffects {
+  return state.calendar ? phaseAt(at).effects : NEUTRAL_EFFECTS;
+}
+
+/** Production multiplier of a tile under the given effects, including the Monday bonus. */
+function phaseProduction(state: GameState, tile: Tile, fx: PhaseEffects, at: number): number {
+  let m = fx.wetProduction !== null && humidity(state, tile) > 1 ? fx.wetProduction : fx.production;
+  if (tile.terrain === "deadwood") m *= fx.deadwood;
+  if (state.mondayBonus > 0 && state.calendar && phaseAt(at).id === "germination") m *= 1 + state.mondayBonus;
+  return m;
+}
+
 /** Nutrients per second of one fresh colonised tile of this terrain, before place, humidity and transport. */
 export function tileYield(terrain: Terrain, upgrades: Upgrades): number {
   const digestion = 1 + UPGRADE_STATS.digestion.perLevel * upgrades.digestion;
@@ -248,23 +268,39 @@ export function tileYield(terrain: Terrain, upgrades: Upgrades): number {
  * Current nutrients per second delivered to the Cœur by one tile (GDD §10 `production_case`
  * after transport), 0 if it is not colonised or disconnected.
  */
-export function tileProduction(state: GameState, tile: Tile, hops: Map<string, number> = networkHops(state)): number {
+export function tileProduction(
+  state: GameState,
+  tile: Tile,
+  hops: Map<string, number> = networkHops(state),
+  at: number = state.updatedAt,
+): number {
   const d = hops.get(hexKey(tile));
   if (!isGrown(state, tile) || d === undefined) return 0;
-  return baseProduction(state, tile, d) * (1 - tile.exhaustion);
+  return baseProduction(state, tile, d, at) * (1 - tile.exhaustion);
 }
 
-/** Nutrients per second of a fresh tile at `hops` from the Cœur: yield × place × humidity × transport. */
-function baseProduction(state: GameState, tile: Tile, hops: number): number {
-  return tileYield(tile.terrain, state.upgrades) * richness(state, tile) * humidity(state, tile) * (1 - transportLoss(hops));
+/** Nutrients per second of a fresh tile at `hops` from the Cœur: yield × place × humidity × transport × phase. */
+function baseProduction(state: GameState, tile: Tile, hops: number, at: number): number {
+  return (
+    tileYield(tile.terrain, state.upgrades) *
+    richness(state, tile) *
+    humidity(state, tile) *
+    (1 - transportLoss(hops)) *
+    phaseProduction(state, tile, effectsAt(state, at), at)
+  );
 }
 
 /** Total nutrients per second right now (GDD §10 `production_totale`), including the offline factor. */
 export function productionRate(state: GameState, at: number = state.updatedAt): number {
   const hops = networkHops(state);
   let total = 0;
-  for (const k of hops.keys()) total += tileProduction(state, state.tiles.get(k)!, hops);
+  for (const k of hops.keys()) total += tileProduction(state, state.tiles.get(k)!, hops, at);
   return total * offlineFactor(state, at);
+}
+
+/** Biomass gained per second right now (the score), phase included (0 once the season is frozen). */
+export function biomassRate(state: GameState, at: number = state.updatedAt): number {
+  return productionRate(state, at) * conversionRate(state.upgrades) * effectsAt(state, at).biomass;
 }
 
 /** Share of the production credited as Biomass (GDD §10 `taux_conversion`). */
@@ -284,20 +320,21 @@ export function growingTiles(state: GameState): Tile[] {
 }
 
 /** `base × (1 + 0.05 × dist_cœur) × 1.02^nb_cases`, reduced by Expansion économe (GDD §2.3). */
-export function colonizationCost(state: GameState, target: Hex & { terrain: Terrain }): number {
+export function colonizationCost(state: GameState, target: Hex & { terrain: Terrain }, at: number = state.updatedAt): number {
   const dist = hexDistance(state.heart, target);
   const thrifty = Math.pow(1 - UPGRADE_STATS.thriftyExpansion.perLevel, state.upgrades.thriftyExpansion);
   return (
     TERRAIN_STATS[target.terrain].baseCost *
     (1 + ECONOMY.distanceFactor * dist) *
     Math.pow(ECONOMY.sizeFactor, ownedCount(state)) *
-    thrifty
+    thrifty *
+    effectsAt(state, at).colonizationCost
   );
 }
 
-/** Hyphae growth time in ms, reduced by Croissance des hyphes. */
-export function growthDurationMs(terrain: Terrain, upgrades: Upgrades): number {
-  const factor = Math.pow(1 - UPGRADE_STATS.hyphalGrowth.perLevel, upgrades.hyphalGrowth);
+/** Hyphae growth time in ms, reduced by Croissance des hyphes; `phase` is the day's growth multiplier. */
+export function growthDurationMs(terrain: Terrain, upgrades: Upgrades, phase = 1): number {
+  const factor = Math.pow(1 - UPGRADE_STATS.hyphalGrowth.perLevel, upgrades.hyphalGrowth) * phase;
   return Math.round(TERRAIN_STATS[terrain].growthSeconds * 1000 * factor);
 }
 
@@ -492,6 +529,8 @@ interface Window {
   producers: Producer[];
   factor: number;
   nextEvent: number;
+  /** Phase multiplier on biomass gains. */
+  biomass: number;
   queueWaiting: boolean;
 }
 
@@ -505,7 +544,7 @@ function planWindow(state: GameState, t: number): Window {
     const lifetime = lifetimeMs(state, tile);
     const d = hops.get(hexKey(tile));
     if (isGrown(state, tile) && d !== undefined) {
-      producers.push({ tile, basePerMs: baseProduction(state, tile, d) / 1000, lifetime });
+      producers.push({ tile, basePerMs: baseProduction(state, tile, d, t) / 1000, lifetime });
       // Rounded up to a whole ms so every event time stays an integer (it is stored as a timestamp).
       if (tile.terrain === "deadwood") {
         next = Math.min(next, t + Math.ceil((Math.max(0, EXHAUSTION.max - tile.exhaustion) * lifetime) / EXHAUSTION.max));
@@ -520,9 +559,11 @@ function planWindow(state: GameState, t: number): Window {
   if (state.lastSeenAt !== null && state.lastSeenAt + OFFLINE.fullMs > t) {
     next = Math.min(next, state.lastSeenAt + OFFLINE.fullMs);
   }
+  if (state.calendar) next = Math.min(next, nextPhaseChange(t));
   return {
     producers,
     factor: offlineFactor(state, t),
+    biomass: effectsAt(state, t).biomass,
     nextEvent: Math.max(next, t),
     queueWaiting: state.queue.length > 0 && !growing,
   };
@@ -543,7 +584,7 @@ function integrate(state: GameState, w: Window, dt: number): void {
   }
   produced *= w.factor;
   state.nutrients += produced;
-  state.biomass += produced * conversionRate(state.upgrades);
+  state.biomass += produced * conversionRate(state.upgrades) * w.biomass;
 }
 
 /** Marks the player's tiles as connected or disconnected (disconnected ones start withering). */
@@ -576,13 +617,13 @@ function startQueued(state: GameState, now: number): boolean {
       state.queue.shift(); // No longer possible: drop it.
       continue;
     }
-    const cost = colonizationCost(state, tile);
+    const cost = colonizationCost(state, tile, now);
     if (state.nutrients < cost) break;
     state.nutrients -= cost;
     tile.owner = state.id;
     tile.capture = null;
     tile.growthStartedAt = now;
-    tile.growthEndsAt = now + growthDurationMs(tile.terrain, state.upgrades);
+    tile.growthEndsAt = now + growthDurationMs(tile.terrain, state.upgrades, effectsAt(state, now).growthTime);
     tile.disconnectedSince = null;
     state.queue.shift();
     started = true;
