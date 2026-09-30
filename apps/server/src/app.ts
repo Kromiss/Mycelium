@@ -53,7 +53,8 @@ export function createApp(deps: AppDeps): Server {
     });
   });
 
-  const wss = new WebSocketServer({ noServer: true });
+  // Without fog a state holds the whole forest (~3 000 tiles, ~0.5 MB of JSON): compress the big messages.
+  const wss = new WebSocketServer({ noServer: true, perMessageDeflate: { threshold: 16_384 } });
   server.on("upgrade", (req, socket, head) => {
     if (req.url !== "/ws") {
       socket.destroy();

@@ -304,10 +304,10 @@ describe("structures at the border (GDD §4.1, §6.1)", () => {
   it("Carpophore: seen by everyone, and sees 3 tiles around", () => {
     const { f, a, b } = duel();
     const far = hex(3, -3);
-    expect(visibleKeys(f, "a").has(hexKey(hex(3, 0)))).toBe(false);
+    expect(visibleKeys(f, "a", true).has(hexKey(hex(3, 0)))).toBe(false);
     build(b, hex(3, 0), "carpophore", T0);
-    expect(visibleKeys(f, "a").has(hexKey(hex(3, 0)))).toBe(true);
-    expect(visibleKeys(f, "b").has(hexKey(far))).toBe(f.tiles.has(hexKey(far)));
+    expect(visibleKeys(f, "a", true).has(hexKey(hex(3, 0)))).toBe(true);
+    expect(visibleKeys(f, "b", true).has(hexKey(far))).toBe(f.tiles.has(hexKey(far)));
     expect(a.id).toBe("a");
   });
 });

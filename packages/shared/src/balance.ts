@@ -6,6 +6,26 @@
 
 const HOUR = 3_600_000;
 
+/**
+ * Experiment (branch claude/carte-x5-sans-brouillard): the forest holds TILE_SCALE times more, smaller
+ * tiles. One old tile is worth TILE_SCALE new ones: per-tile yields and costs are divided by it, the
+ * size factor of the colonisation cost is its TILE_SCALE-th root, and distances grow by LENGTH_SCALE
+ * (≈ √TILE_SCALE), so the economy follows the same curve while the player buys TILE_SCALE times more
+ * tiles per hour. With TILE_SCALE = 1, the M7 numbers. The unit tests pin it to 1 (`__TILE_SCALE__` in
+ * vitest.config.ts) because they check the rules against the M7 numbers; the simulations use the real value.
+ */
+declare const __TILE_SCALE__: number | undefined;
+export const TILE_SCALE: number = typeof __TILE_SCALE__ === "number" ? __TILE_SCALE__ : 5;
+/** Distances on the map grow by about √TILE_SCALE; spatial radii are multiplied by this. */
+export const LENGTH_SCALE: number = Math.round(Math.sqrt(TILE_SCALE));
+/** A per-tile amount of the M7 balance, divided among the TILE_SCALE smaller tiles. */
+const perTile = (x: number) => x / TILE_SCALE;
+/** A radius of the M7 balance, stretched to the larger map. */
+const span = (r: number) => Math.round(r * LENGTH_SCALE);
+
+/** Fog of war (GDD §2.1). Experiment: off, every player sees the whole forest. */
+export const FOG_ENABLED = false;
+
 export const TERRAINS = ["litter", "humus", "deadwood", "wetland", "stump", "roots", "rock", "acid", "carcass", "tree", "ruin", "rubble"] as const;
 /**
  * GDD §2.2: Litière de feuilles, Humus, Bois mort (M1), Ruisseau / Zone humide (M2), in M5 Souche /
@@ -40,35 +60,35 @@ export interface TerrainStats {
 
 export const TERRAIN_STATS: Readonly<Record<Terrain, TerrainStats>> = {
   // GDD §2.2: low yield, very low cost — ideal to spread fast.
-  litter: { colonizable: true, yieldPerSecond: 0.5, baseCost: 4_000, growthSeconds: 30, lifetimeMs: 2 * HOUR, reserve: 500 },
+  litter: { colonizable: true, yieldPerSecond: perTile(0.5), baseCost: perTile(4_000), growthSeconds: perTile(30), lifetimeMs: 2 * HOUR, reserve: 500 },
   // GDD §2.2: medium yield, low cost — the base terrain.
-  humus: { colonizable: true, yieldPerSecond: 1, baseCost: 8_000, growthSeconds: 60, lifetimeMs: 8 * HOUR, reserve: 2_000 },
+  humus: { colonizable: true, yieldPerSecond: perTile(1), baseCost: perTile(8_000), growthSeconds: perTile(60), lifetimeMs: 8 * HOUR, reserve: 2_000 },
   // GDD §2.2: high yield, medium cost; exhausts, then becomes Humus.
-  deadwood: { colonizable: true, yieldPerSecond: 3, baseCost: 20_000, growthSeconds: 120, lifetimeMs: 4 * HOUR, reserve: 5_000 },
+  deadwood: { colonizable: true, yieldPerSecond: perTile(3), baseCost: perTile(20_000), growthSeconds: perTile(120), lifetimeMs: 4 * HOUR, reserve: 5_000 },
   // GDD §2.2: cannot be colonised without a mutation (Hyphes aquatiques, M5); boosts humidity of adjacent
   // tiles. The yield, cost and times only apply to that mutation. PLACEHOLDER.
-  wetland: { colonizable: false, yieldPerSecond: 0.5, baseCost: 7_200, growthSeconds: 60, lifetimeMs: 8 * HOUR, reserve: 0 },
+  wetland: { colonizable: false, yieldPerSecond: perTile(0.5), baseCost: perTile(7_200), growthSeconds: perTile(60), lifetimeMs: 8 * HOUR, reserve: 0 },
   // GDD §2.2: very high yield, high cost — the contested "objective" tiles, near the centre. M5, PLACEHOLDER.
-  stump: { colonizable: true, yieldPerSecond: 4, baseCost: 50_000, growthSeconds: 240, lifetimeMs: 12 * HOUR, reserve: 20_000 },
+  stump: { colonizable: true, yieldPerSecond: perTile(4), baseCost: perTile(50_000), growthSeconds: perTile(240), lifetimeMs: 12 * HOUR, reserve: 20_000 },
   // GDD §2.2: medium yield + bonus (mycorrhiza, see ROOTS). M5, PLACEHOLDER.
-  roots: { colonizable: true, yieldPerSecond: 1, baseCost: 10_000, growthSeconds: 90, lifetimeMs: 12 * HOUR, reserve: 3_000 },
+  roots: { colonizable: true, yieldPerSecond: perTile(1), baseCost: perTile(10_000), growthSeconds: perTile(90), lifetimeMs: 12 * HOUR, reserve: 3_000 },
   // GDD §2.2: yields nothing, costs Enzymes; a rampart (see ROCK). M5, PLACEHOLDER.
-  rock: { colonizable: true, yieldPerSecond: 0, baseCost: 40, growthSeconds: 300, lifetimeMs: Infinity, reserve: 0, paidInEnzymes: true },
+  rock: { colonizable: true, yieldPerSecond: perTile(0), baseCost: perTile(40), growthSeconds: perTile(300), lifetimeMs: Infinity, reserve: 0, paidInEnzymes: true },
   // GDD §2.2: high yield, medium cost, but eats the network: wears twice as fast (see ACID). M5, PLACEHOLDER.
-  acid: { colonizable: true, yieldPerSecond: 2, baseCost: 13_000, growthSeconds: 90, lifetimeMs: 2 * HOUR, reserve: 4_000 },
+  acid: { colonizable: true, yieldPerSecond: perTile(2), baseCost: perTile(13_000), growthSeconds: perTile(90), lifetimeMs: 2 * HOUR, reserve: 4_000 },
   // GDD §2.2, M6 event: a huge burst for little cost, gone after 12 h. PLACEHOLDER.
-  carcass: { colonizable: true, yieldPerSecond: 12, baseCost: 6_000, growthSeconds: 60, lifetimeMs: 6 * HOUR, reserve: 0 },
+  carcass: { colonizable: true, yieldPerSecond: perTile(12), baseCost: perTile(6_000), growthSeconds: perTile(60), lifetimeMs: 6 * HOUR, reserve: 0 },
   // GDD §7, M6 world boss: the Arbre mourant stands on these tiles; nobody can colonise them.
   tree: { colonizable: false, yieldPerSecond: 0, baseCost: 0, growthSeconds: 0, lifetimeMs: Infinity, reserve: 0 },
   // GDD §2.2, M7 DECIDED: one per slice in the middle ring, paid in Enzymes, yields nothing; the first
   // colonisation gives a relic (see RELICS). Numbers PLACEHOLDER.
   ruin: { colonizable: true, yieldPerSecond: 0, baseCost: 60, growthSeconds: 1_800, lifetimeMs: Infinity, reserve: 0, paidInEnzymes: true },
   // A looted Ruine: yields nothing, cheap. PLACEHOLDER.
-  rubble: { colonizable: true, yieldPerSecond: 0, baseCost: 2_000, growthSeconds: 60, lifetimeMs: Infinity, reserve: 0 },
+  rubble: { colonizable: true, yieldPerSecond: perTile(0), baseCost: perTile(2_000), growthSeconds: perTile(60), lifetimeMs: Infinity, reserve: 0 },
 };
 
 /** Racines d'arbre (GDD §2.2 "mycorhize"): each colonised Roots tile adds this to the whole network's production. PLACEHOLDER. */
-export const ROOTS = { networkBonus: 0.03 } as const;
+export const ROOTS = { networkBonus: perTile(0.03) } as const;
 /** Roche (GDD §2.2 "rempart défensif"): captures of the owner's tiles next to their Rock run at this speed. PLACEHOLDER. */
 export const ROCK = { rampartFactor: 0.5 } as const;
 /** Sol acide: `lifetimeMs` above is the fast wear; the Acidophile mutation makes it last twice as long. */
@@ -89,15 +109,16 @@ export const MAP = {
 
 export const ECONOMY = {
   /** Nutrients a new player starts with: enough for 2 or 3 tiles right away. Tuned. */
-  startingNutrients: 10_000,
+  startingNutrients: 10_000, // now about a dozen tiles at once
   /** `taux_conversion` of GDD §10: share of production also credited as Biomass. PLACEHOLDER. */
   biomassConversionRate: 0.1,
   /**
    * Colonisation cost: `base × (1 + distanceFactor × dist_cœur) × sizeFactor ^ nb_cases` (GDD §2.3).
    * sizeFactor tuned from the GDD's 1.02 to 1.13: each tile makes the next one 13 % dearer.
    */
-  distanceFactor: 0.05,
-  sizeFactor: 1.13,
+  distanceFactor: 0.05 / Math.sqrt(TILE_SCALE),
+  // ×5 tiles experiment: 1.12 instead of 1.13 before the root, so that the forest still fills around day 4–5.
+  sizeFactor: TILE_SCALE === 1 ? 1.13 : 1.12 ** (1 / TILE_SCALE),
   /** Upgrade cost: `base × upgradeCostGrowth ^ level` (GDD §10). */
   upgradeCostGrowth: 1.15,
   /** How many colonisations may grow at the same time; the others wait in the queue. PLACEHOLDER. */
@@ -116,7 +137,7 @@ export const EXHAUSTION = {
 /** Nutrient transport to the Cœur (GDD §2.4). */
 export const TRANSPORT = {
   /** `perte = 1 % par saut` (GDD §2.4). */
-  lossPerHop: 0.01,
+  lossPerHop: 0.01 / Math.sqrt(TILE_SCALE),
   /** Loss cap, so far tiles still produce a little. PLACEHOLDER. */
   maxLoss: 0.9,
   /** A disconnected tile stops producing, then withers and is lost after this delay. PLACEHOLDER. */
@@ -137,7 +158,7 @@ export const OFFLINE = {
 } as const;
 
 /** Expansion queue (GDD §9): colonisations that start on their own, even while offline. DECIDED: 10. */
-export const QUEUE_MAX = 10;
+export const QUEUE_MAX = 10 * TILE_SCALE;
 
 /** The Cœur can be moved once per day (GDD §2.4), implemented as a rolling 24 h cooldown. */
 export const HEART_MOVE_COOLDOWN_MS = 24 * HOUR;
@@ -176,7 +197,7 @@ export const FOREST = {
   /** Players per forest. DECIDED: 12 (the owner found 24 too crowded). */
   capacity: 12,
   /** Target number of hexes per player (GDD §2.1: 40 to 60); the map radius follows from it. */
-  hexesPerPlayer: 50,
+  hexesPerPlayer: 50 * TILE_SCALE,
   /** Spawns sit on the rim, at this share of the radius (GDD §2.5: "bord = zone sûre"). PLACEHOLDER. */
   spawnDistance: 0.85,
   /** Rings of §2.5, as shares of the radius: centre below `centre`, rim above `rim`. PLACEHOLDER. */
@@ -197,7 +218,7 @@ export const FOREST = {
   /** Share of wetlands. PLACEHOLDER. */
   wetlandShare: 0.06,
   /** No wetland within this distance of a spawn. */
-  spawnClearRadius: 2,
+  spawnClearRadius: span(2),
 } as const;
 
 /** Players see the tiles within this distance of their network (GDD §2.1 fog). */
@@ -212,29 +233,29 @@ export const BORDERS = {
    * DECIDED range 10 min – 2 h, by tile type; values PLACEHOLDER.
    */
   captureMs: {
-    litter: 10 * 60_000,
-    humus: 45 * 60_000,
-    deadwood: 2 * HOUR,
-    wetland: 45 * 60_000,
-    stump: 2 * HOUR,
-    roots: 45 * 60_000,
-    rock: 2 * HOUR,
-    acid: 45 * 60_000,
-    carcass: 10 * 60_000,
-    tree: 2 * HOUR,
-    ruin: 45 * 60_000,
-    rubble: 10 * 60_000,
+    litter: (10 * 60_000) / LENGTH_SCALE,
+    humus: (45 * 60_000) / LENGTH_SCALE,
+    deadwood: (2 * HOUR) / LENGTH_SCALE,
+    wetland: (45 * 60_000) / LENGTH_SCALE,
+    stump: (2 * HOUR) / LENGTH_SCALE,
+    roots: (45 * 60_000) / LENGTH_SCALE,
+    rock: (2 * HOUR) / LENGTH_SCALE,
+    acid: (45 * 60_000) / LENGTH_SCALE,
+    carcass: (10 * 60_000) / LENGTH_SCALE,
+    tree: (2 * HOUR) / LENGTH_SCALE,
+    ruin: (45 * 60_000) / LENGTH_SCALE,
+    rubble: (10 * 60_000) / LENGTH_SCALE,
   } as Readonly<Record<Terrain, number>>,
   /** Pressure ratio at which the capture runs at full speed; below 1 nothing happens. */
   fullSpeedRatio: 2,
   /** GDD §6.4: start zone protected for 24 h, within this distance of the spawn. */
   protectedMs: 24 * HOUR,
-  protectedRadius: 2,
+  protectedRadius: span(2),
   /** GDD §6.4: after 2 h of inactivity, captures on your tiles run at half speed. */
   shieldAfterMs: 2 * HOUR,
   shieldFactor: 0.5,
   /** Conquest bonus (GDD §2.5): biomass worth this long of the tile's fresh production. PLACEHOLDER. */
-  conquestBonusMs: 1 * HOUR,
+  conquestBonusMs: 1 * HOUR, // per-tile production is already smaller
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -246,28 +267,28 @@ export type StructureId = (typeof STRUCTURE_IDS)[number];
 
 export const STRUCTURES = {
   /** Nutrient cost of a structure: `baseCost × costGrowth ^ structures already owned`. */
-  baseCost: { node: 60_000, gland: 45_000, reservoir: 45_000, rhizomorph: 36_000, sclerotium: 90_000, carpophore: 75_000 } as Readonly<
+  baseCost: { node: perTile(60_000), gland: perTile(45_000), reservoir: perTile(45_000), rhizomorph: perTile(36_000), sclerotium: perTile(90_000), carpophore: perTile(75_000) } as Readonly<
     Record<StructureId, number>
   >,
-  costGrowth: 1.5,
+  costGrowth: 1.5 ** (1 / TILE_SCALE),
   /** Nœud de digestion: +50 % on its tile. */
   nodeBonus: 0.5,
   /** Glande enzymatique: its tile yields 50 % less, and it makes Enzymes (twice as many on Dead wood or a Stump). */
   glandPenalty: 0.5,
-  glandEnzymesPerSecond: 0.01,
+  glandEnzymesPerSecond: perTile(0.01),
   glandWoodFactor: 2,
   /** Rhizomorphe: captures of its tile run at this speed; crossing it costs no transport hop. */
   rhizomorphCaptureFactor: 0.5,
   /** Sclérote: one per player. */
   sclerotiumMax: 1,
   /** Carpophore: reveals the fog this far; it is seen by every player. */
-  carpophoreVision: 3,
+  carpophoreVision: span(3),
   /** Carpophore: +25 % Spores per Carpophore when fruiting (step 3). */
-  carpophoreSporeBonus: 0.25,
+  carpophoreSporeBonus: perTile(0.25),
 } as const;
 
 /** GDD §3: Enzymes appear once the player holds this many tiles, or from Tuesday on. */
-export const ENZYMES_UNLOCK_TILES = 15;
+export const ENZYMES_UNLOCK_TILES = 15 * TILE_SCALE;
 
 // ---------------------------------------------------------------------------
 // M5 — mutations and strains (GDD §4.2, §4.3). DECIDED: the proposed packages; numbers PLACEHOLDER.
@@ -304,7 +325,7 @@ export const MUTATIONS = {
   /** Toxines: enemy tiles touching yours produce 15 % less. */
   toxins: 0.15,
   /** Témérité: +3 % production per tile of yours on an enemy border, up to +30 %. */
-  temerityPerTile: 0.03,
+  temerityPerTile: 0.03 / LENGTH_SCALE,
   temerityMax: 0.3,
   /** Mycorhize: Roots ×4 (yield and network bonus). */
   mycorrhiza: 4,
@@ -313,7 +334,7 @@ export const MUTATIONS = {
   /** Résilience: captures of your tiles −25 %. */
   resilience: 0.75,
   /** Bioluminescence: enemy networks seen this far. */
-  bioluminescenceVision: 3,
+  bioluminescenceVision: span(3),
 } as const;
 
 export const STRAIN_IDS = ["pleurotus", "armillaria", "cordyceps", "truffle", "mold"] as const;
@@ -346,7 +367,7 @@ export const STRAINS = {
 
 export const FRUITING = {
   /** The player keeps the tiles within this distance of the Cœur at least. */
-  minRadius: 2,
+  minRadius: span(2),
   /** `spores = floor((value of the lost tiles / valueDivisor) ^ exponent)` (GDD §5). */
   valueDivisor: 1e4,
   exponent: 0.6,
@@ -400,7 +421,7 @@ export const ACTION_EFFECTS = {
   assaultSpeed: 4,
   toxinProduction: 0.5,
   siphonShare: 0.2,
-  siphonRadius: 2,
+  siphonRadius: span(2),
 } as const;
 
 export const ANTI_FRUSTRATION = {
@@ -413,7 +434,7 @@ export const ANTI_FRUSTRATION = {
   bullyCaptureFactor: 0.25,
   bullyActionCost: 3,
   /** A player with this many tiles or fewer cannot lose any more. DECIDED: 7. */
-  floorTiles: 7,
+  floorTiles: 7 * TILE_SCALE,
 } as const;
 
 export const CENTRE_RISK = {
@@ -449,13 +470,13 @@ export const EVENTS = {
 } as const;
 
 /** Orage: humidity boost in a zone. */
-export const STORM = { radius: 3, durationMs: 4 * HOUR, bonus: 0.5 } as const;
+export const STORM = { radius: span(3), durationMs: 4 * HOUR, bonus: 0.5 } as const;
 /** Incendie: the zone is burnt and released, then its Cendres produce more. */
-export const FIRE = { radius: 2, ashesMs: 24 * HOUR, ashesFactor: 2 } as const;
+export const FIRE = { radius: span(2), ashesMs: 24 * HOUR, ashesFactor: 2 } as const;
 /** Sanglier: tears a line of tiles off (and turns the soil: fresh tiles). */
-export const BOAR = { minLength: 3, maxLength: 6 } as const;
+export const BOAR = { minLength: span(3), maxLength: span(6) } as const;
 /** Chute d'arbre, on Thursday (GDD §7 "Chute"): new Stumps in the centre, at this local hour. */
-export const TREEFALL = { minStumps: 2, maxStumps: 3, hour: 10 } as const;
+export const TREEFALL = { minStumps: 2 * TILE_SCALE, maxStumps: 3 * TILE_SCALE, hour: 10 } as const;
 /** Carcasse: a temporary very rich tile. */
 export const CARCASS = { durationMs: 12 * HOUR } as const;
 /**
@@ -463,7 +484,7 @@ export const CARCASS = { durationMs: 12 * HOUR } as const;
  * the zone digest them with their production. Killing them pays `rewardFactor` × the damage dealt, as
  * biomass. Their life: `hpHours` of the production of the zone's tiles, `minHp` at least.
  */
-export const NEMATODES = { radius: 2, durationMs: 6 * HOUR, biteMs: 30 * 60_000, hpHours: 1.5, minHp: 50_000, rewardFactor: 0.5 } as const;
+export const NEMATODES = { radius: span(2), durationMs: 6 * HOUR, biteMs: (30 * 60_000) / TILE_SCALE, hpHours: 1.5, minHp: 50_000, rewardFactor: 0.5 } as const;
 /**
  * Arbre mourant (world boss), Thursday and Sunday at 14:00: 7 tiles in the centre. Players touching
  * it digest it with their whole production; its life is `hpHours` of the forest's production. At the
@@ -494,7 +515,7 @@ export const PACTS = {
 /** Signaux chimiques (GDD §3): made by Roots tiles, spent on sending resources and listening. */
 export const SIGNALS = {
   /** Signals per hour per connected Roots tile. */
-  perRootsPerHour: 1,
+  perRootsPerHour: perTile(1),
   /** Sending Nutrients or Enzymes to an ally costs one Signal and loses 5 % on the way. */
   sendCost: 1,
   sendLoss: 0.05,

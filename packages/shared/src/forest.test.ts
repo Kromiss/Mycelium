@@ -270,12 +270,18 @@ describe("fog (GDD §2.1)", () => {
   it("shows only tiles near the player's network", () => {
     const f = newForest(3, T0, 6);
     const a = joinForest(f, "a", T0)!;
-    const seen = visibleKeys(f, "a");
+    const seen = visibleKeys(f, "a", true);
     for (const k of seen) {
       const [q, r] = k.split(",").map(Number) as [number, number];
       expect(hexDistance({ q, r }, a.spawn)).toBeLessThanOrEqual(VISION_RADIUS);
     }
     expect(seen.size).toBe(7);
     expect(centreDistance(a.spawn)).toBeGreaterThan(f.radius / 2);
+  });
+
+  it("shows the whole forest when the fog is off", () => {
+    const f = newForest(3, T0, 6);
+    joinForest(f, "a", T0);
+    expect(visibleKeys(f, "a", false).size).toBe(f.tiles.size);
   });
 });

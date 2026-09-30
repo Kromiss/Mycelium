@@ -238,9 +238,9 @@ describe("Symbiote", () => {
 
   it("Bioluminescence: enemy networks seen 3 tiles away", () => {
     const { f, a } = duel();
-    expect(visibleKeys(f, "a").has(hexKey(hex(3, 0)))).toBe(false);
+    expect(visibleKeys(f, "a", true).has(hexKey(hex(3, 0)))).toBe(false);
     give(a, "bioluminescence");
-    const seen = visibleKeys(f, "a");
+    const seen = visibleKeys(f, "a", true);
     expect(seen.has(hexKey(hex(3, 0)))).toBe(true);
     // Wild tiles out there stay in the fog.
     expect(seen.has(hexKey(hex(3, -2)))).toBe(false);
@@ -303,7 +303,7 @@ describe("strains (GDD §4.3)", () => {
     const { f, a, b } = duel();
     give(a, "bioluminescence");
     b.strain = "truffle";
-    const seen = visibleKeys(f, "a");
+    const seen = visibleKeys(f, "a", true);
     expect(seen.has(hexKey(hex(1, 0)))).toBe(true); // Touches a.
     expect(seen.has(hexKey(hex(3, 0)))).toBe(false);
     const s = game("roots");
