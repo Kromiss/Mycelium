@@ -3,6 +3,7 @@ import { atFloor, advanceForest, inCentre, isBullying, isProtected, isStartZone,
 import { hexDistance, hexEquals, hexesInRadius, hexKey, hexNeighbors, type Hex } from "./hex";
 import { networkHops, refreshConnections, type ActionResult, type Tile } from "./game";
 import { phaseAt } from "./season";
+import { isAllied } from "./social";
 
 /**
  * Active actions (GDD §6.2): Assaut, Toxine, Coupure, Siphon. Each one targets an enemy tile touching
@@ -43,7 +44,8 @@ export function checkAct(forest: ForestState, casterId: string, action: string, 
   if (!tile) return { ok: false, error: "unknown_tile" };
   if (tile.owner === null || tile.owner === casterId || tile.growthEndsAt !== null) return { ok: false, error: "not_enemy" };
   const owner = forest.players.get(tile.owner);
-  if (!owner) return { ok: false, error: "not_enemy" };
+  // M7: no active action between allies.
+  if (!owner || isAllied(forest, casterId, owner.id)) return { ok: false, error: "not_enemy" };
   if (!caster.enzymesUnlocked) return { ok: false, error: "locked" };
   // GDD §7: no PvP on Monday, and nothing once the season is frozen.
   if (forest.calendar && phaseAt(now).effects.captureSpeed === 0) return { ok: false, error: "no_pvp" };

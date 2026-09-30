@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { advanceForest, joinForest, newForest, resolveBorders, scheduleEvents } from "@mycelium/shared";
+import { advanceForest, joinForest, newForest, refreshPacts, resolveBorders, scheduleEvents } from "@mycelium/shared";
 import path from "node:path";
 import pg from "pg";
 import { migrate } from "./migrate";
@@ -81,6 +81,16 @@ describe.each(stores)("%s store", (_name, make) => {
     forest.events = scheduleEvents(99, SEASON);
     forest.events[0]!.status = "active";
     forest.events[0]!.damage = { [a.id]: 12.5 };
+    // M7: pacts, Signals, relics and listening.
+    forest.pacts.push({ id: "pact-1", members: [a.id, b.id], former: [], createdAt: T0, endedAt: null, leaving: { [b.id]: T0 + 3_600_000 }, marks: { [a.id]: 1, [b.id]: 2 }, banked: 5 });
+    forest.invites.push({ from: b.id, to: a.id, at: T0 });
+    refreshPacts(forest);
+    pa.taintedUntil = T0 + 86_400_000;
+    pa.signals = 3.5;
+    pa.signalsUnlocked = true;
+    pa.relics = ["vigour"];
+    pa.relicPicks = 1;
+    pa.listens = { [b.id]: T0 + 7_200_000 };
     await store.saveForest(record.id, forest);
 
     expect(await store.listForests()).toContainEqual(record);
@@ -91,6 +101,8 @@ describe.each(stores)("%s store", (_name, make) => {
     expect(loaded.forest.tiles).toEqual(forest.tiles);
     expect(loaded.forest.spawns).toEqual(forest.spawns);
     expect(loaded.forest.events).toEqual(forest.events);
+    expect(loaded.forest.pacts).toEqual(forest.pacts);
+    expect(loaded.forest.invites).toEqual(forest.invites);
     for (const [id, p] of forest.players) {
       const q = loaded.forest.players.get(id)!;
       expect(q.tiles).toBe(loaded.forest.tiles);

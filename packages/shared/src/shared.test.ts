@@ -76,6 +76,18 @@ describe("protocol", () => {
     expect(p({ ...sub, lang: "de" })).toBeNull();
   });
 
+  it("validates pact, Signal and relic messages", () => {
+    const p = (o: unknown) => parseClientMessage(JSON.stringify(o));
+    expect(p({ type: "pactInvite", to: "b" })).toEqual({ type: "pactInvite", to: "b" });
+    expect(p({ type: "pactAnswer", from: "b", accept: "yes" })).toBeNull();
+    expect(p({ type: "pactBetray", extra: 1 })).toEqual({ type: "pactBetray" });
+    expect(p({ type: "send", to: "b", resource: "nutrients", amount: 12.5 })).toEqual({ type: "send", to: "b", resource: "nutrients", amount: 12.5 });
+    expect(p({ type: "send", to: "b", resource: "spores", amount: 1 })).toBeNull();
+    expect(p({ type: "send", to: "b", resource: "enzymes", amount: -1 })).toBeNull();
+    expect(p({ type: "listen", target: "b" })).toEqual({ type: "listen", target: "b" });
+    expect(p({ type: "chooseRelic", relic: "vigour" })).toEqual({ type: "chooseRelic", relic: "vigour" });
+  });
+
   it("validates player names", () => {
     expect(isValidPlayerName("Kromiss")).toBe(true);
     expect(isValidPlayerName("Élodie_42")).toBe(true);

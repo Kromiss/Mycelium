@@ -10,7 +10,9 @@ export * from "./mapgen";
 export * from "./protocol";
 export * from "./rng";
 export * from "./season";
+export * from "./social";
 
 export const GAME_NAME = "Mycelium";
 export { botPlay } from "./sim/week";
 export { botAct } from "./sim/fight";
+export { botDiplomacy } from "./sim/diplomacy";

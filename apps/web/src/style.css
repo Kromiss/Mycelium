@@ -196,7 +196,8 @@ button.ghost {
 
 .upgrades .panel-tabs {
   margin: 0 0 12px;
-  grid-template-columns: repeat(3, 1fr);
+  /* Four tabs (M7 added Alliance): two rows keep the labels readable. */
+  grid-template-columns: repeat(2, 1fr);
 }
 
 .automation {
@@ -918,6 +919,80 @@ button.ghost {
 }
 
 /* Small screens ---------------------------------------------------------- */
+
+/* Alliance tab (M7) ----------------------------------------------------- */
+
+.social ul {
+  margin: 4px 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 4px;
+  font-family: system-ui, sans-serif;
+  font-size: 0.82rem;
+}
+
+.social h4 {
+  margin: 10px 0 4px;
+  font-family: system-ui, sans-serif;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.social-row,
+.pact-actions,
+.tile-social {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.social-row select,
+.social-row input {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 6px;
+  font: inherit;
+  font-family: system-ui, sans-serif;
+  font-size: 0.82rem;
+  color: inherit;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+}
+
+.social-row input {
+  max-width: 90px;
+}
+
+.pact-status {
+  font-family: system-ui, sans-serif;
+  font-size: 0.82rem;
+  margin: 6px 0 0;
+}
+
+button.small {
+  padding: 2px 8px;
+  font-size: 0.75rem;
+}
+
+button.danger {
+  border-color: rgba(240, 138, 108, 0.6);
+  color: var(--danger);
+}
+
+.res-signals .res-value {
+  color: #9fd6c0;
+}
+
+.relic-list button {
+  width: 100%;
+  text-align: left;
+}
 
 /* Chat (M7) --------------------------------------------------------------- */
 

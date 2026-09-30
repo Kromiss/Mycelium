@@ -14,8 +14,12 @@ import {
   MUTATION_IDS,
   MUTATIONS,
   OFFLINE,
+  PACTS,
   QUEUE_MAX,
+  RELIC_IDS,
+  RELICS,
   ROOTS,
+  SIGNALS,
   SPORE_COST_GROWTH,
   SPORE_UPGRADE_IDS,
   SPORE_UPGRADES,
@@ -31,6 +35,7 @@ import {
   UPGRADE_STATS,
   type ActionId,
   type MutationId,
+  type RelicId,
   type SporeUpgradeId,
   type StrainId,
   type StructureId,
@@ -164,6 +169,24 @@ export interface GameState {
   queue: Hex[];
   /** When the player left (no client connected), null while they play. Drives offline production. */
   lastSeenAt: number | null;
+  /** Pacte de symbiose the player belongs to (M7), derived from the forest's pacts; null without one. */
+  pact: string | null;
+  /** The other members of the player's pact (derived from the forest). */
+  allies: string[];
+  /** Nutrients put in the pact's pot and not yet shared (the forest settles it; never stored). */
+  pactGiven: number;
+  /** "Réseau tâché" after a betrayal (GDD §6.3): until then (ms since epoch), null otherwise. */
+  taintedUntil: number | null;
+  /** Signaux chimiques (GDD §3), made by connected Roots tiles. */
+  signals: number;
+  /** Signals appear with the player's first Roots tile, and stay. */
+  signalsUnlocked: boolean;
+  /** Relics chosen this week (M7 Ruins). */
+  relics: RelicId[];
+  /** Relics earned by looting Ruins and not chosen yet. */
+  relicPicks: number;
+  /** Networks the player listens to (Écoute), by player id: until when (ms since epoch). */
+  listens: Record<string, number>;
   /** Every tile of the map, keyed by `hexKey`. */
   readonly tiles: Map<string, Tile>;
   /** Time up to which the game has been simulated (ms since epoch). */
@@ -207,7 +230,22 @@ export type ActionError =
   | "no_pvp"
   | "protected"
   | "uncuttable"
-  | "action_cooldown";
+  | "action_cooldown"
+  | "unknown_player"
+  | "self"
+  | "tainted"
+  | "in_pact"
+  | "pact_full"
+  | "already_invited"
+  | "no_invite"
+  | "not_in_pact"
+  | "already_leaving"
+  | "not_ally"
+  | "not_enough_signals"
+  | "invalid_amount"
+  | "no_relic"
+  | "unknown_relic"
+  | "relic_owned";
 
 export type ActionResult = { ok: true } | { ok: false; error: ActionError };
 
@@ -321,6 +359,15 @@ export function newPlayer(
     upgrades: emptyUpgrades(),
     queue: [],
     lastSeenAt: null,
+    pact: null,
+    allies: [],
+    pactGiven: 0,
+    taintedUntil: null,
+    signals: 0,
+    signalsUnlocked: false,
+    relics: [],
+    relicPicks: 0,
+    listens: {},
     tiles: map.tiles,
     updatedAt: now,
   };
@@ -428,7 +475,8 @@ export function earnedMutationPoints(biomass: number): number {
 
 /** Points left to spend. */
 export function mutationPoints(state: GameState): number {
-  return earnedMutationPoints(state.biomass) + state.sporeUpgrades.mutationPoint - state.mutations.length;
+  const relic = state.relics.includes("insight") ? RELICS.insight : 0;
+  return earnedMutationPoints(state.biomass) + state.sporeUpgrades.mutationPoint + relic - state.mutations.length;
 }
 
 /** The branch of a mutation, and the mutation it requires (null for the first of a branch). */
@@ -499,7 +547,8 @@ export function terrainFactor(state: GameState, terrain: Terrain): number {
 export function growthTimeFactor(state: GameState, at: number): number {
   const strain = state.strain === "pleurotus" ? STRAINS.pleurotus.growthTime : 1;
   const spores = Math.pow(1 - SPORE_UPGRADES.growth.perLevel, state.sporeUpgrades.growth);
-  return effectsAt(state, at).growthTime * strain * spores;
+  const relic = state.relics.includes("haste") ? 1 - RELICS.haste : 1;
+  return effectsAt(state, at).growthTime * strain * spores * relic;
 }
 
 /** Border pressure multiplier (Hyphes agressives, Cordyceps). */
@@ -526,10 +575,17 @@ export function traitProduction(state: GameState, at: number): number {
   m *= 1 + SPORE_UPGRADES.production.perLevel * state.sporeUpgrades.production;
   if (state.strain === "cordyceps") m *= STRAINS.cordyceps.production;
   if (state.strain === "armillaria" && state.calendar) m *= STRAINS.armillaria.monday + STRAINS.armillaria.perDay * phaseAt(at).index;
+  if (state.relics.includes("vigour")) m *= 1 + RELICS.vigour;
+  if (isTainted(state, at)) m *= 1 - PACTS.taintProduction;
   return m;
 }
 
-/** Témérité: +3 % per tile of the player touching another player's tile, up to +30 %. */
+/** "Réseau tâché" (GDD §6.3): the player betrayed a pact less than a day ago. */
+export function isTainted(state: GameState, at: number): boolean {
+  return state.taintedUntil !== null && at < state.taintedUntil;
+}
+
+/** Témérité: +3 % per tile of the player touching an enemy's tile (allies do not count), up to +30 %. */
 export function temerityFactor(state: GameState): number {
   if (!hasMutation(state, "temerity")) return 1;
   let border = 0;
@@ -537,7 +593,7 @@ export function temerityFactor(state: GameState): number {
     if (t.owner !== state.id || t.growthEndsAt !== null) continue;
     if (hexNeighbors(t).some((n) => {
       const o = state.tiles.get(hexKey(n))?.owner;
-      return o !== undefined && o !== null && o !== state.id;
+      return o !== undefined && o !== null && o !== state.id && !state.allies.includes(o);
     })) border++;
   }
   return 1 + Math.min(MUTATIONS.temerityMax, MUTATIONS.temerityPerTile * border);
@@ -1041,10 +1097,45 @@ function autoInvest(state: GameState, at: number): boolean {
   }
 }
 
-/** GDD §3: Enzymes appear from the 15th tile or from Tuesday (the second day of the season), and stay. */
+/**
+ * GDD §3: Enzymes appear from the 15th tile or from Tuesday (the second day of the season), Signals with
+ * the first colonised Roots tile; both stay.
+ */
 export function refreshUnlocks(state: GameState, now: number): void {
-  if (state.enzymesUnlocked) return;
-  if (ownedCount(state) >= ENZYMES_UNLOCK_TILES || (state.calendar && phaseAt(now).index >= 1)) state.enzymesUnlocked = true;
+  if (!state.enzymesUnlocked && (ownedCount(state) >= ENZYMES_UNLOCK_TILES || (state.calendar && phaseAt(now).index >= 1))) {
+    state.enzymesUnlocked = true;
+  }
+  if (!state.signalsUnlocked) {
+    for (const t of state.tiles.values()) {
+      if (t.owner === state.id && t.terrain === "roots" && t.growthEndsAt === null) {
+        state.signalsUnlocked = true;
+        break;
+      }
+    }
+  }
+}
+
+/** Signals per second right now (connected Roots tiles), including the offline factor. */
+export function signalRate(state: GameState, at: number = state.updatedAt): number {
+  let roots = 0;
+  for (const k of networkHops(state, at).keys()) if (state.tiles.get(k)!.terrain === "roots") roots++;
+  return ((roots * SIGNALS.perRootsPerHour) / 3_600_000) * 1000 * offlineFactor(state, at);
+}
+
+/** Checks choosing a relic earned by looting a Ruine. */
+export function checkChooseRelic(state: GameState, id: string): ActionResult {
+  if (!(RELIC_IDS as readonly string[]).includes(id)) return { ok: false, error: "unknown_relic" };
+  if (state.relicPicks <= 0) return { ok: false, error: "no_relic" };
+  if (state.relics.includes(id as RelicId)) return { ok: false, error: "relic_owned" };
+  return { ok: true };
+}
+
+export function chooseRelic(state: GameState, id: string): ActionResult {
+  const check = checkChooseRelic(state, id);
+  if (!check.ok) return check;
+  state.relics.push(id as RelicId);
+  state.relicPicks -= 1;
+  return check;
 }
 
 export function checkBuyUpgrade(state: GameState, id: string): ActionResult {
@@ -1107,6 +1198,11 @@ export function advance(state: GameState, to: number): void {
           tile.growthEndsAt = null;
           tile.growthStartedAt = null;
           changed = true;
+          // M7: the first colonisation of a Ruine loots it: a relic to choose, and rubble is left.
+          if (tile.terrain === "ruin") {
+            tile.terrain = "rubble";
+            state.relicPicks += 1;
+          }
         }
         if (tile.terrain === "deadwood" && tile.exhaustion >= EXHAUSTION.max - 1e-9) {
           // GDD §2.2: exhausted Dead wood becomes (fresh) Humus.
@@ -1176,6 +1272,10 @@ interface Window {
   autoInvest: boolean;
   /** What the queue's first tile costs while it waits for the purse (null: it may start or be dropped). */
   queueCost: { amount: number; enzymes: boolean } | null;
+  /** Share of production put in the pact's pot (M7). */
+  pactShare: number;
+  /** Signals per ms (before the offline factor). */
+  signalsPerMs: number;
 }
 
 function planWindow(state: GameState, t: number): Window {
@@ -1183,6 +1283,7 @@ function planWindow(state: GameState, t: number): Window {
   const bonus = networkBonus(state, hops, t);
   const producers: Producer[] = [];
   let enzymes = 0;
+  let roots = 0;
   let next = Infinity;
   let growing = false;
   const canWither = ownedCount(state) > ANTI_FRUSTRATION.floorTiles;
@@ -1199,6 +1300,7 @@ function planWindow(state: GameState, t: number): Window {
         siphonBy: siphonedBy(tile, state.id, t),
       });
       if (tile.structure === "gland") enzymes += glandRate(tile) / 1000;
+      if (tile.terrain === "roots") roots++;
       // Rounded up to a whole ms so every event time stays an integer (it is stored as a timestamp).
       if (tile.terrain === "deadwood") {
         next = Math.min(next, t + Math.ceil((Math.max(0, EXHAUSTION.max - tile.exhaustion) * lifetime) / EXHAUSTION.max));
@@ -1216,6 +1318,7 @@ function planWindow(state: GameState, t: number): Window {
     next = Math.min(next, state.lastSeenAt + OFFLINE.fullMs);
   }
   if (state.calendar) next = Math.min(next, nextPhaseChange(t));
+  if (state.taintedUntil !== null && state.taintedUntil > t) next = Math.min(next, state.taintedUntil);
   return {
     producers,
     factor: offlineFactor(state, t),
@@ -1227,6 +1330,8 @@ function planWindow(state: GameState, t: number): Window {
     queueWaiting: (state.queue.length > 0 || (state.automation.colonize !== null && automationUnlocked(state).colonize)) && !growing,
     autoInvest: state.automation.upgrades && automationUnlocked(state).upgrades,
     queueCost: growing ? null : waitingCost(state, t),
+    pactShare: state.pact !== null ? PACTS.share : 0,
+    signalsPerMs: (roots * SIGNALS.perRootsPerHour) / 3_600_000,
   };
 }
 
@@ -1267,12 +1372,19 @@ function integrate(state: GameState, w: Window, dt: number): void {
       state.siphoned[p.siphonBy] = (state.siphoned[p.siphonBy] ?? 0) + taken;
       amount -= taken;
     }
+    if (w.pactShare > 0) {
+      // M7: the pact's pot, shared by the forest between the members.
+      const given = amount * w.pactShare;
+      state.pactGiven += given;
+      amount -= given;
+    }
     produced += amount;
     weighted += amount * p.biomassWeight;
     p.tile.exhaustion = Math.min(EXHAUSTION.max, e0 + dt * rate);
   }
   state.nutrients += produced;
   state.enzymes += w.enzymesPerMs * dt * w.factor;
+  state.signals += w.signalsPerMs * dt * w.factor;
   state.biomass += weighted * biomassConversion(state) * w.biomass;
 }
 
@@ -1352,6 +1464,9 @@ export function clonePlayer(state: GameState, tiles: Map<string, Tile>): GameSta
     cooldowns: { ...state.cooldowns },
     siphoned: { ...state.siphoned },
     queue: state.queue.map((h) => ({ ...h })),
+    allies: [...state.allies],
+    relics: [...state.relics],
+    listens: { ...state.listens },
     tiles,
   };
 }

@@ -1,4 +1,4 @@
-import { FOREST, FOREST_TERRAINS, type Terrain } from "./balance";
+import { FOREST, FOREST_TERRAINS, RUIN_PLACE, type Terrain } from "./balance";
 import { hex, hexDistance, hexesInRadius, hexKey, hexNeighbors, hexToPixel, type Hex } from "./hex";
 import type { GeneratedMap, MapTile } from "./mapgen";
 import { hashFloat } from "./rng";
@@ -217,6 +217,8 @@ export function generateForestMap(seed: number, capacity: number = FOREST.capaci
     }
   }
   for (const k of spawnKeys) terrainOf.set(k, "humus");
+  // M7: one Ruine per slice, at the same place in every slice (middle ring, off the spawn axis, on land).
+  for (const k of ruinKeys(cells, placement, radius, wet, inStartZone)) terrainOf.set(k, "ruin");
 
   const tiles: MapTile[] = cells.map((c) => ({
     q: c.q,
@@ -224,6 +226,26 @@ export function generateForestMap(seed: number, capacity: number = FOREST.capaci
     terrain: wet.has(hexKey(c)) ? "wetland" : terrainOf.get(hexKey(c))!,
   }));
   return { seed, radius, tiles, spawns };
+}
+
+/**
+ * The Ruine of each slice: in the band at RUIN_PLACE.distance of the radius, the land position of slice 0
+ * closest to RUIN_PLACE.p, then that same position in every slice (wetlands follow the slice motif, so
+ * the position is land everywhere).
+ */
+function ruinKeys(cells: Hex[], placement: Map<string, Placement>, radius: number, wet: Set<string>, inStartZone: (h: Hex) => boolean): string[] {
+  const band = Math.round(RUIN_PLACE.distance * radius);
+  const candidates = cells
+    .map((c) => ({ c, pl: placement.get(hexKey(c))! }))
+    .filter(({ c, pl }) => pl.band === band && pl.slice === 0 && !wet.has(hexKey(c)) && !inStartZone(c) && ringAt(radius, c) === "middle");
+  if (candidates.length === 0) return [];
+  const best = candidates.reduce((a, b) => (Math.abs(b.pl.p - RUIN_PLACE.p) < Math.abs(a.pl.p - RUIN_PLACE.p) ? b : a));
+  return cells
+    .filter((c) => {
+      const pl = placement.get(hexKey(c))!;
+      return pl.band === band && pl.p === best.pl.p && !wet.has(hexKey(c));
+    })
+    .map(hexKey);
 }
 
 function angleOf(h: Hex): number {

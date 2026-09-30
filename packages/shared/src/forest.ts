@@ -25,6 +25,7 @@ import { hexDistance, hexEquals, hexesInRadius, hexKey, hexNeighbors, type Hex }
 import { fromSnapshot, toSnapshot, type GameSnapshot, type TileDto } from "./protocol";
 import { phaseAt } from "./season";
 import type { ForestEvent } from "./events";
+import { isAllied, pruneListens, refreshPacts, settlePacts, type Pact, type PactInvite } from "./social";
 
 /**
  * A forest (GDD §2.1): one shared map, 20 to 30 players. Each player's economy runs with the rules
@@ -43,6 +44,10 @@ export interface ForestState {
   readonly calendar: boolean;
   /** The season's random events and world bosses (GDD §7, M6), drawn when first needed. */
   events: ForestEvent[];
+  /** Pactes de symbiose (M7), ended ones included (they still count in the alliance leaderboard). */
+  pacts: Pact[];
+  /** Pact invitations waiting for an answer (M7). */
+  invites: PactInvite[];
   updatedAt: number;
 }
 
@@ -73,6 +78,8 @@ export function newForest(
     players: new Map(),
     calendar: options.calendar ?? true,
     events: [],
+    pacts: [],
+    invites: [],
     updatedAt: now,
   };
   refreshReservations(forest, now);
@@ -130,11 +137,14 @@ export function advanceForest(forest: ForestState, to: number): void {
   const dt = to - forest.updatedAt;
   if (dt <= 0) return;
   refreshReservations(forest, forest.updatedAt);
+  refreshPacts(forest);
   refreshToxins(forest);
   for (const p of forest.players.values()) advance(p, to);
   forest.updatedAt = to;
   settleSiphons(forest, to);
+  settlePacts(forest, to);
   pruneEffects(forest, to);
+  pruneListens(forest, to);
   refreshReservations(forest, to);
   refreshToxins(forest);
 }
@@ -187,7 +197,8 @@ export function inCentre(forest: ForestState, h: Hex): boolean {
 
 /**
  * Toxines (GDD §4.2): a player's tiles touching a colonised tile of a player with that mutation
- * produce less. Refreshed whenever the forest moves on (the effect follows the borders tick by tick).
+ * produce less (not between allies, M7). Refreshed whenever the forest moves on (the effect follows
+ * the borders tick by tick).
  */
 export function refreshToxins(forest: ForestState): void {
   const toxic = new Set([...forest.players.values()].filter((p) => hasMutation(p, "toxins")).map((p) => p.id));
@@ -197,7 +208,7 @@ export function refreshToxins(forest: ForestState): void {
       t.owner !== null &&
       hexNeighbors(t).some((n) => {
         const o = forest.tiles.get(hexKey(n));
-        return o !== undefined && o.owner !== null && o.owner !== t.owner && o.growthEndsAt === null && toxic.has(o.owner);
+        return o !== undefined && o.owner !== null && o.owner !== t.owner && o.growthEndsAt === null && toxic.has(o.owner) && !isAllied(forest, o.owner, t.owner!);
       });
   }
 }
@@ -278,7 +289,8 @@ export function resolveBorders(forest: ForestState, dt: number, now: number): Ca
       const attackers = new Set<string>();
       for (const n of hexNeighbors(tile)) {
         const o = forest.tiles.get(hexKey(n))?.owner;
-        if (o && o !== tile.owner && connected.get(o)?.has(hexKey(n))) attackers.add(o);
+        // M7: allies never push on each other.
+        if (o && o !== tile.owner && connected.get(o)?.has(hexKey(n)) && !isAllied(forest, o, tile.owner)) attackers.add(o);
       }
       if (attackers.size > 0) {
         const defence = pressure(forest, defender.id, tile);
@@ -371,7 +383,8 @@ function conquer(attacker: GameState, tile: Tile): void {
 
 /**
  * Tiles a player can see (GDD §2.1 fog): their own, those within VISION_RADIUS of them, farther around
- * their Carpophores, and every Carpophore of the forest (GDD §4.1: "visible par tous").
+ * their Carpophores, every Carpophore of the forest (GDD §4.1: "visible par tous"), and the whole
+ * network of the colonies they listen to (M7 Écoute).
  */
 export function visibleKeys(forest: ForestState, playerId: string): Set<string> {
   const seen = new Set<string>();
@@ -382,8 +395,10 @@ export function visibleKeys(forest: ForestState, playerId: string): Set<string> 
     if (t.owner === null || t.owner === playerId || forest.players.get(t.owner)?.strain !== "truffle") return false;
     return !hexNeighbors(t).some((n) => forest.tiles.get(hexKey(n))?.owner === playerId);
   };
+  const listened = new Set(viewer ? Object.entries(viewer.listens).filter(([, until]) => until > forest.updatedAt).map(([id]) => id) : []);
   for (const [key, t] of forest.tiles) {
     if (t.structure === "carpophore" && t.owner !== null && forest.players.get(t.owner)?.strain !== "truffle") seen.add(key);
+    if (t.owner !== null && listened.has(t.owner)) seen.add(key);
     if (t.owner !== playerId) continue;
     const vision = t.structure === "carpophore" && t.growthEndsAt === null ? STRUCTURES.carpophoreVision : VISION_RADIUS;
     for (const h of hexesInRadius(t, vision)) {
@@ -413,6 +428,8 @@ export interface ForestDto {
   spawns: Hex[];
   calendar: boolean;
   events?: ForestEvent[];
+  pacts?: Pact[];
+  invites?: PactInvite[];
   updatedAt: number;
   tiles: TileDto[];
   players: GameSnapshot[];
@@ -429,6 +446,8 @@ export function serializeForest(forest: ForestState): ForestDto {
     spawns: forest.spawns.map((h) => ({ q: h.q, r: h.r })),
     calendar: forest.calendar,
     events: forest.events,
+    pacts: forest.pacts,
+    invites: forest.invites,
     updatedAt: forest.updatedAt,
     tiles,
     players: [...forest.players.values()].map((p) => toSnapshot(p, none)),
@@ -451,11 +470,39 @@ export function deserializeForest(dto: ForestDto): ForestState {
     players,
     calendar: dto.calendar ?? true,
     events: Array.isArray(dto.events) ? dto.events : [],
+    pacts: normalizePacts(dto.pacts),
+    invites: normalizeInvites(dto.invites),
     updatedAt: dto.updatedAt,
   };
   refreshReservations(forest, forest.updatedAt);
+  refreshPacts(forest);
   refreshToxins(forest);
   return forest;
+}
+
+/** Pacts from stored data. */
+export function normalizePacts(raw: unknown): Pact[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((p): p is Pact => typeof p === "object" && p !== null && typeof p.id === "string" && Array.isArray(p.members))
+    .map((p) => ({
+      id: p.id,
+      members: p.members.filter((m) => typeof m === "string"),
+      former: Array.isArray(p.former) ? p.former.filter((m) => typeof m === "string") : [],
+      createdAt: Number(p.createdAt) || 0,
+      endedAt: typeof p.endedAt === "number" ? p.endedAt : null,
+      leaving: { ...(p.leaving ?? {}) },
+      marks: { ...(p.marks ?? {}) },
+      banked: Number(p.banked) || 0,
+    }));
+}
+
+/** Invitations from stored data. */
+export function normalizeInvites(raw: unknown): PactInvite[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((i): i is PactInvite => typeof i === "object" && i !== null && typeof i.from === "string" && typeof i.to === "string" && typeof i.at === "number")
+    .map((i) => ({ from: i.from, to: i.to, at: i.at }));
 }
 
 /** A player-shaped view of an empty forest, to serialise its tiles. */

@@ -226,6 +226,34 @@ function onConnection(ws: WebSocket, game: ForestService): void {
       case "pushUnsubscribe":
         if (player) background(game.unsubscribePush(player.id, msg.endpoint));
         return;
+      case "pactInvite":
+        if (!player) return send(ws, { type: "actionError", error: "not_authenticated" });
+        game.pactInvite(player.id, msg.to, client);
+        return;
+      case "pactAnswer":
+        if (!player) return send(ws, { type: "actionError", error: "not_authenticated" });
+        game.pactAnswer(player.id, msg.from, msg.accept, client);
+        return;
+      case "pactLeave":
+        if (!player) return send(ws, { type: "actionError", error: "not_authenticated" });
+        game.pactLeave(player.id, client);
+        return;
+      case "pactBetray":
+        if (!player) return send(ws, { type: "actionError", error: "not_authenticated" });
+        game.pactBetray(player.id, client);
+        return;
+      case "send":
+        if (!player) return send(ws, { type: "actionError", error: "not_authenticated" });
+        game.send(player.id, msg.to, msg.resource, msg.amount, client);
+        return;
+      case "listen":
+        if (!player) return send(ws, { type: "actionError", error: "not_authenticated" });
+        game.listen(player.id, msg.target, client);
+        return;
+      case "chooseRelic":
+        if (!player) return send(ws, { type: "actionError", error: "not_authenticated" });
+        game.chooseRelic(player.id, msg.relic, client);
+        return;
     }
   });
   ws.on("close", () => {

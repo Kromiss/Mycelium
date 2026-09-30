@@ -69,6 +69,21 @@ import {
   type PushKind,
   type PushLang,
   type RosterEntry,
+  allianceScore,
+  answerInvite,
+  betray,
+  botDiplomacy,
+  chooseRelic,
+  invite,
+  invitesOf,
+  isTainted,
+  leavePact,
+  listen,
+  resolvePacts,
+  sendResource,
+  type AllianceEntry,
+  type PactEvent,
+  type SocialView,
 } from "@mycelium/shared";
 import { hashPassword, hashToken, newToken, RateLimiter, verifyPassword } from "./auth";
 import { MemoryScoreBoard, type ScoreBoard } from "./leaderboard";
@@ -114,9 +129,11 @@ interface Journal {
   /** "action|caster" → times. */
   actions: Map<string, number>;
   events: Map<EventKind, { tiles: number; biomass: number; enzymes: number; trophy: boolean }>;
+  /** Pact events (M7): kind and who did it. */
+  pacts: Array<{ event: PactEvent["kind"]; by: string }>;
 }
 
-const newJournal = (): Journal => ({ lostTo: new Map(), wonFrom: new Map(), heartLost: [], actions: new Map(), events: new Map() });
+const newJournal = (): Journal => ({ lostTo: new Map(), wonFrom: new Map(), heartLost: [], actions: new Map(), events: new Map(), pacts: [] });
 
 /** A border fight on the same tiles by the same neighbour is announced at most this often. */
 const ATTACK_ALERT_MS = 30 * 60_000;
@@ -327,6 +344,7 @@ export class ForestService {
       muted: [...muted],
       silencedUntil: account.silencedUntil,
       admin: this.admins.has(account.name.toLowerCase()),
+      social: this.socialOf(live, account.id, now),
     });
     client.send({ type: "leaderboard", leaderboard: await this.leaderboard(live, account.id) });
     return true;
@@ -404,6 +422,74 @@ export class ForestService {
 
   setAutomation(playerId: string, change: { colonize?: string | null; upgrades?: boolean }, client: GameClient): void {
     this.act_(playerId, client, (p, now) => setAutomation(p, change as Partial<Automation>, now));
+  }
+
+  // -------------------------------------------------------------------------
+  // Pacts, Signals and relics (M7)
+
+  pactInvite(playerId: string, to: string, client: GameClient): void {
+    this.act_(playerId, client, (p, now, forest) => {
+      const result = invite(forest, p.id, to, now);
+      if (result.ok) this.pactEvents(this.liveOf(playerId)!, [{ kind: "invited", pact: p.pact, player: p.id, to: [to] }]);
+      return result;
+    });
+  }
+
+  pactAnswer(playerId: string, from: string, accept: boolean, client: GameClient): void {
+    this.act_(playerId, client, (p, now, forest) => {
+      const result = answerInvite(forest, p.id, from, accept, now);
+      if (!result.ok) return result;
+      this.pactEvents(this.liveOf(playerId)!, [result.event]);
+      return { ok: true };
+    });
+  }
+
+  pactLeave(playerId: string, client: GameClient): void {
+    this.act_(playerId, client, (p, now, forest) => leavePact(forest, p.id, now));
+  }
+
+  pactBetray(playerId: string, client: GameClient): void {
+    this.act_(playerId, client, (p, now, forest) => {
+      const result = betray(forest, p.id, now);
+      if (!result.ok) return result;
+      this.pactEvents(this.liveOf(playerId)!, result.events);
+      return { ok: true };
+    });
+  }
+
+  send(playerId: string, to: string, resource: "nutrients" | "enzymes", amount: number, client: GameClient): void {
+    this.act_(playerId, client, (p, _now, forest) => sendResource(forest, p.id, to, resource, amount));
+  }
+
+  listen(playerId: string, target: string, client: GameClient): void {
+    this.act_(playerId, client, (p, now, forest) => listen(forest, p.id, target, now));
+  }
+
+  chooseRelic(playerId: string, relic: string, client: GameClient): void {
+    this.act_(playerId, client, (p) => chooseRelic(p, relic));
+  }
+
+  /** Tells the players concerned: an alert now, a line in their night journal. */
+  private pactEvents(live: LiveForest, events: PactEvent[]): void {
+    for (const e of events) {
+      for (const id of e.to) {
+        pushAlert(live, id, { type: "pact", event: e.kind, by: e.player });
+        this.journalOf(live, id).pacts.push({ event: e.kind, by: e.player });
+      }
+    }
+  }
+
+  /** The player's pact and invitations. */
+  private socialOf(live: LiveForest, playerId: string, now: number): SocialView {
+    const pact = live.forest.pacts.find((p) => p.endedAt === null && p.members.includes(playerId));
+    const invites = invitesOf(live.forest, playerId, now);
+    return {
+      pact: pact
+        ? { id: pact.id, members: [...pact.members], leaving: { ...pact.leaving }, createdAt: pact.createdAt, score: allianceScore(live.forest, pact) }
+        : null,
+      invitesIn: invites.filter((i) => i.to === playerId).map((i) => ({ from: i.from, at: i.at })),
+      invitesOut: invites.filter((i) => i.from === playerId).map((i) => ({ to: i.to, at: i.at })),
+    };
   }
 
   // -------------------------------------------------------------------------
@@ -518,14 +604,14 @@ export class ForestService {
       .map(publicChat);
   }
 
-  /** The player's pact (M7 step 2), null without one. */
-  private pactOf(_live: LiveForest, _playerId: string): string | null {
-    return null;
+  /** The player's pact, null without one. */
+  private pactOf(live: LiveForest, playerId: string): string | null {
+    return live.forest.players.get(playerId)?.pact ?? null;
   }
 
   private roster(live: LiveForest): RosterEntry[] {
     return [...live.forest.players.keys()].map((id) => {
-      const o = this.ownerInfo(live, id, new Map());
+      const o = this.ownerInfo(live, id, new Map(), null);
       return { id, name: o.name, color: o.color };
     });
   }
@@ -568,6 +654,7 @@ export class ForestService {
     await Promise.all(
       [...this.forests.values()].map(async (live) => {
         advanceForest(live.forest, now);
+        this.pactEvents(live, resolvePacts(live.forest, now));
         const before = new Map<string, string>();
         for (const [k, t] of live.forest.tiles) if (t.capture) before.set(k, t.capture.by);
         const events = resolveBorders(live.forest, dt, now);
@@ -613,6 +700,7 @@ export class ForestService {
             const used = botAct(live.forest, bot, now);
             // Tell the victim, as for a human caster.
             if (used) this.recordAction(live, used.victim, used.action, id, used.q, used.r);
+            this.pactEvents(live, botDiplomacy(live.forest, bot, now));
           }
         }
         await this.scores.publish(
@@ -638,6 +726,7 @@ export class ForestService {
               forestEvents: this.eventsFor(live, id),
               eventNotices: eventNotices(happenings, id),
               alerts: live.alerts.get(id) ?? [],
+              social: this.socialOf(live, id, now),
             });
             c.send({ type: "leaderboard", leaderboard: board });
           }
@@ -673,7 +762,8 @@ export class ForestService {
     refreshToxins(live.forest); // Toxines and captures change the neighbours' tiles.
     const { game, owners } = this.view(live, player);
     const forestEvents = this.eventsFor(live, playerId);
-    for (const c of live.clients.get(playerId)!) c.send({ type: "state", game, owners, serverTime: now, events: [], forestEvents, eventNotices: [], alerts: [] });
+    const social = this.socialOf(live, playerId, now);
+    for (const c of live.clients.get(playerId)!) c.send({ type: "state", game, owners, serverTime: now, events: [], forestEvents, eventNotices: [], alerts: [], social });
   }
 
   /** What a player sees: their game, the tiles near their network, and who owns them. */
@@ -687,7 +777,9 @@ export class ForestService {
       for (const e of t.e ?? []) ids.add(e.by);
     }
     const counts = tileCounts(live.forest);
-    return { game, owners: [...ids].map((id) => this.ownerInfo(live, id, counts)) };
+    // Allies are shown as such, and tainted colonies to everybody.
+    for (const a of player.allies) ids.add(a);
+    return { game, owners: [...ids].map((id) => this.ownerInfo(live, id, counts, player)) };
   }
 
   private journalOf(live: LiveForest, playerId: string): Journal {
@@ -745,6 +837,7 @@ export class ForestService {
       lines.push({ type: "action", action, name: name(by), count: n });
     }
     for (const [kind, e] of j.events) lines.push({ type: "event", kind, ...e });
+    for (const e of j.pacts) lines.push({ type: "pact", event: e.event, name: name(e.by) });
     return lines;
   }
 
@@ -752,10 +845,13 @@ export class ForestService {
     return visibleEvents(live.forest).map((e) => eventView(e, playerId));
   }
 
-  private ownerInfo(live: LiveForest, id: string, counts: Map<string, number>): OwnerInfo {
+  private ownerInfo(live: LiveForest, id: string, counts: Map<string, number>, viewer: GameState | null): OwnerInfo {
     const p = live.forest.players.get(id);
     const slice = p ? live.forest.spawns.findIndex((s) => s.q === p.spawn.q && s.r === p.spawn.r) : 0;
-    return { id, name: live.members.get(id)?.name ?? "?", color: Math.max(0, slice), tiles: counts.get(id) ?? 0 };
+    const info: OwnerInfo = { id, name: live.members.get(id)?.name ?? "?", color: Math.max(0, slice), tiles: counts.get(id) ?? 0 };
+    if (viewer?.allies.includes(id)) info.ally = true;
+    if (p && isTainted(p, live.forest.updatedAt)) info.tainted = true;
+    return info;
   }
 
   private async leaderboard(live: LiveForest, playerId: string): Promise<Leaderboard> {
@@ -767,7 +863,18 @@ export class ForestService {
       rank: me + 1,
       players: ranked.length,
       global: await this.scores.globalRank(live.record.seasonStart, playerId),
+      alliances: this.alliances(live),
     };
+  }
+
+  /** The forest's alliance leaderboard (M7): biomass earned by members while in the pact. */
+  private alliances(live: LiveForest): AllianceEntry[] {
+    const name = (id: string) => live.members.get(id)?.name ?? "?";
+    return live.forest.pacts
+      .map((p) => ({ id: p.id, members: [...p.members, ...p.former.filter((f) => !p.members.includes(f))].map(name), score: allianceScore(live.forest, p), active: p.endedAt === null }))
+      .filter((a) => a.score > 0 || a.active)
+      .sort((a, b) => b.score - a.score || a.id.localeCompare(b.id))
+      .map((a, i) => ({ rank: i + 1, ...a }));
   }
 
   /** Forest ranking by cumulated biomass (GDD §8.1), trophies breaking ties. */

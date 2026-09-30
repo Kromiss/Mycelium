@@ -1,4 +1,4 @@
-import { ACTION_IDS, TERRAINS, type ActionId, type EventKind, type MutationId, type StrainId, type StructureId, type Terrain, type UpgradeId } from "./balance";
+import { ACTION_IDS, RELIC_IDS, TERRAINS, type RelicId, type ActionId, type EventKind, type MutationId, type StrainId, type StructureId, type Terrain, type UpgradeId } from "./balance";
 import {
   isMutationId,
   isStrainId,
@@ -17,6 +17,7 @@ import type { MapLayout } from "./forestgen";
 import type { EventDto, EventNotice } from "./events";
 import { CHAT, CHAT_CHANNELS, isPushKind, type ChatChannel, type ChatError, type ChatMessage, type PushKind, type PushLang } from "./chat";
 import { hexKey, type Hex } from "./hex";
+import type { PactEvent } from "./social";
 
 // ---------------------------------------------------------------------------
 // Game state on the wire
@@ -70,6 +71,15 @@ export interface GameSnapshot {
   upgrades: Record<UpgradeId, number>;
   lastSeenAt: number | null;
   updatedAt: number;
+  /** M7 social state (see GameState). */
+  pact?: string | null;
+  allies?: string[];
+  taintedUntil?: number | null;
+  signals?: number;
+  signalsUnlocked?: boolean;
+  relics?: RelicId[];
+  relicPicks?: number;
+  listens?: Record<string, number>;
 }
 
 export const TERRAIN_CODES: Record<Terrain, string> = {
@@ -83,6 +93,8 @@ export const TERRAIN_CODES: Record<Terrain, string> = {
   acid: "a",
   carcass: "c",
   tree: "t",
+  ruin: "u",
+  rubble: "b",
 };
 const TERRAIN_BY_CODE = Object.fromEntries(TERRAINS.map((t) => [TERRAIN_CODES[t], t])) as Record<string, Terrain>;
 
@@ -136,6 +148,14 @@ export function toSnapshot(state: GameState, visible?: Set<string>): GameSnapsho
     upgrades: { ...state.upgrades },
     lastSeenAt: state.lastSeenAt,
     updatedAt: state.updatedAt,
+    pact: state.pact,
+    allies: [...state.allies],
+    taintedUntil: state.taintedUntil,
+    signals: state.signals,
+    signalsUnlocked: state.signalsUnlocked,
+    relics: [...state.relics],
+    relicPicks: state.relicPicks,
+    listens: { ...state.listens },
   };
 }
 
@@ -189,9 +209,30 @@ export function fromSnapshot(s: GameSnapshot, seed = 0): GameState {
     upgrades: normalizeUpgrades(s.upgrades),
     queue: s.queue.map((h) => ({ q: h.q, r: h.r })),
     lastSeenAt: s.lastSeenAt,
+    pact: typeof s.pact === "string" ? s.pact : null,
+    allies: Array.isArray(s.allies) ? s.allies.filter((a) => typeof a === "string") : [],
+    pactGiven: 0,
+    taintedUntil: typeof s.taintedUntil === "number" ? s.taintedUntil : null,
+    signals: s.signals ?? 0,
+    signalsUnlocked: s.signalsUnlocked ?? false,
+    relics: normalizeRelics(s.relics),
+    relicPicks: s.relicPicks ?? 0,
+    listens: normalizeListens(s.listens),
     tiles,
     updatedAt: s.updatedAt,
   };
+}
+
+/** Relics from untrusted data. */
+export function normalizeRelics(raw: unknown): RelicId[] {
+  return Array.isArray(raw) ? [...new Set(raw.filter((r): r is RelicId => typeof r === "string" && (RELIC_IDS as readonly string[]).includes(r)))] : [];
+}
+
+/** Listened networks from untrusted data. */
+export function normalizeListens(raw: unknown): Record<string, number> {
+  const out: Record<string, number> = {};
+  if (typeof raw === "object" && raw !== null) for (const [id, until] of Object.entries(raw)) if (typeof until === "number") out[id] = until;
+  return out;
 }
 
 const EFFECT_KINDS: readonly string[] = [...ACTION_IDS, "storm", "ashes"];
@@ -232,6 +273,35 @@ export interface OwnerInfo {
   color: number;
   /** Tiles the player owns (GDD §6.4: attacking a much smaller player costs more; floor of tiles). */
   tiles: number;
+  /** In the viewer's pact (M7). */
+  ally?: true;
+  /** "Réseau tâché": betrayed a pact less than a day ago (M7, visible to everybody). */
+  tainted?: true;
+}
+
+/** The viewer's pact and invitations (M7). */
+export interface SocialView {
+  pact: {
+    id: string;
+    members: string[];
+    /** Members leaving with notice: when they leave. */
+    leaving: Record<string, number>;
+    createdAt: number;
+    /** Biomass the members earned in the pact (alliance leaderboard). */
+    score: number;
+  } | null;
+  invitesIn: Array<{ from: string; at: number }>;
+  invitesOut: Array<{ to: string; at: number }>;
+}
+
+/** A pact in the alliance leaderboard (M7): its members' names, current ones first. */
+export interface AllianceEntry {
+  rank: number;
+  id: string;
+  members: string[];
+  score: number;
+  /** Still alive (not fallen under two members). */
+  active: boolean;
 }
 
 /** A member of the forest, for the chat and private messages (everybody, fog or not). */
@@ -260,6 +330,8 @@ export interface Leaderboard {
   rank: number;
   players: number;
   global: { rank: number; players: number };
+  /** Alliance leaderboard of the forest (M7). */
+  alliances: AllianceEntry[];
 }
 
 export interface ForestInfo {
@@ -318,6 +390,7 @@ export type ServerMessage =
       silencedUntil: number | null;
       /** The player may cut other players' chat (M7 moderation). */
       admin: boolean;
+      social: SocialView;
     }
   /** The forest's colonies changed (someone joined). */
   | { type: "roster"; roster: RosterEntry[] }
@@ -341,6 +414,7 @@ export type ServerMessage =
       eventNotices: EventNotice[];
       /** In-game alerts for this player since the last state (GDD §11). */
       alerts: Alert[];
+      social: SocialView;
     }
   | { type: "leaderboard"; leaderboard: Leaderboard }
   | { type: "actionError"; error: ActionError | "not_authenticated" };
@@ -358,7 +432,9 @@ export interface CaptureNotice {
 /** In-game alerts (GDD §11): a border fight starts on one of your tiles, an action hits you. */
 export type Alert =
   | { type: "attacked"; by: string; q: number; r: number; heart?: true }
-  | { type: "action"; action: ActionId; by: string; q: number; r: number };
+  | { type: "action"; action: ActionId; by: string; q: number; r: number }
+  /** M7: a pact invitation, a newcomer, a departure, a betrayal… `by` is who did it. */
+  | { type: "pact"; event: PactEvent["kind"]; by: string };
 
 /** One line of the night journal (GDD §11 "Journal de la nuit"); names are resolved by the server. */
 export type JournalLine =
@@ -366,7 +442,8 @@ export type JournalLine =
   | { type: "wonFrom"; name: string; tiles: number }
   | { type: "heartLost"; name: string }
   | { type: "action"; action: ActionId; name: string; count: number }
-  | { type: "event"; kind: EventKind; tiles: number; biomass: number; enzymes: number; trophy: boolean };
+  | { type: "event"; kind: EventKind; tiles: number; biomass: number; enzymes: number; trophy: boolean }
+  | { type: "pact"; event: PactEvent["kind"]; name: string };
 
 /** What the game produced while the player was away (shown when they come back). */
 export interface AwaySummary {
@@ -413,7 +490,19 @@ export type ClientMessage =
   | { type: "silence"; player: string }
   /** Browser notifications (M7): the subscription made by the browser, the language and the kinds wanted. */
   | { type: "pushSubscribe"; endpoint: string; p256dh: string; auth: string; lang: PushLang; kinds: PushKind[] }
-  | { type: "pushUnsubscribe"; endpoint: string };
+  | { type: "pushUnsubscribe"; endpoint: string }
+  /** Pactes de symbiose (M7). */
+  | { type: "pactInvite"; to: string }
+  | { type: "pactAnswer"; from: string; accept: boolean }
+  /** Leaves with an hour of notice. */
+  | { type: "pactLeave" }
+  /** Breaks the pact at once (betrayal). */
+  | { type: "pactBetray" }
+  /** Sends Nutrients or Enzymes to an ally, for a Signal. */
+  | { type: "send"; to: string; resource: "nutrients" | "enzymes"; amount: number }
+  /** Listens to a colony's network for an hour. */
+  | { type: "listen"; target: string }
+  | { type: "chooseRelic"; relic: string };
 
 export interface HealthReport {
   status: "ok" | "degraded";
@@ -514,6 +603,20 @@ export function parseClientMessage(raw: string): ClientMessage | null {
     }
     case "pushUnsubscribe":
       return isStr(m.endpoint, 1000) ? { type: "pushUnsubscribe", endpoint: m.endpoint } : null;
+    case "pactInvite":
+      return isStr(m.to, 64) ? { type: "pactInvite", to: m.to } : null;
+    case "pactAnswer":
+      return isStr(m.from, 64) && typeof m.accept === "boolean" ? { type: "pactAnswer", from: m.from, accept: m.accept } : null;
+    case "pactLeave":
+    case "pactBetray":
+      return { type: m.type };
+    case "send":
+      if (!isStr(m.to, 64) || (m.resource !== "nutrients" && m.resource !== "enzymes")) return null;
+      return typeof m.amount === "number" && Number.isFinite(m.amount) && m.amount > 0 ? { type: "send", to: m.to, resource: m.resource, amount: m.amount } : null;
+    case "listen":
+      return isStr(m.target, 64) ? { type: "listen", target: m.target } : null;
+    case "chooseRelic":
+      return isStr(m.relic, 20) ? { type: "chooseRelic", relic: m.relic } : null;
     case "setAutomation": {
       const out: ClientMessage = { type: "setAutomation" };
       if (m.colonize === null || isStr(m.colonize, 20)) out.colonize = m.colonize as string | null;

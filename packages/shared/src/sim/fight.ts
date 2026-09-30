@@ -6,7 +6,8 @@
 import { ACTION_EFFECTS, ACTION_IDS, type ActionId } from "../balance";
 import { act, actionCost, checkAct } from "../conflict";
 import { atFloor, pressure, tileCounts, type ForestState } from "../forest";
-import { build, checkBuild, networkHops, tileProduction, type GameState, type Tile } from "../game";
+import { RELIC_IDS, TERRAIN_STATS } from "../balance";
+import { build, checkBuild, checkColonize, chooseRelic, colonizationCost, colonize, networkHops, tileProduction, type GameState, type Tile } from "../game";
 import { hexDistance, hexEquals, hexesInRadius, hexKey, hexNeighbors } from "../hex";
 
 /** Robots build their Gland once they hold this many tiles (it costs the production of a tile). */
@@ -19,6 +20,7 @@ const GLAND_AT_TILES = 20;
 export function botAct(forest: ForestState, state: GameState, now: number): { action: ActionId; q: number; r: number; victim: string } | null {
   if (!state.enzymesUnlocked) return null;
   ensureGland(state, now);
+  lootRuins(state, now);
   const hops = networkHops(state, now);
   const targets = new Map<string, Tile>();
   for (const k of hops.keys()) {
@@ -108,4 +110,21 @@ function ensureGland(state: GameState, now: number): void {
     }
   }
   if (best && checkBuild(state, best, "gland").ok) build(state, best, "gland", now);
+}
+
+/**
+ * M7 Ruins: a robot plans an adjacent Ruine once it has the Enzymes for it and for an action, and
+ * picks its relics in a fixed order of preference.
+ */
+function lootRuins(state: GameState, now: number): void {
+  while (state.relicPicks > 0) {
+    const relic = RELIC_IDS.find((r) => !state.relics.includes(r));
+    if (!relic || !chooseRelic(state, relic).ok) break;
+  }
+  for (const t of state.tiles.values()) {
+    if (t.terrain !== "ruin" || t.owner !== null || !checkColonize(state, t).ok) continue;
+    const cost = colonizationCost(state, t, now);
+    if (TERRAIN_STATS.ruin.paidInEnzymes && state.enzymes >= cost + 40) colonize(state, t, now);
+    return;
+  }
 }

@@ -38,7 +38,13 @@ const TERRAIN_COLORS: Record<Terrain, number> = {
   acid: 0x4f5a22,
   carcass: 0x6b3a33,
   tree: 0x2c3f1f,
+  ruin: 0x55514a,
+  rubble: 0x46423b,
 };
+
+/** M7: allies get a bright rim, a traitor's network ("Réseau tâché") a rust one. */
+const ALLY_RIM = 0xd8ff8a;
+const TAINT_RIM = 0xd4553a;
 
 /** Event zones on the map (GDD §7). */
 const EVENT_COLORS: Record<EventKind, number> = {
@@ -140,6 +146,7 @@ export class MapView {
       this.drawTerrain(game);
     }
     const signature = [
+      [...this.owners.values()].map((o) => `${o.id}${o.ally ? "a" : ""}${o.tainted ? "t" : ""}`).join(","),
       hexKey(game.heart),
       game.queue.map(hexKey).join("|"),
       tiles
@@ -264,6 +271,18 @@ export class MapView {
       g.circle(x, y, SIZE * 0.7).fill({ color: 0x4a3524 }).stroke({ width: 3, color: 0x2a1d12 });
       for (const r of [SIZE * 0.5, SIZE * 0.3]) g.circle(x, y, r).stroke({ width: 1.5, color: 0x7a5a3a, alpha: 0.7 });
       g.moveTo(x - SIZE * 0.1, y - SIZE * 0.6).lineTo(x + SIZE * 0.05, y).lineTo(x - SIZE * 0.05, y + SIZE * 0.55).stroke({ width: 2, color: 0x1a120b });
+    } else if (tile.terrain === "ruin") {
+      // Broken columns of an old stump-temple.
+      for (const [dx, h] of [[-0.3, 0.55], [0, 0.8], [0.3, 0.4]] as const) {
+        g.rect(x + dx * SIZE - 3, y + SIZE * 0.35 - h * SIZE, 6, h * SIZE).fill({ color: 0xa8a293 }).stroke({ width: 1, color: 0x3c3a33 });
+      }
+      g.moveTo(x - SIZE * 0.5, y + SIZE * 0.38).lineTo(x + SIZE * 0.5, y + SIZE * 0.38).stroke({ width: 2, color: 0x8a8577 });
+    } else if (tile.terrain === "rubble") {
+      for (let i = 0; i < 6; i++) {
+        const a = rnd(i) * Math.PI * 2;
+        const d = rnd(i + 10) * SIZE * 0.55;
+        g.rect(x + Math.cos(a) * d - 2.5, y + Math.sin(a) * d - 2, 5, 4).fill({ color: 0x8a8577, alpha: 0.85 });
+      }
     } else if (tile.terrain === "acid") {
       // Sour bubbles.
       for (let i = 0; i < 5; i++) {
@@ -324,9 +343,12 @@ export class MapView {
       if (t.owner === null) continue;
       if (t.owner !== game.id) {
         // Another player's tile.
-        const color = playerColor(this.owners.get(t.owner)?.color ?? 0);
+        const owner = this.owners.get(t.owner);
+        const color = playerColor(owner?.color ?? 0);
         net.poly(hexPoints(x, y, SIZE - 1)).fill({ color, alpha: t.disconnectedSince === null ? 0.42 : 0.2 });
         net.poly(hexPoints(x, y, SIZE - 2.5)).stroke({ width: 1.5, color, alpha: 0.8 });
+        if (owner?.ally) net.poly(hexPoints(x, y, SIZE - 5)).stroke({ width: 1.5, color: ALLY_RIM, alpha: 0.65 });
+        if (owner?.tainted) net.poly(hexPoints(x, y, SIZE - 5)).stroke({ width: 2.5, color: TAINT_RIM, alpha: 0.85 });
         continue;
       }
       if (t.growthEndsAt !== null) {

@@ -3,12 +3,12 @@
  * real rules (economy, borders, protections). Used by `forest-week.test.ts` in CI and by
  * `pnpm --filter @mycelium/shared simulate:forest`.
  */
-import { FOREST, type ActionId, type EventKind } from "../balance";
+import { FOREST, TERRAIN_STATS, type ActionId, type EventKind } from "../balance";
 import { resolveEvents } from "../events";
 import { botAct } from "./fight";
 import { advanceForest, joinForest, newForest, resolveBorders, type CaptureEvent } from "../forest";
 import { ringAt, type Ring } from "../forestgen";
-import { goOffline, goOnline, networkHops, productionRate } from "../game";
+import { goOffline, goOnline, networkHops, productionRate, type Tile } from "../game";
 import { hexKey } from "../hex";
 import { seasonAt } from "../season";
 import { PROFILES, botPlay, defaultPlan, type BotPlan, type Profile } from "./week";
@@ -106,8 +106,11 @@ export function simulateForestWeek(options: ForestSimOptions = {}): ForestSimRes
     // Everyone joins at the start of their first session on Monday.
     return { id, profile, at: t0 + profile.sessions[0]![0] * HOUR };
   });
-  const land = [...forest.tiles.values()].filter((t) => t.terrain !== "wetland").length;
-  const occupied = () => [...forest.tiles.values()].filter((t) => t.owner !== null).length / land;
+  // Tiles bought with nutrients: wetlands need a mutation, Rock and Ruins are paid in Enzymes (M7 added
+  // one Ruine per slice), and the pacing target is about the land everyone expands onto.
+  const fillable = (t: Tile) => t.terrain !== "wetland" && !TERRAIN_STATS[t.terrain].paidInEnzymes;
+  const land = [...forest.tiles.values()].filter(fillable).length;
+  const occupied = () => [...forest.tiles.values()].filter((t) => t.owner !== null && fillable(t)).length / land;
 
   const online = (profile: Profile, t: number) => {
     const inDay = (t - t0) % DAY; // Paris wall-clock time of day (no DST change that week).

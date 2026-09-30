@@ -9,6 +9,11 @@ import {
   normalizeAutomation,
   normalizeCooldowns,
   normalizeEffects,
+  normalizeInvites,
+  normalizeListens,
+  normalizePacts,
+  normalizeRelics,
+  refreshPacts,
   normalizeSporeUpgrades,
   normalizeUpgrades,
   refreshReservations,
@@ -357,6 +362,12 @@ interface PlayerRow extends AccountRow {
   automation: unknown;
   cooldowns: unknown;
   heart_shield_until: Date | null;
+  tainted_until: Date | null;
+  signals: number;
+  signals_unlocked: boolean;
+  relics: unknown;
+  relic_picks: number;
+  listens: unknown;
   biomass: number;
   upgrades: Record<string, number>;
   queue: Array<{ q: number; r: number }>;
@@ -571,8 +582,10 @@ export class PgStore implements GameStore {
       updated_at: Date;
       season_start: Date;
       events: unknown;
+      pacts: unknown;
+      pact_invites: unknown;
     }>(
-      `select f.id, f.number, f.world_id, w.seed, w.radius, w.capacity, f.updated_at, f.season_start, f.events
+      `select f.id, f.number, f.world_id, w.seed, w.radius, w.capacity, f.updated_at, f.season_start, f.events, f.pacts, f.pact_invites
        from forests f join worlds w on w.id = f.world_id where f.id = $1 and f.ended_at is null`,
       [id],
     );
@@ -607,7 +620,8 @@ export class PgStore implements GameStore {
     const players = await this.pool.query<PlayerRow>(
       `select id, name, password_hash, is_bot, chat_silenced_until, heart_q, heart_r, heart_moved_at, spawn_q, spawn_r, joined_at, trophies,
               monday_bonus, nutrients, enzymes, enzymes_unlocked, strain, mutations, spores, spore_upgrades, fruitings,
-              automation, cooldowns, heart_shield_until, biomass, upgrades, queue, last_seen_at, updated_at
+              automation, cooldowns, heart_shield_until, biomass, upgrades, queue, last_seen_at, updated_at,
+              tainted_until, signals, signals_unlocked, relics, relic_picks, listens
        from players where forest_id = $1`,
       [id],
     );
@@ -643,6 +657,15 @@ export class PgStore implements GameStore {
         upgrades: normalizeUpgrades(p.upgrades),
         queue: Array.isArray(p.queue) ? p.queue.filter((h) => Number.isInteger(h?.q) && Number.isInteger(h?.r)) : [],
         lastSeenAt: toMs(p.last_seen_at),
+        pact: null,
+        allies: [],
+        pactGiven: 0,
+        taintedUntil: toMs(p.tainted_until),
+        signals: p.signals,
+        signalsUnlocked: p.signals_unlocked,
+        relics: normalizeRelics(p.relics),
+        relicPicks: p.relic_picks,
+        listens: normalizeListens(p.listens),
         tiles,
         updatedAt: p.updated_at.getTime(),
       });
@@ -656,9 +679,12 @@ export class PgStore implements GameStore {
       players: states,
       calendar: true,
       events: Array.isArray(row.events) ? (row.events as ForestState["events"]) : [],
+      pacts: normalizePacts(row.pacts),
+      invites: normalizeInvites(row.pact_invites),
       updatedAt: row.updated_at.getTime(),
     };
     refreshReservations(forest, forest.updatedAt);
+    refreshPacts(forest);
     refreshToxins(forest);
     return { record: { id: row.id, number: row.number, seasonStart: row.season_start.getTime() }, forest, members };
   }
@@ -668,8 +694,8 @@ export class PgStore implements GameStore {
     try {
       await client.query("begin");
       const res = await client.query<{ world_id: string }>(
-        "update forests set updated_at = $2, events = $3::jsonb where id = $1 returning world_id",
-        [id, new Date(forest.updatedAt), JSON.stringify(forest.events)],
+        "update forests set updated_at = $2, events = $3::jsonb, pacts = $4::jsonb, pact_invites = $5::jsonb where id = $1 returning world_id",
+        [id, new Date(forest.updatedAt), JSON.stringify(forest.events), JSON.stringify(forest.pacts), JSON.stringify(forest.invites)],
       );
       const worldId = res.rows[0]?.world_id;
       if (!worldId) throw new Error(`Unknown forest ${id}`);
@@ -683,14 +709,18 @@ export class PgStore implements GameStore {
                   monday_bonus = t.monday_bonus, enzymes = t.enzymes, enzymes_unlocked = t.enzymes_unlocked,
                   strain = t.strain, mutations = t.mutations::jsonb, spores = t.spores,
                   spore_upgrades = t.spore_upgrades::jsonb, fruitings = t.fruitings, automation = t.automation::jsonb,
-                  cooldowns = t.cooldowns::jsonb, heart_shield_until = t.heart_shield_until
+                  cooldowns = t.cooldowns::jsonb, heart_shield_until = t.heart_shield_until,
+                  tainted_until = t.tainted_until, signals = t.signals, signals_unlocked = t.signals_unlocked,
+                  relics = t.relics::jsonb, relic_picks = t.relic_picks, listens = t.listens::jsonb
            from unnest($3::uuid[], $4::int[], $5::int[], $6::timestamptz[], $7::int[], $8::int[], $9::timestamptz[],
                        $10::int[], $11::float8[], $12::float8[], $13::text[], $14::text[], $15::timestamptz[],
                        $16::timestamptz[], $17::float8[], $18::float8[], $19::bool[], $20::text[], $21::text[],
-                       $22::float8[], $23::text[], $24::int[], $25::text[], $26::text[], $27::timestamptz[])
+                       $22::float8[], $23::text[], $24::int[], $25::text[], $26::text[], $27::timestamptz[],
+                       $28::timestamptz[], $29::float8[], $30::bool[], $31::text[], $32::int[], $33::text[])
              as t(id, heart_q, heart_r, heart_moved_at, spawn_q, spawn_r, joined_at, trophies, nutrients, biomass,
                   upgrades, queue, last_seen_at, updated_at, monday_bonus, enzymes, enzymes_unlocked, strain, mutations,
-                  spores, spore_upgrades, fruitings, automation, cooldowns, heart_shield_until)
+                  spores, spore_upgrades, fruitings, automation, cooldowns, heart_shield_until,
+                  tainted_until, signals, signals_unlocked, relics, relic_picks, listens)
            where players.id = t.id`,
           [
             id,
@@ -720,6 +750,12 @@ export class PgStore implements GameStore {
             ps.map((p) => JSON.stringify(p.automation)),
             ps.map((p) => JSON.stringify(p.cooldowns)),
             ps.map((p) => toDate(p.heartShieldUntil)),
+            ps.map((p) => toDate(p.taintedUntil)),
+            ps.map((p) => p.signals),
+            ps.map((p) => p.signalsUnlocked),
+            ps.map((p) => JSON.stringify(p.relics)),
+            ps.map((p) => p.relicPicks),
+            ps.map((p) => JSON.stringify(p.listens)),
           ],
         );
       }

@@ -78,6 +78,8 @@ import {
   type EventNotice,
   type Alert,
   type JournalLine,
+  type SocialView,
+  SIGNALS,
   NEMATODES,
   STORM,
   EVENTS,
@@ -88,6 +90,7 @@ import { applyI18n, lang, locale, onLangChange, setLang, t, type MessageKey } fr
 import { ChatView } from "./chat-view";
 import { MapView } from "./map-view";
 import { NotifyView } from "./notify";
+import { SocialPanel } from "./social-view";
 import { choosePassword, clearToken, Connection, loadToken, saveToken, signIn, signOut } from "./net";
 import "./style.css";
 
@@ -109,6 +112,13 @@ const ui = {
   strain: $("strain"),
   strainList: $("strain-list"),
   tabSpores: $("tab-spores"),
+  tabSocial: $("tab-social"),
+  socialView: $("social-view"),
+  tileSocial: $("tile-social"),
+  signalsRes: $("signals-res"),
+  signals: $("signals"),
+  allianceRows: $("alliance-rows"),
+  allianceEmpty: $("alliance-empty"),
   sporesView: $("spores-view"),
   sporesLine: $("spores-line"),
   fruitRadius: $("fruit-radius"),
@@ -197,7 +207,9 @@ let strainDeferred = false;
 let fruitRadius = 3;
 /** The fruiting button waits for a second click until this time. */
 let fruitConfirmUntil = 0;
-let panelTab: "upgrades" | "mutations" | "spores" = "upgrades";
+let panelTab: "upgrades" | "mutations" | "spores" | "social" = "upgrades";
+/** The player's pact and invitations (M7). */
+let social: SocialView = { pact: null, invitesIn: [], invitesOut: [] };
 
 const serverNow = () => clock.server + (Date.now() - clock.local) * clock.scale;
 const fmt = (n: number) => formatNumber(n, locale());
@@ -217,6 +229,27 @@ const chat = new ChatView(
   { send: (msg) => connection?.send(msg), toast: (text, tone) => toast(text, tone) },
 );
 $("chat-close").addEventListener("click", () => chat.setOpen(false));
+const socialPanel = new SocialPanel(ui.socialView, {
+  send: (msg) => connection?.send(msg),
+  fmt: (n) => fmt(n),
+  now: () => serverNow(),
+  message: (id) => chat.openWith(id),
+});
+// Actions on another colony's tile (M7): invite, listen, write.
+const tileSocialButtons = (["invite", "listen", "message"] as const).map((kind) => {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = kind === "invite" ? "primary" : "";
+  b.addEventListener("click", () => {
+    const owner = b.dataset.owner;
+    if (!owner) return;
+    if (kind === "invite") connection?.send({ type: "pactInvite", to: owner });
+    else if (kind === "listen") connection?.send({ type: "listen", target: owner });
+    else chat.openWith(owner);
+  });
+  ui.tileSocial.append(b);
+  return { kind, b };
+});
 const notify = new NotifyView(
   { overlay: $("notify"), kinds: $("notify-kinds"), status: $("notify-status"), toggle: $<HTMLButtonElement>("notify-toggle") },
   (msg) => connection?.send(msg),
@@ -246,6 +279,9 @@ onLangChange(() => {
   renderHistory();
   if (!ui.seasonEnd.hidden) showSeasonEnd(lastResult);
   chat.refresh();
+  socialPanel.refresh();
+  applyI18n(ui.socialView);
+  renderAlliances();
   notify.render();
   // Notifications are written in the language of the subscription.
   void notify.resubscribe();
@@ -357,12 +393,15 @@ function onMessage(msg: ServerMessage): void {
       setForestEvents(msg.forestEvents ?? []);
       applySnapshot(msg.game, msg.owners, msg.serverTime);
       chat.load({ me: msg.player.id, admin: msg.admin, silencedUntil: msg.silencedUntil, roster: msg.roster, chat: msg.chat, muted: msg.muted });
+      socialPanel.setRoster(msg.player.id, msg.roster);
+      setSocial(msg.social);
       void notify.resubscribe();
       if (msg.away) showAway(msg.away);
       if (msg.needsPassword) ui.password.hidden = false;
       break;
     case "roster":
       chat.setRoster(msg.roster);
+      if (game) socialPanel.setRoster(game.id, msg.roster);
       break;
     case "chat":
       chat.receive(msg.message);
@@ -375,6 +414,7 @@ function onMessage(msg: ServerMessage): void {
       break;
     case "state":
       setForestEvents(msg.forestEvents ?? []);
+      if (msg.social) setSocial(msg.social);
       applySnapshot(msg.game, msg.owners, msg.serverTime);
       for (const e of msg.events) announce(e);
       for (const n of msg.eventNotices ?? []) announceEvent(n);
@@ -383,6 +423,7 @@ function onMessage(msg: ServerMessage): void {
     case "leaderboard":
       board = msg.leaderboard;
       renderBoard();
+      renderAlliances();
       break;
     case "seasonEnded":
       showSeasonEnd(msg.result);
@@ -421,7 +462,34 @@ function announce(e: CaptureNotice): void {
 function alert(a: Alert): void {
   const name = owners.get(a.by)?.name ?? "?";
   if (a.type === "attacked") toast(t(a.heart ? "alert.heart" : "alert.attacked", { name }));
-  else toast(t("alert.action", { name, action: t(`action.${a.action}.name`) }));
+  else if (a.type === "action") toast(t("alert.action", { name, action: t(`action.${a.action}.name`) }));
+  else toast(t(`alert.pact.${a.event}`, { name }), a.event === "betrayed" || a.event === "left" || a.event === "ended" || a.event === "declined" ? "bad" : "good");
+}
+
+function setSocial(view: SocialView): void {
+  social = view;
+  socialPanel.setSocial(view);
+  chat.setPact(view.pact !== null);
+}
+
+/** The alliance leaderboard (M7), in the full leaderboard. */
+function renderAlliances(): void {
+  const list = board?.alliances ?? [];
+  ui.allianceEmpty.hidden = list.length > 0;
+  ui.allianceRows.replaceChildren(
+    ...list.map((a) => {
+      const tr = document.createElement("tr");
+      tr.classList.toggle("me", social.pact?.id === a.id);
+      const cells = [String(a.rank), a.active ? a.members.join(", ") : `${a.members.join(", ")} ${t("board.allianceEnded")}`, fmt(a.score)];
+      cells.forEach((v, i) => {
+        const td = document.createElement("td");
+        td.textContent = v;
+        if (i === 2) td.className = "num";
+        tr.append(td);
+      });
+      return tr;
+    }),
+  );
 }
 
 function journalText(line: JournalLine): string {
@@ -434,6 +502,8 @@ function journalText(line: JournalLine): string {
       return t("journal.wonFrom", { name: line.name, tiles: line.tiles });
     case "action":
       return t("journal.action", { name: line.name, action: t(`action.${line.action}.name`), count: line.count });
+    case "pact":
+      return t(`journal.pact.${line.event}`, { name: line.name });
     case "event": {
       const event = t(`event.${line.kind}`);
       const parts: string[] = [];
@@ -783,6 +853,8 @@ function setPanelTab(tab: typeof panelTab): void {
   ui.tabUpgrades.setAttribute("aria-selected", String(tab === "upgrades"));
   ui.tabMutations.setAttribute("aria-selected", String(tab === "mutations"));
   ui.tabSpores.setAttribute("aria-selected", String(tab === "spores"));
+  ui.tabSocial.setAttribute("aria-selected", String(tab === "social"));
+  ui.socialView.hidden = tab !== "social";
   ui.upgradesView.hidden = tab !== "upgrades";
   ui.mutationsView.hidden = tab !== "mutations";
   ui.sporesView.hidden = tab !== "spores";
@@ -791,6 +863,7 @@ function setPanelTab(tab: typeof panelTab): void {
 ui.tabUpgrades.addEventListener("click", () => setPanelTab("upgrades"));
 ui.tabMutations.addEventListener("click", () => setPanelTab("mutations"));
 ui.tabSpores.addEventListener("click", () => setPanelTab("spores"));
+ui.tabSocial.addEventListener("click", () => setPanelTab("social"));
 
 // Fruiting and the Spore shop (GDD §5)
 
@@ -1014,6 +1087,11 @@ function render(): void {
   renderMutations(game);
   renderSpores(game);
   renderAutomation(game);
+  ui.signalsRes.hidden = !game.signalsUnlocked;
+  if (game.signalsUnlocked) ui.signals.textContent = fmt(game.signals);
+  const pending = socialPanel.pending(game);
+  ui.tabSocial.textContent = pending > 0 ? t("social.tabPending", { count: pending }) : t("social.tab");
+  if (panelTab === "social") socialPanel.render(game, owners);
   ui.strain.hidden = strainDeferred || game.strain !== null || ownedCount(game) > 1;
 
   for (const li of ui.upgradeList.children) {
@@ -1056,8 +1134,9 @@ function renderTile(g: GameState): void {
     note = t("tile.wetland");
   } else if (tile.owner !== null && tile.owner !== g.id) {
     // Another colony's tile: who holds it, and how the border fight goes.
-    const holder = owners.get(tile.owner)?.name ?? "?";
-    status = t("tile.ownerOther", { name: holder });
+    const holderInfo = owners.get(tile.owner);
+    const holder = holderInfo?.name ?? "?";
+    status = holderInfo?.ally ? t("tile.ally", { name: holder }) : t("tile.ownerOther", { name: holder });
     if (tile.capture) {
       const pct = new Intl.NumberFormat(locale(), { style: "percent", maximumFractionDigits: 0 }).format(tile.capture.progress);
       status =
@@ -1160,6 +1239,8 @@ function renderTile(g: GameState): void {
   );
   renderStructures(g, tile, buildable);
   renderConflict(g, tile, now);
+  renderTileSocial(g, tile, now);
+  if (tile.owner !== null && owners.get(tile.owner)?.tainted && tile.owner !== g.id) note = `${t("tile.taintedOwner")} ${note}`.trim();
   ui.tileNote.textContent = note;
   ui.tileNote.hidden = note === "";
   actionButtons.forEach((b, i) => {
@@ -1189,6 +1270,10 @@ function terrainNote(terrain: Terrain): string {
       return t("tile.carcassNote");
     case "tree":
       return t("tile.treeNote");
+    case "ruin":
+      return t("tile.ruinNote");
+    case "rubble":
+      return t("tile.rubbleNote");
     default:
       return "";
   }
@@ -1216,8 +1301,28 @@ function renderStructures(g: GameState, tile: { q: number; r: number; structure:
  * Active actions on another colony's tile (GDD §6.2). The client checks what it can see (adjacency,
  * Enzymes, cooldown, Monday); the server has the last word.
  */
+/** Pact, listening and private message for another colony's tile (M7). */
+function renderTileSocial(g: GameState, tile: Tile, now: number): void {
+  const other = tile.owner !== null && tile.owner !== g.id ? tile.owner : null;
+  ui.tileSocial.hidden = other === null;
+  if (other === null) return;
+  const info = owners.get(other);
+  for (const { kind, b } of tileSocialButtons) {
+    b.dataset.owner = other;
+    if (kind === "invite") {
+      b.textContent = t("tile.invite");
+      b.hidden = info?.ally === true;
+      b.disabled = g.taintedUntil !== null && g.taintedUntil > now;
+    } else if (kind === "listen") {
+      b.textContent = t("tile.listen", { cost: SIGNALS.listenCost });
+      b.hidden = !g.signalsUnlocked;
+      b.disabled = g.signals < SIGNALS.listenCost;
+    } else b.textContent = t("tile.message");
+  }
+}
+
 function renderConflict(g: GameState, tile: Tile, now: number): void {
-  const enemy = tile.owner !== null && tile.owner !== g.id && tile.growthEndsAt === null;
+  const enemy = tile.owner !== null && tile.owner !== g.id && tile.growthEndsAt === null && !owners.get(tile.owner)?.ally;
   const hops = networkHops(g, now);
   const touching = enemy && hexNeighbors(tile).some((n) => hops.has(hexKey(n)));
   ui.tileConflict.hidden = !enemy || !touching || !g.enzymesUnlocked;

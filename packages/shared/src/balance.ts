@@ -6,11 +6,11 @@
 
 const HOUR = 3_600_000;
 
-export const TERRAINS = ["litter", "humus", "deadwood", "wetland", "stump", "roots", "rock", "acid", "carcass", "tree"] as const;
+export const TERRAINS = ["litter", "humus", "deadwood", "wetland", "stump", "roots", "rock", "acid", "carcass", "tree", "ruin", "rubble"] as const;
 /**
  * GDD §2.2: Litière de feuilles, Humus, Bois mort (M1), Ruisseau / Zone humide (M2), in M5 Souche /
- * Tronc tombé, Racines d'arbre, Roche and Sol acide, and in M6 the temporary Carcasse and the Arbre
- * mourant (world boss) left by events. Ruine comes with M7.
+ * Tronc tombé, Racines d'arbre, Roche and Sol acide, in M6 the temporary Carcasse and the Arbre
+ * mourant (world boss) left by events, and in M7 the Ruine, which turns into rubble once looted.
  */
 export type Terrain = (typeof TERRAINS)[number];
 /** Terrains of the solo maps (M1–M2). */
@@ -60,6 +60,11 @@ export const TERRAIN_STATS: Readonly<Record<Terrain, TerrainStats>> = {
   carcass: { colonizable: true, yieldPerSecond: 12, baseCost: 6_000, growthSeconds: 60, lifetimeMs: 6 * HOUR, reserve: 0 },
   // GDD §7, M6 world boss: the Arbre mourant stands on these tiles; nobody can colonise them.
   tree: { colonizable: false, yieldPerSecond: 0, baseCost: 0, growthSeconds: 0, lifetimeMs: Infinity, reserve: 0 },
+  // GDD §2.2, M7 DECIDED: one per slice in the middle ring, paid in Enzymes, yields nothing; the first
+  // colonisation gives a relic (see RELICS). Numbers PLACEHOLDER.
+  ruin: { colonizable: true, yieldPerSecond: 0, baseCost: 60, growthSeconds: 1_800, lifetimeMs: Infinity, reserve: 0, paidInEnzymes: true },
+  // A looted Ruine: yields nothing, cheap. PLACEHOLDER.
+  rubble: { colonizable: true, yieldPerSecond: 0, baseCost: 2_000, growthSeconds: 60, lifetimeMs: Infinity, reserve: 0 },
 };
 
 /** Racines d'arbre (GDD §2.2 "mycorhize"): each colonised Roots tile adds this to the whole network's production. PLACEHOLDER. */
@@ -217,6 +222,8 @@ export const BORDERS = {
     acid: 45 * 60_000,
     carcass: 10 * 60_000,
     tree: 2 * HOUR,
+    ruin: 45 * 60_000,
+    rubble: 10 * 60_000,
   } as Readonly<Record<Terrain, number>>,
   /** Pressure ratio at which the capture runs at full speed; below 1 nothing happens. */
   fullSpeedRatio: 2,
@@ -454,3 +461,49 @@ export const NEMATODES = { radius: 2, durationMs: 6 * HOUR, biteMs: 30 * 60_000,
  * of the Enzymes; the top contributor a Trophy. The tree then leaves Stumps.
  */
 export const DYING_TREE = { days: [3, 6], hour: 14, durationMs: 6 * HOUR, hpHours: 2, minHp: 200_000, biomassFactor: 0.25, enzymes: 300 } as const;
+
+// ---------------------------------------------------------------------------
+// M7 — social: pacts, chemical Signals, Ruins (GDD §3, §6.3). DECIDED: the proposed package; numbers PLACEHOLDER.
+
+/** Pactes de symbiose (GDD §6.3). */
+export const PACTS = {
+  /** A pact holds 2 to 4 colonies; one pact per player. */
+  maxMembers: 4,
+  /** Each member puts this share of their production into a pot shared equally. */
+  share: 0.05,
+  /** Leaving with notice: the player stays in the pact this long, then leaves without penalty. */
+  leaveNoticeMs: 1 * HOUR,
+  /** Leaving at once is a betrayal: "Réseau tâché" for this long. */
+  taintMs: 24 * HOUR,
+  /** Production of a tainted network: −15 %. */
+  taintProduction: 0.15,
+  /** An invitation is valid this long. */
+  inviteMs: 24 * HOUR,
+} as const;
+
+/** Signaux chimiques (GDD §3): made by Roots tiles, spent on sending resources and listening. */
+export const SIGNALS = {
+  /** Signals per hour per connected Roots tile. */
+  perRootsPerHour: 1,
+  /** Sending Nutrients or Enzymes to an ally costs one Signal and loses 5 % on the way. */
+  sendCost: 1,
+  sendLoss: 0.05,
+  /** Listening: another colony's whole network, through the fog, for an hour. */
+  listenCost: 3,
+  listenMs: 1 * HOUR,
+} as const;
+
+/** Relics (M7): the first colonisation of a Ruine gives one, for the week, chosen by the player. */
+export const RELIC_IDS = ["vigour", "haste", "insight"] as const;
+export type RelicId = (typeof RELIC_IDS)[number];
+export const RELICS = {
+  /** Production +10 %. */
+  vigour: 0.1,
+  /** Growth time −15 %. */
+  haste: 0.15,
+  /** One more mutation point. */
+  insight: 1,
+} as const;
+
+/** Where the Ruine of each slice lies: in the middle ring, at this share of the radius, off the spawn axis. */
+export const RUIN_PLACE = { distance: 0.5, p: 0.25 } as const;

@@ -26,6 +26,10 @@
         <span class="res-value" id="enzymes">0</span>
         <span class="res-rate" id="enzymes-rate"></span>
       </div>
+      <div class="res res-signals" id="signals-res" hidden>
+        <span class="res-label" data-i18n="res.signals"></span>
+        <span class="res-value" id="signals">0</span>
+      </div>
       <div class="res res-tiles">
         <span class="res-label" data-i18n="res.tiles"></span>
         <span class="res-value" id="tiles">1</span>
@@ -61,7 +65,9 @@
         <button type="button" role="tab" class="tab" id="tab-upgrades" aria-selected="true" data-i18n="upgrades.title"></button>
         <button type="button" role="tab" class="tab" id="tab-mutations" aria-selected="false"></button>
         <button type="button" role="tab" class="tab" id="tab-spores" aria-selected="false"></button>
+        <button type="button" role="tab" class="tab" id="tab-social" aria-selected="false"></button>
       </div>
+      <div id="social-view" hidden></div>
       <div id="upgrades-view">
         <section class="automation">
           <h3 data-i18n="auto.title"></h3>
@@ -114,6 +120,7 @@
         <h4 data-i18n="tile.structures"></h4>
         <ul id="structure-list"></ul>
       </div>
+      <div class="tile-social" id="tile-social" hidden></div>
       <div class="tile-structures" id="tile-conflict" hidden>
         <h4 data-i18n="tile.actions"></h4>
         <ul id="action-list"></ul>
@@ -245,6 +252,18 @@
           </thead>
           <tbody id="board-rows"></tbody>
         </table>
+        <h3 data-i18n="board.alliances"></h3>
+        <table id="alliance-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th data-i18n="board.alliance"></th>
+              <th data-i18n="board.allianceScore"></th>
+            </tr>
+          </thead>
+          <tbody id="alliance-rows"></tbody>
+        </table>
+        <p class="muted" id="alliance-empty" data-i18n="board.noAlliance" hidden></p>
         <h3 data-i18n="history.title"></h3>
         <ul class="history" id="history"></ul>
         <button type="button" class="primary" id="board-close" data-i18n="board.close"></button>
