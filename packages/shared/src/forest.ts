@@ -1,4 +1,4 @@
-import { ACTION_EFFECTS, ANTI_FRUSTRATION, BORDERS, CENTRE_RISK, FOREST, MUTATIONS, ROCK, STRUCTURES, VISION_RADIUS } from "./balance";
+import { ACTION_EFFECTS, ANTI_FRUSTRATION, BORDERS, CENTRE_RISK, FOREST, MUTATIONS, ROCK, STRAINS, STRUCTURES, VISION_RADIUS } from "./balance";
 import { generateForestMap, ringAt, type MapLayout } from "./forestgen";
 import {
   activeEffect,
@@ -18,6 +18,7 @@ import {
   tileYield,
   wildTile,
   humidity,
+  moldFeeds,
   type GameState,
   type Tile,
 } from "./game";
@@ -300,6 +301,9 @@ export function resolveBorders(forest: ForestState, dt: number, now: number): Ca
           const assault = tile.effects.length > 0 && tile.effects.some((e) => e.kind === "assault" && e.by === a && e.until > now);
           let speed = assault ? (attack > defence ? ACTION_EFFECTS.assaultSpeed : 0) : captureSpeed(attack, defence);
           if (isBullying(counts, a, defender.id)) speed *= ANTI_FRUSTRATION.bullyCaptureFactor;
+          // Moisissure (M7): worn tiles are taken twice as fast.
+          const attackerState = forest.players.get(a);
+          if (attackerState && moldFeeds(attackerState, tile)) speed *= STRAINS.mold.captureSpeed;
           if (speed > 0 && (!best || speed > best.speed || (speed === best.speed && attack > best.attack))) best = { id: a, speed, attack };
         }
       }
@@ -377,6 +381,7 @@ function conquer(attacker: GameState, tile: Tile): void {
     !(tile.structure === "sclerotium" && [...attacker.tiles.values()].some((t) => t !== tile && t.owner === attacker.id && t.structure === "sclerotium"));
   if (!keep) tile.structure = null;
   attacker.trophies += 1;
+  attacker.conquests += 1;
   const perSecond = tileYield(tile.terrain, attacker.upgrades) * richness(attacker, tile);
   attacker.biomass += ((perSecond * BORDERS.conquestBonusMs) / 1000) * biomassConversion(attacker) * conquestFactor(attacker);
 }

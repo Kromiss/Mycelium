@@ -18,7 +18,7 @@ des points de départ à équilibrer, centralisés dans `packages/shared`.
 | M4 Saison | 0.5.0 | étape 4 | Semaine, phases journalières, wipe | ✅ (testé en local) |
 | M5 Profondeur : économie | 0.6.0 | étape 5 | Structures, mutations, souches, fructification | ✅ (testé en local) |
 | M6 Profondeur : conflit & événements | 0.7.0 | étape 5 | Actions actives, événements, world boss | ✅ (testé en local) |
-| M7 Social | 0.8.0 | étape 6 | Alliances, ligues, récompenses | en cours |
+| M7 Social | 0.8.0 | étape 6 | Alliances, ligues, récompenses | ✅ (testé en local) |
 | M8 Bêta fermée | 0.9.0 | — | Plusieurs forêts, équilibrage, charge | à faire |
 | Lancement | 1.0.0 | — | Ouverture publique | — |
 
@@ -324,6 +324,29 @@ chat et notifications, puis pactes, Signaux et Ruine, puis classements, ligues e
 - ✅ **Notifications : navigateur seul** (Web Push, sur activation) : frontière attaquée, Cœur menacé,
   Arbre mourant, fin de saison dans 1 h, message privé ; au plus une par type toutes les 30 min.
   Pas d'e-mail.
+
+Livré en 0.8.0, en trois étapes, validé en local (`BOTS=11 TIME_SCALE=1800` : pactes formés et
+dissous par les robots, trahison, classement d'alliance, récompenses et ligue sur la carte de fin de
+saison, profil après le wipe) et par les tests. Choix de réalisation à valider (dans `balance.ts` et
+`rewards.ts`) :
+- Pot du pacte : les 5 % sont pris sur la production (donc aussi sur la biomasse qu'elle aurait
+  donnée) et chaque part reçue compte comme production du receveur (nutriments + biomasse).
+- Témérité et Toxines ne comptent pas entre alliés ; les alliés sont marqués sur la carte, les réseaux
+  tâchés d'un liseré rouille pour tout le monde. Invitations valables 24 h ; une trahison annule les
+  invitations du traître.
+- Score d'alliance = biomasse gagnée par chaque membre depuis son entrée ; il reste acquis quand le
+  membre part. Titre « Allié fidèle » aux membres (anciens compris) de la meilleure alliance.
+- Ruine : 60 Enzymes, 30 min de pousse, dans la bande à mi-rayon ; 3 reliques, chacune une fois.
+- Ligues dans une petite forêt : au plus la moitié monte et la moitié descend. Titres : champion, un
+  par classement secondaire, meilleure alliance, ligue atteinte ; couleurs : podium (or, argent,
+  cuivre) et une par ligue au-dessus de Bronze ; une couleur n'est montrée que par le premier arrivé
+  de la forêt qui l'a choisie. Apparences : Morille (5 fructifications), Coprin chevelu (3 saisons),
+  Clavaire (25 trophées), Amanite (10 saisons).
+- Temps actif : connecté avec un message au serveur dans les 10 dernières minutes (les robots n'en ont
+  pas, leur classement d'efficacité reste vide en local).
+- Notifications : seulement quand le joueur n'a aucun onglet ouvert. Messages du chat gardés sans
+  limite de durée (pas de purge). Les signalements sont dans la table `chat_reports` et le journal du
+  serveur, sans écran d'administration pour l'instant.
 
 ## M8 — Bêta fermée (0.9.0)
 

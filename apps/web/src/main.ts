@@ -79,18 +79,23 @@ import {
   type Alert,
   type JournalLine,
   type SocialView,
+  type RosterEntry,
+  type SecondaryBoard,
+  SECONDARY_BOARDS,
+  strainAvailable,
   SIGNALS,
   NEMATODES,
   STORM,
   EVENTS,
 } from "@mycelium/shared";
-import { cssColor, playerColor } from "./colors";
+import { cssColor, ownerColor } from "./colors";
 import { formatDuration, formatNumber } from "./format";
 import { applyI18n, lang, locale, onLangChange, setLang, t, type MessageKey } from "./i18n";
 import { ChatView } from "./chat-view";
 import { MapView } from "./map-view";
 import { NotifyView } from "./notify";
 import { SocialPanel } from "./social-view";
+import { leagueName, ProfileView, rewardName, rewardText } from "./profile-view";
 import { choosePassword, clearToken, Connection, loadToken, saveToken, signIn, signOut } from "./net";
 import "./style.css";
 
@@ -210,6 +215,10 @@ let fruitConfirmUntil = 0;
 let panelTab: "upgrades" | "mutations" | "spores" | "social" = "upgrades";
 /** The player's pact and invitations (M7). */
 let social: SocialView = { pact: null, invitesIn: [], invitesOut: [] };
+/** Every colony of the forest, with its title and league (M7). */
+let roster = new Map<string, RosterEntry>();
+/** Leaderboard tab: the score, or a secondary leaderboard (M7). */
+let boardTab: "biomass" | SecondaryBoard = "biomass";
 
 const serverNow = () => clock.server + (Date.now() - clock.local) * clock.scale;
 const fmt = (n: number) => formatNumber(n, locale());
@@ -229,6 +238,22 @@ const chat = new ChatView(
   { send: (msg) => connection?.send(msg), toast: (text, tone) => toast(text, tone) },
 );
 $("chat-close").addEventListener("click", () => chat.setOpen(false));
+const profileView = new ProfileView({ overlay: $("profile"), body: $("profile-body") }, (msg) => connection?.send(msg));
+ui.player.addEventListener("click", () => profileView.open());
+$("profile-close").addEventListener("click", () => ($("profile").hidden = true));
+// Leaderboard tabs (M7): the score, then the secondary leaderboards.
+const boardTabs = (["biomass", ...SECONDARY_BOARDS] as const).map((id) => {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "tab";
+  b.setAttribute("role", "tab");
+  b.addEventListener("click", () => {
+    boardTab = id;
+    renderBoard();
+  });
+  $("board-tabs").append(b);
+  return { id, b };
+});
 const socialPanel = new SocialPanel(ui.socialView, {
   send: (msg) => connection?.send(msg),
   fmt: (n) => fmt(n),
@@ -280,6 +305,7 @@ onLangChange(() => {
   if (!ui.seasonEnd.hidden) showSeasonEnd(lastResult);
   chat.refresh();
   socialPanel.refresh();
+  profileView.render();
   applyI18n(ui.socialView);
   renderAlliances();
   notify.render();
@@ -394,12 +420,20 @@ function onMessage(msg: ServerMessage): void {
       applySnapshot(msg.game, msg.owners, msg.serverTime);
       chat.load({ me: msg.player.id, admin: msg.admin, silencedUntil: msg.silencedUntil, roster: msg.roster, chat: msg.chat, muted: msg.muted });
       socialPanel.setRoster(msg.player.id, msg.roster);
+      roster = new Map(msg.roster.map((r) => [r.id, r]));
       setSocial(msg.social);
+      profileView.set(msg.profile);
       void notify.resubscribe();
       if (msg.away) showAway(msg.away);
       if (msg.needsPassword) ui.password.hidden = false;
       break;
+    case "profile":
+      profileView.set(msg.profile);
+      buildStrainList();
+      break;
     case "roster":
+      roster = new Map(msg.roster.map((r) => [r.id, r]));
+      renderBoard();
       chat.setRoster(msg.roster);
       if (game) socialPanel.setRoster(game.id, msg.roster);
       break;
@@ -618,7 +652,7 @@ function boardRow(e: LeaderboardEntry): string[] {
 function swatch(id: string): HTMLElement {
   const sw = document.createElement("span");
   sw.className = "swatch";
-  sw.style.background = game && id === game.id ? "var(--glow)" : cssColor(playerColor(owners.get(id)?.color ?? 0));
+  sw.style.background = game && id === game.id ? "var(--glow)" : cssColor(ownerColor(owners.get(id) ?? roster.get(id)));
   return sw;
 }
 
@@ -652,9 +686,66 @@ function renderBoard(): void {
         const td = document.createElement("td");
         if (i === 1) td.append(swatch(e.id), " ");
         td.append(v);
+        if (i === 1) appendTitle(td, e.id);
         if (i >= 2) td.className = "num";
         tr.append(td);
       });
+      return tr;
+    }),
+  );
+  renderSecondary();
+}
+
+/** The chosen title of a colony, small, after its name (M7). */
+function appendTitle(td: HTMLElement, id: string): void {
+  const entry = roster.get(id);
+  if (!entry?.title) return;
+  const small = document.createElement("small");
+  small.className = "muted board-title";
+  small.textContent = ` · ${rewardName("title", entry.title)}`;
+  td.append(small);
+}
+
+/** Leaderboard tabs (M7): the biomass table, or one of the secondary leaderboards. */
+function renderSecondary(): void {
+  for (const { id, b } of boardTabs) {
+    b.textContent = t(`board.tab.${id}`);
+    b.setAttribute("aria-selected", String(id === boardTab));
+  }
+  const main = boardTab === "biomass";
+  $("board-table").hidden = !main;
+  $("secondary-table").hidden = main;
+  const note = $("secondary-note");
+  note.hidden = boardTab !== "efficiency";
+  note.textContent = t("board.efficiencyNote");
+  if (boardTab === "biomass" || !board) return;
+  const tab: SecondaryBoard = boardTab;
+  $("secondary-value").textContent = t(`board.value.${tab}`);
+  const list = board.secondary?.[tab] ?? [];
+  const rows = $("secondary-rows");
+  if (list.length === 0) {
+    const tr = document.createElement("tr");
+    const td = document.createElement("td");
+    td.colSpan = 3;
+    td.className = "muted";
+    td.textContent = t("board.secondaryEmpty");
+    tr.append(td);
+    rows.replaceChildren(tr);
+    return;
+  }
+  rows.replaceChildren(
+    ...list.map((e) => {
+      const tr = document.createElement("tr");
+      tr.classList.toggle("me", e.id === game?.id);
+      const rank = document.createElement("td");
+      rank.textContent = String(e.rank);
+      const name = document.createElement("td");
+      name.append(swatch(e.id), " ", e.name);
+      appendTitle(name, e.id);
+      const value = document.createElement("td");
+      value.className = "num";
+      value.textContent = fmt(e.value);
+      tr.append(rank, name, value);
       return tr;
     }),
   );
@@ -732,6 +823,18 @@ function showSeasonEnd(result: SeasonResult | null): void {
   const seed = $("season-end-seed");
   seed.hidden = !result;
   if (result) seed.textContent = t("seasonEnd.seed", { seed: result.seed });
+  const leagueLine = $("season-end-league");
+  leagueLine.hidden = !result?.league;
+  if (result?.league) {
+    leagueLine.textContent =
+      result.league.before === result.league.after
+        ? t("seasonEnd.leagueSame", { league: leagueName(result.league.after) })
+        : t("seasonEnd.league", { before: leagueName(result.league.before), after: leagueName(result.league.after) });
+  }
+  const rewardsLine = $("season-end-rewards");
+  const won = result?.rewards ?? [];
+  rewardsLine.hidden = won.length === 0;
+  rewardsLine.textContent = `${t("seasonEnd.rewards", { list: won.map(rewardText).join(", ") })} ${t("seasonEnd.rewardsHint")}`;
   const bonus = Math.round(mondayBonusFor(result) * 100);
   const bonusLine = $("season-end-bonus");
   bonusLine.hidden = bonus === 0;
@@ -1041,7 +1144,7 @@ function renderMutations(g: GameState): void {
 
 function buildStrainList(): void {
   ui.strainList.replaceChildren(
-    ...STRAIN_IDS.map((id) => {
+    ...STRAIN_IDS.filter((id) => !game || strainAvailable(game, id)).map((id) => {
       const li = document.createElement("li");
       const button = document.createElement("button");
       button.type = "button";

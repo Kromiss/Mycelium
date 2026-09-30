@@ -125,10 +125,15 @@ describe.each(stores)("%s store", (_name, make) => {
     await store.endForest(
       record.id,
       [
-        { playerId: b.id, rank: 1, players: 2, biomass: 900, trophies: 3, tiles: 40 },
-        { playerId: a.id, rank: 2, players: 2, biomass: 500, trophies: 0, tiles: 30 },
+        { playerId: b.id, rank: 1, players: 2, biomass: 900, trophies: 3, tiles: 40, conquests: 3, boss: 12.5, activeMs: 7_200_000, fruitings: 2, leagueBefore: 0, leagueAfter: 1 },
+        { playerId: a.id, rank: 2, players: 2, biomass: 500, trophies: 0, tiles: 30, conquests: 0, boss: 0, activeMs: 0, fruitings: 1, leagueBefore: 1, leagueAfter: 0 },
       ],
       SEASON + 7 * 86_400_000,
+      [
+        { playerId: b.id, kind: "title", id: "champion" },
+        { playerId: b.id, kind: "color", id: "gold" },
+        { playerId: a.id, kind: "title", id: "bronze" },
+      ],
     );
     expect((await store.listForests()).map((f) => f.id)).not.toContain(record.id);
     expect(await store.loadForest(record.id)).toBeNull();
@@ -145,8 +150,25 @@ describe.each(stores)("%s store", (_name, make) => {
         trophies: 0,
         tiles: 30,
         seed: 4242,
+        conquests: 0,
+        boss: 0,
+        activeMs: 0,
+        league: { before: 1, after: 0 },
+        rewards: [{ kind: "title", id: "bronze" }],
       },
     ]);
+    // M7: leagues, rewards, cosmetics and career.
+    expect((await store.findAccountByName(`Finn${_name}`))?.league).toBe(1);
+    expect((await store.findAccountByName(`Eve${_name}`))?.league).toBe(0);
+    expect(await store.rewardsOf(b.id)).toEqual(expect.arrayContaining([{ kind: "title", id: "champion" }, { kind: "color", id: "gold" }]));
+    await store.setCosmetic(b.id, "title", "champion");
+    await store.setCosmetic(b.id, "color", "gold");
+    const finn = (await store.findAccountByName(`Finn${_name}`))!;
+    expect([finn.title, finn.color, finn.skin]).toEqual(["champion", "gold", null]);
+    expect(await store.careerOf(b.id)).toEqual({ seasons: 1, fruitings: 2, trophies: 3, bestRank: 1 });
+    expect(await store.careerOf("00000000-0000-0000-0000-000000000000")).toEqual({ seasons: 0, fruitings: 0, trophies: 0, bestRank: null });
+    await store.setLeague(a.id, 3);
+    expect((await store.findAccountByName(`Eve${_name}`))?.league).toBe(3);
     // Ending twice changes nothing.
     await store.endForest(record.id, [], SEASON + 7 * 86_400_000);
     expect(await store.seasonHistory(b.id, 5)).toHaveLength(1);

@@ -316,9 +316,14 @@ export const MUTATIONS = {
   bioluminescenceVision: 3,
 } as const;
 
-export const STRAIN_IDS = ["pleurotus", "armillaria", "cordyceps", "truffle"] as const;
-/** Pleurote, Armillaire, Cordyceps, Truffe (GDD §4.3); Moisissure comes with season rewards (M7). */
+export const STRAIN_IDS = ["pleurotus", "armillaria", "cordyceps", "truffle", "mold"] as const;
+/**
+ * Pleurote, Armillaire, Cordyceps, Truffe (GDD §4.3), and Moisissure, unlocked by playing seasons (M7
+ * reward, see REWARDS).
+ */
 export type StrainId = (typeof STRAIN_IDS)[number];
+/** Strains every player may choose (Moisissure must be unlocked first). */
+export const STARTER_STRAINS = ["pleurotus", "armillaria", "cordyceps", "truffle"] as const satisfies readonly StrainId[];
 
 export const STRAINS = {
   /** Pleurote: fast expansion, weak defence. */
@@ -329,6 +334,11 @@ export const STRAINS = {
   cordyceps: { pressure: 1.2, conquestBonus: 1.5, production: 0.9 },
   /** Truffe: tiles away from the border stay hidden from enemies; Roots +30 %. */
   truffle: { roots: 1.3 },
+  /**
+   * Moisissure (M7, DECIDED): thrives on worn tiles. On tiles worn to `wornAt` or more: colonisation −30 %,
+   * captures 2× faster; production −10 % everywhere.
+   */
+  mold: { wornAt: 0.2, colonizationCost: 0.7, captureSpeed: 2, production: 0.9 },
 } as const;
 
 // ---------------------------------------------------------------------------

@@ -1,6 +1,7 @@
 import type { ChatError, ChatMessage, ClientMessage, RosterEntry } from "@mycelium/shared";
 import { cssColor, playerColor } from "./colors";
 import { locale, t } from "./i18n";
+import { rewardName } from "./profile-view";
 
 /** A conversation: the whole forest, the player's pact, or one other colony. */
 type Conversation = { kind: "forest" } | { kind: "pact" } | { kind: "dm"; with: string };
@@ -202,6 +203,12 @@ export class ChatView {
         who.className = "chat-name";
         who.textContent = m.from === this.me ? t("chat.me") : (entry?.name ?? m.fromName);
         head.append(when, sw, who);
+        if (entry?.title) {
+          const title = document.createElement("span");
+          title.className = "chat-title";
+          title.textContent = rewardName("title", entry.title);
+          head.append(title);
+        }
         head.disabled = m.from === this.me;
         head.addEventListener("click", () => {
           this.openMenu = this.openMenu === m.id ? null : m.id;

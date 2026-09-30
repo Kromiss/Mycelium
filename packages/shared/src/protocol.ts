@@ -18,6 +18,7 @@ import type { EventDto, EventNotice } from "./events";
 import { CHAT, CHAT_CHANNELS, isPushKind, type ChatChannel, type ChatError, type ChatMessage, type PushKind, type PushLang } from "./chat";
 import { hexKey, type Hex } from "./hex";
 import type { PactEvent } from "./social";
+import type { Career, ColorId, Reward, SecondaryBoard, SkinId, TitleId } from "./rewards";
 
 // ---------------------------------------------------------------------------
 // Game state on the wire
@@ -80,6 +81,9 @@ export interface GameSnapshot {
   relics?: RelicId[];
   relicPicks?: number;
   listens?: Record<string, number>;
+  conquests?: number;
+  activeMs?: number;
+  unlockedStrains?: StrainId[];
 }
 
 export const TERRAIN_CODES: Record<Terrain, string> = {
@@ -156,6 +160,9 @@ export function toSnapshot(state: GameState, visible?: Set<string>): GameSnapsho
     relics: [...state.relics],
     relicPicks: state.relicPicks,
     listens: { ...state.listens },
+    conquests: state.conquests,
+    activeMs: state.activeMs,
+    unlockedStrains: [...state.unlockedStrains],
   };
 }
 
@@ -218,6 +225,9 @@ export function fromSnapshot(s: GameSnapshot, seed = 0): GameState {
     relics: normalizeRelics(s.relics),
     relicPicks: s.relicPicks ?? 0,
     listens: normalizeListens(s.listens),
+    conquests: s.conquests ?? 0,
+    activeMs: s.activeMs ?? 0,
+    unlockedStrains: Array.isArray(s.unlockedStrains) ? s.unlockedStrains.filter((x) => typeof x === "string" && isStrainId(x)) : [],
     tiles,
     updatedAt: s.updatedAt,
   };
@@ -277,6 +287,28 @@ export interface OwnerInfo {
   ally?: true;
   /** "Réseau tâché": betrayed a pact less than a day ago (M7, visible to everybody). */
   tainted?: true;
+  /** Network colour won as a reward (M7), when nobody earlier in the forest shows the same. */
+  rewardColor?: ColorId;
+  /** Carpophore skin (M7). */
+  skin?: SkinId;
+}
+
+/** A row of a secondary leaderboard (GDD §8.1). */
+export interface SecondaryEntry {
+  rank: number;
+  id: string;
+  name: string;
+  value: number;
+}
+
+/** The account's league, cosmetics and career (M7, GDD §8.2, §8.3). */
+export interface Profile {
+  league: number;
+  title: TitleId | null;
+  color: ColorId | null;
+  skin: SkinId | null;
+  rewards: Reward[];
+  career: Career & { bestRank: number | null };
 }
 
 /** The viewer's pact and invitations (M7). */
@@ -310,6 +342,12 @@ export interface RosterEntry {
   name: string;
   /** Index in the client's player palette. */
   color: number;
+  /** Cosmetics chosen by the player (M7 rewards). */
+  title?: TitleId;
+  rewardColor?: ColorId;
+  skin?: SkinId;
+  /** League of the account (index in LEAGUES). */
+  league?: number;
 }
 
 export interface LeaderboardEntry {
@@ -332,6 +370,8 @@ export interface Leaderboard {
   global: { rank: number; players: number };
   /** Alliance leaderboard of the forest (M7). */
   alliances: AllianceEntry[];
+  /** Secondary leaderboards (M7): territory, conquests, world boss, efficiency. */
+  secondary: Record<SecondaryBoard, SecondaryEntry[]>;
 }
 
 export interface ForestInfo {
@@ -341,6 +381,8 @@ export interface ForestInfo {
   players: number;
   /** Season the forest belongs to (Monday 00:00 Paris); it is wiped at the end of that week. */
   seasonStart: number;
+  /** League of the forest (M7). */
+  league: number;
 }
 
 /** A finished season, as kept after the wipe (GDD §8.2 "Historique de saison"). */
@@ -357,6 +399,12 @@ export interface SeasonResult {
   tiles: number;
   /** The forest's map seed, published once the season is over (GDD §12). */
   seed: number;
+  /** M7: what else the colony did, its league before and after, and the rewards it just won. */
+  conquests?: number;
+  boss?: number;
+  activeMs?: number;
+  league?: { before: number; after: number };
+  rewards?: Reward[];
 }
 
 /** Messages sent by the server over the WebSocket. */
@@ -391,7 +439,10 @@ export type ServerMessage =
       /** The player may cut other players' chat (M7 moderation). */
       admin: boolean;
       social: SocialView;
+      profile: Profile;
     }
+  /** The account's league, rewards or chosen cosmetics changed. */
+  | { type: "profile"; profile: Profile }
   /** The forest's colonies changed (someone joined). */
   | { type: "roster"; roster: RosterEntry[] }
   /** A new message this player can read. */
@@ -502,7 +553,9 @@ export type ClientMessage =
   | { type: "send"; to: string; resource: "nutrients" | "enzymes"; amount: number }
   /** Listens to a colony's network for an hour. */
   | { type: "listen"; target: string }
-  | { type: "chooseRelic"; relic: string };
+  | { type: "chooseRelic"; relic: string }
+  /** Shows a title, a network colour or a Carpophore skin won as a reward (null: none). */
+  | { type: "setCosmetic"; kind: "title" | "color" | "skin"; id: string | null };
 
 export interface HealthReport {
   status: "ok" | "degraded";
@@ -617,6 +670,9 @@ export function parseClientMessage(raw: string): ClientMessage | null {
       return isStr(m.target, 64) ? { type: "listen", target: m.target } : null;
     case "chooseRelic":
       return isStr(m.relic, 20) ? { type: "chooseRelic", relic: m.relic } : null;
+    case "setCosmetic":
+      if (m.kind !== "title" && m.kind !== "color" && m.kind !== "skin") return null;
+      return m.id === null || isStr(m.id, 30) ? { type: "setCosmetic", kind: m.kind, id: m.id as string | null } : null;
     case "setAutomation": {
       const out: ClientMessage = { type: "setAutomation" };
       if (m.colonize === null || isStr(m.colonize, 20)) out.colonize = m.colonize as string | null;

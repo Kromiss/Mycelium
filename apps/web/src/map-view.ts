@@ -11,13 +11,14 @@ import {
   type GameState,
   type Hex,
   type OwnerInfo,
+  type SkinId,
   type StructureId,
   type EffectKind,
   type EventDto,
   type EventKind,
   type Terrain,
 } from "@mycelium/shared";
-import { playerColor } from "./colors";
+import { ownerColor } from "./colors";
 import { Application, Container, Graphics, Text } from "pixi.js";
 
 /** Circumradius of a hex in world pixels. */
@@ -146,7 +147,7 @@ export class MapView {
       this.drawTerrain(game);
     }
     const signature = [
-      [...this.owners.values()].map((o) => `${o.id}${o.ally ? "a" : ""}${o.tainted ? "t" : ""}`).join(","),
+      [...this.owners.values()].map((o) => `${o.id}${o.ally ? "a" : ""}${o.tainted ? "t" : ""}${o.rewardColor ?? ""}${o.skin ?? ""}`).join(","),
       hexKey(game.heart),
       game.queue.map(hexKey).join("|"),
       tiles
@@ -300,7 +301,7 @@ export class MapView {
   }
 
   /** A small mark for a structure, in the tile's upper-right corner. */
-  private drawStructure(g: Graphics, structure: StructureId, x: number, y: number): void {
+  private drawStructure(g: Graphics, structure: StructureId, x: number, y: number, skin?: SkinId): void {
     const cx = x + SIZE * 0.38;
     const cy = y - SIZE * 0.36;
     const color = STRUCTURE_COLORS[structure];
@@ -323,8 +324,7 @@ export class MapView {
         g.poly(hexPoints(cx, cy, 4.5)).fill({ color });
         break;
       case "carpophore":
-        g.rect(cx - 1.2, cy - 0.5, 2.4, 4.5).fill({ color: 0xf2e6b8 });
-        g.moveTo(cx - 5, cy).arc(cx, cy, 5, Math.PI, 0).closePath().fill({ color });
+        drawCarpophore(g, cx, cy, color, skin);
         break;
     }
   }
@@ -344,7 +344,7 @@ export class MapView {
       if (t.owner !== game.id) {
         // Another player's tile.
         const owner = this.owners.get(t.owner);
-        const color = playerColor(owner?.color ?? 0);
+        const color = ownerColor(owner);
         net.poly(hexPoints(x, y, SIZE - 1)).fill({ color, alpha: t.disconnectedSince === null ? 0.42 : 0.2 });
         net.poly(hexPoints(x, y, SIZE - 2.5)).stroke({ width: 1.5, color, alpha: 0.8 });
         if (owner?.ally) net.poly(hexPoints(x, y, SIZE - 5)).stroke({ width: 1.5, color: ALLY_RIM, alpha: 0.65 });
@@ -387,7 +387,7 @@ export class MapView {
     for (const t of game.tiles.values()) {
       if (t.structure === null || t.owner === null) continue;
       const { x, y } = hexToPixel(t, SIZE);
-      this.drawStructure(net, t.structure, x, y);
+      this.drawStructure(net, t.structure, x, y, t.owner ? this.owners.get(t.owner)?.skin : undefined);
     }
 
     // Planned path: dotted links from each queued tile to where it will grow from.
@@ -452,7 +452,7 @@ export class MapView {
       if (!t.capture) continue;
       const { x, y } = hexToPixel(t, SIZE);
       const mine = t.capture.by === game.id;
-      const color = mine ? GLOW : t.owner === game.id ? WITHER : playerColor(this.owners.get(t.capture.by)?.color ?? 0);
+      const color = mine ? GLOW : t.owner === game.id ? WITHER : ownerColor(this.owners.get(t.capture.by));
       const start = -Math.PI / 2;
       const r = SIZE * 0.72;
       fx.moveTo(x + r * Math.cos(start), y + r * Math.sin(start));
@@ -617,4 +617,35 @@ function scaleColor(color: number, k: number): number {
 
 function clamp(v: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, v));
+}
+
+/** The Carpophore mark, in the skin its owner shows (M7 rewards). */
+function drawCarpophore(g: Graphics, cx: number, cy: number, color: number, skin: SkinId | undefined): void {
+  switch (skin) {
+    case "morel":
+      // A honeycombed cone.
+      g.rect(cx - 1.2, cy + 1.5, 2.4, 3).fill({ color: 0xf2e6b8 });
+      g.poly([cx, cy - 5.5, cx + 3.5, cy + 2, cx - 3.5, cy + 2]).fill({ color: 0xb08850 });
+      for (const dy of [-1.5, 0.5]) g.circle(cx, cy + dy, 0.9).fill({ color: 0x5a4020 });
+      break;
+    case "coprinus":
+      // A tall shaggy bell.
+      g.rect(cx - 1, cy + 2, 2, 3).fill({ color: 0xf2e6b8 });
+      g.roundRect(cx - 2.8, cy - 5.5, 5.6, 8, 2.5).fill({ color: 0xe8e2d4 });
+      g.moveTo(cx - 2.8, cy + 2.5).lineTo(cx + 2.8, cy + 2.5).stroke({ width: 1.2, color: 0x2a2620 });
+      break;
+    case "clavaria":
+      // Coral branches.
+      for (const a of [-0.6, 0, 0.6]) g.moveTo(cx, cy + 4.5).lineTo(cx + Math.sin(a) * 5, cy - 4 + Math.abs(a) * 2).stroke({ width: 1.8, color: 0xf0a878, cap: "round" });
+      break;
+    case "amanita":
+      // Red cap, white dots.
+      g.rect(cx - 1.2, cy - 0.5, 2.4, 4.5).fill({ color: 0xf2e6b8 });
+      g.moveTo(cx - 5, cy).arc(cx, cy, 5, Math.PI, 0).closePath().fill({ color: 0xd8402e });
+      for (const [dx, dy] of [[-2.2, -1.5], [0.8, -3], [2.6, -1]] as const) g.circle(cx + dx, cy + dy, 0.8).fill({ color: 0xffffff });
+      break;
+    default:
+      g.rect(cx - 1.2, cy - 0.5, 2.4, 4.5).fill({ color: 0xf2e6b8 });
+      g.moveTo(cx - 5, cy).arc(cx, cy, 5, Math.PI, 0).closePath().fill({ color });
+  }
 }

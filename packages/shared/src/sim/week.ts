@@ -8,7 +8,7 @@ import {
   QUEUE_MAX,
   ROOTS,
   SPORE_UPGRADE_IDS,
-  STRAIN_IDS,
+  STARTER_STRAINS,
   STRUCTURES,
   UPGRADE_STATS,
   type SporeUpgradeId,
@@ -157,7 +157,7 @@ export function defaultPlan(id: string): BotPlan {
   const second = BRANCHES[(h % 3 + 1 + ((h >>> 4) % 2)) % 3]!;
   // Half of the robots fruit once, between day 3 and day 5.
   const fruit = (h >>> 12) % 2 === 0 ? { hour: 60 + ((h >>> 13) % 48), radius: 3 } : undefined;
-  return { strain: STRAIN_IDS[(h >>> 8) % STRAIN_IDS.length]!, branches: [first, second, ...BRANCHES.filter((b) => b !== first && b !== second)], fruit };
+  return { strain: STARTER_STRAINS[(h >>> 8) % STARTER_STRAINS.length]!, branches: [first, second, ...BRANCHES.filter((b) => b !== first && b !== second)], fruit };
 }
 
 /**

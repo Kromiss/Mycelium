@@ -24,6 +24,7 @@ import {
   SPORE_UPGRADE_IDS,
   SPORE_UPGRADES,
   STRUCTURE_IDS,
+  STARTER_STRAINS,
   STRAIN_IDS,
   STRAINS,
   STRUCTURES,
@@ -187,6 +188,12 @@ export interface GameState {
   relicPicks: number;
   /** Networks the player listens to (Écoute), by player id: until when (ms since epoch). */
   listens: Record<string, number>;
+  /** Tiles taken from other players this season (M7 "cases conquises" leaderboard). */
+  conquests: number;
+  /** Active play this season, in ms: connected with an action in the last 10 minutes (M7 efficiency). */
+  activeMs: number;
+  /** Strains the account unlocked beyond the starter ones (M7 rewards: Moisissure). */
+  unlockedStrains: StrainId[];
   /** Every tile of the map, keyed by `hexKey`. */
   readonly tiles: Map<string, Tile>;
   /** Time up to which the game has been simulated (ms since epoch). */
@@ -368,6 +375,9 @@ export function newPlayer(
     relics: [],
     relicPicks: 0,
     listens: {},
+    conquests: 0,
+    activeMs: 0,
+    unlockedStrains: [],
     tiles: map.tiles,
     updatedAt: now,
   };
@@ -461,6 +471,16 @@ export function isStrainId(id: string): id is StrainId {
   return (STRAIN_IDS as readonly string[]).includes(id);
 }
 
+/** Starter strains, and those the account unlocked (Moisissure, M7). */
+export function strainAvailable(state: GameState, id: StrainId): boolean {
+  return (STARTER_STRAINS as readonly string[]).includes(id) || state.unlockedStrains.includes(id);
+}
+
+/** Moisissure (M7): the tile is worn enough for the strain's bonuses. */
+export function moldFeeds(state: GameState, tile: { exhaustion: number }): boolean {
+  return state.strain === "mold" && tile.exhaustion >= STRAINS.mold.wornAt - 1e-9;
+}
+
 /** Biomass at which the n-th mutation point (n ≥ 1) is earned: 20 k, 60 k, 180 k… */
 export function mutationThreshold(n: number): number {
   return MUTATIONS.firstThreshold * Math.pow(MUTATIONS.thresholdGrowth, n - 1);
@@ -509,6 +529,7 @@ export function mutate(state: GameState, id: string, now: number): ActionResult 
 export function checkChooseStrain(state: GameState, id: string): ActionResult {
   if (!isStrainId(id)) return { ok: false, error: "unknown_strain" };
   if (state.strain !== null || ownedCount(state) > 1) return { ok: false, error: "strain_chosen" };
+  if (!strainAvailable(state, id)) return { ok: false, error: "locked" };
   return { ok: true };
 }
 
@@ -574,6 +595,7 @@ export function traitProduction(state: GameState, at: number): number {
   let m = hasMutation(state, "digestiveEnzymes") ? 1 + MUTATIONS.digestiveEnzymes : 1;
   m *= 1 + SPORE_UPGRADES.production.perLevel * state.sporeUpgrades.production;
   if (state.strain === "cordyceps") m *= STRAINS.cordyceps.production;
+  if (state.strain === "mold") m *= STRAINS.mold.production;
   if (state.strain === "armillaria" && state.calendar) m *= STRAINS.armillaria.monday + STRAINS.armillaria.perDay * phaseAt(at).index;
   if (state.relics.includes("vigour")) m *= 1 + RELICS.vigour;
   if (isTainted(state, at)) m *= 1 - PACTS.taintProduction;
@@ -772,7 +794,7 @@ export function growingTiles(state: GameState): Tile[] {
  * `base × (1 + 0.05 × dist_cœur) × 1.13^nb_cases`, reduced by Expansion économe (GDD §2.3). Rock is paid
  * in Enzymes (see `paidInEnzymes`), without the size factor: `base × (1 + 0.05 × dist_cœur)`.
  */
-export function colonizationCost(state: GameState, target: Hex & { terrain: Terrain }, at: number = state.updatedAt): number {
+export function colonizationCost(state: GameState, target: Hex & { terrain: Terrain; exhaustion?: number }, at: number = state.updatedAt): number {
   const dist = hexDistance(state.heart, target);
   if (TERRAIN_STATS[target.terrain].paidInEnzymes) return TERRAIN_STATS[target.terrain].baseCost * (1 + ECONOMY.distanceFactor * dist);
   const thrifty = Math.pow(1 - UPGRADE_STATS.thriftyExpansion.perLevel, state.upgrades.thriftyExpansion);
@@ -782,7 +804,8 @@ export function colonizationCost(state: GameState, target: Hex & { terrain: Terr
     Math.pow(ECONOMY.sizeFactor, ownedCount(state)) *
     thrifty *
     effectsAt(state, at).colonizationCost *
-    (state.strain === "pleurotus" ? STRAINS.pleurotus.colonizationCost : 1)
+    (state.strain === "pleurotus" ? STRAINS.pleurotus.colonizationCost : 1) *
+    (moldFeeds(state, { exhaustion: target.exhaustion ?? 0 }) ? STRAINS.mold.colonizationCost : 1)
   );
 }
 
@@ -1467,6 +1490,7 @@ export function clonePlayer(state: GameState, tiles: Map<string, Tile>): GameSta
     allies: [...state.allies],
     relics: [...state.relics],
     listens: { ...state.listens },
+    unlockedStrains: [...state.unlockedStrains],
     tiles,
   };
 }

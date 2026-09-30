@@ -994,6 +994,100 @@ button.danger {
   text-align: left;
 }
 
+/* Profile, leagues and rewards (M7) -------------------------------------- */
+
+button.player {
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+.profile-card {
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+}
+
+.profile-section h3 {
+  margin: 14px 0 6px;
+  font-family: system-ui, sans-serif;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.league-badge {
+  margin: 0;
+  font-size: 1.2rem;
+  color: var(--glow);
+}
+
+.league-ladder {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 6px 0;
+  padding: 0;
+  list-style: none;
+  font-family: system-ui, sans-serif;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.league-ladder li {
+  padding: 2px 8px;
+  border: 1px solid var(--panel-border);
+  border-radius: 999px;
+}
+
+.league-ladder li.current {
+  color: #11140c;
+  background: var(--glow);
+  border-color: var(--glow);
+}
+
+.cosmetic-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.cosmetic {
+  padding: 4px 10px;
+  font-family: system-ui, sans-serif;
+  font-size: 0.8rem;
+}
+
+.cosmetic[aria-pressed="true"] {
+  border-color: var(--glow);
+  color: var(--glow);
+}
+
+.profile-card .muted,
+.profile-career {
+  font-family: system-ui, sans-serif;
+  font-size: 0.78rem;
+}
+
+.board-tabs {
+  grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+  margin: 8px 0;
+}
+
+.board-tabs .tab {
+  font-family: system-ui, sans-serif;
+  font-size: 0.72rem;
+  padding: 5px 4px;
+}
+
+.board-title,
+.chat-title {
+  font-family: system-ui, sans-serif;
+  font-size: 0.7rem;
+  color: var(--muted);
+  font-weight: 400;
+}
+
 /* Chat (M7) --------------------------------------------------------------- */
 
 .chat-toggle {

@@ -8,6 +8,7 @@ export * from "./game";
 export * from "./hex";
 export * from "./mapgen";
 export * from "./protocol";
+export * from "./rewards";
 export * from "./rng";
 export * from "./season";
 export * from "./social";

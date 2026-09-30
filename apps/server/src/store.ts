@@ -4,6 +4,7 @@ import {
   hexKey,
   isMutationId,
   isPushKind,
+  isReward,
   isStrainId,
   isStructureId,
   normalizeAutomation,
@@ -26,10 +27,13 @@ import {
   type ForestState,
   type PushKind,
   type PushLang,
+  type Reward,
+  type RewardKind,
   type GameState,
   type MutationId,
   type PlayerInfo,
   type SeasonResult,
+  type StrainId,
   type Terrain,
   type Tile,
 } from "@mycelium/shared";
@@ -48,6 +52,19 @@ export interface Account extends PlayerInfo {
   isBot: boolean;
   /** An admin cut the player's chat until then (ms), or null. */
   silencedUntil: number | null;
+  /** League of the account (0 = Bronze), and the cosmetics it shows (M7). */
+  league: number;
+  title: string | null;
+  color: string | null;
+  skin: string | null;
+}
+
+/** Totals over every season an account played (M7 rewards). */
+export interface CareerTotals {
+  seasons: number;
+  fruitings: number;
+  trophies: number;
+  bestRank: number | null;
 }
 
 /** A chat message as stored: the pact it was sent to, if any. */
@@ -80,6 +97,8 @@ export interface ForestRecord {
   number: number;
   /** Monday 00:00 Paris of the season (week) the forest belongs to. */
   seasonStart: number;
+  /** League of the forest (M7). */
+  league: number;
 }
 
 /** A player's final standing in a finished forest. */
@@ -90,6 +109,13 @@ export interface Standing {
   biomass: number;
   trophies: number;
   tiles: number;
+  /** M7: tiles taken, world boss damage, active play, fruitings, league before and after. */
+  conquests: number;
+  boss: number;
+  activeMs: number;
+  fruitings: number;
+  leagueBefore: number;
+  leagueAfter: number;
 }
 
 export interface LoadedForest {
@@ -110,12 +136,21 @@ export interface GameStore {
   deleteSession(tokenHash: string): Promise<void>;
   /** Forests still being played (not ended). */
   listForests(): Promise<ForestRecord[]>;
-  createForest(forest: ForestState, seasonStart: number): Promise<ForestRecord>;
+  createForest(forest: ForestState, seasonStart: number, league?: number): Promise<ForestRecord>;
   loadForest(id: string): Promise<LoadedForest | null>;
   /** Saves every player and tile of the forest (players who joined become members). */
   saveForest(id: string, forest: ForestState): Promise<void>;
-  /** Ends a forest at the wipe: keeps its standings, releases its players. */
-  endForest(id: string, standings: Standing[], endedAt: number): Promise<void>;
+  /**
+   * Ends a forest at the wipe: keeps its standings, sets each account's league after the season, gives
+   * the rewards (kept once per account), releases its players.
+   */
+  endForest(id: string, standings: Standing[], endedAt: number, rewards?: Array<Reward & { playerId: string }>): Promise<void>;
+  /** Rewards of an account (M7). */
+  rewardsOf(playerId: string): Promise<Reward[]>;
+  /** Shows a reward the account owns (null: none). */
+  setCosmetic(playerId: string, kind: "title" | "color" | "skin", id: string | null): Promise<void>;
+  setLeague(playerId: string, league: number): Promise<void>;
+  careerOf(playerId: string): Promise<CareerTotals>;
   /** A player's finished seasons, most recent first. */
   seasonHistory(playerId: string, limit: number): Promise<SeasonResult[]>;
 
@@ -146,6 +181,7 @@ export class MemoryStore implements GameStore {
   private readonly sessions = new Map<string, string>();
   private readonly forests = new Map<string, { record: ForestRecord; json: string; seed: number; ended: boolean }>();
   private readonly results: Array<Standing & { seasonStart: number; forestId: string }> = [];
+  private readonly rewards = new Map<string, Array<Reward & { seasonStart: number }>>();
   private readonly chats: Array<StoredChat & { forestId: string }> = [];
   private readonly reports = new Set<string>();
   private readonly mutes = new Map<string, Set<string>>();
@@ -155,7 +191,7 @@ export class MemoryStore implements GameStore {
 
   async createAccount(name: string, passwordHash: string | null, isBot = false): Promise<Account> {
     if (await this.findAccountByName(name)) throw new NameTakenError();
-    const account: Account = { id: randomUUID(), name, passwordHash, isBot, silencedUntil: null };
+    const account: Account = { id: randomUUID(), name, passwordHash, isBot, silencedUntil: null, league: 0, title: null, color: null, skin: null };
     this.accounts.set(account.id, account);
     return { ...account };
   }
@@ -189,17 +225,50 @@ export class MemoryStore implements GameStore {
     return [...this.forests.values()].filter((f) => !f.ended).map((f) => ({ ...f.record }));
   }
 
-  async createForest(forest: ForestState, seasonStart: number): Promise<ForestRecord> {
-    const record = { id: randomUUID(), number: this.nextForest++, seasonStart };
+  async createForest(forest: ForestState, seasonStart: number, league = 0): Promise<ForestRecord> {
+    const record = { id: randomUUID(), number: this.nextForest++, seasonStart, league };
     this.forests.set(record.id, { record, json: JSON.stringify(serializeForest(forest)), seed: forest.seed, ended: false });
     return { ...record };
   }
 
-  async endForest(id: string, standings: Standing[]): Promise<void> {
+  async endForest(id: string, standings: Standing[], _endedAt?: number, rewards: Array<Reward & { playerId: string }> = []): Promise<void> {
     const f = this.forests.get(id);
     if (!f || f.ended) return;
     f.ended = true;
-    for (const st of standings) this.results.push({ ...st, seasonStart: f.record.seasonStart, forestId: id });
+    for (const st of standings) {
+      this.results.push({ ...st, seasonStart: f.record.seasonStart, forestId: id });
+      const a = this.accounts.get(st.playerId);
+      if (a) a.league = st.leagueAfter;
+    }
+    for (const r of rewards) {
+      const list = this.rewards.get(r.playerId) ?? [];
+      if (!list.some((x) => x.kind === r.kind && x.id === r.id)) list.push({ kind: r.kind, id: r.id, seasonStart: f.record.seasonStart });
+      this.rewards.set(r.playerId, list);
+    }
+  }
+
+  async rewardsOf(playerId: string): Promise<Reward[]> {
+    return (this.rewards.get(playerId) ?? []).map((r) => ({ kind: r.kind, id: r.id }));
+  }
+
+  async setCosmetic(playerId: string, kind: "title" | "color" | "skin", id: string | null): Promise<void> {
+    const a = this.accounts.get(playerId);
+    if (a) a[kind] = id;
+  }
+
+  async setLeague(playerId: string, league: number): Promise<void> {
+    const a = this.accounts.get(playerId);
+    if (a) a.league = league;
+  }
+
+  async careerOf(playerId: string): Promise<CareerTotals> {
+    const mine = this.results.filter((r) => r.playerId === playerId);
+    return {
+      seasons: mine.length,
+      fruitings: mine.reduce((s, r) => s + r.fruitings, 0),
+      trophies: mine.reduce((s, r) => s + r.trophies, 0),
+      bestRank: mine.length > 0 ? Math.min(...mine.map((r) => r.rank)) : null,
+    };
   }
 
   async seasonHistory(playerId: string, limit: number): Promise<SeasonResult[]> {
@@ -209,7 +278,8 @@ export class MemoryStore implements GameStore {
       .slice(0, limit)
       .map((r) => {
         const f = this.forests.get(r.forestId)!;
-        return toResult(r.seasonStart, f.record.number, f.seed, r);
+        const won = (this.rewards.get(playerId) ?? []).filter((x) => x.seasonStart === r.seasonStart).map((x) => ({ kind: x.kind, id: x.id }));
+        return toResult(r.seasonStart, f.record.number, f.seed, r, won);
       });
   }
 
@@ -315,6 +385,10 @@ interface AccountRow {
   password_hash: string | null;
   is_bot: boolean;
   chat_silenced_until: Date | null;
+  league: number;
+  title: string | null;
+  network_color: string | null;
+  carpophore_skin: string | null;
 }
 
 interface ChatRow {
@@ -340,7 +414,7 @@ const toChat = (r: ChatRow): StoredChat => ({
   text: r.body,
 });
 
-const ACCOUNT_COLUMNS = "id, name, password_hash, is_bot, chat_silenced_until";
+const ACCOUNT_COLUMNS = "id, name, password_hash, is_bot, chat_silenced_until, league, title, network_color, carpophore_skin";
 
 interface PlayerRow extends AccountRow {
   heart_q: number;
@@ -368,6 +442,9 @@ interface PlayerRow extends AccountRow {
   relics: unknown;
   relic_picks: number;
   listens: unknown;
+  conquests: number;
+  active_ms: number;
+  unlocked_strains: unknown;
   biomass: number;
   upgrades: Record<string, number>;
   queue: Array<{ q: number; r: number }>;
@@ -394,7 +471,8 @@ function toResult(
   seasonStart: number,
   forestNumber: number,
   seed: number,
-  r: Pick<Standing, "rank" | "players" | "biomass" | "trophies" | "tiles">,
+  r: Pick<Standing, "rank" | "players" | "biomass" | "trophies" | "tiles" | "conquests" | "boss" | "activeMs" | "leagueBefore" | "leagueAfter">,
+  rewards: Reward[] = [],
 ): SeasonResult {
   const { week, year } = seasonAt(seasonStart);
   return {
@@ -408,6 +486,11 @@ function toResult(
     trophies: r.trophies,
     tiles: r.tiles,
     seed,
+    conquests: r.conquests,
+    boss: r.boss,
+    activeMs: r.activeMs,
+    league: { before: r.leagueBefore, after: r.leagueAfter },
+    rewards,
   };
 }
 
@@ -419,6 +502,10 @@ const toAccount = (r: AccountRow): Account => ({
   passwordHash: r.password_hash,
   isBot: r.is_bot,
   silencedUntil: toMs(r.chat_silenced_until ?? null),
+  league: r.league ?? 0,
+  title: r.title ?? null,
+  color: r.network_color ?? null,
+  skin: r.carpophore_skin ?? null,
 });
 
 /** PostgreSQL store (tables from migrations 0001 to 0005). */
@@ -460,7 +547,7 @@ export class PgStore implements GameStore {
   async findAccountBySession(tokenHash: string): Promise<Account | null> {
     const res = await this.pool.query<AccountRow>(
       `with s as (update sessions set last_used_at = now() where token_hash = $1 returning player_id)
-       select p.id, p.name, p.password_hash, p.is_bot, p.chat_silenced_until from players p
+       select p.id, p.name, p.password_hash, p.is_bot, p.chat_silenced_until, p.league, p.title, p.network_color, p.carpophore_skin from players p
        where p.id in (select player_id from s) or p.token_hash = $1
        limit 1`,
       [tokenHash],
@@ -473,13 +560,13 @@ export class PgStore implements GameStore {
   }
 
   async listForests(): Promise<ForestRecord[]> {
-    const res = await this.pool.query<{ id: string; number: number; season_start: Date }>(
-      "select id, number, season_start from forests where ended_at is null order by number",
+    const res = await this.pool.query<{ id: string; number: number; season_start: Date; league: number }>(
+      "select id, number, season_start, league from forests where ended_at is null order by number",
     );
-    return res.rows.map((r) => ({ id: r.id, number: r.number, seasonStart: r.season_start.getTime() }));
+    return res.rows.map((r) => ({ id: r.id, number: r.number, seasonStart: r.season_start.getTime(), league: r.league }));
   }
 
-  async endForest(id: string, standings: Standing[], endedAt: number): Promise<void> {
+  async endForest(id: string, standings: Standing[], endedAt: number, rewards: Array<Reward & { playerId: string }> = []): Promise<void> {
     const client = await this.pool.connect();
     try {
       await client.query("begin");
@@ -489,10 +576,13 @@ export class PgStore implements GameStore {
       );
       if (res.rows[0]) {
         await client.query(
-          `insert into season_results (season_start, player_id, forest_id, rank, players, biomass, trophies, tiles)
-           select $1, t.player_id, $2, t.rank, t.players, t.biomass, t.trophies, t.tiles
-           from unnest($3::uuid[], $4::int[], $5::int[], $6::float8[], $7::int[], $8::int[])
-             as t(player_id, rank, players, biomass, trophies, tiles)
+          `insert into season_results (season_start, player_id, forest_id, rank, players, biomass, trophies, tiles,
+                                      conquests, boss, active_ms, fruitings, league_before, league_after)
+           select $1, t.player_id, $2, t.rank, t.players, t.biomass, t.trophies, t.tiles,
+                  t.conquests, t.boss, t.active_ms, t.fruitings, t.league_before, t.league_after
+           from unnest($3::uuid[], $4::int[], $5::int[], $6::float8[], $7::int[], $8::int[],
+                       $9::int[], $10::float8[], $11::float8[], $12::int[], $13::int[], $14::int[])
+             as t(player_id, rank, players, biomass, trophies, tiles, conquests, boss, active_ms, fruitings, league_before, league_after)
            on conflict do nothing`,
           [
             res.rows[0].season_start,
@@ -503,8 +593,26 @@ export class PgStore implements GameStore {
             standings.map((s) => s.biomass),
             standings.map((s) => s.trophies),
             standings.map((s) => s.tiles),
+            standings.map((s) => s.conquests),
+            standings.map((s) => s.boss),
+            standings.map((s) => s.activeMs),
+            standings.map((s) => s.fruitings),
+            standings.map((s) => s.leagueBefore),
+            standings.map((s) => s.leagueAfter),
           ],
         );
+        await client.query(
+          `update players set league = t.league from unnest($1::uuid[], $2::int[]) as t(id, league) where players.id = t.id`,
+          [standings.map((s) => s.playerId), standings.map((s) => s.leagueAfter)],
+        );
+        if (rewards.length > 0) {
+          await client.query(
+            `insert into player_rewards (player_id, kind, reward, season_start)
+             select t.player_id, t.kind, t.reward, $1 from unnest($2::uuid[], $3::text[], $4::text[]) as t(player_id, kind, reward)
+             on conflict do nothing`,
+            [res.rows[0].season_start, rewards.map((r) => r.playerId), rewards.map((r) => r.kind), rewards.map((r) => r.id)],
+          );
+        }
         await client.query("update players set forest_id = null where forest_id = $1", [id]);
       }
       await client.query("commit");
@@ -526,16 +634,61 @@ export class PgStore implements GameStore {
       tiles: number;
       number: number;
       seed: string;
+      conquests: number;
+      boss: number;
+      active_ms: number;
+      league_before: number;
+      league_after: number;
     }>(
-      `select r.season_start, r.rank, r.players, r.biomass, r.trophies, r.tiles, f.number, w.seed
+      `select r.season_start, r.rank, r.players, r.biomass, r.trophies, r.tiles, f.number, w.seed,
+              r.conquests, r.boss, r.active_ms, r.league_before, r.league_after
        from season_results r join forests f on f.id = r.forest_id join worlds w on w.id = f.world_id
        where r.player_id = $1 order by r.season_start desc limit $2`,
       [playerId, limit],
     );
-    return res.rows.map((r) => toResult(r.season_start.getTime(), r.number, Number(r.seed), r));
+    const won = await this.pool.query<{ kind: RewardKind; reward: string; season_start: Date }>(
+      "select kind, reward, season_start from player_rewards where player_id = $1",
+      [playerId],
+    );
+    return res.rows.map((r) =>
+      toResult(
+        r.season_start.getTime(),
+        r.number,
+        Number(r.seed),
+        { ...r, activeMs: r.active_ms, leagueBefore: r.league_before, leagueAfter: r.league_after },
+        won.rows.filter((w) => w.season_start.getTime() === r.season_start.getTime()).map((w) => ({ kind: w.kind, id: w.reward })),
+      ),
+    );
   }
 
-  async createForest(forest: ForestState, seasonStart: number): Promise<ForestRecord> {
+  async rewardsOf(playerId: string): Promise<Reward[]> {
+    const res = await this.pool.query<{ kind: RewardKind; reward: string }>(
+      "select kind, reward from player_rewards where player_id = $1 order by season_start, kind, reward",
+      [playerId],
+    );
+    return res.rows.filter((r) => isReward(r.kind, r.reward)).map((r) => ({ kind: r.kind, id: r.reward }));
+  }
+
+  async setCosmetic(playerId: string, kind: "title" | "color" | "skin", id: string | null): Promise<void> {
+    const column = { title: "title", color: "network_color", skin: "carpophore_skin" }[kind];
+    await this.pool.query(`update players set ${column} = $2 where id = $1`, [playerId, id]);
+  }
+
+  async setLeague(playerId: string, league: number): Promise<void> {
+    await this.pool.query("update players set league = $2 where id = $1", [playerId, league]);
+  }
+
+  async careerOf(playerId: string): Promise<CareerTotals> {
+    const res = await this.pool.query<{ seasons: string; fruitings: string | null; trophies: string | null; best: number | null }>(
+      `select count(*) as seasons, sum(fruitings) as fruitings, sum(trophies) as trophies, min(rank) as best
+       from season_results where player_id = $1`,
+      [playerId],
+    );
+    const r = res.rows[0]!;
+    return { seasons: Number(r.seasons), fruitings: Number(r.fruitings ?? 0), trophies: Number(r.trophies ?? 0), bestRank: r.best };
+  }
+
+  async createForest(forest: ForestState, seasonStart: number, league = 0): Promise<ForestRecord> {
     const client = await this.pool.connect();
     try {
       await client.query("begin");
@@ -545,8 +698,8 @@ export class PgStore implements GameStore {
       );
       const worldId = world.rows[0]!.id;
       const rec = await client.query<{ id: string; number: number }>(
-        "insert into forests (world_id, updated_at, season_start) values ($1, $2, $3) returning id, number",
-        [worldId, new Date(forest.updatedAt), new Date(seasonStart)],
+        "insert into forests (world_id, updated_at, season_start, league) values ($1, $2, $3, $4) returning id, number",
+        [worldId, new Date(forest.updatedAt), new Date(seasonStart), league],
       );
       const tiles = [...forest.tiles.values()];
       await client.query(
@@ -562,7 +715,7 @@ export class PgStore implements GameStore {
         ],
       );
       await client.query("commit");
-      return { ...rec.rows[0]!, seasonStart };
+      return { ...rec.rows[0]!, seasonStart, league };
     } catch (err) {
       await client.query("rollback");
       throw err;
@@ -584,8 +737,9 @@ export class PgStore implements GameStore {
       events: unknown;
       pacts: unknown;
       pact_invites: unknown;
+      league: number;
     }>(
-      `select f.id, f.number, f.world_id, w.seed, w.radius, w.capacity, f.updated_at, f.season_start, f.events, f.pacts, f.pact_invites
+      `select f.id, f.number, f.world_id, w.seed, w.radius, w.capacity, f.updated_at, f.season_start, f.events, f.pacts, f.pact_invites, f.league
        from forests f join worlds w on w.id = f.world_id where f.id = $1 and f.ended_at is null`,
       [id],
     );
@@ -618,10 +772,10 @@ export class PgStore implements GameStore {
     const layout = { kind: "forest", capacity: row.capacity } as const;
     const seed = Number(row.seed);
     const players = await this.pool.query<PlayerRow>(
-      `select id, name, password_hash, is_bot, chat_silenced_until, heart_q, heart_r, heart_moved_at, spawn_q, spawn_r, joined_at, trophies,
+      `select id, name, password_hash, is_bot, chat_silenced_until, league, title, network_color, carpophore_skin, heart_q, heart_r, heart_moved_at, spawn_q, spawn_r, joined_at, trophies,
               monday_bonus, nutrients, enzymes, enzymes_unlocked, strain, mutations, spores, spore_upgrades, fruitings,
               automation, cooldowns, heart_shield_until, biomass, upgrades, queue, last_seen_at, updated_at,
-              tainted_until, signals, signals_unlocked, relics, relic_picks, listens
+              tainted_until, signals, signals_unlocked, relics, relic_picks, listens, conquests, active_ms, unlocked_strains
        from players where forest_id = $1`,
       [id],
     );
@@ -666,6 +820,9 @@ export class PgStore implements GameStore {
         relics: normalizeRelics(p.relics),
         relicPicks: p.relic_picks,
         listens: normalizeListens(p.listens),
+        conquests: p.conquests,
+        activeMs: p.active_ms,
+        unlockedStrains: Array.isArray(p.unlocked_strains) ? p.unlocked_strains.filter((x): x is StrainId => typeof x === "string" && isStrainId(x)) : [],
         tiles,
         updatedAt: p.updated_at.getTime(),
       });
@@ -686,7 +843,7 @@ export class PgStore implements GameStore {
     refreshReservations(forest, forest.updatedAt);
     refreshPacts(forest);
     refreshToxins(forest);
-    return { record: { id: row.id, number: row.number, seasonStart: row.season_start.getTime() }, forest, members };
+    return { record: { id: row.id, number: row.number, seasonStart: row.season_start.getTime(), league: row.league }, forest, members };
   }
 
   async saveForest(id: string, forest: ForestState): Promise<void> {
@@ -711,16 +868,18 @@ export class PgStore implements GameStore {
                   spore_upgrades = t.spore_upgrades::jsonb, fruitings = t.fruitings, automation = t.automation::jsonb,
                   cooldowns = t.cooldowns::jsonb, heart_shield_until = t.heart_shield_until,
                   tainted_until = t.tainted_until, signals = t.signals, signals_unlocked = t.signals_unlocked,
-                  relics = t.relics::jsonb, relic_picks = t.relic_picks, listens = t.listens::jsonb
+                  relics = t.relics::jsonb, relic_picks = t.relic_picks, listens = t.listens::jsonb,
+                  conquests = t.conquests, active_ms = t.active_ms, unlocked_strains = t.unlocked_strains::jsonb
            from unnest($3::uuid[], $4::int[], $5::int[], $6::timestamptz[], $7::int[], $8::int[], $9::timestamptz[],
                        $10::int[], $11::float8[], $12::float8[], $13::text[], $14::text[], $15::timestamptz[],
                        $16::timestamptz[], $17::float8[], $18::float8[], $19::bool[], $20::text[], $21::text[],
                        $22::float8[], $23::text[], $24::int[], $25::text[], $26::text[], $27::timestamptz[],
-                       $28::timestamptz[], $29::float8[], $30::bool[], $31::text[], $32::int[], $33::text[])
+                       $28::timestamptz[], $29::float8[], $30::bool[], $31::text[], $32::int[], $33::text[],
+                       $34::int[], $35::float8[], $36::text[])
              as t(id, heart_q, heart_r, heart_moved_at, spawn_q, spawn_r, joined_at, trophies, nutrients, biomass,
                   upgrades, queue, last_seen_at, updated_at, monday_bonus, enzymes, enzymes_unlocked, strain, mutations,
                   spores, spore_upgrades, fruitings, automation, cooldowns, heart_shield_until,
-                  tainted_until, signals, signals_unlocked, relics, relic_picks, listens)
+                  tainted_until, signals, signals_unlocked, relics, relic_picks, listens, conquests, active_ms, unlocked_strains)
            where players.id = t.id`,
           [
             id,
@@ -756,6 +915,9 @@ export class PgStore implements GameStore {
             ps.map((p) => JSON.stringify(p.relics)),
             ps.map((p) => p.relicPicks),
             ps.map((p) => JSON.stringify(p.listens)),
+            ps.map((p) => p.conquests),
+            ps.map((p) => p.activeMs),
+            ps.map((p) => JSON.stringify(p.unlockedStrains)),
           ],
         );
       }

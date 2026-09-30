@@ -5,6 +5,41 @@ versions [semver](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-09-30
+
+M7 — Social (GDD §15.6).
+
+### Added
+- **Chat de forêt** et **messages privés** en temps réel, avec historique ; 500 caractères, 5 messages
+  / 10 s, répétitions refusées. **Modération** : sourdine par joueur, signalement enregistré, comptes
+  admin (`ADMIN_NAMES`) qui coupent le chat d'un joueur 24 h.
+- **Notifications du navigateur** (Web Push, sur activation) quand on est absent : frontière attaquée,
+  Cœur menacé, Arbre mourant, fin de saison dans 1 h, message privé ; au plus une par type toutes les
+  30 min. Clés générées une fois et gardées dans Postgres (optionnel : `VAPID_*`).
+- **Pactes de symbiose** (§6.3) de 2 à 4 colonies, sur invitation : ni pression, ni prise, ni action
+  entre membres ; chacun verse 5 % de sa production dans un pot partagé. Sortie avec préavis de 1 h ;
+  rupture immédiate = trahison, « Réseau tâché » 24 h (−15 % de production, pas de pacte, marque sur
+  la carte). Chat de pacte. **Classement d'alliance** (biomasse gagnée ensemble).
+- **Signaux chimiques** (§3) : 1 par heure et par Racine ; *Envoi* de Nutriments ou d'Enzymes à un
+  allié (1 Signal, 5 % perdus) et *Écoute* d'un réseau à travers le brouillard (3 Signaux, 1 h).
+- **Ruine** : une par part, payée en Enzymes ; la première colonisation donne une **relique** pour la
+  semaine (production +10 %, pousse −15 % ou +1 point de mutation), puis il reste des décombres.
+- **Classements secondaires** (§8.1) : territoire, cases prises, Arbres mourants, efficacité (biomasse
+  par heure active, 1 h minimum), archivés en fin de saison.
+- **Ligues** (§8.3) Bronze → Mycélium Primordial : 3 premiers montent, 3 derniers descendent, −1 ligue
+  par 2 semaines d'absence ; on rejoint une forêt de sa ligue quand elle a de la place.
+- **Récompenses conservées** (§8.2) : titres, couleurs de réseau, 4 apparences de Carpophore, souche
+  **Moisissure** (après 3 saisons : colonisation −30 % et prises 2× plus rapides sur les cases usées à
+  20 %, production −10 %). Page **Profil** (clic sur son nom), récompenses sur la carte de fin de saison.
+- Robots de test : acceptent les invitations, invitent leurs voisins, quittent ou trahissent parfois,
+  pillent les Ruines.
+- Migrations `0012_chat_push`, `0013_pacts_signals`, `0014_leagues_rewards`.
+
+### Changed
+- Le rythme de remplissage des forêts se mesure sur les cases achetées en nutriments (la Roche et les
+  Ruines, payées en Enzymes, n'en font pas partie).
+- Onglets du panneau de droite sur deux lignes (quatre onglets avec Alliance).
+
 ## [0.7.0] - 2026-09-30
 
 M6 — Profondeur : conflit & événements (GDD §15.5).

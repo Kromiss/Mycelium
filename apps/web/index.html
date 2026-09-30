@@ -49,7 +49,7 @@
       </div>
       <div class="topbar-end">
         <span class="forest-label" id="forest-label"></span>
-        <span class="player" id="player-name"></span>
+        <button type="button" class="ghost player" id="player-name" data-i18n-aria="profile.open"></button>
         <button type="button" class="ghost" id="logout-btn" data-i18n="account.logout"></button>
         <button type="button" class="ghost" id="lang-btn" data-i18n="lang.switch" data-i18n-aria="lang.switchLabel"></button>
       </div>
@@ -185,6 +185,8 @@
         <p id="season-end-rank"></p>
         <p class="muted" id="season-end-stats"></p>
         <p class="muted" id="season-end-bonus" hidden></p>
+        <p id="season-end-league" hidden></p>
+        <p id="season-end-rewards" hidden></p>
         <p class="muted mono" id="season-end-seed"></p>
         <button type="button" class="primary" id="season-end-next" data-i18n="seasonEnd.next"></button>
       </div>
@@ -236,10 +238,30 @@
       </div>
     </div>
 
+    <div class="overlay" id="profile" hidden>
+      <div class="guest-card profile-card">
+        <h2 data-i18n="profile.title"></h2>
+        <div id="profile-body"></div>
+        <button type="button" class="primary" id="profile-close" data-i18n="profile.close"></button>
+      </div>
+    </div>
+
     <div class="overlay" id="board" hidden>
       <div class="guest-card board-card">
         <h2 data-i18n="board.title"></h2>
         <p class="muted" id="board-global"></p>
+        <div class="tabs board-tabs" id="board-tabs" role="tablist"></div>
+        <table id="secondary-table" hidden>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th data-i18n="board.player"></th>
+              <th id="secondary-value"></th>
+            </tr>
+          </thead>
+          <tbody id="secondary-rows"></tbody>
+        </table>
+        <p class="muted" id="secondary-note" hidden></p>
         <table id="board-table">
           <thead>
             <tr>

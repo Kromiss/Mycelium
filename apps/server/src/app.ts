@@ -136,6 +136,7 @@ function onConnection(ws: WebSocket, game: ForestService): void {
   ws.on("message", (data) => {
     const msg = parseClientMessage(data.toString());
     if (!msg) return;
+    if (player && msg.type !== "ping") game.touch(player.id);
     switch (msg.type) {
       case "ping":
         send(ws, { type: "pong", serverTime: Date.now() });
@@ -249,6 +250,9 @@ function onConnection(ws: WebSocket, game: ForestService): void {
       case "listen":
         if (!player) return send(ws, { type: "actionError", error: "not_authenticated" });
         game.listen(player.id, msg.target, client);
+        return;
+      case "setCosmetic":
+        if (player) background(game.setCosmetic(player.id, msg.kind, msg.id, client));
         return;
       case "chooseRelic":
         if (!player) return send(ws, { type: "actionError", error: "not_authenticated" });

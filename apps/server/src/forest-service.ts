@@ -84,6 +84,23 @@ import {
   type AllianceEntry,
   type PactEvent,
   type SocialView,
+  ACTIVE_WINDOW_MS,
+  careerRewards,
+  isReward,
+  leagueAfter,
+  leagueAfterAbsence,
+  SECONDARY_BOARDS,
+  seasonRewards,
+  secondaryBoard,
+  type ColorId,
+  type Profile,
+  type Reward,
+  type SeasonLine,
+  type SecondaryBoard,
+  type SecondaryEntry,
+  type SkinId,
+  type StrainId,
+  type TitleId,
 } from "@mycelium/shared";
 import { hashPassword, hashToken, newToken, RateLimiter, verifyPassword } from "./auth";
 import { MemoryScoreBoard, type ScoreBoard } from "./leaderboard";
@@ -181,7 +198,9 @@ export class ForestService {
   private realBase = 0;
   private ticks = 0;
   private lastTick = 0;
-  private creating: Promise<LiveForest> | null = null;
+  private readonly creating = new Map<number, Promise<LiveForest>>();
+  /** Last client message per player (game time): connected time counts as active within 10 minutes of one. */
+  private readonly lastAction = new Map<string, number>();
   private readonly push: PushSender;
   private readonly admins: Set<string>;
   /** Anti-spam memory per player (real time). */
@@ -306,12 +325,16 @@ export class ForestService {
     if (!live) return false;
     // The session's account is fresh (an admin may have silenced it since the forest was loaded).
     live.members.set(account.id, account);
+    const profile = await this.profileOf(account);
+    const unlocked = strainsOf(profile.rewards);
     const muted = new Set(await this.store.mutedBy(account.id));
     this.mutes.set(account.id, muted);
     const chat = await this.chatFor(live, account.id, muted);
     const now = this.now();
     advanceForest(live.forest, now);
     const player = live.forest.players.get(account.id)!;
+    player.unlockedStrains = unlocked;
+    this.lastAction.set(account.id, now);
     const clients = live.clients.get(account.id) ?? new Set();
     live.clients.set(account.id, clients);
     let away: AwaySummary | undefined;
@@ -330,6 +353,7 @@ export class ForestService {
         capacity: live.forest.layout.capacity,
         players: live.forest.players.size,
         seasonStart: live.record.seasonStart,
+        league: live.record.league,
       },
       game,
       owners,
@@ -345,6 +369,7 @@ export class ForestService {
       silencedUntil: account.silencedUntil,
       admin: this.admins.has(account.name.toLowerCase()),
       social: this.socialOf(live, account.id, now),
+      profile,
     });
     client.send({ type: "leaderboard", leaderboard: await this.leaderboard(live, account.id) });
     return true;
@@ -467,6 +492,45 @@ export class ForestService {
 
   chooseRelic(playerId: string, relic: string, client: GameClient): void {
     this.act_(playerId, client, (p) => chooseRelic(p, relic));
+  }
+
+  // -------------------------------------------------------------------------
+  // Profile, cosmetics and active time (M7)
+
+  /** Any client message: the player is active (M7 efficiency). */
+  touch(playerId: string): void {
+    this.lastAction.set(playerId, this.now());
+  }
+
+  /** Shows a title, a colour or a skin the account won (null: none), and tells the forest. */
+  async setCosmetic(playerId: string, kind: "title" | "color" | "skin", id: string | null, client: GameClient): Promise<void> {
+    const live = this.liveOf(playerId);
+    const account = live?.members.get(playerId);
+    if (!live || !account) return;
+    if (id !== null) {
+      const owned = await this.store.rewardsOf(playerId);
+      if (!isReward(kind, id) || !owned.some((r) => r.kind === kind && r.id === id)) {
+        client.send({ type: "actionError", error: "locked" });
+        return;
+      }
+    }
+    await this.store.setCosmetic(playerId, kind, id);
+    live.members.set(playerId, { ...account, [kind]: id });
+    const profile = await this.profileOf(live.members.get(playerId)!);
+    for (const c of live.clients.get(playerId) ?? []) c.send({ type: "profile", profile });
+    this.broadcastRoster(live);
+  }
+
+  private async profileOf(account: Account): Promise<Profile> {
+    const [rewards, career] = await Promise.all([this.store.rewardsOf(account.id), this.store.careerOf(account.id)]);
+    return {
+      league: account.league,
+      title: (account.title as TitleId | null) ?? null,
+      color: (account.color as ColorId | null) ?? null,
+      skin: (account.skin as SkinId | null) ?? null,
+      rewards,
+      career,
+    };
   }
 
   /** Tells the players concerned: an alert now, a line in their night journal. */
@@ -612,7 +676,12 @@ export class ForestService {
   private roster(live: LiveForest): RosterEntry[] {
     return [...live.forest.players.keys()].map((id) => {
       const o = this.ownerInfo(live, id, new Map(), null);
-      return { id, name: o.name, color: o.color };
+      const a = live.members.get(id);
+      const entry: RosterEntry = { id, name: o.name, color: o.color, league: a?.league ?? 0 };
+      if (a?.title) entry.title = a.title as TitleId;
+      if (o.rewardColor) entry.rewardColor = o.rewardColor;
+      if (o.skin) entry.skin = o.skin;
+      return entry;
     });
   }
 
@@ -655,6 +724,12 @@ export class ForestService {
       [...this.forests.values()].map(async (live) => {
         advanceForest(live.forest, now);
         this.pactEvents(live, resolvePacts(live.forest, now));
+        // M7 efficiency: connected time with an action in the last 10 minutes.
+        for (const [id, clients] of live.clients) {
+          const last = this.lastAction.get(id);
+          const player = live.forest.players.get(id);
+          if (clients.size > 0 && player && last !== undefined && now - last <= ACTIVE_WINDOW_MS) player.activeMs += Math.max(0, dt);
+        }
         const before = new Map<string, string>();
         for (const [k, t] of live.forest.tiles) if (t.capture) before.set(k, t.capture.by);
         const events = resolveBorders(live.forest, dt, now);
@@ -851,6 +926,15 @@ export class ForestService {
     const info: OwnerInfo = { id, name: live.members.get(id)?.name ?? "?", color: Math.max(0, slice), tiles: counts.get(id) ?? 0 };
     if (viewer?.allies.includes(id)) info.ally = true;
     if (p && isTainted(p, live.forest.updatedAt)) info.tainted = true;
+    const account = live.members.get(id);
+    if (account?.skin) info.skin = account.skin as SkinId;
+    // A reward colour is shown only by the earliest player of the forest who chose it.
+    if (account?.color && p) {
+      const first = [...live.forest.players.values()]
+        .filter((o) => live.members.get(o.id)?.color === account.color)
+        .sort((a, b) => a.joinedAt - b.joinedAt || a.id.localeCompare(b.id))[0];
+      if (first?.id === id) info.rewardColor = account.color as ColorId;
+    }
     return info;
   }
 
@@ -864,7 +948,37 @@ export class ForestService {
       players: ranked.length,
       global: await this.scores.globalRank(live.record.seasonStart, playerId),
       alliances: this.alliances(live),
+      secondary: this.secondary(live),
     };
+  }
+
+  /** What each colony did this season, for every leaderboard (M7). */
+  private seasonLines(live: LiveForest): SeasonLine[] {
+    const tiles = tileCounts(live.forest);
+    const boss = new Map<string, number>();
+    for (const e of live.forest.events) {
+      if (e.kind !== "tree" || !e.damage) continue;
+      for (const [id, d] of Object.entries(e.damage)) boss.set(id, (boss.get(id) ?? 0) + d);
+    }
+    return [...live.forest.players.values()].map((p) => ({
+      playerId: p.id,
+      biomass: p.biomass,
+      trophies: p.trophies,
+      tiles: tiles.get(p.id) ?? 0,
+      conquests: p.conquests,
+      boss: boss.get(p.id) ?? 0,
+      activeMs: p.activeMs,
+      fruitings: p.fruitings,
+    }));
+  }
+
+  private secondary(live: LiveForest): Record<SecondaryBoard, SecondaryEntry[]> {
+    const lines = this.seasonLines(live);
+    const out = {} as Record<SecondaryBoard, SecondaryEntry[]>;
+    for (const board of SECONDARY_BOARDS) {
+      out[board] = secondaryBoard(lines, board).map((r) => ({ rank: r.rank, id: r.playerId, name: live.members.get(r.playerId)?.name ?? "?", value: r.value }));
+    }
+    return out;
   }
 
   /** The forest's alliance leaderboard (M7): biomass earned by members while in the pact. */
@@ -906,16 +1020,47 @@ export class ForestService {
       ended = true;
       advanceForest(live.forest, season.end);
       const ranking = this.ranking(live);
-      const standings: Standing[] = ranking.map((e) => ({
-        playerId: e.id,
-        rank: e.rank,
-        players: ranking.length,
-        biomass: e.biomass,
-        trophies: e.trophies,
-        tiles: e.tiles,
-      }));
+      const lines = new Map(this.seasonLines(live).map((l) => [l.playerId, l]));
+      // M7 leagues: the first 3 go up, the last 3 down.
+      const leagues = new Map(ranking.map((e) => [e.id, leagueAfter(live.members.get(e.id)?.league ?? 0, e.rank, ranking.length)]));
+      const standings: Standing[] = ranking.map((e) => {
+        const l = lines.get(e.id)!;
+        return {
+          playerId: e.id,
+          rank: e.rank,
+          players: ranking.length,
+          biomass: e.biomass,
+          trophies: e.trophies,
+          tiles: e.tiles,
+          conquests: l.conquests,
+          boss: l.boss,
+          activeMs: l.activeMs,
+          fruitings: l.fruitings,
+          leagueBefore: live.members.get(e.id)?.league ?? 0,
+          leagueAfter: leagues.get(e.id)!,
+        };
+      });
+      // M7 rewards: titles and colours of this season, skins and strains of the whole career.
+      const best = this.alliances(live).find((a) => a.score > 0);
+      const bestPact = best ? live.forest.pacts.find((p) => p.id === best.id) : undefined;
+      const allied = bestPact ? [...bestPact.members, ...bestPact.former] : [];
+      const given = seasonRewards([...lines.values()], new Map(ranking.map((e) => [e.id, e.rank])), allied, leagues);
+      const fresh = new Map<string, Reward[]>();
+      const rewards: Array<Reward & { playerId: string }> = [];
+      for (const st of standings) {
+        const before = await this.store.rewardsOf(st.playerId);
+        const career = await this.store.careerOf(st.playerId);
+        const all = [...(given.get(st.playerId) ?? []), ...careerRewards({ seasons: career.seasons + 1, fruitings: career.fruitings + st.fruitings, trophies: career.trophies + st.trophies })];
+        const mine: Reward[] = [];
+        for (const r of all) {
+          if (before.some((b) => b.kind === r.kind && b.id === r.id) || mine.some((m) => m.kind === r.kind && m.id === r.id)) continue;
+          mine.push(r);
+          rewards.push({ ...r, playerId: st.playerId });
+        }
+        fresh.set(st.playerId, mine);
+      }
       await live.saving;
-      await this.store.endForest(live.record.id, standings, season.end);
+      await this.store.endForest(live.record.id, standings, season.end, rewards);
       this.log(`season week ${season.week} ended for forest #${live.record.number} (${ranking.length} players)`);
       for (const [id, clients] of live.clients) {
         const mine = standings.find((st) => st.playerId === id);
@@ -931,12 +1076,21 @@ export class ForestService {
               trophies: mine.trophies,
               tiles: mine.tiles,
               seed: live.forest.seed,
+              conquests: mine.conquests,
+              boss: mine.boss,
+              activeMs: mine.activeMs,
+              league: { before: mine.leagueBefore, after: mine.leagueAfter },
+              rewards: fresh.get(id) ?? [],
             }
           : null;
         for (const c of clients) c.send({ type: "seasonEnded", result });
       }
       this.forests.delete(live.record.id);
-      for (const id of live.forest.players.keys()) this.playerForest.delete(id);
+      for (const id of live.forest.players.keys()) {
+        this.playerForest.delete(id);
+        const a = live.members.get(id);
+        if (a) a.league = leagues.get(id) ?? a.league;
+      }
     }
     return ended;
   }
@@ -967,21 +1121,35 @@ export class ForestService {
     return id ? this.forests.get(id) : undefined;
   }
 
-  /** The player's forest; a newcomer joins the oldest forest with room, or a new forest. */
+  /**
+   * The player's forest. A newcomer of the week joins the forest with room whose league is closest to
+   * theirs (the oldest first), or a new forest of their league once every forest is full (M7).
+   */
   private async forestOf(account: Account): Promise<LiveForest | null> {
     const existing = this.liveOf(account.id);
     if (existing) return existing;
     const now = this.now();
     const season = seasonAt(now);
+    const last = (await this.store.seasonHistory(account.id, 1))[0] ?? null;
+    // M7: every two weeks without playing cost a league.
+    if (last) {
+      const missed = Math.round((season.start - last.seasonStart) / (7 * 86_400_000)) - 1;
+      const league = leagueAfterAbsence(account.league, missed);
+      if (league !== account.league) {
+        account.league = league;
+        await this.store.setLeague(account.id, league);
+      }
+    }
     let live = [...this.forests.values()]
-      .sort((a, b) => a.record.number - b.record.number)
-      .find((f) => f.record.seasonStart === season.start && freeSlices(f.forest).length > 0);
-    live ??= await this.createForest();
+      .filter((f) => f.record.seasonStart === season.start && freeSlices(f.forest).length > 0)
+      .sort((a, b) => Math.abs(a.record.league - account.league) - Math.abs(b.record.league - account.league) || a.record.number - b.record.number)[0];
+    live ??= await this.createForest(account.league);
     const player = joinForest(live.forest, account.id, now);
     if (!player) return null;
+    player.unlockedStrains = strainsOf(await this.store.rewardsOf(account.id));
     // GDD §8.2: Monday bonus from last week's rank in their forest.
     const previousStart = seasonAt(season.start - 1).start;
-    const previous = (await this.store.seasonHistory(account.id, 1)).find((r) => r.seasonStart === previousStart) ?? null;
+    const previous = last && last.seasonStart === previousStart ? last : null;
     player.mondayBonus = mondayBonusFor(previous);
     live.members.set(account.id, account);
     this.playerForest.set(account.id, live.record.id);
@@ -991,15 +1159,19 @@ export class ForestService {
     return live;
   }
 
-  private createForest(): Promise<LiveForest> {
-    this.creating ??= (async () => {
-      const now = this.now();
-      const forest = newForest(randomSeed(), now, this.capacity);
-      const record = await this.store.createForest(forest, seasonAt(now).start);
-      this.log(`created forest #${record.number}`);
-      return this.adopt(record, forest, new Map());
-    })().finally(() => (this.creating = null));
-    return this.creating;
+  private createForest(league: number): Promise<LiveForest> {
+    let pending = this.creating.get(league);
+    if (!pending) {
+      pending = (async () => {
+        const now = this.now();
+        const forest = newForest(randomSeed(), now, this.capacity);
+        const record = await this.store.createForest(forest, seasonAt(now).start, league);
+        this.log(`created forest #${record.number} (league ${league})`);
+        return this.adopt(record, forest, new Map());
+      })().finally(() => this.creating.delete(league));
+      this.creating.set(league, pending);
+    }
+    return pending;
   }
 
   private adopt(record: ForestRecord, forest: ForestState, members: Map<string, Account>): LiveForest {
@@ -1040,6 +1212,11 @@ export class ForestService {
       .then(() => this.store.saveForest(live.record.id, live.forest))
       .catch((err: unknown) => this.log(`save failed for forest #${live.record.number}: ${String(err)}`));
   }
+}
+
+/** Strains an account unlocked (Moisissure, M7). */
+function strainsOf(rewards: readonly Reward[]): StrainId[] {
+  return rewards.filter((r) => r.kind === "strain").map((r) => r.id as StrainId);
 }
 
 /** A stored message as sent to players (the pact id stays on the server). */
