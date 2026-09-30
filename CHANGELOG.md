@@ -5,6 +5,13 @@ versions [semver](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+### Changed
+- **Carte plus lisible** : les cases possédées sont nettement plus visibles (remplissage plus fort) et
+  chaque colonie est entourée d'une bordure continue à sa couleur (la tienne, épaisse et lumineuse).
+- **Cœur mis en avant** : case dorée, bulbe animé qui grossit quand on dézoome, onde qui s'en échappe,
+  étincelles de nutriments qui remontent le réseau vers lui, et flèche au bord de l'écran quand il est
+  hors champ (toucher la flèche recentre la vue).
+
 ## [0.8.0] - 2026-09-30
 
 M7 — Social (GDD §15.6).

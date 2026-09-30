@@ -82,6 +82,11 @@ const GLOW = 0xc6f36e;
 const SELECT = 0xffffff;
 const WITHER = 0xe0704a;
 const PLAN = 0xf2e6b8;
+/** The Cœur's own colour, so it stands apart from the green network. */
+const HEART = 0xffd166;
+const HEART_CORE = 0xfff4d6;
+/** At most this many nutrient particles flow toward the Cœur each frame. */
+const MAX_FLOWS = 600;
 
 /** Canvas rendering of the hex map with pan / zoom (GDD §11: filaments that glow). */
 export class MapView {
@@ -92,6 +97,12 @@ export class MapView {
   private readonly frontierLayer = new Graphics();
   private readonly fxLayer = new Graphics();
   private readonly queueLabels = new Container();
+  /** Screen-space layer (not zoomed): the pointer toward an off-screen Cœur. */
+  private readonly overlay = new Graphics();
+  /** Links from each connected tile to the one it sends its nutrients through, toward the Cœur. */
+  private flows: Array<{ x1: number; y1: number; x2: number; y2: number; phase: number }> = [];
+  /** Screen position of the off-screen Cœur pointer, if shown (tapping it goes back home). */
+  private heartPointer: { x: number; y: number } | null = null;
 
   private game: GameState | null = null;
   private owners = new Map<string, OwnerInfo>();
@@ -120,7 +131,7 @@ export class MapView {
     });
     host.appendChild(this.app.canvas);
     this.world.addChild(this.terrainLayer, this.frontierLayer, this.networkLayer, this.fxLayer, this.queueLabels);
-    this.app.stage.addChild(this.world);
+    this.app.stage.addChild(this.world, this.overlay);
     this.app.ticker.add(() => this.frame());
     this.bindInput(this.app.canvas);
   }
@@ -345,21 +356,47 @@ export class MapView {
         // Another player's tile.
         const owner = this.owners.get(t.owner);
         const color = ownerColor(owner);
-        net.poly(hexPoints(x, y, SIZE - 1)).fill({ color, alpha: t.disconnectedSince === null ? 0.42 : 0.2 });
-        net.poly(hexPoints(x, y, SIZE - 2.5)).stroke({ width: 1.5, color, alpha: 0.8 });
+        net.poly(hexPoints(x, y, SIZE - 1)).fill({ color, alpha: t.disconnectedSince === null ? 0.34 : 0.18 });
+        net.poly(hexPoints(x, y, SIZE - 2.5)).stroke({ width: 1, color, alpha: 0.4 });
         if (owner?.ally) net.poly(hexPoints(x, y, SIZE - 5)).stroke({ width: 1.5, color: ALLY_RIM, alpha: 0.65 });
         if (owner?.tainted) net.poly(hexPoints(x, y, SIZE - 5)).stroke({ width: 2.5, color: TAINT_RIM, alpha: 0.85 });
         continue;
       }
       if (t.growthEndsAt !== null) {
-        net.poly(hexPoints(x, y, SIZE - 1)).fill({ color: GLOW, alpha: 0.07 });
+        net.poly(hexPoints(x, y, SIZE - 1)).fill({ color: GLOW, alpha: 0.14 });
       } else if (t.disconnectedSince !== null) {
-        net.poly(hexPoints(x, y, SIZE - 1)).fill({ color: WITHER, alpha: 0.28 });
+        net.poly(hexPoints(x, y, SIZE - 1)).fill({ color: WITHER, alpha: 0.32 });
         net.poly(hexPoints(x, y, SIZE - 2.5)).stroke({ width: 1.5, color: WITHER, alpha: 0.7 });
       } else {
-        net.poly(hexPoints(x, y, SIZE - 1)).fill({ color: GLOW, alpha: 0.2 * (1 - (t.exhaustion / EXHAUSTION.max) * 0.4) });
-        net.poly(hexPoints(x, y, SIZE - 2.5)).stroke({ width: 1.5, color: MYCELIUM, alpha: 0.35 });
+        // Own tiles read clearly above the terrain; wear only dims them a little.
+        net.poly(hexPoints(x, y, SIZE - 1)).fill({ color: GLOW, alpha: 0.36 * (1 - (t.exhaustion / EXHAUSTION.max) * 0.35) });
+        net.poly(hexPoints(x, y, SIZE - 2.5)).stroke({ width: 1.2, color: MYCELIUM, alpha: 0.3 });
       }
+    }
+
+    // Territory borders: one outline around each colony, only on edges facing another owner.
+    const mine: number[][] = [];
+    const theirs = new Map<string, number[][]>();
+    for (const t of game.tiles.values()) {
+      if (t.owner === null) continue;
+      const c = hexToPixel(t, SIZE);
+      for (const n of hexNeighbors(t)) {
+        if (game.tiles.get(hexKey(n))?.owner === t.owner) continue;
+        const edge = hexEdge(c, hexToPixel(n, SIZE), SIZE - 1);
+        if (t.owner === game.id) mine.push(edge);
+        else (theirs.get(t.owner) ?? theirs.set(t.owner, []).get(t.owner)!).push(edge);
+      }
+    }
+    for (const [owner, edges] of theirs) {
+      for (const [x1, y1, x2, y2] of edges) net.moveTo(x1!, y1!).lineTo(x2!, y2!);
+      net.stroke({ width: 2.5, color: ownerColor(this.owners.get(owner)), alpha: 0.95, cap: "round" });
+    }
+    for (const [width, alpha, color] of [
+      [10, 0.18, GLOW],
+      [3.5, 0.95, MYCELIUM],
+    ] as const) {
+      for (const [x1, y1, x2, y2] of mine) net.moveTo(x1!, y1!).lineTo(x2!, y2!);
+      if (mine.length) net.stroke({ width, color, alpha, cap: "round" });
     }
 
     // Filaments between neighbouring connected tiles (each pair once).
@@ -383,6 +420,26 @@ export class MapView {
     for (const t of connected) {
       const { x, y } = hexToPixel(t, SIZE);
       net.circle(x, y, 4).fill({ color: MYCELIUM, alpha: 0.9 - (t.exhaustion / EXHAUSTION.max) * 0.3 });
+    }
+
+    // Nutrient flow (GDD §2.4, §11): each connected tile sends toward a neighbour closer to the Cœur.
+    this.flows = [];
+    for (const t of connected) {
+      const d = hops.get(hexKey(t))!;
+      if (d === 0 || this.flows.length >= MAX_FLOWS) continue;
+      const next = hexNeighbors(t).find((n) => (hops.get(hexKey(n)) ?? Infinity) < d);
+      if (!next) continue;
+      const a = hexToPixel(t, SIZE);
+      const b = hexToPixel(next, SIZE);
+      this.flows.push({ x1: a.x, y1: a.y, x2: b.x, y2: b.y, phase: hashFloat(game.seed, 31, t.q, t.r) });
+    }
+
+    // The Cœur's tile: a golden hex that stays visible under everything else.
+    const heart = game.tiles.get(hexKey(game.heart));
+    if (heart?.owner === game.id) {
+      const { x, y } = hexToPixel(heart, SIZE);
+      net.poly(hexPoints(x, y, SIZE - 1)).fill({ color: HEART, alpha: 0.28 });
+      net.poly(hexPoints(x, y, SIZE - 3)).stroke({ width: 3, color: HEART, alpha: 0.95 });
     }
     for (const t of game.tiles.values()) {
       if (t.structure === null || t.owner === null) continue;
@@ -422,10 +479,29 @@ export class MapView {
     const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 450);
     this.frontierLayer.alpha = 0.35 + 0.45 * pulse;
 
-    // Heart: the starting spore.
+    // Nutrients: small sparks travelling along the network toward the Cœur.
+    const flowT = performance.now() / 1600;
+    for (const f of this.flows) {
+      const p = (flowT + f.phase) % 1;
+      fx.circle(f.x1 + (f.x2 - f.x1) * p, f.y1 + (f.y2 - f.y1) * p, 1.8).fill({ color: HEART_CORE, alpha: 0.85 * Math.sin(p * Math.PI) });
+    }
+
+    // Heart: the starting spore, drawn bigger when zoomed out so it is always easy to find.
     const heart = hexToPixel(game.heart, SIZE);
-    fx.circle(heart.x, heart.y, 9 + 2 * pulse).fill({ color: GLOW, alpha: 0.25 });
-    fx.circle(heart.x, heart.y, 6).fill({ color: 0xf7f0cf });
+    const k = Math.max(1, 0.9 / this.world.scale.x);
+    const wave = (performance.now() / 2400) % 1;
+    fx.poly(hexPoints(heart.x, heart.y, SIZE * (0.6 + 1.6 * wave) * k)).stroke({ width: 2.5 * k, color: HEART, alpha: 0.7 * (1 - wave) });
+    fx.circle(heart.x, heart.y, (15 + 4 * pulse) * k).fill({ color: HEART, alpha: 0.22 });
+    for (let i = 0; i < 6; i++) {
+      // Six short hyphae around the bulb.
+      const a = (i / 6) * Math.PI * 2 + performance.now() / 6000;
+      fx.moveTo(heart.x + Math.cos(a) * 9 * k, heart.y + Math.sin(a) * 9 * k)
+        .lineTo(heart.x + Math.cos(a) * (15 + 2 * pulse) * k, heart.y + Math.sin(a) * (15 + 2 * pulse) * k)
+        .stroke({ width: 2 * k, color: HEART, alpha: 0.9, cap: "round" });
+    }
+    fx.circle(heart.x, heart.y, 9 * k).fill({ color: HEART }).stroke({ width: 2 * k, color: 0x3a2a0a, alpha: 0.8 });
+    fx.circle(heart.x, heart.y, 4.5 * k).fill({ color: HEART_CORE });
+    this.drawHeartPointer(heart, pulse);
 
     // Growing hyphae: a filament creeping from the network to the tile, and a progress ring.
     for (const t of game.tiles.values()) {
@@ -510,6 +586,35 @@ export class MapView {
     }
   }
 
+  /** When the Cœur is off screen, a golden arrow on the edge points toward it. */
+  private drawHeartPointer(heart: { x: number; y: number }, pulse: number): void {
+    const o = this.overlay.clear();
+    const { width, height } = this.app.screen;
+    const sx = this.world.x + heart.x * this.world.scale.x;
+    const sy = this.world.y + heart.y * this.world.scale.y;
+    const margin = 24;
+    this.heartPointer = null;
+    if (sx >= 0 && sx <= width && sy >= 0 && sy <= height) return;
+    const cx = width / 2;
+    const cy = height / 2;
+    const dx = sx - cx;
+    const dy = sy - cy;
+    // Where the line from the centre to the Cœur leaves the screen, pulled in by the margin.
+    const t = Math.min((width / 2 - margin) / Math.abs(dx || 1e-6), (height / 2 - margin) / Math.abs(dy || 1e-6));
+    const px = cx + dx * t;
+    const py = cy + dy * t;
+    this.heartPointer = { x: px, y: py };
+    const a = Math.atan2(dy, dx);
+    o.circle(px, py, 15 + 2 * pulse).fill({ color: 0x111409, alpha: 0.85 }).stroke({ width: 2, color: HEART, alpha: 0.95 });
+    o.circle(px, py, 5).fill({ color: HEART });
+    const tip = 26 + 2 * pulse;
+    o.poly([
+      px + Math.cos(a) * tip, py + Math.sin(a) * tip,
+      px + Math.cos(a + 0.45) * 17, py + Math.sin(a + 0.45) * 17,
+      px + Math.cos(a - 0.45) * 17, py + Math.sin(a - 0.45) * 17,
+    ]).fill({ color: HEART });
+  }
+
   // -------------------------------------------------------------------------
   // Input: drag to pan, wheel / pinch / buttons to zoom, tap to select.
 
@@ -581,6 +686,10 @@ export class MapView {
 
   private tap(sx: number, sy: number): void {
     if (!this.game) return;
+    if (this.heartPointer && Math.hypot(sx - this.heartPointer.x, sy - this.heartPointer.y) < 30) {
+      this.centerOn(this.game.heart);
+      return;
+    }
     const scale = this.world.scale.x;
     const h = pixelToHex((sx - this.world.x) / scale, (sy - this.world.y) / scale, SIZE);
     const exists = this.game.tiles.has(hexKey(h));
@@ -597,6 +706,13 @@ function dotted(g: Graphics, a: { x: number; y: number }, b: { x: number; y: num
     g.moveTo(a.x + (b.x - a.x) * t0, a.y + (b.y - a.y) * t0).lineTo(a.x + (b.x - a.x) * t1, a.y + (b.y - a.y) * t1);
   }
   g.stroke({ width: 2, color: PLAN, alpha: 0.7, cap: "round" });
+}
+
+/** The side of the hex centred on `c` that faces the neighbour centred on `n`, as [x1, y1, x2, y2]. */
+function hexEdge(c: { x: number; y: number }, n: { x: number; y: number }, radius: number): number[] {
+  const a = Math.atan2(n.y - c.y, n.x - c.x);
+  const s = Math.PI / 6;
+  return [c.x + radius * Math.cos(a - s), c.y + radius * Math.sin(a - s), c.x + radius * Math.cos(a + s), c.y + radius * Math.sin(a + s)];
 }
 
 function hexPoints(cx: number, cy: number, radius: number): number[] {
