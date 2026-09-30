@@ -204,14 +204,14 @@ describe("chemical Signals (GDD §3)", () => {
   it("let a colony listen to a whole network through the fog for an hour", () => {
     const { f, a } = arena();
     const far = hexKey(hex(6, -1));
-    expect(visibleKeys(f, "a").has(far)).toBe(false);
+    expect(visibleKeys(f, "a", true).has(far)).toBe(false);
     a.signals = SIGNALS.listenCost;
     expect(listen(f, "a", "a", T0)).toEqual({ ok: false, error: "self" });
     expect(listen(f, "a", "b", T0)).toEqual({ ok: true });
     expect(a.signals).toBe(0);
-    expect(visibleKeys(f, "a").has(far)).toBe(true);
+    expect(visibleKeys(f, "a", true).has(far)).toBe(true);
     advanceForest(f, T0 + SIGNALS.listenMs);
-    expect(visibleKeys(f, "a").has(far)).toBe(false);
+    expect(visibleKeys(f, "a", true).has(far)).toBe(false);
     expect(listen(f, "a", "b", T0)).toEqual({ ok: false, error: "not_enough_signals" });
   });
 });

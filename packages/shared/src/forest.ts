@@ -1,4 +1,4 @@
-import { ACTION_EFFECTS, ANTI_FRUSTRATION, BORDERS, CENTRE_RISK, FOREST, MUTATIONS, ROCK, STRAINS, STRUCTURES, VISION_RADIUS } from "./balance";
+import { ACTION_EFFECTS, ANTI_FRUSTRATION, BORDERS, CENTRE_RISK, FOREST, MUTATIONS, ROCK, STRAINS, STRUCTURES, VISION_RADIUS, FOG_ENABLED } from "./balance";
 import { generateForestMap, ringAt, type MapLayout } from "./forestgen";
 import {
   activeEffect,
@@ -389,11 +389,20 @@ function conquer(attacker: GameState, tile: Tile): void {
 /**
  * Tiles a player can see (GDD §2.1 fog): their own, those within VISION_RADIUS of them, farther around
  * their Carpophores, every Carpophore of the forest (GDD §4.1: "visible par tous"), and the whole
- * network of the colonies they listen to (M7 Écoute).
+ * network of the colonies they listen to (M7 Écoute). Without fog (FOG_ENABLED false), every tile but the
+ * Truffe's hidden ones.
  */
-export function visibleKeys(forest: ForestState, playerId: string): Set<string> {
+export function visibleKeys(forest: ForestState, playerId: string, fog: boolean = FOG_ENABLED): Set<string> {
   const seen = new Set<string>();
   const viewer = forest.players.get(playerId);
+  if (!fog) {
+    // No fog (experiment): the whole forest, except the Truffe's hidden tiles (GDD §4.3).
+    for (const [key, t] of forest.tiles) {
+      const truffle = t.owner !== null && t.owner !== playerId && forest.players.get(t.owner)?.strain === "truffle";
+      if (!truffle || hexNeighbors(t).some((n) => forest.tiles.get(hexKey(n))?.owner === playerId)) seen.add(key);
+    }
+    return seen;
+  }
   const glowing = viewer !== undefined && hasMutation(viewer, "bioluminescence");
   /** Truffe (GDD §4.3): a truffle's tiles are only seen by the players whose tiles touch them. */
   const hidden = (t: Tile) => {

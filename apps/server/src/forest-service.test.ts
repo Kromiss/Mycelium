@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BORDERS, hexKey, OFFLINE, type ServerMessage } from "@mycelium/shared";
+import { BORDERS, FOG_ENABLED, hexKey, OFFLINE, type ServerMessage } from "@mycelium/shared";
 import { ForestService, type GameClient } from "./forest-service";
 import { MemoryStore, type Account } from "./store";
 
@@ -98,11 +98,13 @@ describe("forests", () => {
     expect(c.client.last("ready")!.forest.number).toBe(fa.number + 1);
   });
 
-  it("sends only what the player can see, with the owners' names", async () => {
+  it("sends what the player can see, with the owners' names", async () => {
     const { service } = await setup();
     const a = await play(service, "Alpha");
     const ready = a.client.last("ready")!;
-    expect(ready.game.tiles.length).toBe(7); // Spawn and its neighbours.
+    // Without fog (FOG_ENABLED false), the whole forest; with it, the spawn and its neighbours.
+    const forest = service.forestState(a.account.id)!;
+    expect(ready.game.tiles.length).toBe(FOG_ENABLED ? 7 : forest.tiles.size);
     expect(ready.owners).toEqual([{ id: a.account.id, name: "Alpha", color: expect.any(Number), tiles: 1 }]);
     expect(ready.needsPassword).toBe(false);
     expect(ready.timeScale).toBe(1);

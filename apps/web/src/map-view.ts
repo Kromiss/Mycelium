@@ -17,13 +17,14 @@ import {
   type EventDto,
   type EventKind,
   type Terrain,
+  LENGTH_SCALE,
 } from "@mycelium/shared";
 import { ownerColor } from "./colors";
 import { Application, Container, Graphics, Text } from "pixi.js";
 
 /** Circumradius of a hex in world pixels. */
 const SIZE = 30;
-const MIN_ZOOM = 0.35;
+const MIN_ZOOM = 0.12; // the forest is about twice as wide since the ×5 tiles experiment
 const MAX_ZOOM = 3;
 /** Pointer travel (px) under which a press counts as a tap. */
 const TAP_SLOP = 8;
@@ -193,7 +194,7 @@ export class MapView {
   home(): void {
     if (!this.game) return;
     const { width, height } = this.app.screen;
-    const fit = Math.min(width, height) / (SIZE * 2 * 11);
+    const fit = Math.min(width, height) / (SIZE * 2 * 11 * LENGTH_SCALE);
     const scale = clamp(fit, MIN_ZOOM, 1.4);
     const { x, y } = hexToPixel(this.game.heart, SIZE);
     this.world.scale.set(scale);
