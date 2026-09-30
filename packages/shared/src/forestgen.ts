@@ -1,4 +1,4 @@
-import { FOREST, LAND_TERRAINS, type Terrain } from "./balance";
+import { FOREST, FOREST_TERRAINS, type Terrain } from "./balance";
 import { hex, hexDistance, hexesInRadius, hexKey, hexNeighbors, hexToPixel, type Hex } from "./hex";
 import type { GeneratedMap, MapTile } from "./mapgen";
 import { hashFloat } from "./rng";
@@ -141,6 +141,15 @@ export function generateForestMap(seed: number, capacity: number = FOREST.capaci
   const spawns = forestSpawns(capacity, radius);
   const spawnKeys = new Set(spawns.map(hexKey));
   const nearSpawn = (h: Hex) => spawns.some((s) => hexDistance(s, h) <= FOREST.spawnClearRadius);
+  // The same test by position in the slice: a position is kept clear if it is near the spawn in any
+  // slice, so that every slice keeps the same positions clear (hex disks do not rotate exactly).
+  const clearPositions = new Set<string>();
+  const positionKey = (h: Hex) => {
+    const pl = placement.get(hexKey(h))!;
+    return `${pl.band}:${pl.p}`;
+  };
+  for (const c of cells) if (nearSpawn(c)) clearPositions.add(positionKey(c));
+  const inStartZone = (h: Hex) => clearPositions.has(positionKey(h));
 
   const motif = (salt: number, c: Hex) => {
     const { band, p } = placement.get(hexKey(c))!;
@@ -170,18 +179,41 @@ export function generateForestMap(seed: number, capacity: number = FOREST.capaci
   }
 
   // Land terrains: thresholds from slice 0 of each ring, applied to every slice of that ring.
+  // Rock and Roots come first, as small scattered spots of their own motifs (never in a start zone);
+  // the rest follows the main motif, from Litter (low values) to Stumps (high values).
   const terrainOf = new Map<string, Terrain>();
   for (const ring of ["rim", "middle", "centre"] as const) {
-    const land = cells.filter((c) => !wet.has(hexKey(c)) && ringAt(radius, c) === ring);
-    const reference = land.filter(inSlice0).map((c) => motif(0, c));
+    let land = cells.filter((c) => !wet.has(hexKey(c)) && ringAt(radius, c) === ring);
     // The centre is shared: use all of it as reference.
-    const values = ring === "centre" || reference.length < 10 ? land.map((c) => motif(0, c)) : reference;
+    const referenceOf = (pool: Hex[]) => {
+      const ref = pool.filter(inSlice0);
+      return ring === "centre" || ref.length < 10 ? pool : ref;
+    };
     const w = FOREST.terrainWeights[ring];
-    const litterCut = cut(values, w.litter);
-    const humusCut = cut(values, w.litter + w.humus);
+    const total = land.length;
+    for (const [terrain, salt] of [["rock", 0x27d4eb2f], ["roots", 0x165667b1]] as const) {
+      const eligible = land.filter((c) => !inStartZone(c));
+      if (w[terrain] <= 0 || eligible.length === 0) continue;
+      // Highest values of the terrain's motif, for a share `w` of the whole ring (rounded to the nearest
+      // tile, so that a small share still places a few).
+      const reference = referenceOf(eligible).map((c) => -motif(salt, c)).sort((x, y) => x - y);
+      const index = Math.round(((w[terrain] * total) / eligible.length) * reference.length);
+      const threshold = index >= reference.length ? Infinity : reference[index]!;
+      const picked = new Set(eligible.filter((c) => -motif(salt, c) < threshold).map(hexKey));
+      for (const k of picked) terrainOf.set(k, terrain);
+      land = land.filter((c) => !picked.has(hexKey(c)));
+    }
+    const values = referenceOf(land).map((c) => motif(0, c));
+    const present = FOREST_TERRAINS.filter((t) => w[t] > 0);
+    const rest = present.reduce((sum, t) => sum + w[t], 0);
+    let acc = 0;
+    const cuts = present.map((t, i) => {
+      acc += w[t] / rest;
+      return [t, i === present.length - 1 ? Infinity : cut(values, acc)] as const;
+    });
     for (const c of land) {
       const m = motif(0, c);
-      terrainOf.set(hexKey(c), m < litterCut ? "litter" : m < humusCut ? "humus" : "deadwood");
+      terrainOf.set(hexKey(c), cuts.find(([, limit]) => m < limit)![0]);
     }
   }
   for (const k of spawnKeys) terrainOf.set(k, "humus");

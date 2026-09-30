@@ -75,9 +75,12 @@ describe("new game", () => {
         disconnectedSince: null,
         capture: null,
         reservedFor: null,
+        structure: null,
       },
     ]);
     expect(s.nutrients).toBe(ECONOMY.startingNutrients);
+    expect(s.enzymes).toBe(0);
+    expect(s.enzymesUnlocked).toBe(false);
     expect(s.queue).toEqual([]);
     expect(s.lastSeenAt).toBeNull();
   });

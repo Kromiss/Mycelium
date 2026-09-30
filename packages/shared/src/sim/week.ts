@@ -138,7 +138,7 @@ function fillQueue(state: GameState, now: number): void {
     for (const tile of candidates(state)) {
       if (!checkColonize(state, tile).ok) continue;
       const v = tileValue(state, tile);
-      if (v > bestValue) {
+      if (v > bestValue && v > 0) {
         bestValue = v;
         best = tile;
       }

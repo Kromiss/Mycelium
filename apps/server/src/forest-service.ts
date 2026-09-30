@@ -2,6 +2,7 @@ import {
   advance,
   advanceForest,
   botPlay,
+  build,
   buyUpgrade,
   colonize,
   conversionRate,
@@ -13,6 +14,7 @@ import {
   isValidPlayerName,
   joinForest,
   mondayBonusFor,
+  demolish,
   moveHeart,
   newForest,
   randomSeed,
@@ -281,6 +283,14 @@ export class ForestService {
 
   buyUpgrade(playerId: string, upgrade: string, client: GameClient): void {
     this.act(playerId, client, (p) => buyUpgrade(p, upgrade));
+  }
+
+  build(playerId: string, q: number, r: number, structure: string, client: GameClient): void {
+    this.act(playerId, client, (p, now) => build(p, { q, r }, structure, now));
+  }
+
+  demolish(playerId: string, q: number, r: number, client: GameClient): void {
+    this.act(playerId, client, (p, now) => demolish(p, { q, r }, now));
   }
 
   /** One simulation step for every forest: economy, borders, robots, views, leaderboard, saves. */

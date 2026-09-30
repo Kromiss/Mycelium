@@ -1,4 +1,4 @@
-import { BORDERS, FOREST, VISION_RADIUS } from "./balance";
+import { BORDERS, FOREST, ROCK, STRUCTURES, VISION_RADIUS } from "./balance";
 import { generateForestMap, type MapLayout } from "./forestgen";
 import {
   advance,
@@ -121,11 +121,12 @@ export function advanceForest(forest: ForestState, to: number): void {
   refreshReservations(forest, to);
 }
 
-/** A tile that cannot be taken right now: a Cœur, or the start zone of a new player (GDD §6.4). */
+/** A tile that cannot be taken right now: a Cœur, a Sclérote, or the start zone of a new player (GDD §4.1, §6.4). */
 export function isProtected(forest: ForestState, tile: Tile, now: number): boolean {
   const owner = tile.owner === null ? undefined : forest.players.get(tile.owner);
   if (!owner) return false;
   if (hexEquals(owner.heart, tile)) return true;
+  if (tile.structure === "sclerotium" && tile.growthEndsAt === null) return true;
   return now - owner.joinedAt < BORDERS.protectedMs && hexDistance(owner.spawn, tile) <= BORDERS.protectedRadius;
 }
 
@@ -141,6 +142,20 @@ export function pressure(forest: ForestState, playerId: string, around: Hex, con
     total += humidity(player, t); // Aggression multipliers arrive with mutations (M5).
   }
   return total;
+}
+
+/**
+ * Defensive multiplier on the capture speed of a tile: a Rhizomorphe on it, or a Rock of the same owner
+ * next to it (GDD §2.2 "rempart"), slow the attacker down; both together multiply.
+ */
+export function defenceFactor(forest: ForestState, tile: Tile): number {
+  let f = tile.structure === "rhizomorph" ? STRUCTURES.rhizomorphCaptureFactor : 1;
+  const rampart = hexNeighbors(tile).some((n) => {
+    const t = forest.tiles.get(hexKey(n));
+    return t !== undefined && t.terrain === "rock" && t.owner === tile.owner && t.growthEndsAt === null;
+  });
+  if (rampart) f *= ROCK.rampartFactor;
+  return f;
 }
 
 /** Capture speed from the two pressures: 0 up to parity, full speed from `fullSpeedRatio`. */
@@ -195,7 +210,8 @@ export function resolveBorders(forest: ForestState, dt: number, now: number): Ca
     }
     if (!tile.capture || tile.capture.by !== best.id) tile.capture = { by: best.id, progress: 0 };
     const shielded = defender.lastSeenAt !== null && now - defender.lastSeenAt >= BORDERS.shieldAfterMs;
-    tile.capture.progress += (dt / duration) * best.speed * phaseSpeed * (shielded ? BORDERS.shieldFactor : 1);
+    tile.capture.progress +=
+      (dt / duration) * best.speed * phaseSpeed * (shielded ? BORDERS.shieldFactor : 1) * defenceFactor(forest, tile);
     if (tile.capture.progress >= 1 - 1e-9) {
       const attacker = forest.players.get(best.id)!;
       events.push({ q: tile.q, r: tile.r, from: defender.id, to: attacker.id });
@@ -216,17 +232,23 @@ function conquer(attacker: GameState, tile: Tile): void {
   tile.growthStartedAt = null;
   tile.disconnectedSince = null;
   tile.capture = null;
+  tile.structure = null; // Structures are destroyed (Cordyceps will keep them, M5 step 2).
   attacker.trophies += 1;
   const perSecond = tileYield(tile.terrain, attacker.upgrades) * richness(attacker, tile);
   attacker.biomass += ((perSecond * BORDERS.conquestBonusMs) / 1000) * conversionRate(attacker.upgrades);
 }
 
-/** Tiles a player can see (GDD §2.1 fog): their own, and those within VISION_RADIUS of them. */
+/**
+ * Tiles a player can see (GDD §2.1 fog): their own, those within VISION_RADIUS of them, farther around
+ * their Carpophores, and every Carpophore of the forest (GDD §4.1: "visible par tous").
+ */
 export function visibleKeys(forest: ForestState, playerId: string): Set<string> {
   const seen = new Set<string>();
-  for (const t of forest.tiles.values()) {
+  for (const [key, t] of forest.tiles) {
+    if (t.structure === "carpophore" && t.owner !== null) seen.add(key);
     if (t.owner !== playerId) continue;
-    for (const h of hexesInRadius(t, VISION_RADIUS)) {
+    const vision = t.structure === "carpophore" && t.growthEndsAt === null ? STRUCTURES.carpophoreVision : VISION_RADIUS;
+    for (const h of hexesInRadius(t, vision)) {
       const k = hexKey(h);
       if (forest.tiles.has(k)) seen.add(k);
     }
@@ -305,6 +327,8 @@ function emptySnapshot(dto: ForestDto): GameSnapshot {
     tiles: [],
     queue: [],
     nutrients: 0,
+    enzymes: 0,
+    enzymesUnlocked: false,
     biomass: 0,
     upgrades: emptyUpgrades(),
     lastSeenAt: null,

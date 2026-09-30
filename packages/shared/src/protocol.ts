@@ -1,5 +1,5 @@
-import { TERRAINS, type Terrain, type UpgradeId } from "./balance";
-import { normalizeUpgrades, type ActionError, type GameState, type Tile } from "./game";
+import { TERRAINS, type StructureId, type Terrain, type UpgradeId } from "./balance";
+import { isStructureId, normalizeUpgrades, type ActionError, type GameState, type Tile } from "./game";
 import type { MapLayout } from "./forestgen";
 import { hexKey, type Hex } from "./hex";
 
@@ -17,6 +17,8 @@ export interface TileDto extends Hex {
   disconnectedSince: number | null;
   capture: { by: string; progress: number } | null;
   reservedFor: string | null;
+  /** Structure (GDD §4.1), omitted when there is none. */
+  s?: StructureId;
 }
 
 /** A player's game as sent to them: their own economy, and the tiles they can see. */
@@ -35,13 +37,24 @@ export interface GameSnapshot {
   tiles: TileDto[];
   queue: Hex[];
   nutrients: number;
+  enzymes: number;
+  enzymesUnlocked: boolean;
   biomass: number;
   upgrades: Record<UpgradeId, number>;
   lastSeenAt: number | null;
   updatedAt: number;
 }
 
-export const TERRAIN_CODES: Record<Terrain, string> = { litter: "l", humus: "h", deadwood: "d", wetland: "w" };
+export const TERRAIN_CODES: Record<Terrain, string> = {
+  litter: "l",
+  humus: "h",
+  deadwood: "d",
+  wetland: "w",
+  stump: "s",
+  roots: "r",
+  rock: "k",
+  acid: "a",
+};
 const TERRAIN_BY_CODE = Object.fromEntries(TERRAINS.map((t) => [TERRAIN_CODES[t], t])) as Record<string, Terrain>;
 
 /** Snapshot of a player's game; `visible` limits the tiles sent (all tiles when omitted). */
@@ -49,7 +62,7 @@ export function toSnapshot(state: GameState, visible?: Set<string>): GameSnapsho
   const tiles: TileDto[] = [];
   for (const [k, t] of state.tiles) {
     if (visible && !visible.has(k)) continue;
-    tiles.push({
+    const dto: TileDto = {
       q: t.q,
       r: t.r,
       t: TERRAIN_CODES[t.terrain],
@@ -60,7 +73,9 @@ export function toSnapshot(state: GameState, visible?: Set<string>): GameSnapsho
       disconnectedSince: t.disconnectedSince,
       capture: t.capture && { ...t.capture },
       reservedFor: t.reservedFor,
-    });
+    };
+    if (t.structure !== null) dto.s = t.structure;
+    tiles.push(dto);
   }
   return {
     id: state.id,
@@ -76,6 +91,8 @@ export function toSnapshot(state: GameState, visible?: Set<string>): GameSnapsho
     tiles,
     queue: state.queue.map((h) => ({ q: h.q, r: h.r })),
     nutrients: state.nutrients,
+    enzymes: state.enzymes,
+    enzymesUnlocked: state.enzymesUnlocked,
     biomass: state.biomass,
     upgrades: { ...state.upgrades },
     lastSeenAt: state.lastSeenAt,
@@ -100,6 +117,7 @@ export function fromSnapshot(s: GameSnapshot, seed = 0): GameState {
       disconnectedSince: o.disconnectedSince,
       capture: o.capture && { ...o.capture },
       reservedFor: o.reservedFor ?? null,
+      structure: typeof o.s === "string" && isStructureId(o.s) ? o.s : null,
     });
   }
   return {
@@ -115,6 +133,8 @@ export function fromSnapshot(s: GameSnapshot, seed = 0): GameState {
     heart: { q: s.heart.q, r: s.heart.r },
     heartMovedAt: s.heartMovedAt,
     nutrients: s.nutrients,
+    enzymes: s.enzymes ?? 0,
+    enzymesUnlocked: s.enzymesUnlocked ?? false,
     biomass: s.biomass,
     upgrades: normalizeUpgrades(s.upgrades),
     queue: s.queue.map((h) => ({ q: h.q, r: h.r })),
@@ -241,7 +261,10 @@ export type ClientMessage =
   | { type: "colonize"; q: number; r: number }
   | { type: "unqueue"; q: number; r: number }
   | { type: "moveHeart"; q: number; r: number }
-  | { type: "buyUpgrade"; upgrade: string };
+  | { type: "buyUpgrade"; upgrade: string }
+  /** Builds a structure on one of the player's tiles (GDD §4.1). */
+  | { type: "build"; q: number; r: number; structure: string }
+  | { type: "demolish"; q: number; r: number };
 
 export interface HealthReport {
   status: "ok" | "degraded";
@@ -303,7 +326,10 @@ export function parseClientMessage(raw: string): ClientMessage | null {
     case "colonize":
     case "unqueue":
     case "moveHeart":
+    case "demolish":
       return isInt(m.q) && isInt(m.r) ? { type: m.type, q: m.q, r: m.r } : null;
+    case "build":
+      return isInt(m.q) && isInt(m.r) && isStr(m.structure, 50) ? { type: "build", q: m.q, r: m.r, structure: m.structure } : null;
     case "buyUpgrade":
       return isStr(m.upgrade, 50) ? { type: "buyUpgrade", upgrade: m.upgrade } : null;
     default:

@@ -1,11 +1,14 @@
 import {
   advance,
   biomassRate,
+  checkBuild,
   checkBuyUpgrade,
   checkColonize,
   checkMoveHeart,
   colonizationCost,
   effectsAt,
+  enzymeRate,
+  glandRate,
   fromSnapshot,
   GAME_NAME,
   growingTiles,
@@ -19,6 +22,10 @@ import {
   networkHops,
   phaseAt,
   richness,
+  ROOTS,
+  STRUCTURE_IDS,
+  structureCost,
+  TERRAIN_STATS,
   ownedCount,
   productionRate,
   QUEUE_MAX,
@@ -41,6 +48,7 @@ import {
   type GameState,
   type Hex,
   type ServerMessage,
+  type Terrain,
 } from "@mycelium/shared";
 import { cssColor, playerColor } from "./colors";
 import { formatDuration, formatNumber } from "./format";
@@ -53,6 +61,11 @@ const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getEleme
 
 const ui = {
   nutrients: $("nutrients"),
+  enzymesRes: $("enzymes-res"),
+  enzymes: $("enzymes"),
+  enzymesRate: $("enzymes-rate"),
+  tileStructures: $("tile-structures"),
+  structureList: $("structure-list"),
   nutrientsRate: $("nutrients-rate"),
   biomass: $("biomass"),
   biomassRate: $("biomass-rate"),
@@ -116,6 +129,8 @@ let selected: Hex | null = null;
 let connection: Connection | null = null;
 let mapView: MapView | null = null;
 let toastTimer: number | undefined;
+/** Whether Enzymes were unlocked at the last snapshot, to announce the unlock once. */
+let enzymesKnown: boolean | null = null;
 
 const serverNow = () => clock.server + (Date.now() - clock.local) * clock.scale;
 const fmt = (n: number) => formatNumber(n, locale());
@@ -270,6 +285,8 @@ function applySnapshot(snapshot: GameSnapshot, list: OwnerInfo[], serverTime: nu
   clock = { server: serverTime, local: Date.now(), scale: clock.scale };
   for (const o of list) owners.set(o.id, o);
   game = fromSnapshot(snapshot);
+  if (enzymesKnown === false && game.enzymesUnlocked) toast(t("enzymes.unlocked"), "good");
+  enzymesKnown = game.enzymesUnlocked;
   mapView?.setGame(game, list);
   if (!ui.upgradeList.childElementCount) buildUpgradeList();
   render();
@@ -436,6 +453,32 @@ const actionButtons = [0, 1].map(() => {
   ui.tileActions.append(b);
   return b;
 });
+// Build list (GDD §4.1): persistent buttons too, updated on each render.
+const structureItems = STRUCTURE_IDS.map((id) => {
+  const li = document.createElement("li");
+  const button = document.createElement("button");
+  button.type = "button";
+  button.addEventListener("click", () => {
+    if (selected) connection?.send({ type: "build", q: selected.q, r: selected.r, structure: id } satisfies ClientMessage);
+  });
+  const desc = document.createElement("p");
+  desc.className = "structure-desc";
+  li.append(button, desc);
+  ui.structureList.append(li);
+  return { id, li, button, desc };
+});
+const demolishItem = (() => {
+  const li = document.createElement("li");
+  const button = document.createElement("button");
+  button.type = "button";
+  button.addEventListener("click", () => {
+    if (selected) connection?.send({ type: "demolish", q: selected.q, r: selected.r } satisfies ClientMessage);
+  });
+  li.append(button);
+  ui.structureList.append(li);
+  return { li, button };
+})();
+
 $("away-close").addEventListener("click", () => (ui.away.hidden = true));
 $("tile-close").addEventListener("click", () => selectTile(null));
 $("zoom-in").addEventListener("click", () => mapView?.zoomBy(1.25));
@@ -487,6 +530,11 @@ function render(): void {
   ui.nutrientsRate.textContent = t("res.perSecond", { value: fmt(rate) });
   ui.biomass.textContent = fmt(game.biomass);
   ui.biomassRate.textContent = t("res.perSecond", { value: fmt(biomassRate(game)) });
+  ui.enzymesRes.hidden = !game.enzymesUnlocked;
+  if (game.enzymesUnlocked) {
+    ui.enzymes.textContent = fmt(game.enzymes);
+    ui.enzymesRate.textContent = t("tile.enzymesValue", { value: fmt(enzymeRate(game) * 3600) });
+  }
   ui.tiles.textContent = String(ownedCount(game));
   ui.queue.textContent = `${game.queue.length}/${QUEUE_MAX}`;
   ui.trophies.textContent = String(game.trophies);
@@ -526,6 +574,7 @@ function renderTile(g: GameState): void {
   let status = "";
   let tone: "good" | "warn" | "" = "";
   let note = "";
+  let buildable = false;
 
   if (tile.terrain === "wetland") {
     note = t("tile.wetland");
@@ -541,6 +590,7 @@ function renderTile(g: GameState): void {
           : t("tile.underAttack", { name: owners.get(tile.capture.by)?.name ?? "?", percent: pct });
     }
     facts.push(["tile.yield", t("tile.yieldValue", { value: fmt(tileYield(tile.terrain, g.upgrades) * richness(g, tile)) })]);
+    if (tile.structure) facts.push(["tile.structure", t(`structure.${tile.structure}.name`)]);
     note = t("tile.border");
   } else if (tile.owner === g.id) {
     tone = "good";
@@ -556,6 +606,8 @@ function renderTile(g: GameState): void {
     } else {
       status = hexEquals(tile, g.heart) ? t("tile.heart") : t("tile.owned");
       facts.push(["tile.production", t("tile.yieldValue", { value: fmt(tileProduction(g, tile, hops)) })]);
+      if (tile.structure) facts.push(["tile.structure", t(`structure.${tile.structure}.name`)]);
+      if (tile.structure === "gland" && hops.has(hexKey(tile))) facts.push(["tile.enzymes", t("tile.enzymesValue", { value: fmt(glandRate(tile) * 3600) })]);
       facts.push(["tile.exhaustion", percent(tile.exhaustion)]);
       const d = hops.get(hexKey(tile));
       if (d !== undefined && d > 0) facts.push(["tile.transport", t("tile.transportValue", { hops: d, loss: Math.round(transportLoss(d) * 100) })]);
@@ -570,20 +622,23 @@ function renderTile(g: GameState): void {
         });
       }
     }
-    if (tile.terrain === "deadwood") note = t("tile.deadwoodNote");
+    note ||= terrainNote(tile.terrain);
+    buildable = hops.has(hexKey(tile)) && tile.growthEndsAt === null;
   } else {
     facts.push(["tile.yield", t("tile.yieldValue", { value: fmt(tileYield(tile.terrain, g.upgrades) * richness(g, tile) * humidity(g, tile)) })]);
     if (tile.exhaustion > 0.005) facts.push(["tile.exhaustion", percent(tile.exhaustion)]);
-    facts.push(["tile.cost", fmt(colonizationCost(g, tile, now))]);
+    const cost = colonizationCost(g, tile, now);
+    facts.push(["tile.cost", TERRAIN_STATS[tile.terrain].paidInEnzymes ? t("tile.costEnzymes", { value: fmt(cost) }) : fmt(cost)]);
     facts.push(["tile.growth", formatDuration(growthDurationMs(tile.terrain, g.upgrades, effectsAt(g, now).growthTime))]);
-    if (tile.terrain === "deadwood") note = t("tile.deadwoodNote");
+    note = terrainNote(tile.terrain);
     const position = queueIndex(g, tile);
     if (position >= 0) {
       status = t("tile.queued", { position: position + 1 });
       actions.push({ label: t("tile.unqueue"), action: "unqueue", disabled: false, primary: false });
     } else {
       const check = checkColonize(g, tile);
-      const immediate = g.queue.length === 0 && growingTiles(g).length === 0 && g.nutrients >= colonizationCost(g, tile, now);
+      const wallet = TERRAIN_STATS[tile.terrain].paidInEnzymes ? g.enzymes : g.nutrients;
+      const immediate = g.queue.length === 0 && growingTiles(g).length === 0 && wallet >= cost;
       actions.push({
         label: immediate ? t("tile.colonize") : t("tile.queueAdd", { count: g.queue.length + 1, max: QUEUE_MAX }),
         action: "colonize",
@@ -608,6 +663,7 @@ function renderTile(g: GameState): void {
       return [dt, dd];
     }),
   );
+  renderStructures(g, tile, buildable);
   ui.tileNote.textContent = note;
   ui.tileNote.hidden = note === "";
   actionButtons.forEach((b, i) => {
@@ -619,6 +675,41 @@ function renderTile(g: GameState): void {
     b.disabled = a.disabled;
     b.className = a.primary ? "primary" : "";
   });
+}
+
+function terrainNote(terrain: Terrain): string {
+  switch (terrain) {
+    case "deadwood":
+      return t("tile.deadwoodNote");
+    case "stump":
+      return t("tile.stumpNote");
+    case "roots":
+      return t("tile.rootsNote", { bonus: Math.round(ROOTS.networkBonus * 100) });
+    case "rock":
+      return t("tile.rockNote");
+    case "acid":
+      return t("tile.acidNote");
+    default:
+      return "";
+  }
+}
+
+/** The build list of one of the player's connected tiles (GDD §4.1). */
+function renderStructures(g: GameState, tile: { q: number; r: number; structure: string | null }, buildable: boolean): void {
+  ui.tileStructures.hidden = !buildable;
+  if (!buildable) return;
+  const current = tile.structure;
+  for (const item of structureItems) {
+    const available = item.id !== "gland" || g.enzymesUnlocked;
+    item.li.hidden = current !== null || !available;
+    if (item.li.hidden) continue;
+    const name = t(`structure.${item.id}.name`);
+    item.button.textContent = t("tile.build", { name, cost: fmt(structureCost(g, item.id)) });
+    item.button.disabled = !checkBuild(g, tile, item.id).ok;
+    item.desc.textContent = t(`structure.${item.id}.desc`);
+  }
+  demolishItem.li.hidden = current === null;
+  if (current !== null) demolishItem.button.textContent = t("tile.demolish", { name: t(`structure.${current}.name` as MessageKey) });
 }
 
 function percent(x: number): string {

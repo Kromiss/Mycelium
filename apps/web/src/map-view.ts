@@ -11,6 +11,7 @@ import {
   type GameState,
   type Hex,
   type OwnerInfo,
+  type StructureId,
   type Terrain,
 } from "@mycelium/shared";
 import { playerColor } from "./colors";
@@ -28,6 +29,20 @@ const TERRAIN_COLORS: Record<Terrain, number> = {
   humus: 0x3b2c20,
   deadwood: 0x5e4330,
   wetland: 0x234a58,
+  stump: 0x6e4b2b,
+  roots: 0x43331f,
+  rock: 0x5f5e57,
+  acid: 0x4f5a22,
+};
+
+/** Structure marks (GDD §4.1), drawn in a corner of the tile. */
+const STRUCTURE_COLORS: Record<StructureId, number> = {
+  node: 0xf0c97a,
+  gland: 0xc3a6f2,
+  reservoir: 0x7cc4dc,
+  rhizomorph: 0xe39a5b,
+  sclerotium: 0xd9d4bd,
+  carpophore: 0xe0704a,
 };
 const GAP = 0x0c0e0a;
 const MYCELIUM = 0xe9f6c8;
@@ -91,7 +106,7 @@ export class MapView {
     const game = this.game;
     if (!game) return;
     const tiles = [...game.tiles.values()];
-    const terrain = tiles.map((t) => `${hexKey(t)}${t.terrain[0]}`).join("");
+    const terrain = tiles.map((t) => `${hexKey(t)}${t.terrain}`).join("");
     if (terrain !== this.terrainSignature) {
       this.terrainSignature = terrain;
       this.drawTerrain(game);
@@ -101,7 +116,7 @@ export class MapView {
       game.queue.map(hexKey).join("|"),
       tiles
         .filter((t) => t.owner !== null || t.exhaustion > 0)
-        .map((t) => `${hexKey(t)}${t.owner ?? ""}${t.growthEndsAt === null ? "" : "g"}${t.disconnectedSince === null ? "" : "x"}${Math.round(t.exhaustion * 20)}`)
+        .map((t) => `${hexKey(t)}${t.owner ?? ""}${t.structure ?? ""}${t.growthEndsAt === null ? "" : "g"}${t.disconnectedSince === null ? "" : "x"}${Math.round(t.exhaustion * 20)}`)
         .join(";"),
     ].join("#");
     if (signature === this.networkSignature) return;
@@ -169,12 +184,74 @@ export class MapView {
         const w = 5 + rnd(i + 20) * 6;
         g.moveTo(cx - w, cy).quadraticCurveTo(cx, cy - 3, cx + w, cy).stroke({ width: 1.4, color: 0x8fc3cf, alpha: 0.55 });
       }
+    } else if (tile.terrain === "stump") {
+      // A cut trunk seen from above: growth rings.
+      for (const [r, a] of [[SIZE * 0.52, 1], [SIZE * 0.36, 0.7], [SIZE * 0.2, 0.55]] as const) {
+        g.circle(x, y, r).stroke({ width: 2, color: 0x9a6c3e, alpha: a });
+      }
+      g.circle(x, y, SIZE * 0.52).fill({ color: 0x8a5e35, alpha: 0.35 });
+    } else if (tile.terrain === "roots") {
+      // Branching roots.
+      for (let i = 0; i < 3; i++) {
+        const a = rnd(i) * Math.PI * 2;
+        const len = SIZE * (0.45 + rnd(i + 10) * 0.25);
+        const mx = x + Math.cos(a + 0.4) * len * 0.5;
+        const my = y + Math.sin(a + 0.4) * len * 0.5;
+        g.moveTo(x, y).quadraticCurveTo(mx, my, x + Math.cos(a) * len, y + Math.sin(a) * len).stroke({ width: 3, color: 0x8a6a42, alpha: 0.85, cap: "round" });
+      }
+    } else if (tile.terrain === "rock") {
+      // A boulder.
+      const pts: number[] = [];
+      for (let i = 0; i < 7; i++) {
+        const a = (i / 7) * Math.PI * 2;
+        const r = SIZE * (0.42 + rnd(i) * 0.14);
+        pts.push(x + Math.cos(a) * r, y + Math.sin(a) * r * 0.85);
+      }
+      g.poly(pts).fill({ color: 0x8c8a80 }).stroke({ width: 1.5, color: 0x3f3e39 });
+      g.moveTo(x - SIZE * 0.2, y - SIZE * 0.15).lineTo(x + SIZE * 0.1, y - SIZE * 0.22).stroke({ width: 1.5, color: 0xb2b0a5, alpha: 0.8 });
+    } else if (tile.terrain === "acid") {
+      // Sour bubbles.
+      for (let i = 0; i < 5; i++) {
+        const a = rnd(i) * Math.PI * 2;
+        const d = rnd(i + 10) * SIZE * 0.6;
+        g.circle(x + Math.cos(a) * d, y + Math.sin(a) * d, 1.8 + rnd(i + 20) * 2.2).stroke({ width: 1.3, color: 0xc8e04a, alpha: 0.75 });
+      }
     } else {
       for (let i = 0; i < 5; i++) {
         const a = rnd(i) * Math.PI * 2;
         const d = rnd(i + 10) * SIZE * 0.65;
         g.circle(x + Math.cos(a) * d, y + Math.sin(a) * d, 1.3).fill({ color: 0x54412f, alpha: 0.9 });
       }
+    }
+  }
+
+  /** A small mark for a structure, in the tile's upper-right corner. */
+  private drawStructure(g: Graphics, structure: StructureId, x: number, y: number): void {
+    const cx = x + SIZE * 0.38;
+    const cy = y - SIZE * 0.36;
+    const color = STRUCTURE_COLORS[structure];
+    g.circle(cx, cy, 8).fill({ color: 0x111409, alpha: 0.85 }).stroke({ width: 1.5, color, alpha: 0.95 });
+    switch (structure) {
+      case "node":
+        g.circle(cx, cy, 3.5).fill({ color });
+        break;
+      case "gland":
+        g.moveTo(cx, cy - 4.5).quadraticCurveTo(cx + 4.5, cy + 1, cx, cy + 4).quadraticCurveTo(cx - 4.5, cy + 1, cx, cy - 4.5).fill({ color });
+        break;
+      case "reservoir":
+        g.moveTo(cx - 4, cy - 1).quadraticCurveTo(cx, cy - 4, cx + 4, cy - 1).stroke({ width: 1.5, color });
+        g.moveTo(cx - 4, cy + 2).quadraticCurveTo(cx, cy - 1, cx + 4, cy + 2).stroke({ width: 1.5, color });
+        break;
+      case "rhizomorph":
+        g.moveTo(cx - 4.5, cy + 3).lineTo(cx + 4.5, cy - 3).stroke({ width: 3, color, cap: "round" });
+        break;
+      case "sclerotium":
+        g.poly(hexPoints(cx, cy, 4.5)).fill({ color });
+        break;
+      case "carpophore":
+        g.rect(cx - 1.2, cy - 0.5, 2.4, 4.5).fill({ color: 0xf2e6b8 });
+        g.moveTo(cx - 5, cy).arc(cx, cy, 5, Math.PI, 0).closePath().fill({ color });
+        break;
     }
   }
 
@@ -229,6 +306,11 @@ export class MapView {
     for (const t of connected) {
       const { x, y } = hexToPixel(t, SIZE);
       net.circle(x, y, 4).fill({ color: MYCELIUM, alpha: 0.9 - (t.exhaustion / EXHAUSTION.max) * 0.3 });
+    }
+    for (const t of game.tiles.values()) {
+      if (t.structure === null || t.owner === null) continue;
+      const { x, y } = hexToPixel(t, SIZE);
+      this.drawStructure(net, t.structure, x, y);
     }
 
     // Planned path: dotted links from each queued tile to where it will grow from.

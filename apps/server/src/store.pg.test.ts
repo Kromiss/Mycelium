@@ -65,6 +65,9 @@ describe.each(stores)("%s store", (_name, make) => {
     pa.trophies = 2;
     const someTile = [...forest.tiles.values()].find((t) => t.owner === a.id)!;
     someTile.capture = { by: b.id, progress: 0.25 };
+    someTile.structure = "node";
+    pa.enzymes = 42.5;
+    pa.enzymesUnlocked = true;
     resolveBorders(forest, 5_000, T0 + 3_600_000);
     await store.saveForest(record.id, forest);
 

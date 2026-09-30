@@ -6,11 +6,16 @@
 
 const HOUR = 3_600_000;
 
-export const TERRAINS = ["litter", "humus", "deadwood", "wetland"] as const;
-/** Litière de feuilles, Humus, Bois mort (M1) and Ruisseau / Zone humide (M2), GDD §2.2. */
+export const TERRAINS = ["litter", "humus", "deadwood", "wetland", "stump", "roots", "rock", "acid"] as const;
+/**
+ * GDD §2.2: Litière de feuilles, Humus, Bois mort (M1), Ruisseau / Zone humide (M2), and in M5 Souche /
+ * Tronc tombé, Racines d'arbre, Roche and Sol acide. Carcasse and Ruine arrive with events (M6).
+ */
 export type Terrain = (typeof TERRAINS)[number];
-/** Terrains a player can colonise. */
+/** Terrains of the solo maps (M1–M2). */
 export const LAND_TERRAINS = ["litter", "humus", "deadwood"] as const satisfies readonly Terrain[];
+/** Forest land terrains, in the order the terrain motif assigns them (poorest to richest). */
+export const FOREST_TERRAINS = ["litter", "humus", "acid", "deadwood", "stump"] as const satisfies readonly Terrain[];
 
 export interface TerrainStats {
   /** Can be colonised. Wetlands need a mutation (GDD §2.2), which arrives in M5. */
@@ -28,6 +33,8 @@ export interface TerrainStats {
   readonly lifetimeMs: number;
   /** Nutrient reserve of a fresh tile, stored in `hex.reserve`. Unused by the rules (exhaustion is time-based). */
   readonly reserve: number;
+  /** Colonisation is paid in Enzymes instead of nutrients (Roche, GDD §2.2): `baseCost` is then in Enzymes. */
+  readonly paidInEnzymes?: boolean;
 }
 
 export const TERRAIN_STATS: Readonly<Record<Terrain, TerrainStats>> = {
@@ -39,7 +46,22 @@ export const TERRAIN_STATS: Readonly<Record<Terrain, TerrainStats>> = {
   deadwood: { colonizable: true, yieldPerSecond: 3, baseCost: 18_000, growthSeconds: 120, lifetimeMs: 4 * HOUR, reserve: 5_000 },
   // GDD §2.2: cannot be colonised without a mutation; boosts humidity of adjacent tiles.
   wetland: { colonizable: false, yieldPerSecond: 0, baseCost: 0, growthSeconds: 0, lifetimeMs: 0, reserve: 0 },
+  // GDD §2.2: very high yield, high cost — the contested "objective" tiles, near the centre. M5, PLACEHOLDER.
+  stump: { colonizable: true, yieldPerSecond: 4, baseCost: 45_000, growthSeconds: 240, lifetimeMs: 12 * HOUR, reserve: 20_000 },
+  // GDD §2.2: medium yield + bonus (mycorrhiza, see ROOTS). M5, PLACEHOLDER.
+  roots: { colonizable: true, yieldPerSecond: 1, baseCost: 9_000, growthSeconds: 90, lifetimeMs: 12 * HOUR, reserve: 3_000 },
+  // GDD §2.2: yields nothing, costs Enzymes; a rampart (see ROCK). M5, PLACEHOLDER.
+  rock: { colonizable: true, yieldPerSecond: 0, baseCost: 40, growthSeconds: 300, lifetimeMs: Infinity, reserve: 0, paidInEnzymes: true },
+  // GDD §2.2: high yield, medium cost, but eats the network: wears twice as fast (see ACID). M5, PLACEHOLDER.
+  acid: { colonizable: true, yieldPerSecond: 2, baseCost: 12_000, growthSeconds: 90, lifetimeMs: 2 * HOUR, reserve: 4_000 },
 };
+
+/** Racines d'arbre (GDD §2.2 "mycorhize"): each colonised Roots tile adds this to the whole network's production. PLACEHOLDER. */
+export const ROOTS = { networkBonus: 0.02 } as const;
+/** Roche (GDD §2.2 "rempart défensif"): captures of the owner's tiles next to their Rock run at this speed. PLACEHOLDER. */
+export const ROCK = { rampartFactor: 0.5 } as const;
+/** Sol acide: `lifetimeMs` above is already the fast wear (twice as fast as Humus would be over 4 h). */
+export const ACID = { acidophileLifetimeFactor: 2 } as const;
 
 export const MAP = {
   /** Radius of the solo map: 3r(r+1)+1 = 331 hexes. PLACEHOLDER (final shape decided in M3, GDD §2.5). */
@@ -148,12 +170,15 @@ export const FOREST = {
   spawnDistance: 0.85,
   /** Rings of §2.5, as shares of the radius: centre below `centre`, rim above `rim`. PLACEHOLDER. */
   ring: { centre: 1 / 3, rim: 2 / 3 },
-  /** Land terrain mix per ring (litter / humus / deadwood). PLACEHOLDER. */
+  /**
+   * Land terrain mix per ring (GDD §2.5: poor rim, rich centre). Rock and Roots are scattered by their
+   * own motif; the other terrains follow the main motif in FOREST_TERRAINS order. PLACEHOLDER.
+   */
   terrainWeights: {
-    rim: { litter: 0.6, humus: 0.35, deadwood: 0.05 },
-    middle: { litter: 0.35, humus: 0.45, deadwood: 0.2 },
-    centre: { litter: 0.1, humus: 0.3, deadwood: 0.6 },
-  },
+    rim: { litter: 0.55, humus: 0.31, acid: 0, deadwood: 0.04, stump: 0, roots: 0.07, rock: 0.03 },
+    middle: { litter: 0.3, humus: 0.33, acid: 0.07, deadwood: 0.16, stump: 0, roots: 0.08, rock: 0.06 },
+    centre: { litter: 0.05, humus: 0.2, acid: 0.1, deadwood: 0.4, stump: 0.14, roots: 0.05, rock: 0.06 },
+  } as Readonly<Record<"rim" | "middle" | "centre", Readonly<Record<(typeof FOREST_TERRAINS)[number] | "roots" | "rock", number>>>>,
   /** Yield multiplier: rim ×1, middle ×1.5, centre ×3 at its edge up to ×5 in the middle (GDD §2.5). */
   richness: { rim: 1, middle: 1.5, centreEdge: 3, centreMiddle: 5 },
   /** Rim tiles last longer (GDD §2.5: "peu d'épuisement"). PLACEHOLDER. */
@@ -175,7 +200,16 @@ export const BORDERS = {
    * Time for a clearly stronger network (twice the pressure or more) to take a tile, by terrain.
    * DECIDED range 10 min – 2 h, by tile type; values PLACEHOLDER.
    */
-  captureMs: { litter: 10 * 60_000, humus: 45 * 60_000, deadwood: 2 * HOUR, wetland: Infinity } as Readonly<Record<Terrain, number>>,
+  captureMs: {
+    litter: 10 * 60_000,
+    humus: 45 * 60_000,
+    deadwood: 2 * HOUR,
+    wetland: Infinity,
+    stump: 2 * HOUR,
+    roots: 45 * 60_000,
+    rock: 2 * HOUR,
+    acid: 45 * 60_000,
+  } as Readonly<Record<Terrain, number>>,
   /** Pressure ratio at which the capture runs at full speed; below 1 nothing happens. */
   fullSpeedRatio: 2,
   /** GDD §6.4: start zone protected for 24 h, within this distance of the spawn. */
@@ -187,3 +221,35 @@ export const BORDERS = {
   /** Conquest bonus (GDD §2.5): biomass worth this long of the tile's fresh production. PLACEHOLDER. */
   conquestBonusMs: 1 * HOUR,
 } as const;
+
+// ---------------------------------------------------------------------------
+// M5 — structures and Enzymes (GDD §3, §4.1). DECIDED: the proposed package; numbers PLACEHOLDER.
+
+export const STRUCTURE_IDS = ["node", "gland", "reservoir", "rhizomorph", "sclerotium", "carpophore"] as const;
+/** Nœud de digestion, Glande enzymatique, Réservoir, Rhizomorphe, Sclérote, Carpophore (GDD §4.1). */
+export type StructureId = (typeof STRUCTURE_IDS)[number];
+
+export const STRUCTURES = {
+  /** Nutrient cost of a structure: `baseCost × costGrowth ^ structures already owned`. */
+  baseCost: { node: 20_000, gland: 15_000, reservoir: 15_000, rhizomorph: 12_000, sclerotium: 30_000, carpophore: 25_000 } as Readonly<
+    Record<StructureId, number>
+  >,
+  costGrowth: 1.25,
+  /** Nœud de digestion: +50 % on its tile. */
+  nodeBonus: 0.5,
+  /** Glande enzymatique: its tile yields 50 % less, and it makes Enzymes (twice as many on Dead wood or a Stump). */
+  glandPenalty: 0.5,
+  glandEnzymesPerSecond: 0.01,
+  glandWoodFactor: 2,
+  /** Rhizomorphe: captures of its tile run at this speed; crossing it costs no transport hop. */
+  rhizomorphCaptureFactor: 0.5,
+  /** Sclérote: one per player. */
+  sclerotiumMax: 1,
+  /** Carpophore: reveals the fog this far; it is seen by every player. */
+  carpophoreVision: 3,
+  /** Carpophore: +25 % Spores per Carpophore when fruiting (step 3). */
+  carpophoreSporeBonus: 0.25,
+} as const;
+
+/** GDD §3: Enzymes appear once the player holds this many tiles, or from Tuesday on. */
+export const ENZYMES_UNLOCK_TILES = 15;

@@ -141,6 +141,12 @@ describe("forests", () => {
     expect(a.client.last("actionError")?.error).toBe("unknown_tile");
     service.buyUpgrade(a.account.id, "teleport", a.client);
     expect(a.client.last("actionError")?.error).toBe("unknown_upgrade");
+    service.build(a.account.id, spawn.q, spawn.r, "node", a.client);
+    expect(a.client.last("state")!.game.tiles.find((t) => t.q === spawn.q && t.r === spawn.r)?.s).toBe("node");
+    service.build(a.account.id, spawn.q, spawn.r, "reservoir", a.client);
+    expect(a.client.last("actionError")?.error).toBe("has_structure");
+    service.demolish(a.account.id, spawn.q, spawn.r, a.client);
+    expect(a.client.last("state")!.game.tiles.find((t) => t.q === spawn.q && t.r === spawn.r)?.s).toBeUndefined();
     const stranger = new Spy();
     service.colonize(a.account.id, target.q, target.r, stranger);
     expect(stranger.last("actionError")?.error).toBe("not_authenticated");

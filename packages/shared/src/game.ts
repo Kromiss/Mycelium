@@ -1,15 +1,20 @@
 import {
   ECONOMY,
+  ENZYMES_UNLOCK_TILES,
   EXHAUSTION,
   HEART_MOVE_COOLDOWN_MS,
   HUMIDITY,
   OFFLINE,
   QUEUE_MAX,
+  ROOTS,
+  STRUCTURE_IDS,
+  STRUCTURES,
   TERRAIN_STATS,
   TICK_MS,
   TRANSPORT,
   UPGRADE_IDS,
   UPGRADE_STATS,
+  type StructureId,
   type Terrain,
   type UpgradeId,
 } from "./balance";
@@ -46,6 +51,8 @@ export interface Tile extends Hex {
    * the forest (see `refreshReservations`), not stored.
    */
   reservedFor: string | null;
+  /** Structure built on the tile (GDD §4.1), one at most; it goes with the tile's owner. */
+  structure: StructureId | null;
 }
 
 export type Upgrades = Record<UpgradeId, number>;
@@ -70,6 +77,10 @@ export interface GameState {
   /** Last time the Cœur was moved, null if never. */
   heartMovedAt: number | null;
   nutrients: number;
+  /** GDD §3: made by Glandes enzymatiques, spent on Rock (and on active actions in M6). */
+  enzymes: number;
+  /** Enzymes appear once, and stay: from the 15th tile or from Tuesday (GDD §3 "déblocage progressif"). */
+  enzymesUnlocked: boolean;
   /** Cumulated biomass: the leaderboard score (GDD §3, §5). */
   biomass: number;
   upgrades: Upgrades;
@@ -96,7 +107,13 @@ export type ActionError =
   | "not_enough_nutrients"
   | "unknown_upgrade"
   | "not_connected"
-  | "heart_cooldown";
+  | "heart_cooldown"
+  | "locked"
+  | "not_enough_enzymes"
+  | "unknown_structure"
+  | "has_structure"
+  | "no_structure"
+  | "structure_limit";
 
 export type ActionResult = { ok: true } | { ok: false; error: ActionError };
 
@@ -134,6 +151,7 @@ export function wildTile(h: Hex, terrain: Terrain): Tile {
     disconnectedSince: null,
     capture: null,
     reservedFor: null,
+    structure: null,
   };
 }
 
@@ -151,6 +169,7 @@ export function newPlayer(
     start.growthStartedAt = null;
     start.disconnectedSince = null;
     start.capture = null;
+    start.structure = null;
   }
   return {
     id,
@@ -165,6 +184,8 @@ export function newPlayer(
     heart: { q: spawn.q, r: spawn.r },
     heartMovedAt: null,
     nutrients: ECONOMY.startingNutrients,
+    enzymes: 0,
+    enzymesUnlocked: false,
     biomass: 0,
     upgrades: emptyUpgrades(),
     queue: [],
@@ -190,26 +211,33 @@ export const isMine = (state: GameState, t: Tile | undefined): t is Tile => t !=
 const isGrown = (state: GameState, t: Tile | undefined): boolean => isMine(state, t) && t.growthEndsAt === null;
 
 /**
- * Hops from the Cœur to every colonised tile it can reach through colonised tiles.
- * Tiles missing from the result are disconnected.
+ * Hops from the Cœur to every colonised tile it can reach through colonised tiles. Stepping onto a
+ * Rhizomorphe costs no hop (GDD §4.1: a reinforced cord). Tiles missing from the result are disconnected.
  */
 export function networkHops(state: GameState): Map<string, number> {
   const hops = new Map<string, number>();
   const heart = state.tiles.get(hexKey(state.heart));
   if (!heart || !isGrown(state, heart)) return hops;
   hops.set(hexKey(heart), 0);
-  let frontier: Hex[] = [heart];
-  for (let d = 1; frontier.length; d++) {
-    const next: Hex[] = [];
-    for (const h of frontier) {
-      for (const n of hexNeighbors(h)) {
-        const k = hexKey(n);
-        if (hops.has(k) || !isGrown(state, state.tiles.get(k))) continue;
-        hops.set(k, d);
-        next.push(n);
-      }
+  // 0-1 breadth-first search: free steps go to the front of the deque.
+  const deque: Array<[Hex, number]> = [[heart, 0]];
+  let head = 0;
+  const front: Array<[Hex, number]> = [];
+  while (front.length > 0 || head < deque.length) {
+    const [h, d] = front.length > 0 ? front.pop()! : deque[head++]!;
+    if (d > hops.get(hexKey(h))!) continue;
+    for (const n of hexNeighbors(h)) {
+      const k = hexKey(n);
+      const t = state.tiles.get(k);
+      if (!t || !isGrown(state, t)) continue;
+      const free = t.structure === "rhizomorph";
+      const nd = free ? d : d + 1;
+      const known = hops.get(k);
+      if (known !== undefined && known <= nd) continue;
+      hops.set(k, nd);
+      if (free) front.push([n, nd]);
+      else deque.push([n, nd]);
     }
-    frontier = next;
   }
   return hops;
 }
@@ -219,9 +247,12 @@ export function transportLoss(hops: number): number {
   return Math.min(TRANSPORT.maxLoss, TRANSPORT.lossPerHop * hops);
 }
 
-/** Humidity multiplier of a tile: bonus next to a wetland (GDD §2.2). */
+/** Humidity multiplier of a tile: bonus next to a wetland or to one of the player's Réservoirs (GDD §2.2, §4.1). */
 export function humidity(state: GameState, h: Hex): number {
-  const wet = hexNeighbors(h).some((n) => state.tiles.get(hexKey(n))?.terrain === "wetland");
+  const wet = hexNeighbors(h).some((n) => {
+    const t = state.tiles.get(hexKey(n));
+    return t !== undefined && (t.terrain === "wetland" || (t.structure === "reservoir" && isGrown(state, t)));
+  });
   return wet ? 1 + HUMIDITY.wetlandBonus : 1;
 }
 
@@ -264,6 +295,20 @@ export function tileYield(terrain: Terrain, upgrades: Upgrades): number {
   return TERRAIN_STATS[terrain].yieldPerSecond * digestion * wood;
 }
 
+/** Production multiplier of a structure on its own tile (GDD §4.1). */
+export function structureFactor(structure: StructureId | null): number {
+  if (structure === "node") return 1 + STRUCTURES.nodeBonus;
+  if (structure === "gland") return 1 - STRUCTURES.glandPenalty;
+  return 1;
+}
+
+/** Whole-network multiplier: each connected Roots tile adds its mycorrhiza bonus (GDD §2.2). */
+export function networkBonus(state: GameState, hops: Map<string, number> = networkHops(state)): number {
+  let roots = 0;
+  for (const k of hops.keys()) if (state.tiles.get(k)!.terrain === "roots") roots++;
+  return 1 + ROOTS.networkBonus * roots;
+}
+
 /**
  * Current nutrients per second delivered to the Cœur by one tile (GDD §10 `production_case`
  * after transport), 0 if it is not colonised or disconnected.
@@ -273,16 +318,18 @@ export function tileProduction(
   tile: Tile,
   hops: Map<string, number> = networkHops(state),
   at: number = state.updatedAt,
+  bonus: number = networkBonus(state, hops),
 ): number {
   const d = hops.get(hexKey(tile));
   if (!isGrown(state, tile) || d === undefined) return 0;
-  return baseProduction(state, tile, d, at) * (1 - tile.exhaustion);
+  return baseProduction(state, tile, d, at) * bonus * (1 - tile.exhaustion);
 }
 
-/** Nutrients per second of a fresh tile at `hops` from the Cœur: yield × place × humidity × transport × phase. */
+/** Nutrients per second of a fresh tile at `hops` from the Cœur: yield × structure × place × humidity × transport × phase. */
 function baseProduction(state: GameState, tile: Tile, hops: number, at: number): number {
   return (
     tileYield(tile.terrain, state.upgrades) *
+    structureFactor(tile.structure) *
     richness(state, tile) *
     humidity(state, tile) *
     (1 - transportLoss(hops)) *
@@ -293,8 +340,26 @@ function baseProduction(state: GameState, tile: Tile, hops: number, at: number):
 /** Total nutrients per second right now (GDD §10 `production_totale`), including the offline factor. */
 export function productionRate(state: GameState, at: number = state.updatedAt): number {
   const hops = networkHops(state);
+  const bonus = networkBonus(state, hops);
   let total = 0;
-  for (const k of hops.keys()) total += tileProduction(state, state.tiles.get(k)!, hops, at);
+  for (const k of hops.keys()) total += tileProduction(state, state.tiles.get(k)!, hops, at, bonus);
+  return total * offlineFactor(state, at);
+}
+
+/** Enzymes made by one connected Glande enzymatique (GDD §3: Glandes, and more on dead wood). */
+export function glandRate(tile: Tile): number {
+  const wood = tile.terrain === "deadwood" || tile.terrain === "stump" ? STRUCTURES.glandWoodFactor : 1;
+  return STRUCTURES.glandEnzymesPerSecond * wood;
+}
+
+/** Enzymes per second right now, including the offline factor. */
+export function enzymeRate(state: GameState, at: number = state.updatedAt): number {
+  const hops = networkHops(state);
+  let total = 0;
+  for (const k of hops.keys()) {
+    const t = state.tiles.get(k)!;
+    if (t.structure === "gland") total += glandRate(t);
+  }
   return total * offlineFactor(state, at);
 }
 
@@ -319,9 +384,13 @@ export function growingTiles(state: GameState): Tile[] {
   return [...state.tiles.values()].filter((t) => t.owner === state.id && t.growthEndsAt !== null);
 }
 
-/** `base × (1 + 0.05 × dist_cœur) × 1.02^nb_cases`, reduced by Expansion économe (GDD §2.3). */
+/**
+ * `base × (1 + 0.05 × dist_cœur) × 1.13^nb_cases`, reduced by Expansion économe (GDD §2.3). Rock is paid
+ * in Enzymes (see `paidInEnzymes`), without the size factor: `base × (1 + 0.05 × dist_cœur)`.
+ */
 export function colonizationCost(state: GameState, target: Hex & { terrain: Terrain }, at: number = state.updatedAt): number {
   const dist = hexDistance(state.heart, target);
+  if (TERRAIN_STATS[target.terrain].paidInEnzymes) return TERRAIN_STATS[target.terrain].baseCost * (1 + ECONOMY.distanceFactor * dist);
   const thrifty = Math.pow(1 - UPGRADE_STATS.thriftyExpansion.perLevel, state.upgrades.thriftyExpansion);
   return (
     TERRAIN_STATS[target.terrain].baseCost *
@@ -351,6 +420,27 @@ export function growthProgress(tile: Tile, now: number, upgrades: Upgrades): num
         Math.max(growthDurationMs(tile.terrain, upgrades), tile.growthEndsAt - now);
   if (total <= 0) return 1;
   return Math.min(1, Math.max(0, 1 - (tile.growthEndsAt - now) / total));
+}
+
+/** Structures the player owns (they make the next one dearer). */
+export function structureCount(state: GameState): number {
+  let n = 0;
+  for (const t of state.tiles.values()) if (t.owner === state.id && t.structure !== null) n++;
+  return n;
+}
+
+/** Nutrient cost of the next structure: `base × 1.25 ^ structures owned` (GDD §4.1). */
+export function structureCost(state: GameState, id: StructureId): number {
+  return STRUCTURES.baseCost[id] * Math.pow(STRUCTURES.costGrowth, structureCount(state));
+}
+
+export function isStructureId(id: string): id is StructureId {
+  return (STRUCTURE_IDS as readonly string[]).includes(id);
+}
+
+/** Structures the player may build right now (the Glande needs Enzymes to be unlocked). */
+export function structureAvailable(state: GameState, id: StructureId): boolean {
+  return id !== "gland" || state.enzymesUnlocked;
 }
 
 /** `base × 1.15^level` (GDD §10). */
@@ -383,6 +473,7 @@ export function checkColonize(state: GameState, h: Hex): ActionResult {
   const tile = state.tiles.get(hexKey(h));
   if (!tile) return { ok: false, error: "unknown_tile" };
   if (!TERRAIN_STATS[tile.terrain].colonizable) return { ok: false, error: "impassable" };
+  if (TERRAIN_STATS[tile.terrain].paidInEnzymes && !state.enzymesUnlocked) return { ok: false, error: "locked" };
   if (tile.owner === state.id) return { ok: false, error: "already_owned" };
   if (tile.owner !== null) return { ok: false, error: "occupied" };
   if (tile.reservedFor !== null && tile.reservedFor !== state.id) return { ok: false, error: "reserved" };
@@ -431,6 +522,49 @@ export function moveHeart(state: GameState, h: Hex, now: number): ActionResult {
   state.heartMovedAt = now;
   refreshConnections(state, now);
   return check;
+}
+
+/** Checks building a structure on one of the player's connected tiles (GDD §4.1: one per tile). */
+export function checkBuild(state: GameState, h: Hex, id: string): ActionResult {
+  if (!isStructureId(id)) return { ok: false, error: "unknown_structure" };
+  const tile = state.tiles.get(hexKey(h));
+  if (!tile) return { ok: false, error: "unknown_tile" };
+  if (!structureAvailable(state, id)) return { ok: false, error: "locked" };
+  if (!networkHops(state).has(hexKey(h))) return { ok: false, error: "not_connected" };
+  if (tile.structure !== null) return { ok: false, error: "has_structure" };
+  if (id === "sclerotium") {
+    let n = 0;
+    for (const t of state.tiles.values()) if (t.owner === state.id && t.structure === "sclerotium") n++;
+    if (n >= STRUCTURES.sclerotiumMax) return { ok: false, error: "structure_limit" };
+  }
+  if (state.nutrients < structureCost(state, id)) return { ok: false, error: "not_enough_nutrients" };
+  return { ok: true };
+}
+
+export function build(state: GameState, h: Hex, id: string, now: number): ActionResult {
+  const check = checkBuild(state, h, id);
+  if (!check.ok || !isStructureId(id)) return check;
+  state.nutrients -= structureCost(state, id);
+  state.tiles.get(hexKey(h))!.structure = id;
+  refreshConnections(state, now); // A Rhizomorphe changes the hops.
+  return check;
+}
+
+/** Removes a structure (to build another one); nothing is refunded. */
+export function demolish(state: GameState, h: Hex, now: number): ActionResult {
+  const tile = state.tiles.get(hexKey(h));
+  if (!tile) return { ok: false, error: "unknown_tile" };
+  if (tile.owner !== state.id) return { ok: false, error: "not_connected" };
+  if (tile.structure === null) return { ok: false, error: "no_structure" };
+  tile.structure = null;
+  refreshConnections(state, now);
+  return { ok: true };
+}
+
+/** GDD §3: Enzymes appear from the 15th tile or from Tuesday (the second day of the season), and stay. */
+export function refreshUnlocks(state: GameState, now: number): void {
+  if (state.enzymesUnlocked) return;
+  if (ownedCount(state) >= ENZYMES_UNLOCK_TILES || (state.calendar && phaseAt(now).index >= 1)) state.enzymesUnlocked = true;
 }
 
 export function checkBuyUpgrade(state: GameState, id: string): ActionResult {
@@ -500,6 +634,7 @@ export function advance(state: GameState, to: number): void {
         }
         if (tile.disconnectedSince !== null && t - tile.disconnectedSince >= TRANSPORT.witherMs) {
           tile.owner = null;
+          tile.structure = null;
           tile.capture = null;
           tile.growthEndsAt = null;
           tile.growthStartedAt = null;
@@ -512,8 +647,10 @@ export function advance(state: GameState, to: number): void {
     if (changed) refreshConnections(state, t);
     if (startQueued(state, t)) changed = true;
     if (changed) plan = planWindow(state, t);
+    refreshUnlocks(state, t);
     if (t >= to) break;
   }
+  refreshUnlocks(state, to);
   state.updatedAt = to;
 }
 
@@ -531,12 +668,16 @@ interface Window {
   nextEvent: number;
   /** Phase multiplier on biomass gains. */
   biomass: number;
+  /** Enzymes per ms (before the offline factor). */
+  enzymesPerMs: number;
   queueWaiting: boolean;
 }
 
 function planWindow(state: GameState, t: number): Window {
   const hops = networkHops(state);
+  const bonus = networkBonus(state, hops);
   const producers: Producer[] = [];
+  let enzymes = 0;
   let next = Infinity;
   let growing = false;
   for (const tile of state.tiles.values()) {
@@ -544,7 +685,8 @@ function planWindow(state: GameState, t: number): Window {
     const lifetime = lifetimeMs(state, tile);
     const d = hops.get(hexKey(tile));
     if (isGrown(state, tile) && d !== undefined) {
-      producers.push({ tile, basePerMs: baseProduction(state, tile, d, t) / 1000, lifetime });
+      producers.push({ tile, basePerMs: (baseProduction(state, tile, d, t) * bonus) / 1000, lifetime });
+      if (tile.structure === "gland") enzymes += glandRate(tile) / 1000;
       // Rounded up to a whole ms so every event time stays an integer (it is stored as a timestamp).
       if (tile.terrain === "deadwood") {
         next = Math.min(next, t + Math.ceil((Math.max(0, EXHAUSTION.max - tile.exhaustion) * lifetime) / EXHAUSTION.max));
@@ -564,6 +706,7 @@ function planWindow(state: GameState, t: number): Window {
     producers,
     factor: offlineFactor(state, t),
     biomass: effectsAt(state, t).biomass,
+    enzymesPerMs: enzymes,
     nextEvent: Math.max(next, t),
     queueWaiting: state.queue.length > 0 && !growing,
   };
@@ -584,6 +727,7 @@ function integrate(state: GameState, w: Window, dt: number): void {
   }
   produced *= w.factor;
   state.nutrients += produced;
+  state.enzymes += w.enzymesPerMs * dt * w.factor;
   state.biomass += produced * conversionRate(state.upgrades) * w.biomass;
 }
 
@@ -617,11 +761,18 @@ function startQueued(state: GameState, now: number): boolean {
       state.queue.shift(); // No longer possible: drop it.
       continue;
     }
+    if (TERRAIN_STATS[tile.terrain].paidInEnzymes && !state.enzymesUnlocked) {
+      state.queue.shift();
+      continue;
+    }
     const cost = colonizationCost(state, tile, now);
-    if (state.nutrients < cost) break;
-    state.nutrients -= cost;
+    const enzymes = TERRAIN_STATS[tile.terrain].paidInEnzymes === true;
+    if ((enzymes ? state.enzymes : state.nutrients) < cost) break;
+    if (enzymes) state.enzymes -= cost;
+    else state.nutrients -= cost;
     tile.owner = state.id;
     tile.capture = null;
+    tile.structure = null;
     tile.growthStartedAt = now;
     tile.growthEndsAt = now + growthDurationMs(tile.terrain, state.upgrades, effectsAt(state, now).growthTime);
     tile.disconnectedSince = null;

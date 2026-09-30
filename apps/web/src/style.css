@@ -7,6 +7,7 @@
   --glow: #c6f36e;
   --glow-soft: rgba(198, 243, 110, 0.18);
   --biomass: #f0c97a;
+  --enzymes: #c3a6f2;
   --danger: #f08a6c;
   --radius: 14px;
   color-scheme: dark;
@@ -103,6 +104,11 @@ body:not(.in-game) :is(.topbar, .upgrades, .tile-panel, .hint, .map-controls, .m
 .res-rate {
   font-size: 0.8rem;
   color: var(--glow);
+}
+
+.res-enzymes .res-rate,
+.res-enzymes .res-value {
+  color: var(--enzymes);
 }
 
 .res-biomass .res-rate,
@@ -246,8 +252,42 @@ button.ghost {
 .tile-panel {
   left: 16px;
   bottom: calc(16px + env(safe-area-inset-bottom));
-  width: 290px;
+  width: 300px;
+  max-height: calc(100vh - 110px);
+  overflow-y: auto;
   padding: 14px 16px 16px;
+}
+
+.tile-structures h4 {
+  margin: 14px 0 6px;
+  font-family: system-ui, sans-serif;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.tile-structures ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 6px;
+}
+
+.tile-structures button {
+  width: 100%;
+  text-align: left;
+  font-family: system-ui, sans-serif;
+  font-size: 0.82rem;
+}
+
+.tile-structures .structure-desc {
+  margin: 2px 2px 0;
+  font-family: system-ui, sans-serif;
+  font-size: 0.74rem;
+  color: var(--muted);
 }
 
 .tile-panel h3 {
@@ -698,6 +738,7 @@ button.ghost {
     left: 12px;
     right: 64px;
     width: auto;
+    max-height: 55vh;
     bottom: calc(12px + env(safe-area-inset-bottom));
   }
 
