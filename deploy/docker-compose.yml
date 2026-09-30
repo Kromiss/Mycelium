@@ -25,6 +25,12 @@ services:
       DATABASE_URL: postgres://mycelium:${POSTGRES_PASSWORD}@postgres:5432/mycelium
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET:-}
+      # M7: accounts allowed to cut other players' chat (comma-separated names).
+      ADMIN_NAMES: ${ADMIN_NAMES:-}
+      # M7 browser notifications: optional; without them the server generates keys once and keeps them in Postgres.
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-}
     depends_on:
       postgres:
         condition: service_healthy

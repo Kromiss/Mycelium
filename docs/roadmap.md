@@ -13,12 +13,12 @@ des points de départ à équilibrer, centralisés dans `packages/shared`.
 |---|---|---|---|---|
 | M0 Fondations | 0.1.0 | — | Dépôt, CI, pipeline de déploiement | ✅ (VPS reporté) |
 | M1 Proto solo | 0.2.0 | étape 1 | Une carte, coloniser, produire, s'améliorer | ✅ |
-| M2 Réseau & transport | 0.3.0 | étape 2 | Cœur, pertes, épuisement, hors-ligne | à faire |
-| M3 Multijoueur minimal | 0.4.0 | étape 3 | Forêt partagée, frontières, classement | à faire |
-| M4 Saison | 0.5.0 | étape 4 | Semaine, phases journalières, wipe | à faire |
-| M5 Profondeur : économie | 0.6.0 | étape 5 | Structures, mutations, souches, fructification | à faire |
-| M6 Profondeur : conflit & événements | 0.7.0 | étape 5 | Actions actives, événements, world boss | à faire |
-| M7 Social | 0.8.0 | étape 6 | Alliances, ligues, récompenses | à faire |
+| M2 Réseau & transport | 0.3.0 | étape 2 | Cœur, pertes, épuisement, hors-ligne | ✅ |
+| M3 Multijoueur minimal | 0.4.0 | étape 3 | Forêt partagée, frontières, classement | ✅ (testé en local) |
+| M4 Saison | 0.5.0 | étape 4 | Semaine, phases journalières, wipe | ✅ (testé en local) |
+| M5 Profondeur : économie | 0.6.0 | étape 5 | Structures, mutations, souches, fructification | ✅ (testé en local) |
+| M6 Profondeur : conflit & événements | 0.7.0 | étape 5 | Actions actives, événements, world boss | ✅ (testé en local) |
+| M7 Social | 0.8.0 | étape 6 | Alliances, ligues, récompenses | ✅ (testé en local) |
 | M8 Bêta fermée | 0.9.0 | — | Plusieurs forêts, équilibrage, charge | à faire |
 | Lancement | 1.0.0 | — | Ouverture publique | — |
 
@@ -69,12 +69,16 @@ Livré en 0.2.0. Choix de réalisation à valider en équilibrage (tous dans `pa
 
 ## M2 — Réseau & transport (0.3.0) — GDD §15.2
 
-🔸 Décisions : valeurs de l'épuisement et de la régénération par terrain ; plafond de la file d'expansion.
+✅ Décidé : épuisement complet (90 %) en **2 h** pour la Litière, **8 h** pour l'Humus, **4 h** pour le
+Bois mort (qui devient alors de l'Humus) ; régénération au repos **4 fois plus lente** *(remplacé en M3 :
+usure plafonnée à 40 %, sans régénération)* ; file d'expansion
+de **10 cases** ; hors-ligne **100 % pendant 8 h puis palier à 25 %** ; **zones humides** ajoutées
+(infranchissables, bonus d'humidité aux cases voisines).
 
 - Le **Cœur** : case de départ, déplaçable 1×/jour (§2.4).
 - **Graphe de transport** : perte de 1 % par saut jusqu'au Cœur ; cases **déconnectées** qui cessent
   de produire puis dépérissent (§2.4).
-- **Épuisement** des cases et régénération lente (§2.3, formule §10).
+- **Épuisement** des cases (§2.3, formule §10).
 - **Hors-ligne** : calcul analytique à la reconnexion (100 % pendant 8 h puis décroissance, §9, §12).
 - **File d'expansion** exécutée pendant l'absence (§9) ; **Humidité** comme multiplicateur (§3).
 - Script de simulation d'une semaine solo lancé en CI : vérifie la courbe (~10 nutriments/s le lundi
@@ -83,10 +87,27 @@ Livré en 0.2.0. Choix de réalisation à valider en équilibrage (tous dans `pa
 **Terminé quand** : un profil « 3 sessions de 10 min/jour » et un profil « 12 h/jour » simulés donnent
 des courbes cohérentes avec le pilier 2 du GDD.
 
+Livré en 0.3.0. Choix de réalisation à valider (dans `packages/shared/src/balance.ts`) :
+- valeurs provisoires : bonus d'humidité +25 %, 8 % de zones humides, perte plafonnée à 90 %,
+  case déconnectée perdue après 1 h ;
+- « une fois par jour » pour le Cœur = délai glissant de 24 h ;
+- la file se planifie en chemin (une case peut être voisine d'une case déjà en file), et une case qui
+  n'est plus atteignable quand vient son tour est retirée ;
+- le résumé d'absence est un avant-goût du Journal de la nuit (M6).
+
+Constat de la simulation (`pnpm --filter @mycelium/shared simulate`) : avec l'économie de M1, la carte
+solo de 331 cases est remplie dès le premier jour, puis la production plafonne vers 250 nutriments/s
+à cause de l'épuisement. On est loin de la courbe visée (~1e12 le dimanche), qui demandera la
+fructification et les multiplicateurs de M5 et un rééquilibrage des coûts. Le joueur 3 × 10 min finit
+avec ~50 % de la biomasse du joueur 12 h/jour.
+
 ## M3 — Multijoueur minimal (0.4.0) — GDD §15.3
 
-🔸 Décisions : **valider ou non la carte en secteurs symétriques, centre riche et dangereux (§2.5)** —
-bloquant pour ce jalon ; mode de connexion définitif (compte invité, e-mail, OAuth ?).
+✅ Décidé : carte du **§2.5 validée** (parts symétriques, bord sûr, centre riche), forêts de **12 joueurs** ;
+rythme : une forêt doit être **pleine vers le 4ᵉ–5ᵉ jour**, réglé uniquement par les chiffres ; **usure
+plafonnée à 40 %, sans régénération** (une case usée garde 60 % de sa production) ; connexion par
+**pseudo + mot de passe** ; temps de prise d'une case **selon le terrain, de 10 min à 2 h** ; tests
+**en local avec des robots** (le VPS attendra).
 
 - Comptes et sessions ; rejoindre une **forêt de 20 à 30 joueurs** avec départ équitable (§2.1).
 - Génération de la carte partagée (800 à 1 800 hexagones) selon la décision §2.5.
@@ -100,6 +121,25 @@ bloquant pour ce jalon ; mode de connexion définitif (compte invité, e-mail, O
 **Terminé quand** : sur staging, plusieurs joueurs partagent une forêt, se rencontrent aux frontières,
 se prennent des cases et voient le classement bouger en direct.
 
+Livré en 0.4.0, validé en local (`BOTS=11 TIME_SCALE=60`) plutôt que sur staging. Choix de réalisation
+à valider (dans `packages/shared/src/balance.ts`) :
+- ~50 cases par joueur, départs à 85 % du rayon, anneaux à 1/3 et 2/3 du rayon ;
+- rythme réglé avec `simulate:forest` : coûts de base Litière 3 600 / Humus 7 200 / Bois mort 18 000,
+  `1,13 ^ nb_cases` au lieu de `1,02`, améliorations de 7 500 à 18 000, 10 000 nutriments au départ ;
+- mélange de terrains par anneau, bord qui s'épuise 1,5× moins vite, 6 % de zones humides ;
+- `densité_réseau_local` = cases du joueur à 2 cases ou moins (pondérées par l'humidité) ; prise à
+  pleine vitesse dès que l'attaquant pousse 2× plus fort, rien sous l'égalité ; captures : Litière
+  10 min, Humus 45 min, Bois mort 2 h ; bonus de conquête = 1 h de production de la case en biomasse ;
+- les Trophées sont comptés et affichés mais ne s'ajoutent pas au score ;
+- le Cœur est imprenable (la perte du Cœur et le Sclérote viennent en M6) ;
+- la zone de départ (rayon 2) est réservée à son joueur pendant 24 h, et tant que la part est libre ;
+- « biomasse qui compte double au centre » et le reste des risques du centre sont laissés à M6.
+
+Constat avec 12 robots sur une semaine (6 actifs, 6 occasionnels), sur trois cartes : 25 à 33 % de la
+forêt occupée le premier jour, 90 % entre le jour 3,6 et le jour 5, 89 à 98 % au jour 5. Point ouvert :
+le premier joueur au centre prend beaucoup d'avance, et un joueur coincé entre deux voisins sur le bord
+pauvre stagne à partir du 3ᵉ jour (réponses prévues en M5–M6).
+
 ## M4 — Saison (0.5.0) — GDD §15.4
 
 - Planificateur : classement figé **dimanche 23h59**, **wipe lundi 00h00 Europe/Paris**, nouvelle graine
@@ -111,6 +151,26 @@ se prennent des cases et voient le classement bouger en direct.
 
 **Terminé quand** : sur staging, une saison accélérée (7 « jours » de quelques minutes) enchaîne ses
 phases, se fige, archive son classement et redémarre seule.
+
+✅ Décidé : **paquet de phases proposé** — Germination (pousse ×2, pas de capture), Printemps
+(production +20 %), Été (−25 % sauf près des zones humides), Chute (captures ×2), Automne
+(colonisation −30 %, Bois mort +50 %), Gel (production −30 %, captures ×0,5), Décomposition finale
+(biomasse ×1,5, captures ×1,5).
+✅ Décidé : **wipe = nouvelles forêts** : les comptes sont gardés, la forêt de la semaine est archivée
+puis effacée, chaque joueur rejoint une nouvelle forêt à sa première connexion de la semaine.
+
+Livré en 0.5.0, validé en local (`BOTS=11 TIME_SCALE=1200` : une fin de semaine en 5 minutes, phases,
+fin de saison, historique, bonus du lundi et nouvelle forêt) plutôt que sur staging. Choix de
+réalisation à valider (dans `packages/shared/src/season.ts`) :
+- les phases changent à minuit, heure de Paris ; après le gel du dimanche 23 h 59, plus rien ne compte
+  (biomasse et captures arrêtées) jusqu'au wipe ;
+- le bonus du lundi s'applique à la production (donc aussi à la biomasse), seulement le lundi ;
+- les paliers se calculent sur le rang dans la forêt (« top 10 % » = rang ≤ 10 % des joueurs) ;
+- un joueur sans forêt la semaine précédente n'a pas de bonus ;
+- l'historique garde les 5 dernières saisons à l'écran (toutes en base).
+
+Le rythme de la forêt reste dans la cible avec les phases : 90 % occupée entre le jour 3,2 et le
+jour 4,9 selon la carte.
 
 ## M5 — Profondeur : économie (0.6.0) — GDD §15.5
 
@@ -127,6 +187,32 @@ phases, se fige, archive son classement et redémarre seule.
 **Terminé quand** : les simulations montrent qu'aucune branche ni souche ne domine, et qu'une
 fructification bien placée est rentable.
 
+✅ Décidé : **paquets proposés** pour les mutations (15, en trois branches, points par paliers de
+biomasse ×3, sans retour en arrière), les souches (Pleurote, Armillaire, Cordyceps, Truffe ; la
+Moisissure vient avec les récompenses en M7) et les structures / la fructification (Carpophore
+obligatoire, valeur = coût de colonisation actuel des cases libérées). Livraison en trois étapes.
+
+Livré en 0.6.0, validé en local. Équilibrage par `simulate:balance` (une carte jouée 12 fois, les 12
+combinaisons souche × branche tournant sur les parts) : rang moyen de 5,8 à 7,2 par souche et de 6,0
+à 6,8 par branche sur deux cartes (6,5 = milieu). Une fructification au jour 3 (rayon 3) finit la
+semaine avec +18 % de biomasse. Chiffres changés par rapport au paquet validé, **à valider** :
+- Armillaire ×0,95 le lundi (au lieu de ×0,85), +0,05 par jour, donc ×1,25 le dimanche ;
+- Pleurote : cases prises +15 % plus vite (au lieu de +25 %) ; Truffe : Racines +30 % (au lieu de +50 %) ;
+- Mycorhize : Racines ×4 (au lieu de ×2) ; Cordons mycéliens : plus aucune perte (au lieu de −50 %) ;
+- Usure lente : l'usure s'arrête à 30 % (au lieu de 25 %).
+Choix de réalisation (dans `balance.ts`) : Racines +3 % de production du réseau par case, Glande
+0,01 Enzyme/s (×2 sur bois mort), Roche 40 Enzymes, structures 36 k à 90 k × 1,5 par structure,
+boutique de Spores 10 à 25 Spores × 1,5 par niveau, Hyphes aquatiques = zone humide colonisable
+comme de l'Humus pauvre (0,5/s), la Truffe cache ses cases de la vision lointaine (Carpophore,
+Bioluminescence), Toxines/Témérité recalculées à chaque tick.
+
+Points ouverts :
+- environ 10 % des robots finissent avec 3 cases ou moins : les protections contre l'acharnement
+  (§6.4 : coût d'attaque contre plus petit, perte du Cœur) arrivent en M6 ;
+- les écarts de score restent énormes (le premier au centre), comme avant M5 ;
+- Bioluminescence et Résilience n'ont presque pas de valeur pour les robots : la branche Symbiote
+  prendra plus de sens avec les alliances (M7) et les événements (M6).
+
 ## M6 — Profondeur : conflit & événements (0.7.0) — GDD §15.5
 
 - **Actions actives** à Enzymes et cooldown : Assaut, Toxine, Coupure, Siphon (§6.2).
@@ -139,10 +225,61 @@ fructification bien placée est rentable.
 **Terminé quand** : sur staging, une saison de test voit des coupures, des retournements et au moins un
 world boss partagé, sans qu'un joueur absent perde tout.
 
+✅ Décidé : **paquet proposé validé**, avec deux changements (biomasse ×1,5 au centre, plancher à 7 cases) ;
+les chiffres d'équilibrage de M5 marqués « à valider » sont acquis. Livraison en trois étapes.
+- **Actions actives** (Enzymes, recharge par action, interdites le lundi, sur une case ennemie collée à
+  son réseau) : Assaut (30, recharge 4 h : prise 4× plus rapide pendant 30 min, dès que l'on dépasse
+  l'égalité), Toxine (20, 3 h : la case et ses voisines du même joueur −50 % pendant 1 h), Coupure (40,
+  6 h : la case ne fait plus passer les nutriments pendant 45 min, sans dépérissement des cases coupées ;
+  un Rhizomorphe ne peut pas être coupé), Siphon (25, 4 h : 20 % de la production de la case et des cases
+  du même joueur à 2 cases ou moins, pendant 2 h).
+- **Anti-frustration** : Cœur prenable 4× plus lentement ; il renaît sur le Sclérote, sinon sur la case
+  la plus proche de l'ancien Cœur, puis reste imprenable 24 h. Contre un joueur 3× plus petit : prises
+  4× plus lentes, actions 3× plus chères. **Plancher : un joueur à 7 cases ne peut plus en perdre.**
+- **Risque du centre** : bouclier hors ligne réduit (prises −25 % au lieu de −50 %), Coupures 2× moins
+  chères, événements plus forts, **biomasse ×1,5**.
+- **Événements** (1 à 3 par jour du mardi au dimanche, annoncés 1 h avant, au plus 10 % des cases d'un
+  joueur par événement, jamais le Cœur ni le Sclérote) : Orage, Incendie (puis Cendres ×2 pendant 24 h),
+  Sanglier, Chute d'arbre (le jeudi), Carcasse (12 h), Nématodes (PvE). Ruine reportée à M7.
+- **Arbre mourant** (world boss) jeudi et dimanche après-midi, au centre, 7 cases ; digéré au prorata de
+  la production, PV ≈ 2 h de production de la forêt, 6 h au plus ; biomasse et Enzymes au prorata,
+  Trophée au meilleur contributeur.
+- **Journal de la nuit** et alertes en jeu (navigateur / e-mail : décision de M7).
+
+Livré en 0.7.0, validé en local (`BOTS=11 TIME_SCALE=120` : annonces, Chute d'arbres, Nématodes, Arbre
+mourant digéré par les robots) et par simulation. Choix de réalisation à valider (dans `balance.ts`) :
+- Coupure : aussi interdite sur un Cœur ; les cases coupées ne produisent plus mais ne dépérissent pas.
+  Toxine et Siphon touchent seulement les cases du même propriétaire ; le Siphon donne au lanceur des
+  nutriments et la biomasse qu'ils lui auraient rapportée.
+- **Le plancher de 7 cases arrête aussi le dépérissement** des cases déconnectées (sinon une coupure
+  faisait passer sous le plancher).
+- Événements tirés de la graine à l'ouverture de la forêt (heure et type), placés à l'annonce ; entre
+  8 h et 20 h ; plus forts au centre = Orage +75 %, Incendie de rayon 3, Sanglier ×1,5, Nématodes plus
+  résistants et plus voraces. Carcasse : 12 nutriments/s, 6 000 de coût. Nématodes : vie = 1,5 h de
+  production des cases de la zone (50 k au moins), une case toutes les 30 min, prime = ½ de ce qu'on a
+  digéré. Arbre mourant : 2 h de production de la forêt (200 k au moins), digéré par **toute** la
+  production des colonies qui le touchent ; biomasse = ¼ de ce qu'on a digéré, 300 Enzymes au prorata,
+  Trophée au meilleur ; placé sur l'amas du centre qui a le moins de cases prises ; il laisse 7 Souches.
+- Journal de la nuit et alertes gardés en mémoire (perdus au redémarrage du serveur) ; une alerte de
+  frontière au plus toutes les 30 min par voisin ; alerte « fin de saison dans 1 h » côté client.
+- Robots : une Glande à 20 cases, puis au plus une action par décision (Assaut, Coupure, Siphon, Toxine).
+
+Constats des simulations :
+- Rythme inchangé : la forêt se remplit au même jour qu'avant M6 avec la même configuration.
+- Équilibre des souches et des branches tenu : rang moyen de 6,3 à 6,7 sur 12 forêts (6,5 = milieu) ;
+  une fructification au jour 3 rapporte +29 %.
+- Semaine test : des coupures, des retournements au classement, chaque Arbre mourant partagé par 2 à 4
+  colonies, personne sous 7 cases. Les Cœurs ne tombent presque jamais (0 dans les simulations).
+- **Point ouvert** : quand les robots utilisent les actions, la colonie la plus faible finit en général
+  au plancher de 7 cases (23 sans les actions). L'écart de biomasse entre premier et dernier s'élargit
+  aussi (×130 à ×220 sur une semaine simulée, contre ×54 avant M6), mais aucune règle ne l'explique à
+  elle seule d'après les variantes testées, et une seule semaine varie beaucoup. Leviers possibles :
+  ligues (M7), rattrapage (M8), anti-acharnement plus fort ; à trancher avec de vrais joueurs.
+
 ## M7 — Social (0.8.0) — GDD §15.6
 
 ✅ Décidé : **chat de forêt en jeu + messages privés** (pas de Discord).
-🔸 Décision : canal des notifications (navigateur, e-mail…).
+✅ Décidé : notifications par le navigateur (Web Push), pas d'e-mail.
 
 - **Pactes de symbiose** à 2-4, rupture avec malus « Réseau tâché », échanges via Signaux chimiques,
   classement d'alliance (§6.3).
@@ -154,6 +291,62 @@ world boss partagé, sans qu'un joueur absent perde tout.
 
 **Terminé quand** : une alliance se forme, se trahit, et les récompenses de fin de saison apparaissent
 bien sur le compte après le wipe.
+
+✅ Décidé : **paquet proposé validé tel quel** (valeurs à équilibrer). Livraison en trois étapes :
+chat et notifications, puis pactes, Signaux et Ruine, puis classements, ligues et récompenses.
+- **Pactes de symbiose** : invitation à n'importe quel joueur de la forêt, acceptée par lui ; 2 à 4
+  membres, un pacte par joueur, dès le lundi. Entre membres : pas de pression, pas de prise, pas
+  d'action active. Chacun verse **5 % de sa production** dans un pot partagé à parts égales. Sortie avec
+  **préavis de 1 h** sans malus ; rupture immédiate = **trahison** : « Réseau tâché » 24 h (marque visible,
+  production −15 %, ni créer ni rejoindre de pacte). Classement d'alliance = biomasse gagnée par les
+  membres pendant qu'ils sont dans le pacte. Chat de pacte. Les pactes disparaissent au wipe.
+- **Signaux chimiques** : 1 par heure et par case de Racines d'arbre, débloqués à la première Racine.
+  *Envoi* (1 Signal) : Nutriments ou Enzymes à un allié, 5 % de perte. *Écoute* (3 Signaux) : voir le
+  réseau d'un joueur à travers le brouillard pendant 1 h.
+- **Ruine** : une par part (même place pour tous), dans l'anneau intermédiaire, payée en Enzymes ; la
+  première colonisation donne une **relique pour la semaine** au choix (production +10 %, pousse −15 %,
+  +1 point de mutation) ; la case ne produit rien.
+- **Classements secondaires** par forêt, archivés : territoire, cases prises, contribution aux Arbres
+  mourants, alliance, efficacité (biomasse ÷ heures actives ; heure active = connecté avec une action
+  dans les 10 dernières minutes ; 1 h active minimum).
+- **Ligues** Bronze, Argent, Or, Diamant, Mycélium Primordial ; départ en Bronze ; chaque semaine les
+  3 premiers montent, les 3 derniers descendent (joueurs ayant joué au moins un jour) ; 2 semaines
+  d'absence = −1 ligue. On rejoint une forêt de sa ligue qui a de la place, sinon de la ligue la plus
+  proche ; une forêt ne s'ouvre que quand toutes sont pleines (le vrai découpage vient en M8).
+- **Récompenses** : titres (un par classement + un par ligue, un affiché à côté du pseudo), couleurs de
+  réseau (podium, ligues ; le serveur évite les doublons dans une forêt), 4 skins de Carpophore par
+  paliers, souche **Moisissure** après 3 saisons jouées (sur les cases usées à 20 % ou plus :
+  colonisation −30 %, prises 2× plus rapides ; production −10 %). Page profil. Rien ne s'achète.
+- **Chat** de forêt et messages privés dans la forêt, en temps réel avec historique ; 500 caractères,
+  5 messages / 10 s, répétitions bloquées ; sourdine par joueur, signalement enregistré, comptes admin
+  (config) qui coupent le chat d'un joueur 24 h. Pas de purge des vieux messages (elle demanderait un
+  `DELETE`, non autorisé) : ils sont gardés.
+- ✅ **Notifications : navigateur seul** (Web Push, sur activation) : frontière attaquée, Cœur menacé,
+  Arbre mourant, fin de saison dans 1 h, message privé ; au plus une par type toutes les 30 min.
+  Pas d'e-mail.
+
+Livré en 0.8.0, en trois étapes, validé en local (`BOTS=11 TIME_SCALE=1800` : pactes formés et
+dissous par les robots, trahison, classement d'alliance, récompenses et ligue sur la carte de fin de
+saison, profil après le wipe) et par les tests. Choix de réalisation à valider (dans `balance.ts` et
+`rewards.ts`) :
+- Pot du pacte : les 5 % sont pris sur la production (donc aussi sur la biomasse qu'elle aurait
+  donnée) et chaque part reçue compte comme production du receveur (nutriments + biomasse).
+- Témérité et Toxines ne comptent pas entre alliés ; les alliés sont marqués sur la carte, les réseaux
+  tâchés d'un liseré rouille pour tout le monde. Invitations valables 24 h ; une trahison annule les
+  invitations du traître.
+- Score d'alliance = biomasse gagnée par chaque membre depuis son entrée ; il reste acquis quand le
+  membre part. Titre « Allié fidèle » aux membres (anciens compris) de la meilleure alliance.
+- Ruine : 60 Enzymes, 30 min de pousse, dans la bande à mi-rayon ; 3 reliques, chacune une fois.
+- Ligues dans une petite forêt : au plus la moitié monte et la moitié descend. Titres : champion, un
+  par classement secondaire, meilleure alliance, ligue atteinte ; couleurs : podium (or, argent,
+  cuivre) et une par ligue au-dessus de Bronze ; une couleur n'est montrée que par le premier arrivé
+  de la forêt qui l'a choisie. Apparences : Morille (5 fructifications), Coprin chevelu (3 saisons),
+  Clavaire (25 trophées), Amanite (10 saisons).
+- Temps actif : connecté avec un message au serveur dans les 10 dernières minutes (les robots n'en ont
+  pas, leur classement d'efficacité reste vide en local).
+- Notifications : seulement quand le joueur n'a aucun onglet ouvert. Messages du chat gardés sans
+  limite de durée (pas de purge). Les signalements sont dans la table `chat_reports` et le journal du
+  serveur, sans écran d'administration pour l'instant.
 
 ## M8 — Bêta fermée (0.9.0)
 

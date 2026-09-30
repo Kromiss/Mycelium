@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { AddressInfo } from "node:net";
 import type { Server } from "node:http";
 import WebSocket from "ws";
-import type { GuestResponse, ServerMessage } from "@mycelium/shared";
+import type { ServerMessage, SessionResponse } from "@mycelium/shared";
 import { buildHealthReport, createApp } from "./app";
 
 let server: Server | undefined;
@@ -68,10 +68,10 @@ describe("websocket", () => {
   });
 });
 
-async function postGuest(host: string, body: unknown) {
-  return fetch(`http://${host}/api/guest`, {
+async function post(host: string, path: string, body: unknown, token?: string) {
+  return fetch(`http://${host}${path}`, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", ...(token ? { authorization: `Bearer ${token}` } : {}) },
     body: typeof body === "string" ? body : JSON.stringify(body),
   });
 }
@@ -104,26 +104,33 @@ function openSocket(host: string) {
   return { ws, next, send, closed };
 }
 
-describe("guest API", () => {
-  it("creates a guest, refuses bad or taken names", async () => {
+describe("accounts API", () => {
+  it("registers, logs in and out, and refuses bad input", async () => {
     const host = await start({});
-    const ok = await postGuest(host, { name: "Mycena" });
+    const ok = await post(host, "/api/register", { name: "Mycena", password: "correct horse" });
     expect(ok.status).toBe(201);
-    const body = (await ok.json()) as GuestResponse;
+    const body = (await ok.json()) as SessionResponse;
     expect(body.player.name).toBe("Mycena");
-    expect(typeof body.token).toBe("string");
 
-    expect((await postGuest(host, { name: "mycena" })).status).toBe(409);
-    expect((await postGuest(host, { name: "a b" })).status).toBe(400);
-    expect((await postGuest(host, "{broken")).status).toBe(400);
-    expect((await postGuest(host, { name: "x".repeat(2000) })).status).toBe(400);
+    expect((await post(host, "/api/register", { name: "mycena", password: "correct horse" })).status).toBe(409);
+    expect((await post(host, "/api/register", { name: "a b", password: "correct horse" })).status).toBe(400);
+    expect((await post(host, "/api/register", { name: "Other", password: "short" })).status).toBe(400);
+    expect((await post(host, "/api/register", "{broken")).status).toBe(400);
+    expect((await post(host, "/api/register", { name: "x".repeat(2000), password: "p" })).status).toBe(400);
+
+    expect((await post(host, "/api/login", { name: "Mycena", password: "correct horse" })).status).toBe(200);
+    expect((await post(host, "/api/login", { name: "Mycena", password: "wrong one!" })).status).toBe(401);
+    expect((await post(host, "/api/password", { password: "whatever long" })).status).toBe(401);
+    expect((await post(host, "/api/password", { password: "whatever long" }, body.token)).status).toBe(409);
+    expect((await post(host, "/api/logout", {}, body.token)).status).toBe(204);
   });
 });
 
 describe("game over websocket", () => {
   it("authenticates, plays, and finds the same game after a reload", async () => {
     const host = await start({});
-    const { token } = (await (await postGuest(host, { name: "Reloader" })).json()) as GuestResponse;
+    const reg = await post(host, "/api/register", { name: "Reloader", password: "correct horse" });
+    const { token } = (await reg.json()) as SessionResponse;
 
     const tab = openSocket(host);
     await tab.next("welcome");
@@ -133,6 +140,8 @@ describe("game over websocket", () => {
     tab.send({ type: "auth", token });
     const ready = await tab.next("ready");
     expect(ready.player.name).toBe("Reloader");
+    expect(ready.forest.number).toBe(1);
+    await tab.next("leaderboard");
     tab.send({ type: "buyUpgrade", upgrade: "nope" });
     expect((await tab.next("actionError")).error).toBe("unknown_upgrade");
 
@@ -142,9 +151,9 @@ describe("game over websocket", () => {
     const reloaded = openSocket(host);
     reloaded.send({ type: "auth", token });
     const again = await reloaded.next("ready");
-    expect(again.game.seed).toBe(ready.game.seed);
-    expect(again.game.terrain).toBe(ready.game.terrain);
-    expect(again.game.owned).toEqual(ready.game.owned);
+    expect(again.forest.id).toBe(ready.forest.id);
+    expect(again.game.spawn).toEqual(ready.game.spawn);
+    expect(again.game.tiles.map((t) => [t.q, t.r, t.owner])).toEqual(ready.game.tiles.map((t) => [t.q, t.r, t.owner]));
     expect(again.game.nutrients).toBeGreaterThanOrEqual(ready.game.nutrients);
     reloaded.ws.close();
   });

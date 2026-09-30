@@ -1,6 +1,6 @@
 {
   "name": "mycelium",
-  "version": "0.2.0",
+  "version": "0.8.0",
   "private": true,
   "description": "Mycelium — competitive incremental game on a hex map, weekly wipe.",
   "packageManager": "pnpm@10.28.0",

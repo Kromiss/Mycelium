@@ -1,5 +1,5 @@
-import { MAP, TERRAINS, type Terrain } from "./balance";
-import { hex, hexesInRadius, hexToPixel, type Hex } from "./hex";
+import { LAND_TERRAINS, MAP, type Terrain } from "./balance";
+import { hex, hexDistance, hexesInRadius, hexKey, hexNeighbors, hexToPixel, type Hex } from "./hex";
 import { hashFloat } from "./rng";
 
 export interface MapTile extends Hex {
@@ -13,40 +13,66 @@ export interface GeneratedMap {
   readonly tiles: readonly MapTile[];
 }
 
-/** Where every player starts in the solo prototype (the future Cœur, GDD §2.4). */
+/** Where every player starts in the solo prototype (the initial Cœur, GDD §2.4). */
 export const START_HEX: Hex = hex(0, 0);
 
 /**
- * Generates a hexagonal map of the given radius from a seed (GDD §2.1).
- * Terrains form patches (value noise) and appear in exactly the proportions of
- * `MAP.terrainWeights`. The start hex is always Humus. Pure and deterministic.
+ * Generates a hexagonal map of the given radius from a seed (GDD §2.1). Pure and deterministic.
+ * - Wetlands form ponds (value noise), never near the start, and never cut off land: land that
+ *   cannot be reached from the start without crossing water is turned into wetland.
+ * - Land terrains form patches and appear in exactly the proportions of `MAP.terrainWeights`.
+ * - The start hex is always Humus.
  */
 export function generateMap(seed: number, radius: number = MAP.radius): GeneratedMap {
   const cells = hexesInRadius(START_HEX, radius);
-  const noise = cells.map((c) => {
-    const { x, y } = hexToPixel(c);
-    // Small per-hex jitter breaks ties and roughens patch edges.
-    return valueNoise(seed, x / MAP.patchSize, y / MAP.patchSize) + 0.15 * hashFloat(seed, 7, c.q, c.r);
-  });
+  const wet = new Set<string>();
 
-  // Rank tiles by noise and cut the ranking by the target proportions.
-  const order = cells.map((_, i) => i).sort((a, b) => noise[a]! - noise[b]!);
-  const terrains = new Array<Terrain>(cells.length);
-  const total = TERRAINS.reduce((s, t) => s + MAP.terrainWeights[t], 0);
+  // 1. Wetlands: the highest values of a separate noise layer, outside the start area.
+  const candidates = cells.filter((c) => hexDistance(c, START_HEX) > MAP.wetlandFreeRadius);
+  const wetNoise = new Map(candidates.map((c) => [hexKey(c), noiseAt(seed ^ 0x5bd1e995, c)]));
+  const byWetness = [...candidates].sort((a, b) => wetNoise.get(hexKey(b))! - wetNoise.get(hexKey(a))!);
+  const wetCount = Math.round(MAP.wetlandShare * cells.length);
+  for (const c of byWetness.slice(0, wetCount)) wet.add(hexKey(c));
+
+  // 2. Land that the start cannot reach becomes wetland too (enclosed ponds merge).
+  const inMap = new Set(cells.map(hexKey));
+  const reached = new Set<string>([hexKey(START_HEX)]);
+  const frontier: Hex[] = [START_HEX];
+  while (frontier.length) {
+    const h = frontier.pop()!;
+    for (const n of hexNeighbors(h)) {
+      const k = hexKey(n);
+      if (inMap.has(k) && !wet.has(k) && !reached.has(k)) {
+        reached.add(k);
+        frontier.push(n);
+      }
+    }
+  }
+  for (const c of cells) if (!reached.has(hexKey(c))) wet.add(hexKey(c));
+
+  // 3. Land terrains: rank land tiles by noise and cut the ranking by the target proportions.
+  const land = cells.filter((c) => !wet.has(hexKey(c)));
+  const landNoise = land.map((c) => noiseAt(seed, c));
+  const order = land.map((_, i) => i).sort((a, b) => landNoise[a]! - landNoise[b]!);
+  const terrainOf = new Map<string, Terrain>();
+  const total = LAND_TERRAINS.reduce((s, t) => s + MAP.terrainWeights[t], 0);
   let cursor = 0;
   let acc = 0;
-  for (const t of TERRAINS) {
+  for (const t of LAND_TERRAINS) {
     acc += MAP.terrainWeights[t] / total;
-    const end = t === TERRAINS[TERRAINS.length - 1] ? cells.length : Math.round(acc * cells.length);
-    for (; cursor < end; cursor++) terrains[order[cursor]!] = t;
+    const end = t === LAND_TERRAINS[LAND_TERRAINS.length - 1] ? land.length : Math.round(acc * land.length);
+    for (; cursor < end; cursor++) terrainOf.set(hexKey(land[order[cursor]!]!), t);
   }
+  terrainOf.set(hexKey(START_HEX), "humus");
 
-  const tiles = cells.map((c, i) => ({
-    q: c.q,
-    r: c.r,
-    terrain: c.q === START_HEX.q && c.r === START_HEX.r ? ("humus" as const) : terrains[i]!,
-  }));
+  const tiles = cells.map((c) => ({ q: c.q, r: c.r, terrain: wet.has(hexKey(c)) ? ("wetland" as const) : terrainOf.get(hexKey(c))! }));
   return { seed, radius, tiles };
+}
+
+/** Patchy noise at a hex, with a little per-hex jitter to break ties and roughen edges. */
+function noiseAt(seed: number, c: Hex): number {
+  const { x, y } = hexToPixel(c);
+  return valueNoise(seed, x / MAP.patchSize, y / MAP.patchSize) + 0.15 * hashFloat(seed, 7, c.q, c.r);
 }
 
 /** Smooth 2D value noise in [0, 1) on a unit lattice. */

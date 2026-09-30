@@ -16,6 +16,8 @@
 		@assets path /assets/*
 		header @assets Cache-Control "public, max-age=31536000, immutable"
 		header / Cache-Control "no-cache"
+		# Browser notifications: the service worker must always be fresh.
+		header /sw.js Cache-Control "no-cache"
 		try_files {path} /index.html
 		file_server
 	}

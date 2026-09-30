@@ -1,9 +1,9 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
-import type { GuestRequest, HealthReport, PlayerInfo, ServerMessage } from "@mycelium/shared";
+import type { AuthError, Credentials, HealthReport, PlayerInfo, ServerMessage } from "@mycelium/shared";
 import { parseClientMessage } from "@mycelium/shared";
 import { WebSocketServer, type WebSocket } from "ws";
 import { APP_VERSION } from "./config";
-import { GameService, type GameClient } from "./game-service";
+import { ForestService, type GameClient } from "./forest-service";
 import { MemoryStore } from "./store";
 
 /** A dependency the health endpoint pings. `undefined` means not configured. */
@@ -13,7 +13,7 @@ export interface AppDeps {
   probes: Record<string, HealthProbe>;
   startedAt?: number;
   /** Game simulation; defaults to an in-memory one (tests, local dev without Postgres). */
-  game?: GameService;
+  game?: ForestService;
 }
 
 export async function buildHealthReport(deps: AppDeps): Promise<HealthReport> {
@@ -44,7 +44,7 @@ export async function buildHealthReport(deps: AppDeps): Promise<HealthReport> {
 
 export function createApp(deps: AppDeps): Server {
   const startedAt = deps.startedAt ?? Date.now();
-  const game = deps.game ?? new GameService(new MemoryStore());
+  const game = deps.game ?? new ForestService(new MemoryStore());
   const server = createServer((req, res) => {
     handleHttp(req, res, { ...deps, startedAt }, game).catch((err: unknown) => {
       console.error("[http]", err);
@@ -65,28 +65,69 @@ export function createApp(deps: AppDeps): Server {
   return server;
 }
 
-async function handleHttp(req: IncomingMessage, res: ServerResponse, deps: AppDeps, game: GameService): Promise<void> {
+const AUTH_STATUS: Record<AuthError, number> = {
+  invalid_name: 400,
+  weak_password: 400,
+  name_taken: 409,
+  wrong_credentials: 401,
+  too_many_attempts: 429,
+};
+
+async function handleHttp(req: IncomingMessage, res: ServerResponse, deps: AppDeps, game: ForestService): Promise<void> {
   if (req.method === "GET" && req.url === "/api/health") {
     const report = await buildHealthReport(deps);
     sendJson(res, report.status === "ok" ? 200 : 503, report);
     return;
   }
-  if (req.method === "POST" && req.url === "/api/guest") {
-    const body = await readJson(req, 1024);
-    const name = (body as Partial<GuestRequest> | null)?.name;
-    if (typeof name !== "string") {
+  if (req.method === "POST" && (req.url === "/api/register" || req.url === "/api/login")) {
+    const body = (await readJson(req, 1024)) as Partial<Credentials> | null;
+    if (typeof body?.name !== "string" || typeof body.password !== "string") {
       sendJson(res, 400, { error: "invalid_name" });
       return;
     }
-    const result = await game.createGuest(name);
-    if (result.ok) sendJson(res, 201, result.response);
-    else sendJson(res, result.error === "name_taken" ? 409 : 400, { error: result.error });
+    const result =
+      req.url === "/api/register"
+        ? await game.register(body.name, body.password)
+        : await game.login(body.name, body.password, req.socket.remoteAddress ?? "");
+    if (result.ok) sendJson(res, req.url === "/api/register" ? 201 : 200, result.session);
+    else sendJson(res, AUTH_STATUS[result.error], { error: result.error });
+    return;
+  }
+  if (req.method === "POST" && req.url === "/api/password") {
+    const token = bearer(req);
+    const body = (await readJson(req, 1024)) as { password?: unknown } | null;
+    if (!token || typeof body?.password !== "string") {
+      sendJson(res, 401, { error: "unauthorized" });
+      return;
+    }
+    const result = await game.setPassword(token, body.password);
+    const status = { ok: 204, unauthorized: 401, weak_password: 400, already_set: 409 }[result];
+    if (status === 204) {
+      res.writeHead(204).end();
+      return;
+    }
+    sendJson(res, status, { error: result });
+    return;
+  }
+  if (req.method === "GET" && req.url === "/api/push/key") {
+    sendJson(res, 200, { key: game.pushKey() });
+    return;
+  }
+  if (req.method === "POST" && req.url === "/api/logout") {
+    const token = bearer(req);
+    if (token) await game.logout(token);
+    res.writeHead(204).end();
     return;
   }
   sendJson(res, 404, { error: "not_found" });
 }
 
-function onConnection(ws: WebSocket, game: GameService): void {
+function bearer(req: IncomingMessage): string | null {
+  const m = /^Bearer (\S{1,200})$/.exec(req.headers.authorization ?? "");
+  return m?.[1] ?? null;
+}
+
+function onConnection(ws: WebSocket, game: ForestService): void {
   const client: GameClient = { send: (msg) => send(ws, msg) };
   let player: PlayerInfo | null = null;
   let authenticating = false;
@@ -95,6 +136,7 @@ function onConnection(ws: WebSocket, game: GameService): void {
   ws.on("message", (data) => {
     const msg = parseClientMessage(data.toString());
     if (!msg) return;
+    if (player && msg.type !== "ping") game.touch(player.id);
     switch (msg.type) {
       case "ping":
         send(ws, { type: "pong", serverTime: Date.now() });
@@ -122,15 +164,109 @@ function onConnection(ws: WebSocket, game: GameService): void {
         if (!player) return send(ws, { type: "actionError", error: "not_authenticated" });
         game.colonize(player.id, msg.q, msg.r, client);
         return;
+      case "unqueue":
+        if (!player) return send(ws, { type: "actionError", error: "not_authenticated" });
+        game.unqueue(player.id, msg.q, msg.r, client);
+        return;
+      case "moveHeart":
+        if (!player) return send(ws, { type: "actionError", error: "not_authenticated" });
+        game.moveHeart(player.id, msg.q, msg.r, client);
+        return;
       case "buyUpgrade":
         if (!player) return send(ws, { type: "actionError", error: "not_authenticated" });
         game.buyUpgrade(player.id, msg.upgrade, client);
+        return;
+      case "build":
+        if (!player) return send(ws, { type: "actionError", error: "not_authenticated" });
+        game.build(player.id, msg.q, msg.r, msg.structure, client);
+        return;
+      case "demolish":
+        if (!player) return send(ws, { type: "actionError", error: "not_authenticated" });
+        game.demolish(player.id, msg.q, msg.r, client);
+        return;
+      case "mutate":
+        if (!player) return send(ws, { type: "actionError", error: "not_authenticated" });
+        game.mutate(player.id, msg.mutation, client);
+        return;
+      case "chooseStrain":
+        if (!player) return send(ws, { type: "actionError", error: "not_authenticated" });
+        game.chooseStrain(player.id, msg.strain, client);
+        return;
+      case "fructify":
+        if (!player) return send(ws, { type: "actionError", error: "not_authenticated" });
+        game.fructify(player.id, msg.radius, client);
+        return;
+      case "buySporeUpgrade":
+        if (!player) return send(ws, { type: "actionError", error: "not_authenticated" });
+        game.buySporeUpgrade(player.id, msg.upgrade, client);
+        return;
+      case "setAutomation":
+        if (!player) return send(ws, { type: "actionError", error: "not_authenticated" });
+        game.setAutomation(player.id, { colonize: msg.colonize, upgrades: msg.upgrades }, client);
+        return;
+      case "act":
+        if (!player) return send(ws, { type: "actionError", error: "not_authenticated" });
+        game.act(player.id, msg.action, msg.q, msg.r, client);
+        return;
+      case "chat":
+        if (!player) return send(ws, { type: "actionError", error: "not_authenticated" });
+        background(game.chat(player.id, msg.channel, msg.text, msg.to, client));
+        return;
+      case "mute":
+        if (player) background(game.mute(player.id, msg.player, msg.muted));
+        return;
+      case "report":
+        if (player) background(game.report(player.id, msg.message, client));
+        return;
+      case "silence":
+        if (player) background(game.silence(player.id, msg.player, client));
+        return;
+      case "pushSubscribe":
+        if (player) background(game.subscribePush(player.id, msg));
+        return;
+      case "pushUnsubscribe":
+        if (player) background(game.unsubscribePush(player.id, msg.endpoint));
+        return;
+      case "pactInvite":
+        if (!player) return send(ws, { type: "actionError", error: "not_authenticated" });
+        game.pactInvite(player.id, msg.to, client);
+        return;
+      case "pactAnswer":
+        if (!player) return send(ws, { type: "actionError", error: "not_authenticated" });
+        game.pactAnswer(player.id, msg.from, msg.accept, client);
+        return;
+      case "pactLeave":
+        if (!player) return send(ws, { type: "actionError", error: "not_authenticated" });
+        game.pactLeave(player.id, client);
+        return;
+      case "pactBetray":
+        if (!player) return send(ws, { type: "actionError", error: "not_authenticated" });
+        game.pactBetray(player.id, client);
+        return;
+      case "send":
+        if (!player) return send(ws, { type: "actionError", error: "not_authenticated" });
+        game.send(player.id, msg.to, msg.resource, msg.amount, client);
+        return;
+      case "listen":
+        if (!player) return send(ws, { type: "actionError", error: "not_authenticated" });
+        game.listen(player.id, msg.target, client);
+        return;
+      case "setCosmetic":
+        if (player) background(game.setCosmetic(player.id, msg.kind, msg.id, client));
+        return;
+      case "chooseRelic":
+        if (!player) return send(ws, { type: "actionError", error: "not_authenticated" });
+        game.chooseRelic(player.id, msg.relic, client);
         return;
     }
   });
   ws.on("close", () => {
     if (player) void game.detach(player.id, client);
   });
+}
+
+function background(p: Promise<void>): void {
+  p.catch((err: unknown) => console.error("[ws]", err));
 }
 
 function readJson(req: IncomingMessage, maxBytes: number): Promise<unknown> {
