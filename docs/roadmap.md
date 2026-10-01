@@ -20,7 +20,8 @@ des points de départ à équilibrer, centralisés dans `packages/shared`.
 | M6 Profondeur : conflit & événements | 0.7.0 | étape 5 | Actions actives, événements, world boss | ✅ (testé en local) |
 | M7 Social | 0.8.0 | étape 6 | Alliances, ligues, récompenses | ✅ (testé en local) |
 | M8 Incrémental : enrichissement & cohésion | 0.9.0 | — | Niveaux de case, Bourgeons, bonus des cases collées, nouveau visuel | ✅ (testé en local) |
-| M9 Bêta fermée | 0.10.0 | — | Plusieurs forêts, équilibrage, charge | à faire |
+| M9 Refonte : rythme, centre & souches | 0.10.0 | étape 8 | Forêt remplie au 6ᵉ–7ᵉ jour, usure retirée, centre plus dur, 2 souches | à faire |
+| M10 Bêta fermée | 0.11.0 | — | Plusieurs forêts, équilibrage, charge | à faire |
 | Lancement | 1.0.0 | — | Ouverture publique | — |
 
 ---
@@ -421,11 +422,55 @@ Constats (forêt de 12 robots, cases ×5) :
 - Les prises aux frontières baissent (≈ 400 sur la semaine au lieu de ≈ 550) : c'est
   l'effet voulu de la Cohésion, à surveiller avec de vrais joueurs.
 
-## M9 — Bêta fermée (0.10.0)
+## M9 — Refonte : rythme, centre & souches (0.10.0)
+
+Contexte : décisions du 1ᵉʳ octobre 2026, après les simulations de M8 (forêt de 12 robots, cases ×5).
+Mesures de départ : la forêt est occupée à 90 % dès le **jour 2,9** (99 % le jour 5) au lieu du 4ᵉ–5ᵉ jour
+visé ; un robot connecté 24 h/24 ne fait que **0,5 à 0,8 action utile par minute**.
+
+✅ Décidé :
+- **Pilier 2 revu** : l'idle est puni, mais pas de manière excessive (il n'est plus « non puni »).
+- **Rythme** : la forêt se remplit **entre le 6ᵉ et le 7ᵉ jour**. Facteur de taille **≈ 1,036 par petite
+  case** (`ECONOMY.sizeFactor`, au lieu de `1,14 ^ (1/5)` ≈ 1,0266). Mesuré : 90 % au jour 6,1 à 1,035 et
+  au jour 6,7 à 1,037 ; écart de biomasse 12 h/jour vs 3 × 10 min/jour de ×3,5 à ×5,6.
+- **Usure retirée complètement** : plus de perte de production avec le temps ; le Bois mort ne devient
+  plus Humus ; plus d'usure dans le rendu des cases.
+- **Centre plus dur à récupérer** (selon la distance au centre de la forêt, pas au Cœur) : **coût de
+  colonisation**, **temps de pousse** et **temps de prise** croissent vers le centre, et baissent vers le
+  bord. Valeurs à fixer avec les robots.
+- **2 souches** : **Cordyceps (offensive)** pression +20 %, conquête +50 %, prises +15 %, production −10 % ;
+  **Armillaire (défensive)** temps de prise adverse +30 %, pression subie −15 %, pression −10 %, production
+  ×0,95 le lundi → ×1,25 le dimanche. **Pleurote, Truffe et Moisissure retirées** (avec les cases cachées
+  de la Truffe) ; la mutation *Cordyceps* devient *Parasitisme* (même effet) ; plus de souche à débloquer.
+- **Actions par minute** : aucune nouvelle action pour le moment (question laissée ouverte).
+
+🔸 Décisions à prendre avant de commencer :
+- Que deviennent les mutations **Usure lente** et **Acidophile**, et le **Sol acide** (« s'use vite ») ?
+- Quelle **récompense cosmétique** remplace la Moisissure après 3 saisons ?
+- Nouvel **objectif du §9** pour le joueur à 3 × 10 min/jour (aujourd'hui « top 20 % de la forêt »).
+- Ampleur du gradient vers le centre : Claude propose des valeurs après simulation, le propriétaire valide.
+
+À faire :
+- `packages/shared` : nouveau `sizeFactor` ; suppression de l'usure (production, `EXHAUSTION`, Bois mort →
+  Humus, Moisissure) ; gradient de difficulté par distance au centre dans le coût, la pousse et la prise ;
+  2 souches et nouvelles valeurs ; renommage de la mutation ; tests.
+- Serveur : migration pour les joueurs et forêts qui ont une souche retirée (souche remise à choisir) et
+  pour l'usure stockée sur les cases ; rien à purger sans accord (migrations vers l'avant uniquement).
+- Client : choix entre 2 souches, plus d'usure affichée, coût et temps de pousse visibles selon la zone ;
+  textes EN + FR.
+- Simulations : `simulate:forest` (90 % entre le 6ᵉ et le 7ᵉ jour, à revérifier après l'usure et le
+  gradient), `simulate:balance` (aucune des 2 souches ne domine), `simulate:profiles` (écart actif /
+  occasionnel conforme au pilier 2 revu).
+
+**Terminé quand** : la forêt de 12 robots est occupée à 90 % entre le jour 6 et le jour 7, l'usure n'existe
+plus nulle part (règles, base, rendu), une case du centre coûte et prend nettement plus de temps qu'une case
+du bord, les deux souches finissent à égalité en moyenne dans `simulate:balance`, et `pnpm check` est vert.
+
+## M10 — Bêta fermée (0.11.0)
 
 - Plusieurs forêts en parallèle, répartition par ligue.
 - Test de charge : 30 joueurs actifs par forêt, plusieurs forêts, tick à 5 s tenu.
-- Équilibrage sur de vraies saisons ; vérifier l'objectif du §9 (3 × 10 min/jour → top 20 % de la forêt).
+- Équilibrage sur de vraies saisons ; vérifier l'objectif du §9 (revu en M9 avec le pilier 2).
 - Arrivée en cours de semaine : bonus de rattrapage et zone de friche (§13.8).
 
 **Terminé quand** : deux saisons complètes jouées par des testeurs sans incident bloquant.
