@@ -440,6 +440,9 @@ visé ; un robot connecté 24 h/24 ne fait que **0,5 à 0,8 action utile par min
 - **Centre plus dur à récupérer** (selon la distance au centre de la forêt, pas au Cœur) : **coût de
   colonisation**, **temps de pousse** et **temps de prise** croissent vers le centre, et baissent vers le
   bord. Valeurs à fixer avec les robots.
+  **7 zones, une par jour** : la forêt est découpée en 7 anneaux (zone 1 = bord, zone 7 = centre) ; la
+  difficulté monte par palier, réglée par les ressources (pas de verrou) pour que la zone N devienne
+  accessible vers le jour N.
 - **2 souches** : **Cordyceps (offensive)** pression +20 %, conquête +50 %, prises +15 %, production −10 % ;
   **Armillaire (défensive)** temps de prise adverse +30 %, pression subie −15 %, pression −10 %, production
   ×0,95 le lundi → ×1,25 le dimanche. **Pleurote, Truffe et Moisissure retirées** (avec les cases cachées
@@ -449,7 +452,9 @@ visé ; un robot connecté 24 h/24 ne fait que **0,5 à 0,8 action utile par min
   3 mutations), le terrain **Sol acide**, et la récompense de la Moisissure après 3 saisons (sans remplacement).
 
 🔸 Décisions à prendre avant de commencer :
-- Ampleur du gradient vers le centre : Claude propose des valeurs après simulation, le propriétaire valide.
+- 7 zones : largeur des zones (même épaisseur ou même nombre de cases), lien avec la richesse (aujourd'hui
+  3 anneaux), place de la Chute d'arbres et de l'Arbre mourant le jeudi (centre en zone 7) ; valeurs des
+  paliers proposées par Claude après simulation, validées par le propriétaire.
 
 À faire :
 - `packages/shared` : nouveau `sizeFactor` ; suppression de l'usure (production, `EXHAUSTION`, Bois mort →
@@ -464,8 +469,7 @@ visé ; un robot connecté 24 h/24 ne fait que **0,5 à 0,8 action utile par min
   occasionnel ≤ ×6).
 
 **Terminé quand** : la forêt de 12 robots est occupée à 90 % entre le jour 6 et le jour 7, l'usure n'existe
-plus nulle part (règles, base, rendu), une case du centre coûte et prend nettement plus de temps qu'une case
-du bord, les deux souches finissent à égalité en moyenne dans `simulate:balance`, un joueur à 3 × 10 min/jour finit avec au plus 6× moins
+plus nulle part (règles, base, rendu), chaque zone N est atteinte vers le jour N par les robots actifs, les deux souches finissent à égalité en moyenne dans `simulate:balance`, un joueur à 3 × 10 min/jour finit avec au plus 6× moins
 de biomasse qu'un joueur à 12 h/jour, et `pnpm check` est vert.
 
 ## M10 — Bêta fermée (0.11.0)
