@@ -480,17 +480,15 @@ visé ; un robot connecté 24 h/24 ne fait que **0,5 à 0,8 action utile par min
 - **Événements du centre symétriques** : la Chute d'arbres et l'Arbre mourant tombent en **plusieurs
   exemplaires placés pareil pour toutes les parts** (proposition : un par groupe de 3 parts, soit 4 en
   zone 4 le jeudi), pour qu'aucun joueur n'en soit plus proche qu'un autre.
-- **Branche Décomposeur** : les 2 mutations retirées sont remplacées par 2 nouvelles, économiques, pour
-  revenir à 5 (à valider, voir ci-dessous).
-- **Retirés aussi** : les mutations **Usure lente** et **Acidophile** (remplacées par 2 nouvelles, voir
-  ci-dessus), le terrain **Sol acide**, et la récompense de la Moisissure après 3 saisons (sans remplacement).
+- **Branche Décomposeur** : les 2 mutations retirées sont remplacées par 2 nouvelles, pour revenir à 5 :
+  Enzymes digestives, **Digestion profonde** (Enrichissement −15 %), Saprophyte, **Mycélium dense** (Cohésion
+  +7,5 % de production par voisine au lieu de +5 %, max +45 %), Dormance.
+- **Retirés aussi** : les mutations **Usure lente** et **Acidophile** (remplacées par Digestion profonde
+  et Mycélium dense), le terrain **Sol acide**, et la récompense de la Moisissure après 3 saisons (sans remplacement).
 
 🔸 Décisions à prendre avant de commencer :
 - Valeurs des paliers des 7 zones (difficulté et richesse) : proposées par Claude après simulation,
   validées par le propriétaire.
-- Les 2 nouvelles mutations du Décomposeur. Proposition : *Digestion profonde* (Enrichissement −15 %) et
-  *Mycélium dense* (Cohésion +7,5 % de production par voisine au lieu de +5 %, max +45 %), à la place
-  d'Usure lente et d'Acidophile.
 
 À faire :
 - **En premier : accélérer les simulations.** Objectif : une semaine de forêt de 12 robots (cases ×3) en
@@ -502,7 +500,7 @@ visé ; un robot connecté 24 h/24 ne fait que **0,5 à 0,8 action utile par min
   mêmes chiffres).
 - `packages/shared` : nouveau `sizeFactor` ; suppression de l'usure (production, `EXHAUSTION`, Bois mort →
   Humus, Moisissure, Usure lente, Acidophile, Sol acide) ; gradient de difficulté par distance au centre dans le coût, la pousse et la prise ;
-  2 souches et nouvelles valeurs ; renommage de la mutation ; tests.
+  2 souches et nouvelles valeurs ; renommage de la mutation ; Digestion profonde et Mycélium dense ; tests.
 - Serveur : migration de remise à zéro (comptes et forêts supprimés, accord donné) et suppression de l'usure
   stockée sur les cases ; événements du centre symétriques.
 - Client : choix entre 2 souches, plus d'usure affichée, coût et temps de pousse visibles selon la zone ;
