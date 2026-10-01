@@ -453,14 +453,18 @@ visé ; un robot connecté 24 h/24 ne fait que **0,5 à 0,8 action utile par min
 - **Visuel des tuiles retravaillé** : plus **minimaliste et mignon** (formes simples, palette douce, moins de
   détails), en gardant la lecture d'un coup d'œil (qui possède quoi, niveau, cohésion, état de la case) et en
   rendant les **7 zones** lisibles sur la carte.
+  Direction retenue sur maquettes : **« Pastille ronde »** (détail au §11 du GDD) : fond crème `#FBF6EE`,
+  Fredoka + Nunito ; cases sauvages en bulles pastel ; colonies en une tache ronde de la couleur du joueur ;
+  niveau en 1 à 3 points puis un petit champignon (50+) ; Cœur en champignon avec des yeux ; Bourgeon en
+  étoile jaune pâle ; 7 zones teintées de plus en plus fort et entourées d'un trait noir (`#2B2430`, ~2,4 px),
+  estompé (~25 %) sur les colonies. Remplace le rendu de M8 (filaments → tapis → champignons). À composer :
+  la palette des 12 couleurs de joueurs, dans le même esprit.
 - **Retirés aussi** : les mutations **Usure lente** et **Acidophile** (la branche Décomposeur passe à
   3 mutations), le terrain **Sol acide**, et la récompense de la Moisissure après 3 saisons (sans remplacement).
 
 🔸 Décisions à prendre avant de commencer :
 - Valeurs des paliers des 7 zones (difficulté et richesse) : proposées par Claude après simulation,
   validées par le propriétaire.
-- Direction visuelle des tuiles : Claude propose 2 ou 3 pistes en maquette avant de coder, le propriétaire
-  choisit.
 
 À faire :
 - `packages/shared` : nouveau `sizeFactor` ; suppression de l'usure (production, `EXHAUSTION`, Bois mort →
@@ -469,13 +473,13 @@ visé ; un robot connecté 24 h/24 ne fait que **0,5 à 0,8 action utile par min
 - Serveur : migration pour les joueurs et forêts qui ont une souche retirée (souche remise à choisir) et
   pour l'usure stockée sur les cases ; rien à purger sans accord (migrations vers l'avant uniquement).
 - Client : choix entre 2 souches, plus d'usure affichée, coût et temps de pousse visibles selon la zone ;
-  nouveau rendu des tuiles (minimaliste et mignon, 7 zones lisibles) ; textes EN + FR.
+  nouveau rendu « Pastille ronde » des tuiles et de l'interface (couleurs, polices) ; textes EN + FR.
 - Simulations : `simulate:forest` (90 % entre le 6ᵉ et le 7ᵉ jour, à revérifier après l'usure et le
   gradient), `simulate:balance` (aucune des 2 souches ne domine), `simulate:profiles` (écart actif /
   occasionnel ≤ ×6).
 
 **Terminé quand** : la forêt de 12 robots est occupée à 90 % entre le jour 6 et le jour 7, l'usure n'existe
-plus nulle part (règles, base, rendu), chaque zone N est atteinte vers le jour N par les robots actifs, le nouveau rendu des tuiles est en place (style validé par le propriétaire),
+plus nulle part (règles, base, rendu), chaque zone N est atteinte vers le jour N par les robots actifs, le rendu « Pastille ronde » est en place,
 les deux souches finissent à égalité en moyenne dans `simulate:balance`, un joueur à 3 × 10 min/jour finit avec au plus 6× moins
 de biomasse qu'un joueur à 12 h/jour, et `pnpm check` est vert.
 
