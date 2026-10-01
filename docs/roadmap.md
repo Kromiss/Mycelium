@@ -479,6 +479,13 @@ visé ; un robot connecté 24 h/24 ne fait que **0,5 à 0,8 action utile par min
   validées par le propriétaire.
 
 À faire :
+- **En premier : accélérer les simulations.** Objectif : une semaine de forêt de 12 robots (cases ×3) en
+  **moins de 3 minutes**, au lieu de ~25 min aujourd'hui avec les cases ×5 actuelles. Mesurer d'abord où part le
+  temps, puis garder les comptes à jour au lieu de tout recalculer à chaque pas (cases occupées, réseau de chaque
+  joueur, meilleur achat des robots), pas de 2 min quand le résultat ne change pas, arrêt dès que la mesure est
+  obtenue. Ajouter un workflow GitHub Actions qui lance plusieurs variantes ou graines en parallèle et affiche les
+  résultats dans son résumé. Les résultats doivent rester identiques à ceux d'avant l'optimisation (même graine,
+  mêmes chiffres).
 - `packages/shared` : nouveau `sizeFactor` ; suppression de l'usure (production, `EXHAUSTION`, Bois mort →
   Humus, Moisissure, Usure lente, Acidophile, Sol acide) ; gradient de difficulté par distance au centre dans le coût, la pousse et la prise ;
   2 souches et nouvelles valeurs ; renommage de la mutation ; tests.
@@ -497,7 +504,7 @@ visé ; un robot connecté 24 h/24 ne fait que **0,5 à 0,8 action utile par min
   gradient), `simulate:balance` (aucune des 2 souches ne domine), `simulate:profiles` (écart actif /
   occasionnel ≤ ×6).
 
-**Terminé quand** : la forêt de 12 robots est occupée à 90 % entre le jour 6 et le jour 7, l'usure n'existe
+**Terminé quand** : une semaine de forêt se simule en moins de 3 minutes, la forêt de 12 robots est occupée à 90 % entre le jour 6 et le jour 7, l'usure n'existe
 plus nulle part (règles, base, rendu), chaque zone N est atteinte vers le jour N par les robots actifs, le rendu « Pastille ronde » est en place,
 les deux souches finissent à égalité en moyenne dans `simulate:balance`, un joueur à 3 × 10 min/jour finit avec au plus 6× moins
 de biomasse qu'un joueur à 12 h/jour, la forêt compte 3× plus de cases sans ralentir le tick, un admin peut lancer en local ou en staging, depuis l'interface cachée,
