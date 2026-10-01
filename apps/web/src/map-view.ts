@@ -1,9 +1,7 @@
 import {
   BUDS,
   checkColonize,
-  cohesion,
   ENRICH,
-  EXHAUSTION,
   growthProgress,
   hashFloat,
   hexKey,
@@ -11,6 +9,8 @@ import {
   hexToPixel,
   networkHops,
   pixelToHex,
+  zoneAt,
+  ZONES,
   type GameState,
   type Hex,
   type OwnerInfo,
@@ -22,96 +22,82 @@ import {
   type Terrain,
   LENGTH_SCALE,
 } from "@mycelium/shared";
-import { ownerColor } from "./colors";
+import { mix, ownerColor, ownerDark } from "./colors";
 import { Application, Container, Graphics, Text } from "pixi.js";
 
 /** Circumradius of a hex in world pixels. */
 const SIZE = 30;
-const MIN_ZOOM = 0.12; // the forest is about twice as wide since the ×5 tiles experiment
+const MIN_ZOOM = 0.08; // M9: the forest is three times as big (TILE_SCALE 15)
 const MAX_ZOOM = 3;
 /** Pointer travel (px) under which a press counts as a tap. */
 const TAP_SLOP = 8;
 
+// "Pastille ronde" art direction (GDD §11, M9): soft cream and pastels, round shapes.
+const PAGE = 0xfbf6ee;
+const CREAM = 0xfffdf8;
+const INK = 0x3b3340;
+const ZONE_LINE = 0x2b2430;
+/** Ground of each zone, from the rim (zone 1) to the centre (zone 7). */
+const ZONE_RIM = 0xf6eee2;
+const ZONE_CENTRE = 0xe0c7ae;
+
+/** Wild tiles are pastel bubbles. */
 const TERRAIN_COLORS: Record<Terrain, number> = {
-  litter: 0x9a6f35,
-  humus: 0x3b2c20,
-  deadwood: 0x5e4330,
-  wetland: 0x234a58,
-  stump: 0x6e4b2b,
-  roots: 0x43331f,
-  rock: 0x5f5e57,
-  acid: 0x4f5a22,
-  carcass: 0x6b3a33,
-  tree: 0x2c3f1f,
-  ruin: 0x55514a,
-  rubble: 0x46423b,
+  litter: 0xf4e4b8,
+  humus: 0xe2cdb0,
+  deadwood: 0xcfae8c,
+  wetland: 0xc3e1f2,
+  stump: 0xb98e6c,
+  roots: 0xc6ddaf,
+  rock: 0xd6d1cb,
+  carcass: 0xeec0b8,
+  tree: 0xa7c58f,
+  ruin: 0xcdc4b6,
+  rubble: 0xdcd4c8,
 };
 
-/** M7: allies get a bright rim, a traitor's network ("Réseau tâché") a rust one. */
-const ALLY_RIM = 0xd8ff8a;
+/** M7: allies get a white rim, a traitor's network ("Réseau tâché") a rust one. */
+const ALLY_RIM = 0xffffff;
 const TAINT_RIM = 0xd4553a;
 
 /** Event zones on the map (GDD §7). */
 const EVENT_COLORS: Record<EventKind, number> = {
-  storm: 0x7fb8ff,
-  fire: 0xff8a3c,
-  boar: 0xc79a5a,
-  treefall: 0xd8b36a,
-  carcass: 0xe06a6a,
-  nematodes: 0xd6e05a,
-  tree: 0x8fe07a,
+  storm: 0x5f9fe0,
+  fire: 0xf07a3a,
+  boar: 0xa9794a,
+  treefall: 0xb88a4a,
+  carcass: 0xd85a5a,
+  nematodes: 0xa8b030,
+  tree: 0x5f9e4a,
 };
 
-/** Structure marks (GDD §4.1), drawn in a corner of the tile. */
-const STRUCTURE_COLORS: Record<StructureId, number> = {
-  node: 0xf0c97a,
-  gland: 0xc3a6f2,
-  reservoir: 0x7cc4dc,
-  rhizomorph: 0xe39a5b,
-  sclerotium: 0xd9d4bd,
-  carpophore: 0xe0704a,
-};
-/** Marks of the timed tile effects (GDD §6.2). */
+/** Marks of the timed tile effects (GDD §6.2); the cut is a white bar across the tile. */
 const EFFECT_COLORS: Record<EffectKind, number> = {
-  assault: 0xff5a3c,
-  toxin: 0x9be15d,
-  cut: 0xf2efe6,
-  siphon: 0x5ac8ff,
-  storm: 0x9fd0ff,
-  ashes: 0xb7b2a8,
+  assault: 0xe64d43,
+  toxin: 0x6fbc46,
+  cut: 0xffffff,
+  siphon: 0x3796e0,
+  storm: 0x78bcf1,
+  ashes: 0x8a8580,
 };
-const GAP = 0x0c0e0a;
-const MYCELIUM = 0xe9f6c8;
-const GLOW = 0xc6f36e;
-const SELECT = 0xffffff;
-const WITHER = 0xe0704a;
-const PLAN = 0xf2e6b8;
-/** The Cœur's own colour, so it stands apart from the green network. */
-const HEART = 0xffd166;
-const HEART_CORE = 0xfff4d6;
-/** Worn ground is washed out toward this pale colour (GDD §11, M8 visuals). */
-const WASH = 0xb9b4a0;
-/** Bourgeons (M8). */
-const BUD = 0xfff0a8;
-const BUD_CORE = 0xffffff;
+const WITHER = 0xe64d43;
+/** Bourgeons (M8): a small pale yellow star. */
+const BUD = 0xfff3b0;
+const BUD_EDGE = 0xc9a640;
 /** Tap radius around a bud, in world pixels. */
 const BUD_TAP = SIZE * 0.55;
-/** At most this many nutrient particles flow toward the Cœur each frame. */
-const MAX_FLOWS = 600;
 
-/** Canvas rendering of the hex map with pan / zoom (GDD §11: filaments that glow). */
+/** Canvas rendering of the hex map with pan / zoom ("Pastille ronde", GDD §11). */
 export class MapView {
   private readonly app = new Application();
   private readonly world = new Container();
-  private readonly terrainLayer = new Graphics();
+  private readonly groundLayer = new Graphics();
   private readonly networkLayer = new Graphics();
   private readonly frontierLayer = new Graphics();
   private readonly fxLayer = new Graphics();
   private readonly queueLabels = new Container();
   /** Screen-space layer (not zoomed): the pointer toward an off-screen Cœur. */
   private readonly overlay = new Graphics();
-  /** Links from each connected tile to the one it sends its nutrients through, toward the Cœur. */
-  private flows: Array<{ x1: number; y1: number; x2: number; y2: number; phase: number }> = [];
   /** Screen position of the off-screen Cœur pointer, if shown (tapping it goes back home). */
   private heartPointer: { x: number; y: number } | null = null;
 
@@ -119,6 +105,8 @@ export class MapView {
   private owners = new Map<string, OwnerInfo>();
   private terrainSignature = "";
   private networkSignature = "";
+  /** Zone borders (and the forest's outline): one hex side each, with the tiles on both sides. */
+  private zoneEdges: Array<{ edge: number[]; a: string; b: string | null }> = [];
   private selected: Hex | null = null;
   /** Tiles to outline, e.g. those a fruiting would release. */
   private highlighted: Set<string> | null = null;
@@ -136,13 +124,13 @@ export class MapView {
     this.onSelect = onSelect;
     await this.app.init({
       resizeTo: host,
-      background: GAP,
+      background: PAGE,
       antialias: true,
       autoDensity: true,
       resolution: Math.min(window.devicePixelRatio || 1, 2),
     });
     host.appendChild(this.app.canvas);
-    this.world.addChild(this.terrainLayer, this.frontierLayer, this.networkLayer, this.fxLayer, this.queueLabels);
+    this.world.addChild(this.groundLayer, this.networkLayer, this.frontierLayer, this.fxLayer, this.queueLabels);
     this.app.stage.addChild(this.world, this.overlay);
     this.app.ticker.add(() => this.frame());
     this.bindInput(this.app.canvas);
@@ -150,32 +138,35 @@ export class MapView {
 
   setGame(game: GameState, owners: OwnerInfo[] = []): void {
     const first = this.game === null;
+    if (this.game && this.game.id !== game.id) {
+      // Another colony (admin tools: playing in or watching a test forest): start again.
+      this.terrainSignature = "";
+      this.networkSignature = "";
+      this.owners.clear();
+    }
     this.game = game;
     for (const o of owners) this.owners.set(o.id, o);
     this.refreshNetwork();
     if (first) this.home();
   }
 
-  /**
-   * Redraws what changed: terrain (Dead wood turning into Humus), and the network (colonised
-   * tiles, growth, exhaustion by steps of 5 %, disconnections, the Cœur, the queue).
-   */
+  /** Redraws what changed: the ground (terrains, zones), and the colonies (tiles, levels, the Cœur, the queue). */
   refreshNetwork(): void {
     const game = this.game;
     if (!game) return;
     const tiles = [...game.tiles.values()];
-    const terrain = tiles.map((t) => `${hexKey(t)}${t.terrain}`).join("");
+    const terrain = `${game.radius}:${tiles.length}:` + tiles.map((t) => `${t.q},${t.r}${t.terrain}`).join("");
     if (terrain !== this.terrainSignature) {
       this.terrainSignature = terrain;
-      this.drawTerrain(game);
+      this.drawGround(game);
     }
     const signature = [
-      [...this.owners.values()].map((o) => `${o.id}${o.ally ? "a" : ""}${o.tainted ? "t" : ""}${o.rewardColor ?? ""}${o.skin ?? ""}`).join(","),
+      [...this.owners.values()].map((o) => `${o.id}${o.color}${o.ally ? "a" : ""}${o.tainted ? "t" : ""}${o.rewardColor ?? ""}${o.skin ?? ""}`).join(","),
       hexKey(game.heart),
       game.queue.map(hexKey).join("|"),
       tiles
-        .filter((t) => t.owner !== null || t.exhaustion > 0)
-        .map((t) => `${hexKey(t)}${t.owner ?? ""}${t.structure ?? ""}${t.growthEndsAt === null ? "" : "g"}${t.disconnectedSince === null ? "" : "x"}${Math.round(t.exhaustion * 20)}l${t.level}`)
+        .filter((t) => t.owner !== null || t.structure !== null)
+        .map((t) => `${hexKey(t)}${t.owner ?? ""}${t.structure ?? ""}${t.growthEndsAt === null ? "" : "g"}${t.disconnectedSince === null ? "" : "x"}l${t.level}`)
         .join(";"),
     ].join("#");
     if (signature === this.networkSignature) return;
@@ -228,142 +219,100 @@ export class MapView {
   // -------------------------------------------------------------------------
   // Drawing
 
-  private drawTerrain(game: GameState): void {
-    const g = this.terrainLayer.clear();
-    if (game.layout.kind === "forest") {
-      // The forest beyond sight (GDD §2.1 fog): a dark disc with faint hex hints.
-      const r = (game.radius + 0.7) * SIZE * Math.sqrt(3);
-      g.circle(0, 0, r).fill({ color: 0x151812 }).stroke({ width: 2, color: 0x2a2f22 });
+  /** The ground: each zone a little darker toward the centre, and a bubble on every wild tile. */
+  private drawGround(game: GameState): void {
+    const g = this.groundLayer.clear();
+    const zoneOfTile = (h: Hex) => zoneAt(game.layout, game.radius, h);
+    for (const tile of game.tiles.values()) {
+      const { x, y } = hexToPixel(tile, SIZE);
+      g.poly(hexPoints(x, y, SIZE + 0.5)).fill({ color: zoneTint(zoneOfTile(tile)) });
     }
     for (const tile of game.tiles.values()) {
       const { x, y } = hexToPixel(tile, SIZE);
-      const shade = 0.88 + 0.24 * hashFloat(game.seed, 11, tile.q, tile.r);
-      g.poly(hexPoints(x, y, SIZE - 1)).fill({ color: scaleColor(TERRAIN_COLORS[tile.terrain], shade) });
-      this.drawTexture(g, game.seed, tile, x, y);
+      this.drawBubble(g, game.seed, tile, x, y);
+    }
+    // Zone borders, and the forest's outline: kept to be drawn above the colonies (faded on them).
+    this.zoneEdges = [];
+    if (game.layout.kind === "solo") return;
+    for (const tile of game.tiles.values()) {
+      const c = hexToPixel(tile, SIZE);
+      const zone = zoneOfTile(tile);
+      const key = hexKey(tile);
+      for (const n of hexNeighbors(tile)) {
+        const nk = hexKey(n);
+        const other = game.tiles.get(nk);
+        if (other && (zoneOfTile(other) === zone || nk < key)) continue;
+        this.zoneEdges.push({ edge: hexEdge(c, hexToPixel(n, SIZE), SIZE), a: key, b: other ? nk : null });
+      }
     }
   }
 
-  /** Small deterministic details so terrains read at a glance. */
-  private drawTexture(g: Graphics, seed: number, tile: Hex & { terrain: Terrain }, x: number, y: number): void {
+  /** A wild tile: a round pastel bubble, with a small mark for the terrains that need one. */
+  private drawBubble(g: Graphics, seed: number, tile: Hex & { terrain: Terrain }, x: number, y: number): void {
     const rnd = (i: number) => hashFloat(seed, 23, tile.q, tile.r, i);
-    if (tile.terrain === "litter") {
-      for (let i = 0; i < 4; i++) {
-        const a = rnd(i) * Math.PI * 2;
-        const d = rnd(i + 10) * SIZE * 0.6;
-        g.ellipse(x + Math.cos(a) * d, y + Math.sin(a) * d, 4, 2).fill({ color: rnd(i + 20) > 0.5 ? 0xc0873a : 0x7d4f22, alpha: 0.8 });
+    const color = TERRAIN_COLORS[tile.terrain];
+    const r = SIZE * (tile.terrain === "tree" ? 0.82 : 0.68);
+    g.circle(x, y, r).fill({ color });
+    switch (tile.terrain) {
+      case "stump":
+        g.circle(x, y, r * 0.5).stroke({ width: 2.2, color: mix(color, 0x000000, 0.25) });
+        break;
+      case "roots":
+        for (let i = 0; i < 3; i++) {
+          const a = rnd(i) * Math.PI * 2;
+          const len = r * 0.75;
+          g.moveTo(x, y)
+            .quadraticCurveTo(x + Math.cos(a + 0.5) * len * 0.5, y + Math.sin(a + 0.5) * len * 0.5, x + Math.cos(a) * len, y + Math.sin(a) * len)
+            .stroke({ width: 2.2, color: 0xffffff, alpha: 0.95, cap: "round" });
+        }
+        break;
+      case "wetland":
+        g.moveTo(x - r * 0.5, y + 1)
+          .quadraticCurveTo(x - r * 0.25, y - r * 0.25, x, y + 1)
+          .quadraticCurveTo(x + r * 0.25, y + r * 0.27, x + r * 0.5, y + 1)
+          .stroke({ width: 2.4, color: 0xffffff, cap: "round" });
+        break;
+      case "deadwood": {
+        const a = rnd(0) * Math.PI;
+        const dx = Math.cos(a) * r * 0.5;
+        const dy = Math.sin(a) * r * 0.5;
+        g.moveTo(x - dx, y - dy).lineTo(x + dx, y + dy).stroke({ width: 3, color: mix(color, 0x000000, 0.18), cap: "round" });
+        break;
       }
-    } else if (tile.terrain === "deadwood") {
-      const angle = rnd(0) * Math.PI;
-      const dx = Math.cos(angle) * SIZE * 0.55;
-      const dy = Math.sin(angle) * SIZE * 0.55;
-      g.moveTo(x - dx, y - dy).lineTo(x + dx, y + dy).stroke({ width: 7, color: 0x7a5639, cap: "round" });
-      g.moveTo(x - dx * 0.8, y - dy * 0.8).lineTo(x + dx * 0.8, y + dy * 0.8).stroke({ width: 1.5, color: 0x4a3222, alpha: 0.9 });
-    } else if (tile.terrain === "wetland") {
-      for (let i = 0; i < 3; i++) {
-        const cx = x + (rnd(i) - 0.5) * SIZE * 0.9;
-        const cy = y + (rnd(i + 10) - 0.5) * SIZE * 0.9;
-        const w = 5 + rnd(i + 20) * 6;
-        g.moveTo(cx - w, cy).quadraticCurveTo(cx, cy - 3, cx + w, cy).stroke({ width: 1.4, color: 0x8fc3cf, alpha: 0.55 });
-      }
-    } else if (tile.terrain === "stump") {
-      // A cut trunk seen from above: growth rings.
-      for (const [r, a] of [[SIZE * 0.52, 1], [SIZE * 0.36, 0.7], [SIZE * 0.2, 0.55]] as const) {
-        g.circle(x, y, r).stroke({ width: 2, color: 0x9a6c3e, alpha: a });
-      }
-      g.circle(x, y, SIZE * 0.52).fill({ color: 0x8a5e35, alpha: 0.35 });
-    } else if (tile.terrain === "roots") {
-      // Branching roots.
-      for (let i = 0; i < 3; i++) {
-        const a = rnd(i) * Math.PI * 2;
-        const len = SIZE * (0.45 + rnd(i + 10) * 0.25);
-        const mx = x + Math.cos(a + 0.4) * len * 0.5;
-        const my = y + Math.sin(a + 0.4) * len * 0.5;
-        g.moveTo(x, y).quadraticCurveTo(mx, my, x + Math.cos(a) * len, y + Math.sin(a) * len).stroke({ width: 3, color: 0x8a6a42, alpha: 0.85, cap: "round" });
-      }
-    } else if (tile.terrain === "rock") {
-      // A boulder.
-      const pts: number[] = [];
-      for (let i = 0; i < 7; i++) {
-        const a = (i / 7) * Math.PI * 2;
-        const r = SIZE * (0.42 + rnd(i) * 0.14);
-        pts.push(x + Math.cos(a) * r, y + Math.sin(a) * r * 0.85);
-      }
-      g.poly(pts).fill({ color: 0x8c8a80 }).stroke({ width: 1.5, color: 0x3f3e39 });
-      g.moveTo(x - SIZE * 0.2, y - SIZE * 0.15).lineTo(x + SIZE * 0.1, y - SIZE * 0.22).stroke({ width: 1.5, color: 0xb2b0a5, alpha: 0.8 });
-    } else if (tile.terrain === "carcass") {
-      // Ribs.
-      for (let i = -1; i <= 1; i++) {
-        g.moveTo(x - SIZE * 0.35, y + i * SIZE * 0.22).quadraticCurveTo(x, y + i * SIZE * 0.22 - SIZE * 0.2, x + SIZE * 0.35, y + i * SIZE * 0.22).stroke({ width: 2.5, color: 0xe8dcc8, alpha: 0.85, cap: "round" });
-      }
-    } else if (tile.terrain === "tree") {
-      // A huge trunk, split by rot.
-      g.circle(x, y, SIZE * 0.7).fill({ color: 0x4a3524 }).stroke({ width: 3, color: 0x2a1d12 });
-      for (const r of [SIZE * 0.5, SIZE * 0.3]) g.circle(x, y, r).stroke({ width: 1.5, color: 0x7a5a3a, alpha: 0.7 });
-      g.moveTo(x - SIZE * 0.1, y - SIZE * 0.6).lineTo(x + SIZE * 0.05, y).lineTo(x - SIZE * 0.05, y + SIZE * 0.55).stroke({ width: 2, color: 0x1a120b });
-    } else if (tile.terrain === "ruin") {
-      // Broken columns of an old stump-temple.
-      for (const [dx, h] of [[-0.3, 0.55], [0, 0.8], [0.3, 0.4]] as const) {
-        g.rect(x + dx * SIZE - 3, y + SIZE * 0.35 - h * SIZE, 6, h * SIZE).fill({ color: 0xa8a293 }).stroke({ width: 1, color: 0x3c3a33 });
-      }
-      g.moveTo(x - SIZE * 0.5, y + SIZE * 0.38).lineTo(x + SIZE * 0.5, y + SIZE * 0.38).stroke({ width: 2, color: 0x8a8577 });
-    } else if (tile.terrain === "rubble") {
-      for (let i = 0; i < 6; i++) {
-        const a = rnd(i) * Math.PI * 2;
-        const d = rnd(i + 10) * SIZE * 0.55;
-        g.rect(x + Math.cos(a) * d - 2.5, y + Math.sin(a) * d - 2, 5, 4).fill({ color: 0x8a8577, alpha: 0.85 });
-      }
-    } else if (tile.terrain === "acid") {
-      // Sour bubbles.
-      for (let i = 0; i < 5; i++) {
-        const a = rnd(i) * Math.PI * 2;
-        const d = rnd(i + 10) * SIZE * 0.6;
-        g.circle(x + Math.cos(a) * d, y + Math.sin(a) * d, 1.8 + rnd(i + 20) * 2.2).stroke({ width: 1.3, color: 0xc8e04a, alpha: 0.75 });
-      }
-    } else {
-      for (let i = 0; i < 5; i++) {
-        const a = rnd(i) * Math.PI * 2;
-        const d = rnd(i + 10) * SIZE * 0.65;
-        g.circle(x + Math.cos(a) * d, y + Math.sin(a) * d, 1.3).fill({ color: 0x54412f, alpha: 0.9 });
-      }
+      case "carcass":
+        for (const dy of [-0.28, 0, 0.28]) g.moveTo(x - r * 0.4, y + dy * r).lineTo(x + r * 0.4, y + dy * r).stroke({ width: 2, color: 0xffffff, cap: "round" });
+        break;
+      case "tree":
+        for (const k of [0.62, 0.36]) g.circle(x, y, r * k).stroke({ width: 2, color: 0xffffff, alpha: 0.8 });
+        break;
+      case "ruin":
+        for (const dx of [-0.3, 0, 0.3]) g.roundRect(x + dx * r - 2.5, y - r * 0.35, 5, r * 0.7, 2).fill({ color: 0xffffff, alpha: 0.85 });
+        break;
+      case "rubble":
+        for (let i = 0; i < 3; i++) g.circle(x + (rnd(i) - 0.5) * r, y + (rnd(i + 5) - 0.5) * r, 2.6).fill({ color: mix(color, 0x000000, 0.2) });
+        break;
+      default:
+        break;
     }
   }
 
-  /**
-   * The tile's enrichment level (M8): fine threads at first, a dense white mat around level 25, and small
-   * mushrooms coming out at the milestones 50 and 100.
-   */
-  private drawLevel(g: Graphics, seed: number, tile: Hex & { level: number }, x: number, y: number, color: number, strength: number): void {
-    const level = tile.level;
+  /** The tile's enrichment level (M8, drawn as in GDD §11 M9): 1, 2 or 3 white dots, then a small white mushroom. */
+  private drawLevel(g: Graphics, level: number, x: number, y: number, ink: number): void {
     if (level <= 0) return;
-    const rnd = (i: number) => hashFloat(seed, 41, tile.q, tile.r, i);
-    if (level >= 10) {
-      const mat = Math.min(1, (level - 10) / 15);
-      g.poly(hexPoints(x, y, SIZE * (0.5 + 0.35 * mat))).fill({ color: MYCELIUM, alpha: (0.1 + 0.18 * mat) * strength });
+    if (level >= ENRICH.milestones[2]!) {
+      g.rect(x - 1.8, y - 1, 3.6, 6).fill({ color: 0xffffff });
+      g.moveTo(x - 6.5, y).arc(x, y, 6.5, Math.PI, 0).closePath().fill({ color: 0xffffff }).stroke({ width: 1.2, color: ink, alpha: 0.5 });
+      return;
     }
-    const threads = Math.min(9, 1 + Math.floor(level / 3));
-    for (let i = 0; i < threads; i++) {
-      const a = rnd(i) * Math.PI * 2;
-      const len = SIZE * (0.5 + rnd(i + 20) * 0.35);
-      const bend = (rnd(i + 40) - 0.5) * 0.9;
-      g.moveTo(x, y)
-        .quadraticCurveTo(x + Math.cos(a + bend) * len * 0.5, y + Math.sin(a + bend) * len * 0.5, x + Math.cos(a) * len, y + Math.sin(a) * len)
-        .stroke({ width: level >= 25 ? 1.6 : 1.1, color, alpha: 0.55 * strength, cap: "round" });
-    }
-    const caps = level >= ENRICH.milestones[3]! ? 2 : level >= ENRICH.milestones[2]! ? 1 : 0;
-    for (let i = 0; i < caps; i++) {
-      const cx = x + (i === 0 ? -0.28 : 0.22) * SIZE;
-      const cy = y + (i === 0 ? 0.2 : -0.05) * SIZE;
-      g.rect(cx - 1.3, cy - 1, 2.6, 5).fill({ color: 0xf2e6b8, alpha: strength });
-      g.moveTo(cx - 5, cy).arc(cx, cy, 5, Math.PI, 0).closePath().fill({ color: 0xe8d9a8, alpha: strength }).stroke({ width: 1, color: 0x6a5a38, alpha: 0.8 * strength });
-    }
+    const dots = level >= ENRICH.milestones[1]! ? 3 : level >= ENRICH.milestones[0]! ? 2 : 1;
+    for (let i = 0; i < dots; i++) g.circle(x + (i - (dots - 1) / 2) * 7, y, 2.6).fill({ color: 0xffffff, alpha: 0.95 });
   }
 
-  /** A small mark for a structure, in the tile's upper-right corner. */
-  private drawStructure(g: Graphics, structure: StructureId, x: number, y: number, skin?: SkinId): void {
-    const cx = x + SIZE * 0.38;
-    const cy = y - SIZE * 0.36;
-    const color = STRUCTURE_COLORS[structure];
-    g.circle(cx, cy, 8).fill({ color: 0x111409, alpha: 0.85 }).stroke({ width: 1.5, color, alpha: 0.95 });
+  /** A small cream disc with a structure's mark, in the tile's upper-right corner. */
+  private drawStructure(g: Graphics, structure: StructureId, x: number, y: number, color: number, skin?: SkinId): void {
+    const cx = x + SIZE * 0.42;
+    const cy = y - SIZE * 0.4;
+    g.circle(cx, cy, 8.5).fill({ color: CREAM }).stroke({ width: 1.5, color, alpha: 0.95 });
     switch (structure) {
       case "node":
         g.circle(cx, cy, 3.5).fill({ color });
@@ -387,153 +336,108 @@ export class MapView {
     }
   }
 
+  /**
+   * The colonies: grown tiles of a colony melt into one round patch of its colour (a disc per tile and a
+   * thick link between neighbours), outlined in its dark shade; growing tiles are dotted circles.
+   */
   private drawNetwork(game: GameState): void {
     const net = this.networkLayer.clear();
     const frontier = this.frontierLayer.clear();
-    const hops = networkHops(game);
-    const connected = [...game.tiles.values()].filter((t) => hops.has(hexKey(t)));
+    const me = this.owners.get(game.id);
+    const colorOf = (id: string) => (id === game.id ? ownerColor(me) : ownerColor(this.owners.get(id)));
+    const darkOf = (id: string) => (id === game.id ? ownerDark(me) : ownerDark(this.owners.get(id)));
 
-    // Ground: worn tiles are washed out (wear never goes away). Colonised tiles are drawn edge to edge,
-    // without the gaps of the wild ground, so a colony reads as one living patch (M8).
+    // Grown tiles by colony, and the links between neighbours of a same colony (each pair once).
+    const byOwner = new Map<string, { discs: Array<{ x: number; y: number; faded: boolean }>; links: number[][] }>();
     for (const t of game.tiles.values()) {
-      const { x, y } = hexToPixel(t, SIZE);
-      const wear = t.exhaustion / EXHAUSTION.max;
-      if (t.owner !== null) {
-        const shade = 0.88 + 0.24 * hashFloat(game.seed, 11, t.q, t.r);
-        net.poly(hexPoints(x, y, SIZE + 0.3)).fill({ color: scaleColor(TERRAIN_COLORS[t.terrain], shade) });
-        this.drawTexture(net, game.seed, t, x, y);
+      if (t.owner === null || t.growthEndsAt !== null) continue;
+      const entry = byOwner.get(t.owner) ?? byOwner.set(t.owner, { discs: [], links: [] }).get(t.owner)!;
+      const a = hexToPixel(t, SIZE);
+      entry.discs.push({ ...a, faded: t.disconnectedSince !== null });
+      const key = hexKey(t);
+      for (const n of hexNeighbors(t)) {
+        const nk = hexKey(n);
+        if (nk < key) continue;
+        const o = game.tiles.get(nk);
+        if (o?.owner !== t.owner || o.growthEndsAt !== null) continue;
+        const b = hexToPixel(n, SIZE);
+        entry.links.push([a.x, a.y, b.x, b.y]);
       }
-      if (wear > 0.02) net.poly(hexPoints(x, y, t.owner !== null ? SIZE + 0.3 : SIZE - 1)).fill({ color: WASH, alpha: wear * 0.3 });
+    }
+    const blob = (discs: Array<{ x: number; y: number }>, links: number[][], grow: number, color: number, alpha = 1) => {
+      for (const d of discs) net.circle(d.x, d.y, SIZE * 0.86 + grow);
+      if (discs.length) net.fill({ color, alpha });
+      for (const [x1, y1, x2, y2] of links) net.moveTo(x1!, y1!).lineTo(x2!, y2!);
+      if (links.length) net.stroke({ width: SIZE * 1.3 + grow * 2, color, alpha, cap: "round" });
+    };
+    // Others first, the player's own colony on top.
+    const order = [...byOwner.keys()].sort((a, b) => (a === game.id ? 1 : b === game.id ? -1 : 0));
+    for (const id of order) {
+      const { discs, links } = byOwner.get(id)!;
+      const owner = this.owners.get(id);
+      if (owner?.tainted) blob(discs, links, 5, TAINT_RIM);
+      else if (owner?.ally) blob(discs, links, 5, ALLY_RIM);
+      blob(discs, links, 2, darkOf(id));
+      blob(discs, links, 0, colorOf(id));
+      // Cut off from the Cœur: paler.
+      const faded = discs.filter((d) => d.faded);
+      if (faded.length) blob(faded, [], 0.5, CREAM, 0.55);
     }
 
+    // Zone borders above the colonies: sharp on the ground, faded on a colony.
+    const owned = (k: string | null) => k !== null && (game.tiles.get(k)?.owner ?? null) !== null;
+    for (const faded of [false, true]) {
+      let any = false;
+      for (const z of this.zoneEdges) {
+        if ((owned(z.a) || owned(z.b)) !== faded) continue;
+        const [x1, y1, x2, y2] = z.edge;
+        net.moveTo(x1!, y1!).lineTo(x2!, y2!);
+        any = true;
+      }
+      if (any) net.stroke({ width: 2.4, color: ZONE_LINE, alpha: faded ? 0.25 : 1, cap: "round" });
+    }
+
+    // Levels, structures, growing tiles.
     for (const t of game.tiles.values()) {
       if (t.owner === null) continue;
       const { x, y } = hexToPixel(t, SIZE);
-      if (t.owner !== game.id) {
-        // Another player's tile.
-        const owner = this.owners.get(t.owner);
-        const color = ownerColor(owner);
-        net.poly(hexPoints(x, y, SIZE + 0.3)).fill({ color, alpha: t.disconnectedSince === null ? 0.34 : 0.18 });
-        this.drawLevel(net, game.seed, t, x, y, color, 0.55);
-        if (owner?.ally) net.poly(hexPoints(x, y, SIZE - 5)).stroke({ width: 1.5, color: ALLY_RIM, alpha: 0.65 });
-        if (owner?.tainted) net.poly(hexPoints(x, y, SIZE - 5)).stroke({ width: 2.5, color: TAINT_RIM, alpha: 0.85 });
+      if (t.growthEndsAt !== null) {
+        dottedCircle(net, x, y, SIZE * 0.62, darkOf(t.owner));
         continue;
       }
-      if (t.growthEndsAt !== null) {
-        net.poly(hexPoints(x, y, SIZE - 1)).fill({ color: GLOW, alpha: 0.14 });
-      } else if (t.disconnectedSince !== null) {
-        net.poly(hexPoints(x, y, SIZE + 0.3)).fill({ color: WITHER, alpha: 0.32 });
-        net.poly(hexPoints(x, y, SIZE - 2.5)).stroke({ width: 1.5, color: WITHER, alpha: 0.7 });
-      } else {
-        // Own tiles read clearly above the terrain; wear only dims them a little.
-        net.poly(hexPoints(x, y, SIZE + 0.3)).fill({ color: GLOW, alpha: 0.3 * (1 - (t.exhaustion / EXHAUSTION.max) * 0.35) });
-        this.drawLevel(net, game.seed, t, x, y, MYCELIUM, 1);
-      }
-    }
-
-    // Territory borders: one outline around each colony, only on its outer edges. The thicker the edge,
-    // the more neighbours of the colony hold that tile (M8 Cohésion): solid blocks look solid.
-    const mine: number[][][] = Array.from({ length: 7 }, () => []);
-    const theirs = new Map<string, number[][][]>();
-    for (const t of game.tiles.values()) {
-      if (t.owner === null || t.growthEndsAt !== null) continue;
-      const c = hexToPixel(t, SIZE);
-      const n = cohesion(game.tiles, t);
-      for (const nb of hexNeighbors(t)) {
-        if (game.tiles.get(hexKey(nb))?.owner === t.owner) continue;
-        const edge = hexEdge(c, hexToPixel(nb, SIZE), SIZE);
-        if (t.owner === game.id) mine[n]!.push(edge);
-        else (theirs.get(t.owner) ?? theirs.set(t.owner, Array.from({ length: 7 }, () => [])).get(t.owner)!)[n]!.push(edge);
-      }
-    }
-    for (const [owner, byCohesion] of theirs) {
-      const color = ownerColor(this.owners.get(owner));
-      byCohesion.forEach((edges, n) => {
-        for (const [x1, y1, x2, y2] of edges) net.moveTo(x1!, y1!).lineTo(x2!, y2!);
-        if (edges.length) net.stroke({ width: 1.5 + 0.6 * n, color, alpha: 0.95, cap: "round" });
-      });
-    }
-    mine.forEach((edges, n) => {
-      if (!edges.length) return;
-      for (const [width, alpha, color] of [
-        [8 + 1.5 * n, 0.16, GLOW],
-        [2 + 0.8 * n, 0.95, MYCELIUM],
-      ] as const) {
-        for (const [x1, y1, x2, y2] of edges) net.moveTo(x1!, y1!).lineTo(x2!, y2!);
-        net.stroke({ width, color, alpha, cap: "round" });
-      }
-    });
-
-    // Filaments between neighbouring connected tiles (each pair once).
-    const segments: Array<[number, number, number, number]> = [];
-    for (const t of connected) {
-      const a = hexToPixel(t, SIZE);
-      for (const n of hexNeighbors(t)) {
-        if (!hops.has(hexKey(n)) || hexKey(n) < hexKey(t)) continue;
-        const b = hexToPixel(n, SIZE);
-        segments.push([a.x, a.y, b.x, b.y]);
-      }
-    }
-    for (const [width, alpha, color] of [
-      [9, 0.12, GLOW],
-      [3.5, 0.55, MYCELIUM],
-      [1.2, 1, 0xffffff],
-    ] as const) {
-      for (const [x1, y1, x2, y2] of segments) net.moveTo(x1, y1).lineTo(x2, y2);
-      if (segments.length) net.stroke({ width, color, alpha, cap: "round" });
-    }
-    for (const t of connected) {
-      const { x, y } = hexToPixel(t, SIZE);
-      net.circle(x, y, 4).fill({ color: MYCELIUM, alpha: 0.9 - (t.exhaustion / EXHAUSTION.max) * 0.3 });
-    }
-
-    // Nutrient flow (GDD §2.4, §11): each connected tile sends toward a neighbour closer to the Cœur.
-    this.flows = [];
-    for (const t of connected) {
-      const d = hops.get(hexKey(t))!;
-      if (d === 0 || this.flows.length >= MAX_FLOWS) continue;
-      const next = hexNeighbors(t).find((n) => (hops.get(hexKey(n)) ?? Infinity) < d);
-      if (!next) continue;
-      const a = hexToPixel(t, SIZE);
-      const b = hexToPixel(next, SIZE);
-      this.flows.push({ x1: a.x, y1: a.y, x2: b.x, y2: b.y, phase: hashFloat(game.seed, 31, t.q, t.r) });
-    }
-
-    // The Cœur's tile: a golden hex that stays visible under everything else.
-    const heart = game.tiles.get(hexKey(game.heart));
-    if (heart?.owner === game.id) {
-      const { x, y } = hexToPixel(heart, SIZE);
-      net.poly(hexPoints(x, y, SIZE - 1)).fill({ color: HEART, alpha: 0.28 });
-      net.poly(hexPoints(x, y, SIZE - 3)).stroke({ width: 3, color: HEART, alpha: 0.95 });
+      if (!(t.owner === game.id && hexKey(t) === hexKey(game.heart))) this.drawLevel(net, t.level, x, y, darkOf(t.owner));
     }
     for (const t of game.tiles.values()) {
       if (t.structure === null || t.owner === null) continue;
       const { x, y } = hexToPixel(t, SIZE);
-      this.drawStructure(net, t.structure, x, y, t.owner ? this.owners.get(t.owner)?.skin : undefined);
+      this.drawStructure(net, t.structure, x, y, darkOf(t.owner), this.owners.get(t.owner)?.skin);
     }
 
-    // Planned path: dotted links from each queued tile to where it will grow from.
+    // Planned path: numbered cream discs on the queued tiles, dotted links to where they grow from.
     this.queueLabels.removeChildren().forEach((c) => c.destroy());
     const planned = new Set<string>();
+    const mine = darkOf(game.id);
     game.queue.forEach((h, i) => {
       const to = hexToPixel(h, SIZE);
       const from = hexNeighbors(h).find((n) => game.tiles.get(hexKey(n))?.owner === game.id || planned.has(hexKey(n)));
-      if (from) dotted(net, hexToPixel(from, SIZE), to);
+      if (from) dotted(net, hexToPixel(from, SIZE), to, mine);
       planned.add(hexKey(h));
-      net.poly(hexPoints(to.x, to.y, SIZE - 5)).stroke({ width: 2, color: PLAN, alpha: 0.8 });
-      net.circle(to.x, to.y, 9).fill({ color: 0x1b1f15, alpha: 0.85 }).stroke({ width: 1.5, color: PLAN });
-      const label = new Text({ text: String(i + 1), style: { fill: PLAN, fontSize: 11, fontFamily: "system-ui, sans-serif", fontWeight: "600" } });
+      net.circle(to.x, to.y, 10).fill({ color: CREAM }).stroke({ width: 2, color: mine });
+      const label = new Text({ text: String(i + 1), style: { fill: INK, fontSize: 11, fontFamily: "Fredoka, Nunito, system-ui, sans-serif", fontWeight: "600" } });
       label.anchor.set(0.5);
       label.position.set(to.x, to.y);
       this.queueLabels.addChild(label);
     });
 
-    // Tiles that can be colonised or planned now.
+    // Tiles that can be colonised or planned now: a soft ring in the player's colour.
+    const ring = colorOf(game.id);
     for (const t of game.tiles.values()) {
       if (t.owner !== null || !checkColonize(game, t).ok) continue;
       const { x, y } = hexToPixel(t, SIZE);
-      frontier.poly(hexPoints(x, y, SIZE - 4)).stroke({ width: 2, color: GLOW, alpha: 0.9 });
+      frontier.circle(x, y, SIZE * 0.74).stroke({ width: 2.5, color: ring });
     }
+    // Hops are not drawn any more, but computing them here keeps the network cache warm for the panel.
+    networkHops(game);
   }
 
   private frame(): void {
@@ -542,64 +446,41 @@ export class MapView {
     if (!game) return;
     const now = this.now();
     const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 450);
-    this.frontierLayer.alpha = 0.35 + 0.45 * pulse;
+    this.frontierLayer.alpha = 0.35 + 0.4 * pulse;
+    const me = this.owners.get(game.id);
+    const dark = ownerDark(me);
 
-    // Nutrients: small sparks travelling along the network toward the Cœur.
-    const flowT = performance.now() / 1600;
-    for (const f of this.flows) {
-      const p = (flowT + f.phase) % 1;
-      fx.circle(f.x1 + (f.x2 - f.x1) * p, f.y1 + (f.y2 - f.y1) * p, 1.8).fill({ color: HEART_CORE, alpha: 0.85 * Math.sin(p * Math.PI) });
-    }
-
-    // Heart: the starting spore, drawn bigger when zoomed out so it is always easy to find.
+    // The Cœur: a mushroom in the player's dark shade, with two small eyes, on a cream disc. Bigger when
+    // zoomed out, so that it is always easy to find.
     const heart = hexToPixel(game.heart, SIZE);
     const k = Math.max(1, 0.9 / this.world.scale.x);
-    const wave = (performance.now() / 2400) % 1;
-    fx.poly(hexPoints(heart.x, heart.y, SIZE * (0.6 + 1.6 * wave) * k)).stroke({ width: 2.5 * k, color: HEART, alpha: 0.7 * (1 - wave) });
-    fx.circle(heart.x, heart.y, (15 + 4 * pulse) * k).fill({ color: HEART, alpha: 0.22 });
-    for (let i = 0; i < 6; i++) {
-      // Six short hyphae around the bulb.
-      const a = (i / 6) * Math.PI * 2 + performance.now() / 6000;
-      fx.moveTo(heart.x + Math.cos(a) * 9 * k, heart.y + Math.sin(a) * 9 * k)
-        .lineTo(heart.x + Math.cos(a) * (15 + 2 * pulse) * k, heart.y + Math.sin(a) * (15 + 2 * pulse) * k)
-        .stroke({ width: 2 * k, color: HEART, alpha: 0.9, cap: "round" });
-    }
-    fx.circle(heart.x, heart.y, 9 * k).fill({ color: HEART }).stroke({ width: 2 * k, color: 0x3a2a0a, alpha: 0.8 });
-    fx.circle(heart.x, heart.y, 4.5 * k).fill({ color: HEART_CORE });
-    this.drawHeartPointer(heart, pulse);
+    const bob = Math.sin(performance.now() / 700) * 0.8 * k;
+    drawHeart(fx, heart.x, heart.y + bob, k, dark);
+    this.drawHeartPointer(heart, pulse, dark);
 
-    // Growing hyphae: a filament creeping from the network to the tile, and a progress ring.
+    // Growing hyphae: the dotted circle fills up.
     for (const t of game.tiles.values()) {
       if (t.owner !== game.id || t.growthEndsAt === null) continue;
       const progress = growthProgress(t, now, game.upgrades);
-      const to = hexToPixel(t, SIZE);
-      const source = hexNeighbors(t)
-        .map((n) => game.tiles.get(hexKey(n)))
-        .find((n) => n?.owner === game.id && n.growthEndsAt === null);
-      if (source) {
-        const from = hexToPixel(source, SIZE);
-        const x = from.x + (to.x - from.x) * progress;
-        const y = from.y + (to.y - from.y) * progress;
-        fx.moveTo(from.x, from.y).lineTo(x, y).stroke({ width: 3, color: MYCELIUM, alpha: 0.9, cap: "round" });
-        fx.circle(x, y, 3 + pulse).fill({ color: 0xffffff });
-      }
+      const { x, y } = hexToPixel(t, SIZE);
       const start = -Math.PI / 2;
-      fx.moveTo(to.x + (SIZE * 0.55) * Math.cos(start), to.y + (SIZE * 0.55) * Math.sin(start));
-      fx.arc(to.x, to.y, SIZE * 0.55, start, start + progress * Math.PI * 2).stroke({ width: 3, color: GLOW, alpha: 0.95 });
+      const r = SIZE * 0.62;
+      fx.moveTo(x + r * Math.cos(start), y + r * Math.sin(start));
+      fx.arc(x, y, r, start, start + progress * Math.PI * 2).stroke({ width: 3.5, color: dark, cap: "round" });
     }
 
-    // Border captures (GDD §6.1): an arc showing how far the neighbour got.
+    // Border captures (GDD §6.1): a ring of the attacker's colour, as far as they got.
     for (const t of game.tiles.values()) {
       if (!t.capture) continue;
       const { x, y } = hexToPixel(t, SIZE);
-      const mine = t.capture.by === game.id;
-      const color = mine ? GLOW : t.owner === game.id ? WITHER : ownerColor(this.owners.get(t.capture.by));
-      // One of your tiles being taken throbs red.
-      if (t.owner === game.id) fx.poly(hexPoints(x, y, SIZE - 1)).fill({ color: WITHER, alpha: 0.1 + 0.2 * pulse });
+      const by = t.capture.by === game.id ? me : this.owners.get(t.capture.by);
+      const color = ownerDark(by);
+      if (t.owner === game.id) fx.circle(x, y, SIZE * 0.8).fill({ color: WITHER, alpha: 0.08 + 0.14 * pulse });
       const start = -Math.PI / 2;
       const r = SIZE * 0.72;
+      fx.circle(x, y, r).stroke({ width: 4, color, alpha: 0.25 });
       fx.moveTo(x + r * Math.cos(start), y + r * Math.sin(start));
-      fx.arc(x, y, r, start, start + Math.min(1, t.capture.progress) * Math.PI * 2).stroke({ width: 4, color, alpha: 0.6 + 0.4 * pulse });
+      fx.arc(x, y, r, start, start + Math.min(1, t.capture.progress) * Math.PI * 2).stroke({ width: 4, color, alpha: 0.75 + 0.25 * pulse, cap: "round" });
     }
 
     // Events (GDD §7): announced zones pulse, active ones are tinted.
@@ -608,67 +489,66 @@ export class MapView {
       const active = e.status === "active";
       for (const c of e.cells) {
         const { x, y } = hexToPixel(c, SIZE);
-        const poly = fx.poly(hexPoints(x, y, SIZE - 4));
-        if (active) poly.fill({ color, alpha: 0.12 + 0.06 * pulse });
-        poly.stroke({ width: 2, color, alpha: active ? 0.7 : 0.35 + 0.45 * pulse });
+        const shape = fx.circle(x, y, SIZE * 0.8);
+        if (active) shape.fill({ color, alpha: 0.14 + 0.06 * pulse });
+        shape.stroke({ width: 2, color, alpha: active ? 0.75 : 0.35 + 0.45 * pulse });
       }
       if (e.life !== undefined) {
         // Life bar above the centre of a world boss or of the Nématodes.
         const { x, y } = hexToPixel(e, SIZE);
         const w = SIZE * 2.4;
-        fx.rect(x - w / 2, y - SIZE * 1.9, w, 6).fill({ color: 0x111409, alpha: 0.85 });
-        fx.rect(x - w / 2, y - SIZE * 1.9, w * e.life, 6).fill({ color, alpha: 0.95 });
+        fx.roundRect(x - w / 2, y - SIZE * 1.9, w, 7, 3.5).fill({ color: CREAM }).stroke({ width: 1.5, color: INK, alpha: 0.6 });
+        fx.roundRect(x - w / 2, y - SIZE * 1.9, w * e.life, 7, 3.5).fill({ color });
       }
     }
 
-    // Active actions (GDD §6.2): one small mark per effect along the bottom of the tile.
+    // Active actions (GDD §6.2): a white bar across a cut tile, a small dot per other effect.
     for (const t of game.tiles.values()) {
+      if (t.effects.length === 0) continue;
       const active = t.effects.filter((e) => e.until > now);
       if (active.length === 0) continue;
       const { x, y } = hexToPixel(t, SIZE);
-      active.forEach((e, i) => {
-        const ex = x + (i - (active.length - 1) / 2) * 9;
-        const ey = y + SIZE * 0.52;
-        const color = EFFECT_COLORS[e.kind];
-        if (e.kind === "cut") {
-          fx.moveTo(ex - 4, ey - 4).lineTo(ex + 4, ey + 4).moveTo(ex + 4, ey - 4).lineTo(ex - 4, ey + 4).stroke({ width: 2.5, color, alpha: 0.95 });
-        } else {
-          fx.circle(ex, ey, 3.5 + (e.kind === "assault" ? pulse : 0)).fill({ color, alpha: 0.95 });
-        }
+      const dots = active.filter((e) => e.kind !== "cut");
+      if (dots.length < active.length) {
+        fx.moveTo(x - SIZE * 0.6, y + SIZE * 0.35).lineTo(x + SIZE * 0.6, y - SIZE * 0.35).stroke({ width: 7, color: INK, alpha: 0.35, cap: "round" });
+        fx.moveTo(x - SIZE * 0.6, y + SIZE * 0.35).lineTo(x + SIZE * 0.6, y - SIZE * 0.35).stroke({ width: 4.5, color: EFFECT_COLORS.cut, cap: "round" });
+      }
+      dots.forEach((e, i) => {
+        const ex = x + (i - (dots.length - 1) / 2) * 9;
+        const ey = y + SIZE * 0.55;
+        fx.circle(ex, ey, 3.6 + (e.kind === "assault" ? pulse : 0)).fill({ color: EFFECT_COLORS[e.kind] }).stroke({ width: 1.2, color: CREAM });
       });
     }
 
-    // Bourgeons (M8): a glowing bud to tap, fading as its time runs out.
+    // Bourgeons (M8): a small pale yellow star to tap, fading as its time runs out.
     for (const b of game.buds) {
       if (b.until <= now) continue;
       const { x, y } = hexToPixel(b, SIZE);
       const left = Math.min(1, (b.until - now) / BUDS.lifeMs);
-      const bob = Math.sin(performance.now() / 300 + b.q * 1.7 + b.r) * 1.5;
-      const k = Math.max(1, 0.7 / this.world.scale.x); // Still easy to spot when zoomed out.
-      fx.circle(x, y + bob, (16 + 4 * pulse) * k).fill({ color: BUD, alpha: 0.3 * (0.4 + 0.6 * left) });
-      fx.circle(x, y + bob, (11 + 6 * pulse) * k).stroke({ width: 2 * k, color: BUD, alpha: 0.6 * left });
-      fx.moveTo(x, y + 10 * k + bob).quadraticCurveTo(x - 3 * k, y + 4 * k + bob, x, y - 1 * k + bob).stroke({ width: 2.5 * k, color: MYCELIUM, alpha: 0.95 });
-      fx.circle(x, y - 4 * k + bob, 7.5 * k).fill({ color: BUD, alpha: 0.6 + 0.4 * left }).stroke({ width: 1.5 * k, color: 0x6a5a20, alpha: 0.8 });
-      fx.circle(x - 2.2 * k, y - 6.5 * k + bob, 2.2 * k).fill({ color: BUD_CORE, alpha: 0.95 });
+      const wobble = Math.sin(performance.now() / 300 + b.q * 1.7 + b.r) * 1.5;
+      const s = Math.max(1, 0.7 / this.world.scale.x); // Still easy to spot when zoomed out.
+      fx.poly(starPoints(x, y + wobble, (11 + 1.5 * pulse) * s, 5 * s))
+        .fill({ color: BUD, alpha: 0.55 + 0.45 * left })
+        .stroke({ width: 1.6 * s, color: BUD_EDGE, alpha: 0.9 });
     }
 
     if (this.highlighted) {
-      for (const k of this.highlighted) {
-        const tile = game.tiles.get(k);
+      for (const key of this.highlighted) {
+        const tile = game.tiles.get(key);
         if (!tile) continue;
         const { x, y } = hexToPixel(tile, SIZE);
-        fx.poly(hexPoints(x, y, SIZE - 3)).fill({ color: WITHER, alpha: 0.12 + 0.12 * pulse }).stroke({ width: 2, color: WITHER, alpha: 0.8 });
+        fx.circle(x, y, SIZE * 0.7).fill({ color: WITHER, alpha: 0.12 + 0.12 * pulse }).stroke({ width: 2, color: WITHER, alpha: 0.8 });
       }
     }
 
     if (this.selected) {
       const { x, y } = hexToPixel(this.selected, SIZE);
-      fx.poly(hexPoints(x, y, SIZE - 1.5)).stroke({ width: 3, color: SELECT, alpha: 0.95 });
+      fx.circle(x, y, SIZE * 0.84).stroke({ width: 3.5, color: CREAM }).circle(x, y, SIZE * 0.84).stroke({ width: 2, color: INK });
     }
   }
 
-  /** When the Cœur is off screen, a golden arrow on the edge points toward it. */
-  private drawHeartPointer(heart: { x: number; y: number }, pulse: number): void {
+  /** When the Cœur is off screen, an arrow on the edge points toward it. */
+  private drawHeartPointer(heart: { x: number; y: number }, pulse: number, color: number): void {
     const o = this.overlay.clear();
     const { width, height } = this.app.screen;
     const sx = this.world.x + heart.x * this.world.scale.x;
@@ -686,14 +566,13 @@ export class MapView {
     const py = cy + dy * t;
     this.heartPointer = { x: px, y: py };
     const a = Math.atan2(dy, dx);
-    o.circle(px, py, 15 + 2 * pulse).fill({ color: 0x111409, alpha: 0.85 }).stroke({ width: 2, color: HEART, alpha: 0.95 });
-    o.circle(px, py, 5).fill({ color: HEART });
     const tip = 26 + 2 * pulse;
     o.poly([
       px + Math.cos(a) * tip, py + Math.sin(a) * tip,
       px + Math.cos(a + 0.45) * 17, py + Math.sin(a + 0.45) * 17,
       px + Math.cos(a - 0.45) * 17, py + Math.sin(a - 0.45) * 17,
-    ]).fill({ color: HEART });
+    ]).fill({ color });
+    drawHeart(o, px, py, 0.85, color);
   }
 
   // -------------------------------------------------------------------------
@@ -791,14 +670,14 @@ export class MapView {
   }
 }
 
-function dotted(g: Graphics, a: { x: number; y: number }, b: { x: number; y: number }): void {
+function dotted(g: Graphics, a: { x: number; y: number }, b: { x: number; y: number }, color: number): void {
   const steps = 7;
   for (let i = 0; i < steps; i += 2) {
     const t0 = i / steps;
     const t1 = (i + 1) / steps;
     g.moveTo(a.x + (b.x - a.x) * t0, a.y + (b.y - a.y) * t0).lineTo(a.x + (b.x - a.x) * t1, a.y + (b.y - a.y) * t1);
   }
-  g.stroke({ width: 2, color: PLAN, alpha: 0.7, cap: "round" });
+  g.stroke({ width: 2.5, color, alpha: 0.7, cap: "round" });
 }
 
 /** The side of the hex centred on `c` that faces the neighbour centred on `n`, as [x1, y1, x2, y2]. */
@@ -815,13 +694,6 @@ function hexPoints(cx: number, cy: number, radius: number): number[] {
     pts.push(cx + radius * Math.cos(a), cy + radius * Math.sin(a));
   }
   return pts;
-}
-
-function scaleColor(color: number, k: number): number {
-  const r = Math.min(255, Math.round(((color >> 16) & 0xff) * k));
-  const g = Math.min(255, Math.round(((color >> 8) & 0xff) * k));
-  const b = Math.min(255, Math.round((color & 0xff) * k));
-  return (r << 16) | (g << 8) | b;
 }
 
 function clamp(v: number, min: number, max: number): number {
@@ -857,4 +729,43 @@ function drawCarpophore(g: Graphics, cx: number, cy: number, color: number, skin
       g.rect(cx - 1.2, cy - 0.5, 2.4, 4.5).fill({ color: 0xf2e6b8 });
       g.moveTo(cx - 5, cy).arc(cx, cy, 5, Math.PI, 0).closePath().fill({ color });
   }
+}
+
+/** A circle in dots: a tile still growing. */
+function dottedCircle(g: Graphics, x: number, y: number, r: number, color: number): void {
+  const n = 12;
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2;
+    g.circle(x + Math.cos(a) * r, y + Math.sin(a) * r, 2.2);
+  }
+  g.fill({ color, alpha: 0.85 });
+}
+
+/** The Cœur: a mushroom in the colony's dark shade, with two small eyes, on a cream disc. */
+function drawHeart(g: Graphics, x: number, y: number, k: number, dark: number): void {
+  g.circle(x, y, 15 * k).fill({ color: CREAM }).stroke({ width: 2 * k, color: dark });
+  // Stem, then cap.
+  g.roundRect(x - 3.5 * k, y - 1 * k, 7 * k, 9 * k, 3 * k).fill({ color: mix(dark, 0xffffff, 0.75) });
+  g.moveTo(x - 11 * k, y + 1 * k).arc(x, y + 1 * k, 11 * k, Math.PI, 0).closePath().fill({ color: dark });
+  // Two small eyes.
+  for (const dx of [-3.6, 3.6]) {
+    g.circle(x + dx * k, y - 3 * k, 2.1 * k).fill({ color: 0xffffff });
+    g.circle(x + dx * k + 0.5 * k, y - 2.7 * k, 1 * k).fill({ color: INK });
+  }
+}
+
+/** A five-pointed star. */
+function starPoints(x: number, y: number, outer: number, inner: number): number[] {
+  const pts: number[] = [];
+  for (let i = 0; i < 10; i++) {
+    const a = -Math.PI / 2 + (i * Math.PI) / 5;
+    const r = i % 2 === 0 ? outer : inner;
+    pts.push(x + Math.cos(a) * r, y + Math.sin(a) * r);
+  }
+  return pts;
+}
+
+/** Ground colour of a zone (1 on the rim to 7 in the centre). */
+function zoneTint(zone: number): number {
+  return mix(ZONE_RIM, ZONE_CENTRE, (Math.max(1, Math.min(ZONES.count, zone)) - 1) / (ZONES.count - 1));
 }

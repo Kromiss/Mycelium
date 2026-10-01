@@ -109,9 +109,8 @@ export class ProfileView {
     const colors = show("color", "profile.showColor", COLOR_IDS, p.color);
     const skins = show("skin", "profile.showSkin", SKIN_IDS, p.skin);
     skins.append(note(t("profile.lockedSkins")));
-    const strain = note(owned("strain").includes("mold") ? t("profile.mold") : t("profile.moldLocked"));
 
-    this.el.body.replaceChildren(league, career, titles, colors, skins, strain);
+    this.el.body.replaceChildren(league, career, titles, colors, skins);
   }
 }
 
@@ -127,8 +126,6 @@ export function rewardName(kind: Reward["kind"], id: string): string {
       return t(`color.${id}` as MessageKey);
     case "skin":
       return t(`skin.${id}` as MessageKey);
-    case "strain":
-      return t(`strain.${id}.name` as MessageKey);
   }
 }
 

@@ -33,7 +33,8 @@ import {
   checkFructify,
   FRUITING,
   fruitingPreview,
-  growthTimeFactor,
+  growthTimeMs,
+  zone,
   SPORE_UPGRADE_IDS,
   sporeUpgradeCost,
   MUTATION_BRANCHES,
@@ -44,7 +45,6 @@ import {
   fromSnapshot,
   GAME_NAME,
   growingTiles,
-  growthDurationMs,
   heartReadyAt,
   HUMIDITY,
   humidity,
@@ -74,6 +74,7 @@ import {
   type CaptureNotice,
   type ClientMessage,
   type GameSnapshot,
+  type TileDto,
   type Leaderboard,
   type LeaderboardEntry,
   type OwnerInfo,
@@ -92,7 +93,6 @@ import {
   type RosterEntry,
   type SecondaryBoard,
   SECONDARY_BOARDS,
-  strainAvailable,
   SIGNALS,
   NEMATODES,
   STORM,
@@ -105,6 +105,7 @@ import { ChatView } from "./chat-view";
 import { MapView } from "./map-view";
 import { NotifyView } from "./notify";
 import { SocialPanel } from "./social-view";
+import { AdminView } from "./admin-view";
 import { leagueName, ProfileView, rewardName, rewardText } from "./profile-view";
 import { choosePassword, clearToken, Connection, loadToken, saveToken, signIn, signOut } from "./net";
 import "./style.css";
@@ -261,6 +262,24 @@ $("chat-close").addEventListener("click", () => chat.setOpen(false));
 const profileView = new ProfileView({ overlay: $("profile"), body: $("profile-body") }, (msg) => connection?.send(msg));
 ui.player.addEventListener("click", () => profileView.open());
 $("profile-close").addEventListener("click", () => ($("profile").hidden = true));
+
+// Hidden admin page (M9): `#admin`, for admins on a server whose admin tools are on (local, staging).
+let adminTools = false;
+const adminView = new AdminView({ overlay: $("admin"), body: $("admin-body") }, (msg) => connection?.send(msg), {
+  time: (ms) => new Intl.DateTimeFormat(locale(), { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" }).format(ms),
+  number: (x) => fmt(x),
+});
+$("admin-close").addEventListener("click", () => adminView.close());
+$("admin-btn").addEventListener("click", () => {
+  window.history.replaceState(null, "", "#admin");
+  adminView.open();
+});
+window.addEventListener("hashchange", () => {
+  if (location.hash === "#admin" && adminTools && !adminView.isOpen) adminView.open();
+});
+$("spectate-stop").addEventListener("click", () => connection?.send({ type: "admin", op: "follow", forest: null }));
+/** Tiles of the last full state, updated by the deltas (M9: states only carry the tiles that changed). */
+let tileDtos = new Map<string, TileDto>();
 // Leaderboard tabs (M7): the score, then the secondary leaderboards.
 const boardTabs = (["biomass", ...SECONDARY_BOARDS] as const).map((id) => {
   const b = document.createElement("button");
@@ -439,7 +458,14 @@ function onMessage(msg: ServerMessage): void {
       document.body.classList.add("in-game");
       ui.player.textContent = msg.player.name;
       forestNumber = msg.forest.number;
-      ui.forestLabel.textContent = t("forest.label", { number: forestNumber });
+      ui.forestLabel.textContent = msg.forest.test ? t("test.banner", { name: msg.forest.test }) : t("forest.label", { number: forestNumber });
+      adminTools = msg.adminTools === true;
+      $("admin-btn").hidden = !adminTools;
+      $("spectate-banner").hidden = msg.spectating === undefined;
+      $("spectate-text").textContent = msg.spectating !== undefined ? t("spectate.banner", { name: msg.spectating }) : "";
+      document.body.classList.toggle("spectating", msg.spectating !== undefined);
+      if (adminTools && location.hash === "#admin" && !adminView.isOpen) adminView.open();
+      tileDtos = new Map();
       clock.scale = msg.timeScale;
       history = msg.history;
       renderHistory();
@@ -476,7 +502,7 @@ function onMessage(msg: ServerMessage): void {
     case "state":
       setForestEvents(msg.forestEvents ?? []);
       if (msg.social) setSocial(msg.social);
-      applySnapshot(msg.game, msg.owners, msg.serverTime);
+      applySnapshot(msg.game, msg.owners, msg.serverTime, msg.delta === true, msg.gone);
       for (const e of msg.events) announce(e);
       for (const n of msg.eventNotices ?? []) announceEvent(n);
       for (const a of msg.alerts ?? []) alert(a);
@@ -496,13 +522,46 @@ function onMessage(msg: ServerMessage): void {
     case "actionError":
       toast(t(`error.${msg.error}`));
       break;
+    case "admin":
+      adminView.set(msg.state);
+      break;
+    case "adminError":
+      toast(adminView.error(msg.error));
+      break;
+    case "adminSwitch":
+      // The admin now plays in (or watches) another forest: start again from a fresh page.
+      location.reload();
+      break;
   }
 }
 
-function applySnapshot(snapshot: GameSnapshot, list: OwnerInfo[], serverTime: number): void {
+function applySnapshot(snapshot: GameSnapshot, list: OwnerInfo[], serverTime: number, delta = false, gone: string[] = []): void {
   clock = { server: serverTime, local: Date.now(), scale: clock.scale };
   for (const o of list) owners.set(o.id, o);
-  game = fromSnapshot(snapshot);
+  if (!delta) tileDtos = new Map();
+  for (const k of gone) tileDtos.delete(k);
+  for (const tile of snapshot.tiles) tileDtos.set(hexKey(tile), tile);
+  // States can come fast (test forests run up to ×3600): the map is rebuilt at most a few times a second,
+  // always from the latest state.
+  pendingState = { snapshot, list };
+  if (!delta || game === null) flushState();
+  else if (stateTimer === null) stateTimer = setTimeout(flushState, Math.max(0, lastFlush + STATE_MIN_MS - Date.now()));
+}
+
+const STATE_MIN_MS = 250;
+let pendingState: { snapshot: GameSnapshot; list: OwnerInfo[] } | null = null;
+let stateTimer: ReturnType<typeof setTimeout> | null = null;
+let lastFlush = 0;
+
+function flushState(): void {
+  if (stateTimer !== null) clearTimeout(stateTimer);
+  stateTimer = null;
+  const pending = pendingState;
+  if (!pending) return;
+  pendingState = null;
+  lastFlush = Date.now();
+  const { snapshot, list } = pending;
+  game = fromSnapshot({ ...snapshot, tiles: [...tileDtos.values()] });
   if (enzymesKnown === false && game.enzymesUnlocked) toast(t("enzymes.unlocked"), "good");
   enzymesKnown = game.enzymesUnlocked;
   mapView?.setGame(game, list);
@@ -1090,7 +1149,7 @@ function renderSpores(g: GameState): void {
 
 // Automations (GDD §9)
 
-const AUTO_TERRAINS: Terrain[] = ["litter", "humus", "deadwood", "stump", "roots", "acid", "wetland"];
+const AUTO_TERRAINS: Terrain[] = ["litter", "humus", "deadwood", "stump", "roots", "wetland"];
 
 function buildAutomation(): void {
   const option = (value: string, label: string) => {
@@ -1182,7 +1241,7 @@ function renderMutations(g: GameState): void {
 
 function buildStrainList(): void {
   ui.strainList.replaceChildren(
-    ...STRAIN_IDS.filter((id) => !game || strainAvailable(game, id)).map((id) => {
+    ...STRAIN_IDS.map((id) => {
       const li = document.createElement("li");
       const button = document.createElement("button");
       button.type = "button";
@@ -1330,7 +1389,6 @@ function renderTile(g: GameState): void {
       facts.push(cohesionFact(g, tile));
       if (tile.structure) facts.push(["tile.structure", t(`structure.${tile.structure}.name`)]);
       if (tile.structure === "gland" && hops.has(hexKey(tile))) facts.push(["tile.enzymes", t("tile.enzymesValue", { value: fmt(glandRate(tile) * 3600) })]);
-      facts.push(["tile.exhaustion", percent(tile.exhaustion)]);
       const d = hops.get(hexKey(tile));
       if (d !== undefined && d > 0) facts.push(["tile.transport", t("tile.transportValue", { hops: d, loss: Math.round(transportLoss(d) * 100) })]);
       if (!hexEquals(tile, g.heart)) {
@@ -1349,10 +1407,10 @@ function renderTile(g: GameState): void {
     buildable = hops.has(hexKey(tile)) && tile.growthEndsAt === null;
   } else {
     facts.push(["tile.yield", t("tile.yieldValue", { value: fmt(tileYield(tile.terrain, g.upgrades) * richness(g, tile) * humidity(g, tile)) })]);
-    if (tile.exhaustion > 0.005) facts.push(["tile.exhaustion", percent(tile.exhaustion)]);
+    facts.push(["tile.zone", t("tile.zoneValue", { zone: zone(g, tile) })]);
     const cost = colonizationCost(g, tile, now);
     facts.push(["tile.cost", TERRAIN_STATS[tile.terrain].paidInEnzymes ? t("tile.costEnzymes", { value: fmt(cost) }) : fmt(cost)]);
-    facts.push(["tile.growth", formatDuration(growthDurationMs(tile.terrain, g.upgrades, growthTimeFactor(g, now)))]);
+    facts.push(["tile.growth", formatDuration(growthTimeMs(g, tile, now))]);
     note = terrainNote(tile.terrain);
     const position = queueIndex(g, tile);
     if (position >= 0) {
@@ -1447,16 +1505,12 @@ function fmtFactor(x: number): string {
 
 function terrainNote(terrain: Terrain): string {
   switch (terrain) {
-    case "deadwood":
-      return t("tile.deadwoodNote");
     case "stump":
       return t("tile.stumpNote");
     case "roots":
       return t("tile.rootsNote", { bonus: Math.round(ROOTS.networkBonus * 100) });
     case "rock":
       return t("tile.rockNote");
-    case "acid":
-      return t("tile.acidNote");
     case "carcass":
       return t("tile.carcassNote");
     case "tree":

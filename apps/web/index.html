@@ -3,7 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#0c0e0a" />
+    <meta name="theme-color" content="#fbf6ee" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet" />
     <title>Mycelium</title>
   </head>
   <body>
@@ -49,6 +52,7 @@
       </div>
       <div class="topbar-end">
         <span class="forest-label" id="forest-label"></span>
+        <button type="button" class="ghost" id="admin-btn" data-i18n="admin.open" hidden></button>
         <button type="button" class="ghost player" id="player-name" data-i18n-aria="profile.open"></button>
         <button type="button" class="ghost" id="logout-btn" data-i18n="account.logout"></button>
         <button type="button" class="ghost" id="lang-btn" data-i18n="lang.switch" data-i18n-aria="lang.switchLabel"></button>
@@ -248,6 +252,19 @@
         <p id="notify-status"></p>
         <button type="button" class="primary" id="notify-toggle"></button>
         <button type="button" class="ghost" id="notify-close" data-i18n="notify.close"></button>
+      </div>
+    </div>
+
+    <div class="spectate-banner" id="spectate-banner" hidden>
+      <span id="spectate-text"></span>
+      <button type="button" class="ghost small" id="spectate-stop" data-i18n="spectate.stop"></button>
+    </div>
+
+    <div class="overlay" id="admin" hidden>
+      <div class="guest-card profile-card admin-card">
+        <h2 data-i18n="admin.title"></h2>
+        <div id="admin-body"></div>
+        <button type="button" class="primary" id="admin-close" data-i18n="admin.close"></button>
       </div>
     </div>
 
