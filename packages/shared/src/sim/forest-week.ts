@@ -10,6 +10,7 @@ import { advanceForest, joinForest, newForest, resolveBorders, type CaptureEvent
 import { ringAt, type Ring } from "../forestgen";
 import { goOffline, goOnline, networkHops, productionRate, type Tile } from "../game";
 import { hexKey } from "../hex";
+import { ownedTilesOf, tilesEpoch } from "../tile-index";
 import { seasonAt } from "../season";
 import { PROFILES, botPlay, defaultPlan, type BotPlan, type Profile } from "./week";
 
@@ -110,7 +111,16 @@ export function simulateForestWeek(options: ForestSimOptions = {}): ForestSimRes
   // one Ruine per slice), and the pacing target is about the land everyone expands onto.
   const fillable = (t: Tile) => t.terrain !== "wetland" && !TERRAIN_STATS[t.terrain].paidInEnzymes;
   const land = [...forest.tiles.values()].filter(fillable).length;
-  const occupied = () => [...forest.tiles.values()].filter((t) => t.owner !== null && fillable(t)).length / land;
+  // Recounted only when a tile changed (M9 speed-up).
+  let occupiedAt: { epoch: number | null; value: number } = { epoch: null, value: 0 };
+  const occupied = () => {
+    const epoch = tilesEpoch(forest.tiles);
+    if (epoch !== null && occupiedAt.epoch === epoch) return occupiedAt.value;
+    let n = 0;
+    for (const p of forest.players.values()) for (const t of ownedTilesOf(forest.tiles, p.id)) if (fillable(t)) n++;
+    occupiedAt = { epoch, value: n / land };
+    return occupiedAt.value;
+  };
 
   const online = (profile: Profile, t: number) => {
     const inDay = (t - t0) % DAY; // Paris wall-clock time of day (no DST change that week).

@@ -49,6 +49,7 @@ import {
 import { lifetimeFactorAt, richnessAt, ringAt, type MapLayout } from "./forestgen";
 import { hexDistance, hexEquals, hexKey, hexNeighbors, type Hex } from "./hex";
 import { generateMap, START_HEX } from "./mapgen";
+import { asTileOf, makeTile, neighbourTiles, ownedCountOf, ownedTilesOf, ownerVersion, tileKey, touchesWetland } from "./tile-index";
 import { hashFloat } from "./rng";
 import { NEUTRAL_EFFECTS, nextPhaseChange, phaseAt, type PhaseEffects } from "./season";
 
@@ -325,7 +326,7 @@ export const SOLO_PLAYER = "solo";
 
 /** A wild tile, fresh. */
 export function wildTile(h: Hex, terrain: Terrain): Tile {
-  return {
+  return makeTile({
     q: h.q,
     r: h.r,
     terrain,
@@ -340,7 +341,7 @@ export function wildTile(h: Hex, terrain: Terrain): Tile {
     toxic: false,
     effects: [],
     level: 0,
-  };
+  });
 }
 
 /** A new player's state on shared `tiles`: their spawn is colonised and becomes their Cœur. */
@@ -429,30 +430,52 @@ const isGrown = (state: GameState, t: Tile | undefined): boolean => isMine(state
  * unless `ignoreCuts`.
  */
 export function networkHops(state: GameState, at: number = state.updatedAt, ignoreCuts = false): Map<string, number> {
+  // M9 speed-up: without an active Coupure on the player's tiles, the hops only change with the
+  // player's tiles and Cœur, so they are kept until one of them changes. The map is shared: never change it.
+  const version = ownerVersion(state.tiles, state.id);
+  if (version === null) return computeHops(state, at, ignoreCuts);
+  if (!ignoreCuts && hasActiveCut(state, at)) return computeHops(state, at, false);
+  const cached = hopsCache.get(state);
+  if (cached && cached.version === version && cached.tiles === state.tiles && hexEquals(cached.heart, state.heart)) return cached.hops;
+  const hops = computeHops(state, at, true);
+  hopsCache.set(state, { version, tiles: state.tiles, heart: { q: state.heart.q, r: state.heart.r }, hops });
+  return hops;
+}
+
+const hopsCache = new WeakMap<GameState, { version: number; tiles: Map<string, Tile>; heart: Hex; hops: Map<string, number> }>();
+
+/** Some grown tile of the player is under a Coupure at `at`. */
+function hasActiveCut(state: GameState, at: number): boolean {
+  for (const t of ownedTilesOf(state.tiles, state.id)) {
+    if (t.effects.length > 0 && t.growthEndsAt === null && activeEffect(t, "cut", at) !== undefined) return true;
+  }
+  return false;
+}
+
+function computeHops(state: GameState, at: number, ignoreCuts: boolean): Map<string, number> {
   const hops = new Map<string, number>();
   const heart = state.tiles.get(hexKey(state.heart));
   if (!heart || !isGrown(state, heart)) return hops;
   const cut = (t: Tile) => !ignoreCuts && t.effects.length > 0 && activeEffect(t, "cut", at) !== undefined;
   if (cut(heart)) return hops;
-  hops.set(hexKey(heart), 0);
+  hops.set(tileKey(state.tiles, heart), 0);
   // 0-1 breadth-first search: free steps go to the front of the deque.
-  const deque: Array<[Hex, number]> = [[heart, 0]];
+  const deque: Array<[Tile, number]> = [[heart, 0]];
   let head = 0;
-  const front: Array<[Hex, number]> = [];
+  const front: Array<[Tile, number]> = [];
   while (front.length > 0 || head < deque.length) {
     const [h, d] = front.length > 0 ? front.pop()! : deque[head++]!;
-    if (d > hops.get(hexKey(h))!) continue;
-    for (const n of hexNeighbors(h)) {
-      const k = hexKey(n);
-      const t = state.tiles.get(k);
-      if (!t || !isGrown(state, t) || cut(t)) continue;
+    if (d > hops.get(tileKey(state.tiles, h))!) continue;
+    for (const t of neighbourTiles(state.tiles, h)) {
+      if (!isGrown(state, t) || cut(t)) continue;
+      const k = tileKey(state.tiles, t);
       const free = t.structure === "rhizomorph";
       const nd = free ? d : d + 1;
       const known = hops.get(k);
       if (known !== undefined && known <= nd) continue;
       hops.set(k, nd);
-      if (free) front.push([n, nd]);
-      else deque.push([n, nd]);
+      if (free) front.push([t, nd]);
+      else deque.push([t, nd]);
     }
   }
   return hops;
@@ -465,11 +488,17 @@ export function transportLoss(hops: number, factor = 1): number {
 
 /** Humidity multiplier of a tile: bonus next to a wetland or to one of the player's Réservoirs (GDD §2.2, §4.1). */
 export function humidity(state: GameState, h: Hex): number {
-  const wet = hexNeighbors(h).some((n) => {
+  const wet = touchesWetland(state.tiles, h);
+  if (wet !== null) {
+    if (wet) return 1 + HUMIDITY.wetlandBonus;
+    for (const t of neighbourTiles(state.tiles, h as Tile)) if (t.structure === "reservoir" && isGrown(state, t)) return 1 + HUMIDITY.wetlandBonus;
+    return 1;
+  }
+  for (const n of hexNeighbors(h)) {
     const t = state.tiles.get(hexKey(n));
-    return t !== undefined && (t.terrain === "wetland" || (t.structure === "reservoir" && isGrown(state, t)));
-  });
-  return wet ? 1 + HUMIDITY.wetlandBonus : 1;
+    if (t !== undefined && (t.terrain === "wetland" || (t.structure === "reservoir" && isGrown(state, t)))) return 1 + HUMIDITY.wetlandBonus;
+  }
+  return 1;
 }
 
 /** Production multiplier while the player is away (GDD §9); Dormance trades online for offline production. */
@@ -635,11 +664,11 @@ export function isTainted(state: GameState, at: number): boolean {
 export function temerityFactor(state: GameState): number {
   if (!hasMutation(state, "temerity")) return 1;
   let border = 0;
-  for (const t of state.tiles.values()) {
-    if (t.owner !== state.id || t.growthEndsAt !== null) continue;
-    if (hexNeighbors(t).some((n) => {
-      const o = state.tiles.get(hexKey(n))?.owner;
-      return o !== undefined && o !== null && o !== state.id && !state.allies.includes(o);
+  for (const t of ownedTilesOf(state.tiles, state.id)) {
+    if (t.growthEndsAt !== null) continue;
+    if (neighbourTiles(state.tiles, t).some((n) => {
+      const o = n.owner;
+      return o !== null && o !== state.id && !state.allies.includes(o);
     })) border++;
   }
   return 1 + Math.min(MUTATIONS.temerityMax, MUTATIONS.temerityPerTile * border);
@@ -707,7 +736,7 @@ export function tileProduction(
   at: number = state.updatedAt,
   bonus: number = networkBonus(state, hops, at),
 ): number {
-  const d = hops.get(hexKey(tile));
+  const d = hops.get(tileKey(state.tiles, tile));
   if (!isGrown(state, tile) || d === undefined) return 0;
   const siphon = siphonedBy(tile, state.id, at) !== null ? 1 - ACTION_EFFECTS.siphonShare : 1;
   return baseProduction(state, tile, d, at) * bonus * (1 - Math.min(tile.exhaustion, wearCap(state))) * siphon;
@@ -761,11 +790,17 @@ export function effectProduction(tile: Tile, at: number): number {
 
 /** Grown tiles of the tile's owner among its six neighbours: its Cohésion, 0 to 6. */
 export function cohesion(tiles: Map<string, Tile>, tile: Hex & { owner: string | null }): number {
-  if (tile.owner === null) return 0;
+  const owner = tile.owner;
+  if (owner === null) return 0;
   let n = 0;
+  const self = asTileOf(tiles, tile);
+  if (self !== undefined) {
+    for (const t of neighbourTiles(tiles, self)) if (t.owner === owner && t.growthEndsAt === null) n++;
+    return n;
+  }
   for (const h of hexNeighbors(tile)) {
     const t = tiles.get(hexKey(h));
-    if (t !== undefined && t.owner === tile.owner && t.growthEndsAt === null) n++;
+    if (t !== undefined && t.owner === owner && t.growthEndsAt === null) n++;
   }
   return n;
 }
@@ -1068,13 +1103,16 @@ export function conversionRate(upgrades: Upgrades): number {
 
 /** Tiles owned by the player, growing ones included (the `nb_cases` of the cost formula). */
 export function ownedCount(state: GameState): number {
-  let n = 0;
-  for (const t of state.tiles.values()) if (t.owner === state.id) n++;
-  return n;
+  return ownedCountOf(state.tiles, state.id);
+}
+
+/** The player's tiles, growing ones included, in map order. Do not change the returned array. */
+export function ownedTiles(state: GameState): readonly Tile[] {
+  return ownedTilesOf(state.tiles, state.id);
 }
 
 export function growingTiles(state: GameState): Tile[] {
-  return [...state.tiles.values()].filter((t) => t.owner === state.id && t.growthEndsAt !== null);
+  return ownedTiles(state).filter((t) => t.growthEndsAt !== null);
 }
 
 /**
@@ -1120,7 +1158,7 @@ export function growthProgress(tile: Tile, now: number, upgrades: Upgrades): num
 /** Structures the player owns (they make the next one dearer). */
 export function structureCount(state: GameState): number {
   let n = 0;
-  for (const t of state.tiles.values()) if (t.owner === state.id && t.structure !== null) n++;
+  for (const t of ownedTiles(state)) if (t.structure !== null) n++;
   return n;
 }
 
@@ -1145,6 +1183,8 @@ export function upgradeCost(id: UpgradeId, level: number): number {
 
 /** Wild tile next to a colonised (fully grown) tile of the network (GDD §2.3). */
 export function isAdjacentToNetwork(state: GameState, h: Hex): boolean {
+  const tile = asTileOf(state.tiles, h) ?? state.tiles.get(hexKey(h));
+  if (tile !== undefined) return neighbourTiles(state.tiles, tile).some((t) => isGrown(state, t));
   return hexNeighbors(h).some((n) => isGrown(state, state.tiles.get(hexKey(n))));
 }
 
@@ -1229,7 +1269,7 @@ export function checkBuild(state: GameState, h: Hex, id: string): ActionResult {
   if (tile.structure !== null) return { ok: false, error: "has_structure" };
   if (id === "sclerotium") {
     let n = 0;
-    for (const t of state.tiles.values()) if (t.owner === state.id && t.structure === "sclerotium") n++;
+    for (const t of ownedTiles(state)) if (t.structure === "sclerotium") n++;
     if (n >= STRUCTURES.sclerotiumMax) return { ok: false, error: "structure_limit" };
   }
   if (state.nutrients < structureCost(state, id)) return { ok: false, error: "not_enough_nutrients" };
@@ -1279,7 +1319,7 @@ export interface FruitingPreview {
  * connected Carpophore, the value being the current colonisation cost of every tile given up.
  */
 export function fruitingPreview(state: GameState, radius: number, at: number = state.updatedAt): FruitingPreview {
-  const lost = [...state.tiles.values()].filter((t) => t.owner === state.id && hexDistance(state.heart, t) > radius);
+  const lost = ownedTiles(state).filter((t) => hexDistance(state.heart, t) > radius);
   let value = 0;
   for (const t of lost) {
     if (!TERRAIN_STATS[t.terrain].paidInEnzymes) value += colonizationCost(state, t, at);
@@ -1372,15 +1412,14 @@ export function autoColonizeTarget(state: GameState, at: number): Tile | null {
   const pref = state.automation.colonize;
   let best: Tile | null = null;
   let bestKey: [number, number, string] | null = null;
-  const seen = new Set<string>();
-  for (const t of state.tiles.values()) {
-    if (t.owner !== state.id || t.growthEndsAt !== null) continue;
-    for (const n of hexNeighbors(t)) {
-      const k = hexKey(n);
-      if (seen.has(k)) continue;
-      seen.add(k);
-      const c = state.tiles.get(k);
-      if (!c || c.owner !== null || (c.reservedFor !== null && c.reservedFor !== state.id)) continue;
+  const seen = new Set<Tile>();
+  for (const t of ownedTiles(state)) {
+    if (t.growthEndsAt !== null) continue;
+    for (const c of neighbourTiles(state.tiles, t)) {
+      if (seen.has(c)) continue;
+      seen.add(c);
+      const k = tileKey(state.tiles, c);
+      if (c.owner !== null || (c.reservedFor !== null && c.reservedFor !== state.id)) continue;
       if (!canColonizeTerrain(state, c.terrain) || TERRAIN_STATS[c.terrain].paidInEnzymes) continue;
       const key: [number, number, string] = [pref === null || pref === "any" || c.terrain === pref ? 0 : 1, colonizationCost(state, c, at), k];
       if (!bestKey || key[0] < bestKey[0] || (key[0] === bestKey[0] && (key[1] < bestKey[1] || (key[1] === bestKey[1] && key[2] < bestKey[2])))) {
@@ -1431,8 +1470,8 @@ export function refreshUnlocks(state: GameState, now: number): void {
     state.enzymesUnlocked = true;
   }
   if (!state.signalsUnlocked) {
-    for (const t of state.tiles.values()) {
-      if (t.owner === state.id && t.terrain === "roots" && t.growthEndsAt === null) {
+    for (const t of ownedTiles(state)) {
+      if (t.terrain === "roots" && t.growthEndsAt === null) {
         state.signalsUnlocked = true;
         break;
       }
@@ -1517,8 +1556,7 @@ export function advance(state: GameState, to: number): void {
     if (plan.nextEvent <= t) {
       // M6 floor: a colony down to 7 tiles loses no more, withering included.
       let owned = ownedCount(state);
-      for (const tile of state.tiles.values()) {
-        if (tile.owner !== state.id) continue;
+      for (const tile of ownedTiles(state)) {
         if (tile.growthEndsAt !== null && tile.growthEndsAt <= t) {
           tile.growthEndsAt = null;
           tile.growthStartedAt = null;
@@ -1613,10 +1651,9 @@ function planWindow(state: GameState, t: number): Window {
   let next = Infinity;
   let growing = false;
   const canWither = ownedCount(state) > ANTI_FRUSTRATION.floorTiles;
-  for (const tile of state.tiles.values()) {
-    if (tile.owner !== state.id) continue;
+  for (const tile of ownedTiles(state)) {
     const lifetime = lifetimeMs(state, tile);
-    const d = hops.get(hexKey(tile));
+    const d = hops.get(tileKey(state.tiles, tile));
     if (isGrown(state, tile) && d !== undefined) {
       producers.push({
         tile,
@@ -1717,14 +1754,13 @@ function integrate(state: GameState, w: Window, dt: number): void {
 /** Marks the player's tiles as connected or disconnected (disconnected ones start withering). */
 export function refreshConnections(state: GameState, now: number): void {
   const hops = networkHops(state, now, true);
-  for (const tile of state.tiles.values()) {
-    if (tile.owner !== state.id) continue;
+  for (const tile of ownedTiles(state)) {
     if (!isGrown(state, tile)) {
       tile.disconnectedSince = null;
       continue;
     }
     // Tiles only cut off by a Coupure stop producing but do not wither (GDD §6.2, M6 decision).
-    if (hops.has(hexKey(tile))) tile.disconnectedSince = null;
+    if (hops.has(tileKey(state.tiles, tile))) tile.disconnectedSince = null;
     else tile.disconnectedSince ??= now;
   }
 }
@@ -1774,7 +1810,7 @@ function startQueued(state: GameState, now: number): boolean {
 /** Deep copy (tiles included), handy for client-side prediction and tests. */
 export function cloneGame(state: GameState): GameState {
   const tiles = new Map<string, Tile>();
-  for (const [k, t] of state.tiles) tiles.set(k, { ...t, capture: t.capture && { ...t.capture }, effects: t.effects.map((e) => ({ ...e })) });
+  for (const [k, t] of state.tiles) tiles.set(k, makeTile({ ...t, capture: t.capture && { ...t.capture }, effects: t.effects.map((e) => ({ ...e })) }));
   return clonePlayer(state, tiles);
 }
 

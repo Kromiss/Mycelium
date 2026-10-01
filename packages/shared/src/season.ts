@@ -143,6 +143,18 @@ export function seasonAt(t: number): SeasonBounds {
 
 /** Phase (day of the season) at `t`, and its effects (neutral effects are never returned after the freeze). */
 export function phaseAt(t: number): { id: PhaseId; index: number; effects: PhaseEffects; frozen: boolean; endsAt: number } {
+  // The last answer holds until its phase ends (M9 speed-up: called for every tile).
+  if (lastPhase && t >= lastPhase.from && t < lastPhase.value.endsAt) return { ...lastPhase.value };
+  const value = computePhase(t);
+  const s = seasonAt(t);
+  const from = value.frozen ? s.freezeAt : s.days[value.index]!;
+  lastPhase = { from, value };
+  return { ...value };
+}
+
+let lastPhase: { from: number; value: ReturnType<typeof computePhase> } | null = null;
+
+function computePhase(t: number): { id: PhaseId; index: number; effects: PhaseEffects; frozen: boolean; endsAt: number } {
   const s = seasonAt(t);
   let index = 0;
   while (index < 6 && t >= s.days[index + 1]!) index++;

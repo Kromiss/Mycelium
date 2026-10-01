@@ -39,6 +39,8 @@ import {
   colonizationCost,
   fructify,
   fruitingPreview,
+  networkBonus,
+  ownedTiles,
   colonize,
   conversionRate,
   goOffline,
@@ -263,19 +265,23 @@ function buildStructures(state: GameState, now: number): void {
     const tileRoi = nextTile ? tileValue(state, nextTile) : 0;
     const conv = biomassConversion(state);
     const hops = networkHops(state);
+    // M9 speed-up: what every tile shares is computed once (same numbers).
+    const bonus = networkBonus(state, hops, now);
+    const nodeCost = structureCost(state, "node");
+    const reservoirCost = structureCost(state, "reservoir");
     let best: { tile: Tile; id: "node" | "reservoir"; roi: number } | null = null;
     for (const k of hops.keys()) {
       const tile = state.tiles.get(k)!;
       if (tile.structure !== null || tile.terrain === "rock") continue;
-      const prod = tileProduction(state, tile, hops, now);
-      const node = (prod * STRUCTURES.nodeBonus * conv) / structureCost(state, "node");
+      const prod = tileProduction(state, tile, hops, now, bonus);
+      const node = (prod * STRUCTURES.nodeBonus * conv) / nodeCost;
       if (!best || node > best.roi) best = { tile, id: "node", roi: node };
       let dry = 0;
       for (const n of hexNeighbors(tile)) {
         const t = state.tiles.get(hexKey(n));
-        if (t && t.owner === state.id && humidity(state, t) === 1) dry += tileProduction(state, t, hops, now);
+        if (t && t.owner === state.id && humidity(state, t) === 1) dry += tileProduction(state, t, hops, now, bonus);
       }
-      const reservoir = (dry * 0.25 * conv) / structureCost(state, "reservoir");
+      const reservoir = (dry * 0.25 * conv) / reservoirCost;
       if (reservoir > best.roi) best = { tile, id: "reservoir", roi: reservoir };
     }
     if (!best || best.roi <= tileRoi || !checkBuild(state, best.tile, best.id).ok) return;
@@ -309,8 +315,8 @@ function tileValue(state: GameState, tile: Tile, production = 0): number {
 function candidates(state: GameState): Tile[] {
   const seen = new Set<string>();
   const out: Tile[] = [];
-  const sources = [...state.queue];
-  for (const t of state.tiles.values()) if (t.owner === state.id) sources.push(t);
+  const sources: Array<{ q: number; r: number }> = [...state.queue];
+  for (const t of ownedTiles(state)) sources.push(t);
   for (const s of sources) {
     for (const n of hexNeighbors(s)) {
       const k = hexKey(n);
@@ -362,7 +368,7 @@ function buyUpgrades(state: GameState): void {
     const conv = conversionRate(state.upgrades);
     let deadwood = 0;
     const hops = networkHops(state);
-    for (const t of state.tiles.values()) if (t.terrain === "deadwood" && hops.has(hexKey(t))) deadwood += 3;
+    for (const t of ownedTiles(state)) if (t.terrain === "deadwood" && hops.has(hexKey(t))) deadwood += 3;
     const gains: Array<[UpgradeId, number]> = [
       ["digestion", (production * UPGRADE_STATS.digestion.perLevel * conv) / (1 + UPGRADE_STATS.digestion.perLevel * state.upgrades.digestion)],
       ["biomassConversion", production * 0.1 * UPGRADE_STATS.biomassConversion.perLevel],

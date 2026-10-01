@@ -25,6 +25,7 @@ import {
   type Tile,
 } from "./game";
 import { hexDistance, hexEquals, hexesInRadius, hexKey, hexNeighbors, type Hex } from "./hex";
+import { asTileOf, neighbourTiles, ownedTilesOf, ownerCounts, tileKey, tilesWithin } from "./tile-index";
 import { fromSnapshot, toSnapshot, type GameSnapshot, type TileDto } from "./protocol";
 import { phaseAt } from "./season";
 import type { ForestEvent } from "./events";
@@ -122,18 +123,28 @@ export function joinForest(forest: ForestState, id: string, now: number): GameSt
  * arrives already surrounded.
  */
 export function refreshReservations(forest: ForestState, now: number): void {
-  for (const t of forest.tiles.values()) t.reservedFor = null;
   const bySpawn = new Map([...forest.players.values()].map((p) => [hexKey(p.spawn), p]));
-  forest.spawns.forEach((spawn, i) => {
+  const keys = forest.spawns.map((spawn, i) => {
     const p = bySpawn.get(hexKey(spawn));
-    const key = p ? (now - p.joinedAt < BORDERS.protectedMs ? p.id : null) : `slice:${i}`;
+    return p ? (now - p.joinedAt < BORDERS.protectedMs ? p.id : null) : `slice:${i}`;
+  });
+  // M9 speed-up: the zones only change when a player joins or a protection ends.
+  const signature = keys.join("|");
+  if (reservationState.get(forest) === signature) return;
+  for (const t of forest.tiles.values()) t.reservedFor = null;
+  forest.spawns.forEach((spawn, i) => {
+    const key = keys[i]!;
     if (key === null) return;
     for (const h of hexesInRadius(spawn, BORDERS.protectedRadius)) {
       const t = forest.tiles.get(hexKey(h));
       if (t) t.reservedFor = key;
     }
   });
+  reservationState.set(forest, signature);
 }
+
+/** The zones last written on each forest's tiles. */
+const reservationState = new WeakMap<ForestState, string>();
 
 /** Runs every player's economy up to `to`. */
 export function advanceForest(forest: ForestState, to: number): void {
@@ -181,9 +192,7 @@ export function pruneEffects(forest: ForestState, at: number): void {
 
 /** Tiles owned by each player, growing ones included. */
 export function tileCounts(forest: ForestState): Map<string, number> {
-  const counts = new Map<string, number>();
-  for (const t of forest.tiles.values()) if (t.owner !== null) counts.set(t.owner, (counts.get(t.owner) ?? 0) + 1);
-  return counts;
+  return ownerCounts(forest.tiles);
 }
 
 /** GDD §6.4: `attacker` is at least 3× bigger than `defender` (in tiles), so attacking them costs more. */
@@ -208,16 +217,23 @@ export function inCentre(forest: ForestState, h: Hex): boolean {
  */
 export function refreshToxins(forest: ForestState): void {
   const toxic = new Set([...forest.players.values()].filter((p) => hasMutation(p, "toxins")).map((p) => p.id));
+  // M9 speed-up: nothing to do when nobody is toxic and no tile is marked.
+  const state = toxinState.get(forest);
+  if (toxic.size === 0 && state !== undefined && !state.marked) return;
+  let marked = false;
   for (const t of forest.tiles.values()) {
-    t.toxic =
+    const owner = t.owner;
+    const v =
       toxic.size > 0 &&
-      t.owner !== null &&
-      hexNeighbors(t).some((n) => {
-        const o = forest.tiles.get(hexKey(n));
-        return o !== undefined && o.owner !== null && o.owner !== t.owner && o.growthEndsAt === null && toxic.has(o.owner) && !isAllied(forest, o.owner, t.owner!);
-      });
+      owner !== null &&
+      neighbourTiles(forest.tiles, t).some((o) => o.owner !== null && o.owner !== owner && o.growthEndsAt === null && toxic.has(o.owner) && !isAllied(forest, o.owner, owner));
+    t.toxic = v;
+    if (v) marked = true;
   }
+  toxinState.set(forest, { marked });
 }
+
+const toxinState = new WeakMap<ForestState, { marked: boolean }>();
 
 /**
  * A tile that cannot be taken right now: a Cœur lost less than a day ago, a Sclérote, or the start zone
@@ -241,6 +257,16 @@ export function pressure(forest: ForestState, playerId: string, around: Hex, con
   const player = forest.players.get(playerId);
   if (!player) return 0;
   let total = 0;
+  const centre = asTileOf(forest.tiles, around) ?? forest.tiles.get(hexKey(around));
+  const disk = centre !== undefined ? tilesWithin(forest.tiles, centre, BORDERS.densityRadius) : null;
+  if (disk) {
+    for (const t of disk) {
+      if (t.owner !== playerId || t.growthEndsAt !== null) continue;
+      if (connected && !connected.has(tileKey(forest.tiles, t))) continue;
+      total += humidity(player, t);
+    }
+    return total * pressureFactor(player);
+  }
   for (const h of hexesInRadius(around, BORDERS.densityRadius)) {
     const t = forest.tiles.get(hexKey(h));
     if (!t || t.owner !== playerId || t.growthEndsAt !== null) continue;
@@ -256,10 +282,7 @@ export function pressure(forest: ForestState, playerId: string, around: Hex, con
  */
 export function defenceFactor(forest: ForestState, tile: Tile): number {
   let f = tile.structure === "rhizomorph" ? STRUCTURES.rhizomorphCaptureFactor : 1;
-  const rampart = hexNeighbors(tile).some((n) => {
-    const t = forest.tiles.get(hexKey(n));
-    return t !== undefined && t.terrain === "rock" && t.owner === tile.owner && t.growthEndsAt === null;
-  });
+  const rampart = neighbourTiles(forest.tiles, tile).some((t) => t.terrain === "rock" && t.owner === tile.owner && t.growthEndsAt === null);
   if (rampart) f *= ROCK.rampartFactor;
   return f;
 }
@@ -302,10 +325,10 @@ export function resolveBorders(forest: ForestState, dt: number, now: number): Ca
     let best: { id: string; speed: number; attack: number } | null = null;
     if (!isProtected(forest, tile, now) && !atFloor(counts, defender.id)) {
       const attackers = new Set<string>();
-      for (const n of hexNeighbors(tile)) {
-        const o = forest.tiles.get(hexKey(n))?.owner;
+      for (const n of neighbourTiles(forest.tiles, tile)) {
+        const o = n.owner;
         // M7: allies never push on each other.
-        if (o && o !== tile.owner && connected.get(o)?.has(hexKey(n)) && !isAllied(forest, o, tile.owner)) attackers.add(o);
+        if (o && o !== tile.owner && connected.get(o)?.has(tileKey(forest.tiles, n)) && !isAllied(forest, o, tile.owner)) attackers.add(o);
       }
       if (attackers.size > 0) {
         const defence = pressure(forest, defender.id, tile);
@@ -370,8 +393,9 @@ export function resolveBorders(forest: ForestState, dt: number, now: number): Ca
 export function rebirthHeart(forest: ForestState, player: GameState, lost: Hex, now: number): void {
   let best: Tile | null = null;
   let bestKey: [number, number, string] | null = null;
-  for (const [k, t] of forest.tiles) {
-    if (t.owner !== player.id || t.growthEndsAt !== null) continue;
+  for (const t of ownedTilesOf(forest.tiles, player.id)) {
+    if (t.growthEndsAt !== null) continue;
+    const k = tileKey(forest.tiles, t);
     const key: [number, number, string] = [t.structure === "sclerotium" ? 0 : 1, hexDistance(t, lost), k];
     if (!bestKey || key[0] < bestKey[0] || (key[0] === bestKey[0] && (key[1] < bestKey[1] || (key[1] === bestKey[1] && key[2] < bestKey[2])))) {
       best = t;
@@ -394,7 +418,7 @@ function conquer(attacker: GameState, tile: Tile): void {
   // Structures are destroyed, unless the attacker has Cordyceps (a second Sclérote is not kept).
   const keep =
     hasMutation(attacker, "cordyceps") &&
-    !(tile.structure === "sclerotium" && [...attacker.tiles.values()].some((t) => t !== tile && t.owner === attacker.id && t.structure === "sclerotium"));
+    !(tile.structure === "sclerotium" && ownedTilesOf(attacker.tiles, attacker.id).some((t) => t !== tile && t.structure === "sclerotium"));
   if (!keep) tile.structure = null;
   // M8: the tile keeps half of its enrichment levels.
   tile.level = Math.floor(tile.level * ENRICH.capturedKeep);

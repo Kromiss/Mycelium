@@ -40,6 +40,17 @@ export function forestRadius(capacity: number): number {
 }
 
 export function ringAt(radius: number, h: Hex): Ring {
+  // Pure function of the place: kept per tile object (M9 speed-up).
+  const cached = ringCache.get(h);
+  if (cached !== undefined && cached.radius === radius && cached.q === h.q && cached.r === h.r) return cached.ring;
+  const ring = computeRing(radius, h);
+  ringCache.set(h, { radius, q: h.q, r: h.r, ring });
+  return ring;
+}
+
+const ringCache = new WeakMap<Hex, { radius: number; q: number; r: number; ring: Ring }>();
+
+function computeRing(radius: number, h: Hex): Ring {
   const rho = centreDistance(h) / radius;
   if (rho <= FOREST.ring.centre) return "centre";
   if (rho <= FOREST.ring.rim) return "middle";
@@ -49,6 +60,17 @@ export function ringAt(radius: number, h: Hex): Ring {
 /** Yield multiplier of a tile (GDD §2.5: ×3 to ×5 in the centre). Always 1 on solo maps. */
 export function richnessAt(layout: MapLayout, radius: number, h: Hex): number {
   if (layout.kind === "solo") return 1;
+  // Pure function of the place: kept per tile object (M9 speed-up).
+  const cached = richnessCache.get(h);
+  if (cached !== undefined && cached.radius === radius && cached.q === h.q && cached.r === h.r) return cached.value;
+  const value = computeRichness(radius, h);
+  richnessCache.set(h, { radius, q: h.q, r: h.r, value });
+  return value;
+}
+
+const richnessCache = new WeakMap<Hex, { radius: number; q: number; r: number; value: number }>();
+
+function computeRichness(radius: number, h: Hex): number {
   const ring = ringAt(radius, h);
   if (ring === "rim") return FOREST.richness.rim;
   if (ring === "middle") return FOREST.richness.middle;
