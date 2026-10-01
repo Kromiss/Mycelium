@@ -442,7 +442,9 @@ visé ; un robot connecté 24 h/24 ne fait que **0,5 à 0,8 action utile par min
   bord. Valeurs à fixer avec les robots.
   **7 zones, une par jour** : la forêt est découpée en 7 anneaux (zone 1 = bord, zone 7 = centre) ; la
   difficulté monte par palier, réglée par les ressources (pas de verrou) pour que la zone N devienne
-  accessible vers le jour N.
+  accessible vers le jour N. Zones de **même épaisseur** ; la **richesse** suit aussi les 7 zones (à la place des
+  3 anneaux bord / intermédiaire / centre) ; la Chute d'arbres et l'Arbre mourant tombent **dans la zone du
+  jour** (zone 4 le jeudi, zone 7 le dimanche).
 - **2 souches** : **Cordyceps (offensive)** pression +20 %, conquête +50 %, prises +15 %, production −10 % ;
   **Armillaire (défensive)** temps de prise adverse +30 %, pression subie −15 %, pression −10 %, production
   ×0,95 le lundi → ×1,25 le dimanche. **Pleurote, Truffe et Moisissure retirées** (avec les cases cachées
@@ -452,9 +454,8 @@ visé ; un robot connecté 24 h/24 ne fait que **0,5 à 0,8 action utile par min
   3 mutations), le terrain **Sol acide**, et la récompense de la Moisissure après 3 saisons (sans remplacement).
 
 🔸 Décisions à prendre avant de commencer :
-- 7 zones : largeur des zones (même épaisseur ou même nombre de cases), lien avec la richesse (aujourd'hui
-  3 anneaux), place de la Chute d'arbres et de l'Arbre mourant le jeudi (centre en zone 7) ; valeurs des
-  paliers proposées par Claude après simulation, validées par le propriétaire.
+- Valeurs des paliers des 7 zones (difficulté et richesse) : proposées par Claude après simulation,
+  validées par le propriétaire.
 
 À faire :
 - `packages/shared` : nouveau `sizeFactor` ; suppression de l'usure (production, `EXHAUSTION`, Bois mort →
