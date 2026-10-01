@@ -11,8 +11,13 @@ export interface Config {
   timeScale: number;
   /** Local testing only: BOTS robots join the first forest. Refused in production. */
   bots: number;
-  /** ADMIN_NAMES: comma-separated account names that may cut other players' chat. */
+  /** ADMIN_NAMES: comma-separated account names that may cut other players' chat (and run test forests). */
   admins: string[];
+  /**
+   * M9 hidden admin page (test forests): on in local development and on staging (DEPLOY_ENV=staging),
+   * always off in production, whatever ADMIN_TOOLS says.
+   */
+  adminTools: boolean;
   /** Web Push keys; generated and kept in the database when not set. */
   vapid: { publicKey?: string; privateKey?: string; subject?: string };
 }
@@ -27,7 +32,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   if (env.NODE_ENV === "production" && (timeScale !== 1 || bots !== 0)) {
     throw new Error("TIME_SCALE and BOTS are for local testing only");
   }
+  const production = env.NODE_ENV === "production" && env.DEPLOY_ENV !== "staging";
+  const adminTools = !production && env.ADMIN_TOOLS !== "0";
   return {
+    adminTools,
     port,
     databaseUrl: env.DATABASE_URL || undefined,
     redisUrl: env.REDIS_URL || undefined,

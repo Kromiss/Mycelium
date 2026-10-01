@@ -21,6 +21,8 @@ services:
     restart: unless-stopped
     environment:
       NODE_ENV: production
+      # M9: "staging" turns on the hidden admin page (test forests); production never has it.
+      DEPLOY_ENV: ${DEPLOY_ENV:-production}
       PORT: "3000"
       DATABASE_URL: postgres://mycelium:${POSTGRES_PASSWORD}@postgres:5432/mycelium
       REDIS_URL: redis://redis:6379

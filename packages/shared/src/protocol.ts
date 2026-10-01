@@ -21,6 +21,7 @@ import { CHAT, CHAT_CHANNELS, isPushKind, type ChatChannel, type ChatError, type
 import { hexKey, type Hex } from "./hex";
 import type { PactEvent } from "./social";
 import type { Career, ColorId, Reward, SecondaryBoard, SkinId, TitleId } from "./rewards";
+import { parseAdminOp, type AdminError, type AdminOp, type AdminState } from "./admin";
 
 // ---------------------------------------------------------------------------
 // Game state on the wire
@@ -397,6 +398,8 @@ export interface ForestInfo {
   seasonStart: number;
   /** League of the forest (M7). */
   league: number;
+  /** M9: a test forest (admin tools): its name. */
+  test?: string;
 }
 
 /** A finished season, as kept after the wipe (GDD §8.2 "Historique de saison"). */
@@ -452,6 +455,10 @@ export type ServerMessage =
       silencedUntil: number | null;
       /** The player may cut other players' chat (M7 moderation). */
       admin: boolean;
+      /** M9: the hidden admin page is available to this player (admin, local or staging only). */
+      adminTools?: boolean;
+      /** M9: the admin is watching a test forest through this robot's eyes, without acting. */
+      spectating?: string;
       social: SocialView;
       profile: Profile;
     }
@@ -467,10 +474,16 @@ export type ServerMessage =
   /** The season is over and the forest was wiped: `result` is the final standing (null if absent). */
   | { type: "seasonEnded"; result: SeasonResult | null }
   | { type: "authError" }
-  /** Sent every tick and after each action. `events` lists this player's lost and won tiles. */
+  /**
+   * Sent every tick and after each action. `events` lists this player's lost and won tiles. With `delta`,
+   * `game.tiles` only holds the tiles that changed since the last message, and `gone` the keys of those no
+   * longer visible (M9: a forest holds ~9 000 tiles).
+   */
   | {
       type: "state";
       game: GameSnapshot;
+      delta?: true;
+      gone?: string[];
       owners: OwnerInfo[];
       serverTime: number;
       events: CaptureNotice[];
@@ -482,7 +495,13 @@ export type ServerMessage =
       social: SocialView;
     }
   | { type: "leaderboard"; leaderboard: Leaderboard }
-  | { type: "actionError"; error: ActionError | "not_authenticated" };
+  /** M9 hidden admin page: the test forests (after every admin request). */
+  | { type: "admin"; state: AdminState }
+  | { type: "adminError"; error: AdminError }
+  /** M9: the admin switched forest (play or watch): reconnect to get the new game. */
+  | { type: "adminSwitch" }
+  /** `busy`: a test forest is jumping ahead; `spectating`: an admin watching a robot cannot act (M9). */
+  | { type: "actionError"; error: ActionError | "not_authenticated" | "busy" | "spectating" };
 
 export interface CaptureNotice {
   q: number;
@@ -575,7 +594,9 @@ export type ClientMessage =
   | { type: "listen"; target: string }
   | { type: "chooseRelic"; relic: string }
   /** Shows a title, a network colour or a Carpophore skin won as a reward (null: none). */
-  | { type: "setCosmetic"; kind: "title" | "color" | "skin"; id: string | null };
+  | { type: "setCosmetic"; kind: "title" | "color" | "skin"; id: string | null }
+  /** M9 hidden admin page (local and staging only): test forests. */
+  | ({ type: "admin" } & AdminOp);
 
 export interface HealthReport {
   status: "ok" | "degraded";
@@ -632,6 +653,10 @@ export function parseClientMessage(raw: string): ClientMessage | null {
   switch (m.type) {
     case "ping":
       return { type: "ping" };
+    case "admin": {
+      const op = parseAdminOp(m);
+      return op ? { type: "admin", ...op } : null;
+    }
     case "auth":
       return isStr(m.token, 200) ? { type: "auth", token: m.token } : null;
     case "enrich":

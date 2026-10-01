@@ -168,11 +168,27 @@ export function defaultPlan(id: string): BotPlan {
   return { strain: STRAIN_IDS[(h >>> 8) % STRAIN_IDS.length]!, branches: [first, second, ...BRANCHES.filter((b) => b !== first && b !== second)], fruit };
 }
 
+/** What a robot did, counted the way a player's clicks would be (M9: actions per minute of the admin page). */
+function actionMarks(state: GameState): number[] {
+  let levels = 0;
+  let structures = 0;
+  for (const t of ownedTiles(state)) {
+    levels += t.level;
+    if (t.structure !== null) structures++;
+  }
+  const sum = (o: Record<string, number>) => Object.values(o).reduce((a, b) => a + b, 0);
+  return [sum(state.upgrades), sum(state.sporeUpgrades), state.mutations.length, state.fruitings, structures, levels, state.strain === null ? 0 : 1];
+}
+
 /**
  * One bot decision: pick the strain and mutations, plan the queue, buy upgrades that pay back faster
- * than tiles, move the Cœur. Also drives the server's test robots.
+ * than tiles, move the Cœur. Also drives the server's test robots. Returns how many actions it took (each
+ * tile planned, level, upgrade, bud, structure, mutation… counts one).
  */
-export function botPlay(state: GameState, now: number, sessionStart: boolean, plan: BotPlan = defaultPlan(state.id)): void {
+export function botPlay(state: GameState, now: number, sessionStart: boolean, plan: BotPlan = defaultPlan(state.id)): number {
+  const before = actionMarks(state);
+  const queued = state.queue.length;
+  const buds = state.buds.length;
   if (plan.strain !== null && state.strain === null && ownedCount(state) <= 1) chooseStrain(state, plan.strain);
   if (plan.fruit && state.fruitings === 0 && now >= state.joinedAt + plan.fruit.hour * 3_600_000) fruit(state, plan.fruit.radius, now);
   spendSpores(state);
@@ -181,10 +197,14 @@ export function botPlay(state: GameState, now: number, sessionStart: boolean, pl
   fillQueue(state, now, plan.aim);
   // M8: robots switch on the automatic reinvestment (upgrades, and one tile enriched a minute) once it is unlocked.
   if (!state.automation.upgrades && automationUnlocked(state).upgrades) setAutomation(state, { upgrades: true }, now);
+  const planned = state.queue.length - queued;
   pickBuds(state, now);
+  const picked = Math.max(0, buds - state.buds.length);
   buyUpgrades(state);
   enrichTiles(state, now);
   buildStructures(state, now);
+  const after = actionMarks(state);
+  return before.reduce((n, b, i) => n + Math.max(0, after[i]! - b), Math.max(0, planned) + picked);
 }
 
 /** M8: a connected robot picks every bud waiting. */

@@ -271,6 +271,12 @@ function onConnection(ws: WebSocket, game: ForestService): void {
         if (!player) return send(ws, { type: "actionError", error: "not_authenticated" });
         game.chooseRelic(player.id, msg.relic, client);
         return;
+      case "admin": {
+        if (!player) return send(ws, { type: "actionError", error: "not_authenticated" });
+        const { type: _type, ...op } = msg;
+        background(game.admin(player.id, op, client));
+        return;
+      }
     }
   });
   ws.on("close", () => {

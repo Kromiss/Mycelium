@@ -26,7 +26,9 @@ async function main(): Promise<void> {
     bots: config.bots,
     push,
     admins: config.admins,
+    adminTools: config.adminTools,
   });
+  if (config.adminTools) console.warn("[mycelium] admin tools (test forests) are on: local or staging only");
   if (config.timeScale > 1) console.warn(`[mycelium] TIME_SCALE=${config.timeScale}: game time runs ${config.timeScale}× faster`);
   server = createApp({
     game,

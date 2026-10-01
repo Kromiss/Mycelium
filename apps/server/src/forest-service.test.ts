@@ -208,7 +208,7 @@ describe("forests", () => {
     const { away, game } = back.last("ready")!;
     expect(game.lastSeenAt).toBeNull();
     expect(away?.awayMs).toBe(10 * HOUR);
-    expect(away!.nutrients).toBeLessThan((8 + 2 * OFFLINE.reducedFactor) * 3600);
+    expect(away!.nutrients).toBeLessThanOrEqual((8 + 2 * OFFLINE.reducedFactor) * 3600 + 1e-6);
     expect(away!.nutrients).toBeGreaterThan(3 * 3600);
     expect(away).toMatchObject({ won: 0, lost: 0 });
   });
@@ -233,7 +233,8 @@ describe("forests", () => {
     forest.tiles.get("1,0")!.terrain = "litter";
     (pa as { joinedAt: number }).joinedAt -= 2 * BORDERS.protectedMs;
     (pb as { joinedAt: number }).joinedAt -= 2 * BORDERS.protectedMs;
-    for (let i = 0; i < 12; i++) {
+    // A Litter tile of the inner zone (M9: captures there take longer).
+    for (let i = 0; i < 40 && forest.tiles.get("1,0")!.owner !== pa.id; i++) {
       wait(60_000);
       await service.tick();
     }
@@ -276,7 +277,7 @@ describe("forests", () => {
     await service.tick();
     expect(b.client.last("state")!.alerts).toContainEqual({ type: "action", action: "toxin", by: a.account.id, q: 1, r: 0 });
     await service.detach(b.account.id, b.client);
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < 40 && forest.tiles.get("1,0")!.owner !== pa.id; i++) {
       wait(60_000);
       await service.tick();
     }

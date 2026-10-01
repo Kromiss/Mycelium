@@ -31,6 +31,8 @@ if [[ ! -f "$ENV_FILE" ]]; then
 fi
 
 export IMAGE_PREFIX="$PREFIX" IMAGE_TAG="$TAG" SITE_ADDRESS=":80" EDGE_ALIAS="mycelium-staging-$SLOT-web"
+# M9: staging gets the hidden admin page (test forests, for the accounts of ADMIN_NAMES).
+export DEPLOY_ENV=staging
 
 take_lock ".deploy-staging-$SLOT.lock"
 mkdir -p sites

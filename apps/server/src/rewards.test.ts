@@ -104,7 +104,6 @@ describe("season rewards and leagues (M7)", () => {
       }
     }
     const rewards = await store.rewardsOf(a.id);
-    expect(rewards).toContainEqual({ kind: "strain", id: "mold" });
     expect(rewards).toContainEqual({ kind: "skin", id: "coprinus" });
 
     await store.setLeague(a.id, 3);
@@ -112,6 +111,5 @@ describe("season rewards and leagues (M7)", () => {
     const back = new Spy();
     await service.attach((await store.findAccountByName("Alpha"))!, back);
     expect(back.last("ready")!.profile.league).toBe(2);
-    expect(back.last("ready")!.game.unlockedStrains).toEqual(["mold"]);
   });
 });

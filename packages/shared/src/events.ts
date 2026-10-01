@@ -546,6 +546,8 @@ export interface EventDto {
   q: number;
   r: number;
   cells: Hex[];
+  /** M9: the centre of each copy of an event of the day's zone (one per group of slices). */
+  spots?: Hex[];
   strong: boolean;
   /** Nématodes and Arbre mourant: share of life left (0 to 1), and what this player digested. */
   life?: number;
@@ -579,6 +581,7 @@ export function eventView(e: ForestEvent, playerId: string): EventDto {
     cells: e.cells.map((h) => ({ q: h.q, r: h.r })),
     strong: e.strong,
   };
+  if (e.spots) dto.spots = e.spots.map((h) => ({ q: h.q, r: h.r }));
   if (e.maxHp !== undefined && e.hp !== undefined) {
     dto.life = Math.max(0, e.hp) / e.maxHp;
     const damage = e.damage ?? {};
