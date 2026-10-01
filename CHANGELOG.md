@@ -5,6 +5,42 @@ versions [semver](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-10-02
+
+M9 — Refonte : rythme, centre & souches (GDD §2.3, §2.5, §3, §11). **Remise à zéro** : comptes et
+forêts repartent de zéro (accord du propriétaire ; sur la prod, au déploiement qu'il lance).
+
+### Added
+- **7 zones** de même épaisseur, du bord (zone 1) au centre (zone 7) : coût de colonisation, temps de
+  pousse, temps de prise et richesse montent à chaque zone (valeurs proposées après simulation, à
+  valider). La zone s'affiche dans le panneau de la case.
+- **Forêts de test** et **page d'admin cachée** (`#admin`, local et staging seulement, vérifiée par le
+  serveur) : réglages prédéfinis (robots, facteur de temps, graine, jour d'ouverture), forêt de robots
+  seuls, pause, vitesse, saut à un jour, ressources offertes, suivre un robot, remplissage et actions
+  par minute, effacer.
+- Mutations **Digestion profonde** (Enrichissement −15 %) et **Mycélium dense** (Cohésion +7,5 % par
+  voisine, jusqu'à +45 %).
+- Workflow **Simulate** : variantes et graines en parallèle, mesures dans le résumé.
+
+### Changed
+- **Visuel « Pastille ronde »** : fond crème, polices Fredoka et Nunito, cases en bulles pastel, colonies
+  en taches rondes de 12 couleurs, niveau en points puis champignon, Cœur champignon avec des yeux,
+  Bourgeon étoile, zones teintées et entourées d'un trait.
+- **Cases ×3** (`TILE_SCALE` 15) ; facteur de taille ≈ 1,0122 par case pour remplir la forêt vers le
+  6ᵉ–7ᵉ jour (à valider).
+- **2 souches** : Cordyceps (pression +20 %, conquête +50 %, prises +15 %, production −10 %) et
+  Armillaire (prises contre elle +30 %, pression subie −15 %, pression −10 %, production ×0,95 → ×1,25).
+- Mutation *Cordyceps* renommée **Parasitisme**.
+- Chute d'arbres et Arbre mourant tombent dans la zone du jour, en un exemplaire par groupe de 3 parts.
+- Le serveur n'envoie plus que les cases qui ont changé ; simulations ~18× plus rapides (mêmes
+  résultats).
+
+### Removed
+- **Usure** des cases (règles, base, rendu), Bois mort qui devient Humus.
+- Souches Pleurote, Truffe et Moisissure (et la récompense de la Moisissure), mutations Usure lente et
+  Acidophile, terrain Sol acide.
+- Migration `0016` : remise à zéro, colonnes `hex.exhaustion` et `players.unlocked_strains`.
+
 ## [0.9.0] - 2026-10-01
 
 M8 — Incrémental : enrichissement & cohésion (GDD §2.3, §4.4, §11).

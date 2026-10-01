@@ -31,8 +31,13 @@ if [[ ! -f "$ENV_FILE" ]]; then
 fi
 
 export IMAGE_PREFIX="$PREFIX" IMAGE_TAG="$TAG" SITE_ADDRESS=":80" EDGE_ALIAS="mycelium-staging-$SLOT-web"
-# M9: staging gets the hidden admin page (test forests, for the accounts of ADMIN_NAMES).
+# M9: staging gets the hidden admin page (test forests, for the accounts of ADMIN_NAMES). The admins are
+# those of the production .env unless the slot's own file names others (names only, not a secret).
 export DEPLOY_ENV=staging
+if ! grep -qE '^ADMIN_NAMES=' "$ENV_FILE"; then
+  ADMIN_NAMES="$(grep -E '^ADMIN_NAMES=' .env 2>/dev/null | cut -d= -f2- || true)"
+  export ADMIN_NAMES
+fi
 
 take_lock ".deploy-staging-$SLOT.lock"
 mkdir -p sites

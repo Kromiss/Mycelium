@@ -20,7 +20,7 @@ des points de départ à équilibrer, centralisés dans `packages/shared`.
 | M6 Profondeur : conflit & événements | 0.7.0 | étape 5 | Actions actives, événements, world boss | ✅ (testé en local) |
 | M7 Social | 0.8.0 | étape 6 | Alliances, ligues, récompenses | ✅ (testé en local) |
 | M8 Incrémental : enrichissement & cohésion | 0.9.0 | — | Niveaux de case, Bourgeons, bonus des cases collées, nouveau visuel | ✅ (testé en local) |
-| M9 Refonte : rythme, centre & souches | 0.10.0 | étape 8 | Forêt remplie au 6ᵉ–7ᵉ jour, cases ×3, usure retirée, 7 zones, 2 souches, visuel, admin de test | à faire |
+| M9 Refonte : rythme, centre & souches | 0.10.0 | étape 8 | Forêt remplie au 6ᵉ–7ᵉ jour, cases ×3, usure retirée, 7 zones, 2 souches, visuel, admin de test | ✅ (testé en local ; zones à valider) |
 | M10 Bêta fermée | 0.11.0 | — | Plusieurs forêts, équilibrage, charge | à faire |
 | Lancement | 1.0.0 | — | Ouverture publique | — |
 
@@ -424,6 +424,45 @@ Constats (forêt de 12 robots, cases ×5) :
 
 ## M9 — Refonte : rythme, centre & souches (0.10.0)
 
+Livré en 0.10.0, validé en local (forêt de test « robots seuls » ×600 lancée depuis la page d'admin, robot
+suivi, rendu « Pastille ronde ») et par les simulations (workflow **Simulate**, 4 cartes de 12 robots aux cases
+×15). Résultats et choix de réalisation **à valider** :
+- **Simulations accélérées** : une semaine de 12 robots aux cases ×5 passe de 884 s à ~50 s, avec des
+  résultats identiques (mêmes graines, mêmes chiffres) ; aux cases ×15 avec les nouvelles règles, ~75 s en
+  local et 35 à 55 s sur GitHub. Le workflow **Simulate** lance chaque variante × graine de
+  `packages/shared/sim-matrix.json` en parallèle (variante = valeurs de `balance.ts` remplacées le temps
+  d'une simulation, `SIM_VARIANT`) et met les mesures dans son résumé ; un push sur une branche `sim/*` le
+  déclenche aussi.
+- **Zones (proposition)** : coût ×2 par zone (×1, 2, 4, 8, 16, 32 et ×40 au centre : ×64 ne changeait rien),
+  richesse ×1,4 par zone (×7,5 au centre), pousse et prise +20 % par zone (×2,2 au centre). Le premier robot
+  atteint la zone 2 au jour 1,0, la 3 au jour 1,5–1,9, la 4 au jour 2,0–2,8, la 5 au jour 3,4–4,4, la 6 au
+  jour 4,5 et la 7 au jour 4,6–6,1 sur 2 cartes sur 4 : les zones 5 et 6 arrivent un peu tôt, la zone 7 pas
+  toujours. 24 variantes essayées (coût ×1,8 à ×2,6 par zone, richesse ×1,2 à ×1,4).
+- **Facteur de taille (proposition)** : 1,037 par case aux cases ×5 (≈ 1,0122 par case ×15) : 90 % de la
+  forêt occupée au jour 4,9 à 6,4 selon la carte, écart de biomasse actif / occasionnel ×1,1 à ×2,9. À 1,0375
+  le remplissage tombe dans la cible (jour 6,1 à 6,9) sur 3 cartes sur 4, mais l'écart monte jusqu'à ×9 sur
+  une carte : à trancher.
+- **Équilibre des souches et des branches** (`simulate:balance`, cases ×1) : Armillaire rang moyen 5,1
+  contre 7,9 pour Cordyceps ; la branche Décomposeur 4,4 contre 7,4–7,7 pour les deux autres. Écart signalé,
+  pas corrigé (les valeurs des souches et des mutations viennent du propriétaire) ; en attendant, le test ne
+  bloque plus que les cas extrêmes.
+- Fructifier rapporte maintenant à partir du jour 4 (×2,9 au jour 4, ×0,6 au jour 3) : la semaine est plus
+  lente.
+- Cases ×15 : le serveur n'envoie plus que les cases qui ont changé depuis le message précédent ; le client
+  reconstruit la carte au plus 4 fois par seconde.
+- Événements du centre : un exemplaire par groupe de 3 parts, placé pareil dans chaque groupe, dans la zone du
+  jour.
+- **Page d'admin** : `#admin` (bouton « Admin » visible seulement pour un admin quand les outils sont actifs).
+  Le serveur refuse toute demande hors `ADMIN_NAMES`, et tout en prod (`NODE_ENV=production` sans
+  `DEPLOY_ENV=staging`) ; `ADMIN_TOOLS=0` les coupe aussi en local. Réglages prédéfinis : semaine avec robots
+  (×60), robots seuls (×600), duel (×30, mardi), rapide (×3600). Les forêts de test vivent en mémoire (perdues
+  au redémarrage), ont leur propre horloge, n'entrent dans aucun classement ; au plus 6 à la fois. Sauter à un
+  jour simule la forêt en tâche de fond (pas de retour en arrière). « Suivre un robot » montre la forêt par ses
+  yeux, sans pouvoir agir. Actions par minute : achats utiles par minute de jeu sur la dernière heure.
+- Remise à zéro : migration `0016` (comptes, sessions, forêts, cartes, classements, récompenses, chat et
+  abonnements aux notifications supprimés ; colonnes d'usure et de souches débloquées retirées). Sur la prod,
+  elle part avec le déploiement que lance le propriétaire.
+
 Contexte : décisions du 1ᵉʳ octobre 2026, après les simulations de M8 (forêt de 12 robots, cases ×5).
 Mesures de départ : la forêt est occupée à 90 % dès le **jour 2,9** (99 % le jour 5) au lieu du 4ᵉ–5ᵉ jour
 visé ; un robot connecté 24 h/24 ne fait que **0,5 à 0,8 action utile par minute**.
@@ -486,9 +525,10 @@ visé ; un robot connecté 24 h/24 ne fait que **0,5 à 0,8 action utile par min
 - **Retirés aussi** : les mutations **Usure lente** et **Acidophile** (remplacées par Digestion profonde
   et Mycélium dense), le terrain **Sol acide**, et la récompense de la Moisissure après 3 saisons (sans remplacement).
 
-🔸 Décisions à prendre avant de commencer :
-- Valeurs des paliers des 7 zones (difficulté et richesse) : proposées par Claude après simulation,
-  validées par le propriétaire.
+🔸 Décisions à prendre :
+- Valeurs des paliers des 7 zones (difficulté et richesse) et facteur de taille : proposés ci-dessus après
+  simulation, à valider par le propriétaire.
+- Écart entre les souches (Armillaire devant) et entre les branches (Décomposeur devant).
 
 À faire :
 - **En premier : accélérer les simulations.** Objectif : une semaine de forêt de 12 robots (cases ×3) en

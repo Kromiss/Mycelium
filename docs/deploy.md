@@ -86,6 +86,10 @@ Enfin, créer la variable de dépôt `DEPLOY_ENABLED` = `true`.
   `sslip.io` : `STAGING_BASE_DOMAIN=staging.203-0-113-10.sslip.io` (avec l'IP du VPS) donne
   `a.staging.203-0-113-10.sslip.io`. La prod doit avoir été déployée au moins une fois.
 - Usage : toute grosse fonctionnalité passe d'abord sur staging, la prod attend la validation.
+- **Outils d'admin (M9)** : sur staging, `deploy-staging.sh` met `DEPLOY_ENV=staging`, ce qui ouvre la page
+  cachée `#admin` (forêts de test) aux comptes de `ADMIN_NAMES` (celui du `.env.staging-<slot>` s'il y en a
+  un, sinon celui du `.env` de la prod). En prod (`DEPLOY_ENV=production` par défaut), le serveur refuse
+  toute demande d'admin, quoi qu'envoie le client.
 
 ## Première mise en service (checklist)
 
