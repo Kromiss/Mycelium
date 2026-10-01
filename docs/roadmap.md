@@ -434,7 +434,8 @@ visé ; un robot connecté 24 h/24 ne fait que **0,5 à 0,8 action utile par min
   joueur à 3 × 10 min/jour (au lieu de « top 20 % de la forêt »).
 - **Rythme** : la forêt se remplit **entre le 6ᵉ et le 7ᵉ jour**. Facteur de taille **≈ 1,036 par petite
   case** (`ECONOMY.sizeFactor`, au lieu de `1,14 ^ (1/5)` ≈ 1,0266). Mesuré : 90 % au jour 6,1 à 1,035 et
-  au jour 6,7 à 1,037 ; écart de biomasse 12 h/jour vs 3 × 10 min/jour de ×3,5 à ×5,6.
+  au jour 6,7 à 1,037 ; écart de biomasse 12 h/jour vs 3 × 10 min/jour de ×3,5 à ×5,6. Avec les cases ×3
+  (ci-dessous), la même valeur devient ≈ 1,012 par case.
 - **Usure retirée complètement** : plus de perte de production avec le temps ; le Bois mort ne devient
   plus Humus ; plus d'usure dans le rendu des cases.
 - **Centre plus dur à récupérer** (selon la distance au centre de la forêt, pas au Cœur) : **coût de
@@ -481,13 +482,15 @@ visé ; un robot connecté 24 h/24 ne fait que **0,5 à 0,8 action utile par min
   zone 4 le jeudi), pour qu'aucun joueur n'en soit plus proche qu'un autre.
 - **Branche Décomposeur** : les 2 mutations retirées sont remplacées par 2 nouvelles, économiques, pour
   revenir à 5 (à valider, voir ci-dessous).
-- **Retirés aussi** : les mutations **Usure lente** et **Acidophile** (la branche Décomposeur passe à
-  3 mutations), le terrain **Sol acide**, et la récompense de la Moisissure après 3 saisons (sans remplacement).
+- **Retirés aussi** : les mutations **Usure lente** et **Acidophile** (remplacées par 2 nouvelles, voir
+  ci-dessus), le terrain **Sol acide**, et la récompense de la Moisissure après 3 saisons (sans remplacement).
 
 🔸 Décisions à prendre avant de commencer :
 - Valeurs des paliers des 7 zones (difficulté et richesse) : proposées par Claude après simulation,
   validées par le propriétaire.
-- Les 2 nouvelles mutations du Décomposeur (Claude propose, le propriétaire valide).
+- Les 2 nouvelles mutations du Décomposeur. Proposition : *Digestion profonde* (Enrichissement −15 %) et
+  *Mycélium dense* (Cohésion +7,5 % de production par voisine au lieu de +5 %, max +45 %), à la place
+  d'Usure lente et d'Acidophile.
 
 À faire :
 - **En premier : accélérer les simulations.** Objectif : une semaine de forêt de 12 robots (cases ×3) en
