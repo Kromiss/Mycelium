@@ -443,16 +443,16 @@ visé ; un robot connecté 24 h/24 ne fait que **0,5 à 0,8 action utile par min
   ×0,95 le lundi → ×1,25 le dimanche. **Pleurote, Truffe et Moisissure retirées** (avec les cases cachées
   de la Truffe) ; la mutation *Cordyceps* devient *Parasitisme* (même effet) ; plus de souche à débloquer.
 - **Actions par minute** : aucune nouvelle action pour le moment (question laissée ouverte).
+- **Retirés aussi** : les mutations **Usure lente** et **Acidophile** (la branche Décomposeur passe à
+  3 mutations), le terrain **Sol acide**, et la récompense de la Moisissure après 3 saisons (sans remplacement).
 
 🔸 Décisions à prendre avant de commencer :
-- Que deviennent les mutations **Usure lente** et **Acidophile**, et le **Sol acide** (« s'use vite ») ?
-- Quelle **récompense cosmétique** remplace la Moisissure après 3 saisons ?
 - Nouvel **objectif du §9** pour le joueur à 3 × 10 min/jour (aujourd'hui « top 20 % de la forêt »).
 - Ampleur du gradient vers le centre : Claude propose des valeurs après simulation, le propriétaire valide.
 
 À faire :
 - `packages/shared` : nouveau `sizeFactor` ; suppression de l'usure (production, `EXHAUSTION`, Bois mort →
-  Humus, Moisissure) ; gradient de difficulté par distance au centre dans le coût, la pousse et la prise ;
+  Humus, Moisissure, Usure lente, Acidophile, Sol acide) ; gradient de difficulté par distance au centre dans le coût, la pousse et la prise ;
   2 souches et nouvelles valeurs ; renommage de la mutation ; tests.
 - Serveur : migration pour les joueurs et forêts qui ont une souche retirée (souche remise à choisir) et
   pour l'usure stockée sur les cases ; rien à purger sans accord (migrations vers l'avant uniquement).
