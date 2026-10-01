@@ -430,6 +430,8 @@ visé ; un robot connecté 24 h/24 ne fait que **0,5 à 0,8 action utile par min
 
 ✅ Décidé :
 - **Pilier 2 revu** : l'idle est puni, mais pas de manière excessive (il n'est plus « non puni »).
+  Objectif du §9 : en fin de semaine, **au plus ×6 de biomasse** entre un joueur actif (12 h/jour) et un
+  joueur à 3 × 10 min/jour (au lieu de « top 20 % de la forêt »).
 - **Rythme** : la forêt se remplit **entre le 6ᵉ et le 7ᵉ jour**. Facteur de taille **≈ 1,036 par petite
   case** (`ECONOMY.sizeFactor`, au lieu de `1,14 ^ (1/5)` ≈ 1,0266). Mesuré : 90 % au jour 6,1 à 1,035 et
   au jour 6,7 à 1,037 ; écart de biomasse 12 h/jour vs 3 × 10 min/jour de ×3,5 à ×5,6.
@@ -447,7 +449,6 @@ visé ; un robot connecté 24 h/24 ne fait que **0,5 à 0,8 action utile par min
   3 mutations), le terrain **Sol acide**, et la récompense de la Moisissure après 3 saisons (sans remplacement).
 
 🔸 Décisions à prendre avant de commencer :
-- Nouvel **objectif du §9** pour le joueur à 3 × 10 min/jour (aujourd'hui « top 20 % de la forêt »).
 - Ampleur du gradient vers le centre : Claude propose des valeurs après simulation, le propriétaire valide.
 
 À faire :
@@ -460,17 +461,18 @@ visé ; un robot connecté 24 h/24 ne fait que **0,5 à 0,8 action utile par min
   textes EN + FR.
 - Simulations : `simulate:forest` (90 % entre le 6ᵉ et le 7ᵉ jour, à revérifier après l'usure et le
   gradient), `simulate:balance` (aucune des 2 souches ne domine), `simulate:profiles` (écart actif /
-  occasionnel conforme au pilier 2 revu).
+  occasionnel ≤ ×6).
 
 **Terminé quand** : la forêt de 12 robots est occupée à 90 % entre le jour 6 et le jour 7, l'usure n'existe
 plus nulle part (règles, base, rendu), une case du centre coûte et prend nettement plus de temps qu'une case
-du bord, les deux souches finissent à égalité en moyenne dans `simulate:balance`, et `pnpm check` est vert.
+du bord, les deux souches finissent à égalité en moyenne dans `simulate:balance`, un joueur à 3 × 10 min/jour finit avec au plus 6× moins
+de biomasse qu'un joueur à 12 h/jour, et `pnpm check` est vert.
 
 ## M10 — Bêta fermée (0.11.0)
 
 - Plusieurs forêts en parallèle, répartition par ligue.
 - Test de charge : 30 joueurs actifs par forêt, plusieurs forêts, tick à 5 s tenu.
-- Équilibrage sur de vraies saisons ; vérifier l'objectif du §9 (revu en M9 avec le pilier 2).
+- Équilibrage sur de vraies saisons ; vérifier l'objectif du §9 (écart de biomasse ≤ ×6, fixé en M9).
 - Arrivée en cours de semaine : bonus de rattrapage et zone de friche (§13.8).
 
 **Terminé quand** : deux saisons complètes jouées par des testeurs sans incident bloquant.
