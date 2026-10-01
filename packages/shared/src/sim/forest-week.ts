@@ -101,19 +101,21 @@ export function scheduleGap(r: ForestSimResult): ScheduleGap {
 }
 
 /**
- * Median hour (over the players of a profile) at which each zone was first reached, by profile: index 0
- * is zone 1. Null where fewer than half the players of the profile got there.
+ * Hour at which each zone was first reached by the players of each profile (index 0 is zone 1): by the
+ * first of them (`first`), and by half of them (`median`). Null where nobody (or not half) got there. The
+ * inner zones are small: only a few colonies can touch the centre, so `first` is the measure for them.
  */
-export function zoneReach(r: ForestSimResult): Record<string, Array<number | null>> {
+export function zoneReach(r: ForestSimResult): Record<string, { first: Array<number | null>; median: Array<number | null> }> {
   const last = r.snapshots[r.snapshots.length - 1]!;
-  const out: Record<string, Array<number | null>> = {};
+  const out: Record<string, { first: Array<number | null>; median: Array<number | null> }> = {};
   for (const profile of new Set(last.players.map((p) => p.profile))) {
     const ids = last.players.filter((p) => p.profile === profile).map((p) => p.id);
-    out[profile] = Array.from({ length: ZONES.count }, (_, z) => {
-      const hours = ids.map((id) => r.zones[id]?.[z] ?? null).map((h) => (h === null ? Infinity : h)).sort((a, b) => a - b);
-      const median = hours[Math.floor((hours.length - 1) / 2)]!;
-      return Number.isFinite(median) ? median : null;
-    });
+    const sorted = (z: number) => ids.map((id) => r.zones[id]?.[z] ?? null).map((h) => (h === null ? Infinity : h)).sort((a, b) => a - b);
+    const finite = (h: number) => (Number.isFinite(h) ? h : null);
+    out[profile] = {
+      first: Array.from({ length: ZONES.count }, (_, z) => finite(sorted(z)[0]!)),
+      median: Array.from({ length: ZONES.count }, (_, z) => finite(sorted(z)[Math.floor((ids.length - 1) / 2)]!)),
+    };
   }
   return out;
 }
@@ -298,8 +300,9 @@ export function formatForestReport(r: ForestSimResult): string {
   );
   const gap = scheduleGap(r);
   lines.push(`  final biomass by schedule: ${Object.entries(gap.mean).map(([k, v]) => `${k} ${v.toExponential(2)}`).join(", ")}; gap ×${gap.ratio.toFixed(1)}`);
-  for (const [profile, hours] of Object.entries(zoneReach(r))) {
-    lines.push(`  zones reached (${profile}): ${hours.map((h, i) => `z${i + 1} ${h === null ? "never" : `day ${(h / 24).toFixed(1)}`}`).join(", ")}`);
+  const day = (h: number | null) => (h === null ? "never" : (h / 24).toFixed(1));
+  for (const [profile, reach] of Object.entries(zoneReach(r))) {
+    lines.push(`  zones reached (${profile}), day of the first / of half: ${reach.first.map((h, i) => `z${i + 1} ${day(h)}/${day(reach.median[i]!)}`).join(", ")}`);
   }
   for (const s of r.snapshots.filter((x) => x.hour % 24 === 0 && x.hour > 0)) {
     const tiles = s.players.map((p) => p.tiles);

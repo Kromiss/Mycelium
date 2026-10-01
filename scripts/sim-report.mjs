@@ -11,11 +11,11 @@ for (const sub of existsSync(dir) ? readdirSync(dir) : []) {
 const day = (h) => (h === null || h === undefined ? "—" : (h / 24).toFixed(1));
 const profiles = [...new Set(rows.flatMap((r) => Object.keys(r.zones ?? {})))];
 console.log("## Forest simulations\n");
-console.log(`| variant | seed | 90 % (day) | full (day) | gap | ${profiles.map((p) => `zones 1→7 (${p})`).join(" | ")} | time |`);
+console.log(`| variant | seed | 90 % (day) | full (day) | gap | ${profiles.map((p) => `first in zones 1→7 (${p})`).join(" | ")} | time |`);
 console.log(`|---|---|---|---|---|${profiles.map(() => "---").join("|")}|---|`);
 rows.sort((a, b) => (a.name ?? "").localeCompare(b.name ?? "") || a.seed - b.seed);
 for (const r of rows) {
-  const zones = profiles.map((p) => (r.zones?.[p] ?? []).map(day).join(" / "));
+  const zones = profiles.map((p) => (r.zones?.[p]?.first ?? r.zones?.[p] ?? []).map(day).join(" / "));
   console.log(`| ${r.name ?? ""} | ${r.seed} | ${day(r.filled?.ninety)} | ${day(r.filled?.full)} | ×${r.gap?.ratio?.toFixed(1)} | ${zones.join(" | ")} | ${r.seconds?.toFixed(0)} s |`);
 }
 // Averages by variant.
