@@ -54,14 +54,14 @@ describe("forest terrains (GDD §2.2)", () => {
           for (const s of m.spawns) expect(hexDistance(s, t)).toBeGreaterThan(FOREST.spawnClearRadius);
         }
       }
-      for (const t of ["stump", "roots", "rock", "acid"]) expect(count[t]).toBeGreaterThan(0);
+      for (const t of ["stump", "roots", "rock"]) expect(count[t]).toBeGreaterThan(0);
     }
   });
 
-  it("gives every slice the same Rock, Roots and Acid, give or take a hex", () => {
+  it("gives every slice the same Rock and Roots, give or take a hex", () => {
     const m = generateForestMap(7, cap);
     const placement = forestPlacement(cap, m.radius);
-    for (const terrain of ["rock", "roots", "acid"] as const) {
+    for (const terrain of ["rock", "roots"] as const) {
       const perSlice = new Array<number>(cap).fill(0);
       for (const t of m.tiles) if (t.terrain === terrain && ringAt(m.radius, t) !== "centre") perSlice[placement.get(hexKey(t))!.slice]! += 1;
       expect(Math.max(...perSlice) - Math.min(...perSlice)).toBeLessThanOrEqual(2);

@@ -1,10 +1,12 @@
-import { ACTION_EFFECTS, ANTI_FRUSTRATION, BORDERS, CENTRE_RISK, COHESION, ENRICH, FOREST, MUTATIONS, ROCK, STRAINS, STRUCTURES, VISION_RADIUS, FOG_ENABLED } from "./balance";
-import { generateForestMap, ringAt, type MapLayout } from "./forestgen";
+import { ACTION_EFFECTS, ANTI_FRUSTRATION, BORDERS, CENTRE_RISK, COHESION, ENRICH, FOREST, MUTATIONS, ROCK, STRUCTURES, VISION_RADIUS, FOG_ENABLED, ZONES } from "./balance";
+import { generateForestMap, ringAt, zoneAt, zoneValue, type MapLayout } from "./forestgen";
 import {
   activeEffect,
   advance,
   effectsAt,
   capturedFactor,
+  captureSpeedFactor,
+  pressureTakenFactor,
   cohesion,
   conquestFactor,
   refreshBuds,
@@ -20,12 +22,11 @@ import {
   tileYield,
   wildTile,
   humidity,
-  moldFeeds,
   type GameState,
   type Tile,
 } from "./game";
 import { hexDistance, hexEquals, hexesInRadius, hexKey, hexNeighbors, type Hex } from "./hex";
-import { asTileOf, borderTilesOf, mapOrder, neighbourTiles, ownedTilesOf, ownerCounts, tileKey, tilesEpoch, tilesWithin } from "./tile-index";
+import { asTileOf, borderTilesOf, diskVersion, mapOrder, neighbourTiles, ownedTilesOf, ownerCounts, tileKey, tilesWithin, topologyEpoch } from "./tile-index";
 import { fromSnapshot, toSnapshot, type GameSnapshot, type TileDto } from "./protocol";
 import { phaseAt } from "./season";
 import type { ForestEvent } from "./events";
@@ -221,7 +222,7 @@ export function refreshToxins(forest: ForestState): void {
   // toxic players nor the pacts changed since the last time.
   const state = toxinState.get(forest);
   if (toxic.size === 0 && state !== undefined && !state.marked) return;
-  const epoch = tilesEpoch(forest.tiles);
+  const epoch = topologyEpoch(forest.tiles);
   const signature = `${[...toxic].join(",")}/${[...forest.players.values()].map((p) => `${p.id}:${p.pact}`).join(",")}`;
   if (epoch !== null && state !== undefined && state.epoch === epoch && state.signature === signature) return;
   let marked = false;
@@ -263,11 +264,24 @@ export function pressure(forest: ForestState, playerId: string, around: Hex, con
   let total = 0;
   const centre = asTileOf(forest.tiles, around) ?? forest.tiles.get(hexKey(around));
   const disk = centre !== undefined ? tilesWithin(forest.tiles, centre, BORDERS.densityRadius) : null;
-  if (disk) {
+  if (disk && centre) {
+    // The density only changes with the tiles around (and their neighbours, for humidity) and with the
+    // network the player pushes with (M9 speed-up).
+    const version = diskVersion(forest.tiles, centre, BORDERS.densityRadius);
+    const byPlayer = densities.get(centre);
+    const known = byPlayer?.get(playerId);
+    if (version !== null && known !== undefined && known.version === version && known.connected === (connected ?? null) && known.player === player) {
+      return known.density * pressureFactor(player);
+    }
     for (const t of disk) {
       if (t.owner !== playerId || t.growthEndsAt !== null) continue;
       if (connected && !connected.has(tileKey(forest.tiles, t))) continue;
       total += humidity(player, t);
+    }
+    if (version !== null) {
+      const map = byPlayer ?? new Map();
+      map.set(playerId, { version, connected: connected ?? null, player, density: total });
+      if (!byPlayer) densities.set(centre, map);
     }
     return total * pressureFactor(player);
   }
@@ -279,6 +293,9 @@ export function pressure(forest: ForestState, playerId: string, around: Hex, con
   }
   return total * pressureFactor(player);
 }
+
+/** `densité_réseau_local` around a tile, by player, and what it was computed from. */
+const densities = new WeakMap<Tile, Map<string, { version: number; connected: Map<string, number> | null; player: GameState; density: number }>>();
 
 /**
  * Defensive multiplier on the capture speed of a tile: a Rhizomorphe on it, or a Rock of the same owner
@@ -336,22 +353,24 @@ export function resolveBorders(forest: ForestState, dt: number, now: number): Ca
       }
       if (attackers.size > 0) {
         const defence = pressure(forest, defender.id, tile);
-        const { pushBack } = cohesionDefence(forest, tile);
+        // Cohésion (M8) and Armillaire (M9: −15 %) weaken the attack.
+        const pushBack = cohesionDefence(forest, tile).pushBack * pressureTakenFactor(defender);
         for (const a of attackers) {
           const attack = pressure(forest, a, tile, connected.get(a)) * pushBack;
           // Assaut (GDD §6.2): full speed as soon as the attacker is above parity, ×4.
           const assault = tile.effects.length > 0 && tile.effects.some((e) => e.kind === "assault" && e.by === a && e.until > now);
           let speed = assault ? (attack > defence ? ACTION_EFFECTS.assaultSpeed : 0) : captureSpeed(attack, defence);
           if (isBullying(counts, a, defender.id)) speed *= ANTI_FRUSTRATION.bullyCaptureFactor;
-          // Moisissure (M7): worn tiles are taken twice as fast.
+          // Cordyceps (M9): its captures run 15 % faster.
           const attackerState = forest.players.get(a);
-          if (attackerState && moldFeeds(attackerState, tile)) speed *= STRAINS.mold.captureSpeed;
+          if (attackerState) speed *= captureSpeedFactor(attackerState);
           if (speed > 0 && (!best || speed > best.speed || (speed === best.speed && attack > best.attack))) best = { id: a, speed, attack };
         }
       }
     }
 
-    const duration = BORDERS.captureMs[tile.terrain];
+    // M9: the closer to the forest centre, the longer a capture takes (7 zones).
+    const duration = BORDERS.captureMs[tile.terrain] * zoneValue(ZONES.capture, zoneAt(forest.layout, forest.radius, tile));
     if (!best) {
       if (tile.capture) {
         tile.capture.progress -= dt / duration;
@@ -448,9 +467,9 @@ function conquer(attacker: GameState, tile: Tile): void {
   tile.disconnectedSince = null;
   tile.capture = null;
   tile.effects = [];
-  // Structures are destroyed, unless the attacker has Cordyceps (a second Sclérote is not kept).
+  // Structures are destroyed, unless the attacker has Parasitisme (a second Sclérote is not kept).
   const keep =
-    hasMutation(attacker, "cordyceps") &&
+    hasMutation(attacker, "parasitism") &&
     !(tile.structure === "sclerotium" && ownedTilesOf(attacker.tiles, attacker.id).some((t) => t !== tile && t.structure === "sclerotium"));
   if (!keep) tile.structure = null;
   // M8: the tile keeps half of its enrichment levels.
@@ -464,54 +483,36 @@ function conquer(attacker: GameState, tile: Tile): void {
 /**
  * Tiles a player can see (GDD §2.1 fog): their own, those within VISION_RADIUS of them, farther around
  * their Carpophores, every Carpophore of the forest (GDD §4.1: "visible par tous"), and the whole
- * network of the colonies they listen to (M7 Écoute). Without fog (FOG_ENABLED false), every tile but the
- * Truffe's hidden ones.
+ * network of the colonies they listen to (M7 Écoute). Without fog (FOG_ENABLED false), every tile.
  */
-export function visibleKeys(forest: ForestState, playerId: string, fog: boolean = FOG_ENABLED, hideTruffles = true): Set<string> {
+export function visibleKeys(forest: ForestState, playerId: string, fog: boolean = FOG_ENABLED): Set<string> {
   const seen = new Set<string>();
   const viewer = forest.players.get(playerId);
-  /** Truffe (GDD §4.3): a truffle's tiles are only seen by the players whose tiles touch them. */
-  const hidden = (t: Tile) => {
-    if (!hideTruffles || t.owner === null || t.owner === playerId || forest.players.get(t.owner)?.strain !== "truffle") return false;
-    return !hexNeighbors(t).some((n) => forest.tiles.get(hexKey(n))?.owner === playerId);
-  };
   if (!fog) {
-    // No fog (experiment): the whole forest, except the Truffe's hidden tiles.
-    for (const [key, t] of forest.tiles) if (!hidden(t)) seen.add(key);
+    for (const key of forest.tiles.keys()) seen.add(key);
     return seen;
   }
   const glowing = viewer !== undefined && hasMutation(viewer, "bioluminescence");
   const listened = new Set(viewer ? Object.entries(viewer.listens).filter(([, until]) => until > forest.updatedAt).map(([id]) => id) : []);
   for (const [key, t] of forest.tiles) {
-    if (t.structure === "carpophore" && t.owner !== null && forest.players.get(t.owner)?.strain !== "truffle") seen.add(key);
+    if (t.structure === "carpophore" && t.owner !== null) seen.add(key);
     if (t.owner !== null && listened.has(t.owner)) seen.add(key);
     if (t.owner !== playerId) continue;
     const vision = t.structure === "carpophore" && t.growthEndsAt === null ? STRUCTURES.carpophoreVision : VISION_RADIUS;
     for (const h of hexesInRadius(t, vision)) {
       const k = hexKey(h);
-      const o = forest.tiles.get(k);
-      if (o && !hidden(o)) seen.add(k);
+      if (forest.tiles.has(k)) seen.add(k);
     }
     if (glowing) {
       // Bioluminescence (GDD §4.2): enemy networks within 3 tiles.
       for (const h of hexesInRadius(t, MUTATIONS.bioluminescenceVision)) {
         const k = hexKey(h);
         const o = forest.tiles.get(k);
-        if (o && o.owner !== null && o.owner !== playerId && !hidden(o)) seen.add(k);
+        if (o && o.owner !== null && o.owner !== playerId) seen.add(k);
       }
     }
   }
   return seen;
-}
-
-/**
- * Tiles a player would see but that belong to a hidden Truffe (GDD §4.3): they are shown as wild
- * ground, so the Truffe leaves no hole in the map that would give it away.
- */
-export function maskedKeys(forest: ForestState, playerId: string, visible: Set<string>, fog: boolean = FOG_ENABLED): Set<string> {
-  const masked = new Set<string>();
-  for (const k of visibleKeys(forest, playerId, fog, false)) if (!visible.has(k)) masked.add(k);
-  return masked;
 }
 
 // ---------------------------------------------------------------------------

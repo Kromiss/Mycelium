@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BORDERS, CENTRE_RISK, FOREST, TERRAIN_STATS, VISION_RADIUS } from "./balance";
+import { BORDERS, CENTRE_RISK, FOREST, TERRAIN_STATS, VISION_RADIUS, ZONES } from "./balance";
 import {
   advanceForest,
   captureSpeed,
@@ -21,6 +21,7 @@ import {
   forestRadius,
   generateForestMap,
   richnessAt,
+  zoneAt,
   ringAt,
 } from "./forestgen";
 import { checkColonize, networkHops, type GameState } from "./game";
@@ -88,16 +89,29 @@ describe("forest map (GDD §2.5)", () => {
     expect(seen.size).toBe(land.size);
   });
 
-  it("gets richer towards the centre: ×1 rim, ×1.5 middle, ×3 to ×5 centre", () => {
+  it("is cut into 7 zones of the same thickness, richer towards the centre (M9)", () => {
     const rim = map.spawns[0]!;
-    expect(richnessAt(layout, map.radius, rim)).toBe(1);
-    expect(richnessAt(layout, map.radius, hex(0, 0))).toBe(5);
-    const middle = map.tiles.find((t) => ringAt(map.radius, t) === "middle")!;
-    expect(richnessAt(layout, map.radius, middle)).toBe(1.5);
-    for (const t of map.tiles.filter((x) => ringAt(map.radius, x) === "centre")) {
-      const r = richnessAt(layout, map.radius, t);
-      expect(r).toBeGreaterThanOrEqual(3);
-      expect(r).toBeLessThanOrEqual(5);
+    expect(zoneAt(layout, map.radius, rim)).toBe(1);
+    expect(richnessAt(layout, map.radius, rim)).toBe(ZONES.richness[0]);
+    expect(zoneAt(layout, map.radius, hex(0, 0))).toBe(7);
+    expect(richnessAt(layout, map.radius, hex(0, 0))).toBe(ZONES.richness[6]);
+    const width = new Map<number, { min: number; max: number }>();
+    for (const t of map.tiles) {
+      const z = zoneAt(layout, map.radius, t);
+      const d = centreDistance(t);
+      const w = width.get(z) ?? { min: Infinity, max: -Infinity };
+      width.set(z, { min: Math.min(w.min, d), max: Math.max(w.max, d) });
+      expect(richnessAt(layout, map.radius, t)).toBe(ZONES.richness[z - 1]);
+    }
+    expect([...width.keys()].sort()).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    // Every zone but the rim spans the same distance to the centre (1/7 of the radius).
+    for (let z = 2; z <= 7; z++) {
+      const w = width.get(z)!;
+      expect(w.max - w.min).toBeLessThanOrEqual(map.radius / 7 + 1e-9);
+      expect(w.max - w.min).toBeGreaterThan(map.radius / 7 - 2);
+    }
+    for (let z = 1; z < 7; z++) {
+      for (const table of [ZONES.richness, ZONES.cost, ZONES.growth, ZONES.capture]) expect(table[z]!).toBeGreaterThan(table[z - 1]!);
     }
     // More dead wood in the centre than on the rim.
     const share = (ring: string) => {

@@ -108,13 +108,12 @@ describe("rewards (GDD §8.2)", () => {
     ]);
   });
 
-  it("unlock skins and Moisissure with the career", () => {
+  it("unlock skins with the career (no strain to unlock since M9)", () => {
     expect(careerRewards({ seasons: 1, fruitings: 0, trophies: 0 })).toEqual([]);
     expect(careerRewards({ seasons: 3, fruitings: 5, trophies: 24 })).toEqual([
       { kind: "skin", id: "morel" },
       { kind: "skin", id: "coprinus" },
-      { kind: "strain", id: "mold" },
     ]);
-    expect(careerRewards({ seasons: 10, fruitings: 0, trophies: 25 }).map((r) => r.id)).toEqual(["coprinus", "clavaria", "amanita", "mold"]);
+    expect(careerRewards({ seasons: 10, fruitings: 0, trophies: 25 }).map((r) => r.id)).toEqual(["coprinus", "clavaria", "amanita"]);
   });
 });

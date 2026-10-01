@@ -7,7 +7,7 @@ import { ACTION_EFFECTS, ACTION_IDS, type ActionId } from "../balance";
 import { act, actionCost, checkAct } from "../conflict";
 import { atFloor, pressure, tileCounts, type ForestState } from "../forest";
 import { RELIC_IDS, TERRAIN_STATS } from "../balance";
-import { build, checkBuild, checkColonize, chooseRelic, colonizationCost, colonize, networkHops, tileProduction, type GameState, type Tile } from "../game";
+import { build, checkBuild, checkColonize, chooseRelic, colonizationCost, colonize, networkHops, networkHopsWithCut, tileProduction, type GameState, type Tile } from "../game";
 import { hexDistance, hexEquals, hexesInRadius, hexKey, hexNeighbors } from "../hex";
 
 /** Robots build their Gland once they hold this many tiles (it costs the production of a tile). */
@@ -61,9 +61,7 @@ function actionScore(forest: ForestState, state: GameState, action: ActionId, ti
     case "cut": {
       // Worth it when the cut leaves at least 3 of the owner's tiles without a path to their Cœur.
       if (hexEquals(owner.heart, tile)) return 0;
-      tile.effects.push({ kind: "cut", by: state.id, until: now + 1 });
-      const after = networkHops(owner, now);
-      tile.effects.pop();
+      const after = networkHopsWithCut(owner, now, tile);
       let lost = 0;
       let value = 0;
       for (const k of ownerHops.keys()) {

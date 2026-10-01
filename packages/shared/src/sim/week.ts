@@ -3,12 +3,11 @@
  * real rules. Used by the CI test `sim.test.ts` and by `pnpm --filter @mycelium/shared simulate`.
  */
 import {
-  EXHAUSTION,
   MUTATION_BRANCHES,
   QUEUE_MAX,
   ROOTS,
   SPORE_UPGRADE_IDS,
-  STARTER_STRAINS,
+  STRAIN_IDS,
   STRUCTURES,
   UPGRADE_STATS,
   type SporeUpgradeId,
@@ -166,7 +165,7 @@ export function defaultPlan(id: string): BotPlan {
   const second = BRANCHES[(h % 3 + 1 + ((h >>> 4) % 2)) % 3]!;
   // Half of the robots fruit once, between day 3 and day 5.
   const fruit = (h >>> 12) % 2 === 0 ? { hour: 60 + ((h >>> 13) % 48), radius: 3 } : undefined;
-  return { strain: STARTER_STRAINS[(h >>> 8) % STARTER_STRAINS.length]!, branches: [first, second, ...BRANCHES.filter((b) => b !== first && b !== second)], fruit };
+  return { strain: STRAIN_IDS[(h >>> 8) % STRAIN_IDS.length]!, branches: [first, second, ...BRANCHES.filter((b) => b !== first && b !== second)], fruit };
 }
 
 /**
@@ -307,7 +306,7 @@ function takeMutations(state: GameState, plan: BotPlan, now: number): void {
  */
 function tileValue(state: GameState, tile: Tile, production = 0): number {
   let perSecond =
-    tileYield(tile.terrain, state.upgrades) * terrainFactor(state, tile.terrain) * richness(state, tile) * humidity(state, tile) * (1 - EXHAUSTION.max * 0.75); // ~average wear
+    tileYield(tile.terrain, state.upgrades) * terrainFactor(state, tile.terrain) * richness(state, tile) * humidity(state, tile);
   if (tile.terrain === "roots") perSecond += production * ROOTS.networkBonus * rootsFactor(state);
   return (perSecond * conversionRate(state.upgrades)) / colonizationCost(state, tile);
 }
@@ -399,8 +398,13 @@ function moveHeartToCentre(state: GameState, now: number): void {
   if (tiles.length < 10) return;
   let bestKey = hexKey(state.heart);
   let bestSum = [...hops.values()].reduce((a, b) => a + b, 0);
+  const network = tiles.map((k) => state.tiles.get(k)!);
   for (const k of tiles) {
     const [q, r] = k.split(",").map(Number) as [number, number];
+    // A path is never shorter than the straight distance: skip the tiles that cannot do better.
+    let bound = 0;
+    for (const t of network) bound += hexDistance(t, { q, r });
+    if (bound >= bestSum * 0.9) continue;
     const sum = sumHops(state, { q, r }, hops);
     if (sum < bestSum * 0.9) {
       bestSum = sum;

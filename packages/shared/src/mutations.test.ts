@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { ACID, BORDERS, EXHAUSTION, MUTATIONS, ROOTS, STRAINS, TERRAIN_STATS, TRANSPORT, type Terrain } from "./balance";
-import { joinForest, newForest, pressure, refreshReservations, refreshToxins, resolveBorders, visibleKeys, maskedKeys, type ForestState } from "./forest";
+import { COHESION, MUTATIONS, ROOTS, STRAINS, TERRAIN_STATS, TRANSPORT, type Terrain } from "./balance";
+import { joinForest, newForest, pressure, refreshReservations, refreshToxins, resolveBorders, visibleKeys, type ForestState } from "./forest";
 import {
   advance,
   build,
@@ -11,9 +11,8 @@ import {
   colonizationCost,
   colonize,
   earnedMutationPoints,
+  enrichCost,
   goOffline,
-  growthDurationMs,
-  lifetimeMs,
   mutate,
   mutationPoints,
   mutationThreshold,
@@ -59,12 +58,12 @@ describe("mutation points (GDD §4.2)", () => {
     s.biomass = 60_000;
     expect(mutationPoints(s)).toBe(2);
     expect(checkMutate(s, "wings")).toEqual({ ok: false, error: "unknown_mutation" });
-    expect(checkMutate(s, "slowWear")).toEqual({ ok: false, error: "mutation_locked" });
+    expect(checkMutate(s, "deepDigestion")).toEqual({ ok: false, error: "mutation_locked" });
     expect(mutate(s, "digestiveEnzymes", T0).ok).toBe(true);
     expect(checkMutate(s, "digestiveEnzymes")).toEqual({ ok: false, error: "already_mutated" });
     expect(mutate(s, "mycorrhiza", T0).ok).toBe(true);
     expect(mutationPoints(s)).toBe(0);
-    expect(checkMutate(s, "slowWear")).toEqual({ ok: false, error: "no_mutation_point" });
+    expect(checkMutate(s, "deepDigestion")).toEqual({ ok: false, error: "no_mutation_point" });
     expect(s.mutations).toEqual(["digestiveEnzymes", "mycorrhiza"]);
   });
 });
@@ -78,37 +77,13 @@ describe("Décomposeur", () => {
     expect(productionRate(s)).toBeCloseTo(before * (1 + MUTATIONS.digestiveEnzymes), 10);
   });
 
-  it("Usure lente: wear stops counting earlier", () => {
+  it("Digestion profonde (M9): Enrichissement 15 % cheaper", () => {
     const s = game();
     own(s, hex(1, 0));
     const tile = tileAt(s, hex(1, 0));
-    tile.exhaustion = EXHAUSTION.max;
-    const worn = tileProduction(s, tile);
-    give(s, "slowWear");
-    expect(tileProduction(s, tile)).toBeCloseTo((worn / (1 - EXHAUSTION.max)) * (1 - MUTATIONS.slowWearCap), 10);
-    // Integrated from fresh: the same as stepping in small increments.
-    const a = game();
-    const b = game();
-    for (const g of [a, b]) {
-      own(g, hex(1, 0));
-      give(g, "slowWear");
-      g.nutrients = 0;
-    }
-    advance(a, T0 + 12 * HOUR);
-    for (let t = T0; t <= T0 + 12 * HOUR; t += 10 * 60_000) advance(b, t);
-    expect(b.nutrients).toBeCloseTo(a.nutrients, 4);
-    // Past the cap, a Humus tile at 1 hop yields 75 % of its fresh value.
-    const perHour = TERRAIN_STATS.humus.yieldPerSecond * 3600;
-    const heart = perHour;
-    const far = perHour * (1 - TRANSPORT.lossPerHop);
-    const c = game();
-    own(c, hex(1, 0));
-    give(c, "slowWear");
-    for (const t of c.tiles.values()) t.exhaustion = EXHAUSTION.max;
-    c.nutrients = 0;
-    advance(c, T0 + HOUR);
-    // Both tiles touch each other: +5 % cohesion each (M8).
-    expect(c.nutrients).toBeCloseTo((heart + far) * 1.05 * (1 - MUTATIONS.slowWearCap), 6);
+    const before = enrichCost(s, tile, 10);
+    give(s, "deepDigestion");
+    expect(enrichCost(s, tile, 10)).toBeCloseTo(before * (1 - MUTATIONS.deepDigestion), 6);
   });
 
   it("Saprophyte: Dead wood and Stumps +50 %", () => {
@@ -123,12 +98,14 @@ describe("Décomposeur", () => {
     expect(tileProduction(s, tileAt(s, hex(0, 1)))).toBeCloseTo(stump * 1.5, 10);
   });
 
-  it("Acidophile: Acid soil lasts twice as long", () => {
-    const s = game("acid");
-    own(s, hex(1, 0));
-    const before = lifetimeMs(s, tileAt(s, hex(1, 0)));
-    give(s, "acidophile");
-    expect(lifetimeMs(s, tileAt(s, hex(1, 0)))).toBe(before * ACID.acidophileLifetimeFactor);
+  it("Mycélium dense (M9): cohesion +7.5 % per neighbour instead of +5 %", () => {
+    const s = game();
+    own(s, hex(1, 0), hex(2, 0), hex(1, 1));
+    const tile = tileAt(s, hex(1, 0)); // Three neighbours of its colony: the Cœur, (2,0) and (1,1).
+    const before = tileProduction(s, tile);
+    give(s, "denseMycelium");
+    const ratio = (1 + 3 * MUTATIONS.denseMycelium) / (1 + 3 * COHESION.production);
+    expect(tileProduction(s, tile)).toBeCloseTo(before * ratio, 10);
   });
 
   it("Dormance: offline ×1.5, online ×0.8", () => {
@@ -180,11 +157,11 @@ describe("Parasite", () => {
     expect(pressure(f, "a", border)).toBeCloseTo(before * (1 + MUTATIONS.aggressiveHyphae), 10);
   });
 
-  it("Pillage: conquest bonus ×2; Cordyceps: the structure is kept", () => {
+  it("Pillage: conquest bonus ×2; Parasitisme: the structure is kept", () => {
     const plain = duel();
     timeToTake(plain.f, plain.border);
     const looted = duel();
-    give(looted.a, "plunder", "cordyceps");
+    give(looted.a, "plunder", "parasitism");
     build(looted.b, looted.border, "node", T0);
     timeToTake(looted.f, looted.border);
     expect(looted.a.biomass).toBeCloseTo(plain.a.biomass * MUTATIONS.plunder, 6);
@@ -260,28 +237,16 @@ describe("Symbiote", () => {
   });
 });
 
-describe("strains (GDD §4.3)", () => {
+describe("strains (GDD §4.3, M9: two strains)", () => {
   it("are chosen once, before the first new tile", () => {
     const s = game();
-    expect(checkChooseStrain(s, "amanita")).toEqual({ ok: false, error: "unknown_strain" });
-    expect(chooseStrain(s, "truffle").ok).toBe(true);
-    expect(checkChooseStrain(s, "pleurotus")).toEqual({ ok: false, error: "strain_chosen" });
+    expect(checkChooseStrain(s, "truffle")).toEqual({ ok: false, error: "unknown_strain" });
+    expect(checkChooseStrain(s, "pleurotus")).toEqual({ ok: false, error: "unknown_strain" });
+    expect(chooseStrain(s, "cordyceps").ok).toBe(true);
+    expect(checkChooseStrain(s, "armillaria")).toEqual({ ok: false, error: "strain_chosen" });
     const late = game();
     own(late, hex(1, 0));
-    expect(checkChooseStrain(late, "pleurotus")).toEqual({ ok: false, error: "strain_chosen" });
-  });
-
-  it("Pleurote: grows −30 %, colonises −10 %, is taken 25 % faster", () => {
-    const s = game();
-    const cost = colonizationCost(s, tileAt(s, hex(1, 0)));
-    chooseStrain(s, "pleurotus");
-    expect(colonizationCost(s, tileAt(s, hex(1, 0)))).toBeCloseTo(cost * STRAINS.pleurotus.colonizationCost, 8);
-    colonize(s, hex(1, 0), T0);
-    expect(tileAt(s, hex(1, 0)).growthEndsAt! - T0).toBe(growthDurationMs("humus", s.upgrades, STRAINS.pleurotus.growthTime));
-    const { f, b, border } = duel();
-    b.strain = "pleurotus";
-    const plain = plainCaptureMs(f, "a", border);
-    expect(timeToTake(f, border)).toBeCloseTo(plain / STRAINS.pleurotus.capturedSpeed, -4);
+    expect(checkChooseStrain(late, "armillaria")).toEqual({ ok: false, error: "strain_chosen" });
   });
 
   it("Armillaire: grows from Monday to Sunday", () => {
@@ -294,45 +259,31 @@ describe("strains (GDD §4.3)", () => {
     expect(productionRate(p, Date.UTC(2026, 9, 11, 9))).toBeCloseTo(sunday * (STRAINS.armillaria.monday + 6 * STRAINS.armillaria.perDay), 10);
   });
 
-  it("Cordyceps: pressure +20 %, production −10 %", () => {
+  it("Armillaire: its tiles are taken 30 % slower under 15 % less pressure, and it pushes 10 % less", () => {
+    const { f, a, b, border } = duel();
+    const own = pressure(f, "b", border);
+    const plain = plainCaptureMs(f, "a", border);
+    b.strain = "armillaria";
+    expect(pressure(f, "b", border)).toBeCloseTo(own * STRAINS.armillaria.pressure, 10);
+    // The attacker's push loses 15 %, and the capture itself is 30 % longer.
+    const reduced = duel();
+    reduced.b.strain = "armillaria";
+    const taken = timeToTake(reduced.f, reduced.border);
+    expect(taken).toBeGreaterThan(plain * STRAINS.armillaria.capturedTime * 0.99);
+    expect(a.strain).toBeNull();
+  });
+
+  it("Cordyceps: pressure +20 %, production −10 %, captures 15 % faster", () => {
     const { f, a, border } = duel();
     const p = pressure(f, "a", border);
     const prod = productionRate(a);
     a.strain = "cordyceps";
     expect(pressure(f, "a", border)).toBeCloseTo(p * STRAINS.cordyceps.pressure, 10);
     expect(productionRate(a)).toBeCloseTo(prod * STRAINS.cordyceps.production, 10);
-  });
-
-  it("Truffe: hidden tiles are sent as wild ground, with or without fog", () => {
-    const { f, b } = duel();
-    b.strain = "truffle";
-    for (const fog of [true, false]) {
-      const seen = visibleKeys(f, "a", fog);
-      const masked = maskedKeys(f, "a", seen, fog);
-      expect(masked.has(hexKey(hex(3, 0)))).toBe(fog ? visibleKeys(f, "a", true, false).has(hexKey(hex(3, 0))) : true);
-      expect(masked.has(hexKey(hex(1, 0)))).toBe(false); // Touches a: seen as b's tile.
-      for (const k of masked) expect(seen.has(k)).toBe(false);
-    }
-    const snap = toSnapshot(b, new Set(), new Set([hexKey(hex(3, 0))]));
-    expect(snap.tiles).toHaveLength(1);
-    expect(snap.tiles[0]).toMatchObject({ q: 3, r: 0, owner: null, capture: null });
-    expect(snap.tiles[0]!.s).toBeUndefined();
-  });
-
-  it("Truffe: hidden from far sight, stronger Roots", () => {
-    const { f, a, b } = duel();
-    give(a, "bioluminescence");
-    b.strain = "truffle";
-    const seen = visibleKeys(f, "a", true);
-    expect(seen.has(hexKey(hex(1, 0)))).toBe(true); // Touches a.
-    expect(seen.has(hexKey(hex(3, 0)))).toBe(false);
-    const s = game("roots");
-    own(s, hex(1, 0));
-    const before = tileProduction(s, tileAt(s, hex(1, 0)));
-    s.strain = "truffle";
-    const k = STRAINS.truffle.roots;
-    const ratio = (k * (1 + ROOTS.networkBonus * k)) / (1 + ROOTS.networkBonus);
-    expect(tileProduction(s, tileAt(s, hex(1, 0)))).toBeCloseTo(before * ratio, 10);
+    const fast = duel();
+    fast.a.strain = "cordyceps";
+    const plain = plainCaptureMs(fast.f, "a", fast.border);
+    expect(timeToTake(fast.f, fast.border)).toBeCloseTo(plain / STRAINS.cordyceps.captureSpeed, -4);
   });
 });
 
@@ -347,6 +298,6 @@ describe("on the wire", () => {
     expect(back.tiles.get(hexKey(hex(1, 0)))!.toxic).toBe(true);
     expect(fromSnapshot(JSON.parse(JSON.stringify(toSnapshot(a)))).mutations).toEqual(["aggressiveHyphae", "plunder", "toxins"]);
     expect(parseClientMessage('{"type":"mutate","mutation":"plunder"}')).toEqual({ type: "mutate", mutation: "plunder" });
-    expect(parseClientMessage('{"type":"chooseStrain","strain":"truffle"}')).toEqual({ type: "chooseStrain", strain: "truffle" });
+    expect(parseClientMessage('{"type":"chooseStrain","strain":"cordyceps"}')).toEqual({ type: "chooseStrain", strain: "cordyceps" });
   });
 });

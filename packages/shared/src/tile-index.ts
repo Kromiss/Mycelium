@@ -6,7 +6,7 @@
  * mine?", "how many?" or "has anything changed since?" without walking the whole forest.
  *
  * Reading a tile's fields is unchanged, and so is writing them: `tile.owner = "x"` updates the index.
- * Only those four fields are tracked; the others (`effects`, `level`, wear…) are read as they are. A
+ * Only those four fields are tracked; the others (`effects`, `level`…) are read as they are. A
  * map holding any tile not made by `makeTile` (a plain object) is never indexed: every query then
  * scans the map, exactly as before.
  */
@@ -22,13 +22,12 @@ export interface TileFields {
   owner: string | null;
   growthEndsAt: number | null;
   growthStartedAt: number | null;
-  exhaustion: number;
   disconnectedSince: number | null;
   capture: { by: string; progress: number } | null;
   reservedFor: string | null;
   structure: StructureId | null;
   toxic: boolean;
-  effects: TileEffect[];
+  effects: readonly TileEffect[];
   level: number;
 }
 
@@ -44,6 +43,51 @@ class TileHome {
   private readonly versions = new Map<string, number>();
   /** Bumped by every tracked change anywhere on the map. */
   epoch = 0;
+  /** Bumped by every change of owner, growth, structure or terrain anywhere on the map (not by levels, toxins, effects). */
+  topology = 0;
+  /**
+   * Per owner: a signature of their grown tiles, of which of them carry a Rhizomorphe and which are Roots (two 32-bit XOR
+   * hashes and a count), what the network's hops depend on. Changes that cancel out (a tile won, then
+   * lost) leave it unchanged.
+   */
+  private readonly nets = new Map<string, { a: number; b: number; n: number }>();
+
+  /** Adds or removes (the same thing: XOR) the tile's part of its owner's network signature. */
+  toggleNet(t: Tile, owner: string | null, grown: boolean, rhizomorph: boolean, roots: boolean, sign: 1 | -1): void {
+    if (owner === null || !grown) return;
+    const i = indexOf(t) + 1;
+    let s = this.nets.get(owner);
+    if (!s) {
+      s = { a: 0, b: 0, n: 0 };
+      this.nets.set(owner, s);
+    }
+    s.a ^= Math.imul(i, 0x9e3779b1) ^ Math.imul(i ^ 0x5bd1e995, 0x85ebca6b);
+    s.b ^= Math.imul(i ^ 0x27d4eb2f, 0xc2b2ae35) ^ (rhizomorph ? Math.imul(i, 0x165667b1) | 1 : 0) ^ (roots ? Math.imul(i ^ 0x7feb352d, 0x846ca68b) | 2 : 0);
+    s.n += sign;
+  }
+
+  /** Per owner: tiles with a Coupure among their effects (active or not). */
+  private readonly cuts = new Map<string, number>();
+
+  cutsChanged(owner: string | null, delta: number): void {
+    if (owner === null) return;
+    this.cuts.set(owner, (this.cuts.get(owner) ?? 0) + delta);
+  }
+
+  cutCount(owner: string): number {
+    return this.cuts.get(owner) ?? 0;
+  }
+
+  /** The level, the toxins or the effects of a tile of `owner` changed. */
+  contentChanged(owner: string | null): void {
+    this.epoch++;
+    if (owner !== null) this.versions.set(owner, this.version(owner) + 1);
+  }
+
+  netSignature(owner: string): string {
+    const s = this.nets.get(owner);
+    return s ? `${s.a}:${s.b}:${s.n}` : "0:0:0";
+  }
   /** Réservoirs on the map (grown or not): humidity only looks for them when there is one. */
   reservoirs = 0;
 
@@ -60,6 +104,8 @@ class TileHome {
       TrackedTile.attach(t as unknown as TrackedTile, this, i);
       if (t.owner !== null) this.ownedOf(t.owner).set.add(t);
       if (t.structure === "reservoir") this.reservoirs++;
+      this.toggleNet(t, t.owner, t.growthEndsAt === null, t.structure === "rhizomorph", t.terrain === "roots", 1);
+      if (TrackedTile.hasCut(t as unknown as TrackedTile)) this.cutsChanged(t.owner, 1);
       i++;
     }
   }
@@ -166,6 +212,7 @@ class TileHome {
   /** A tracked field of the tile `t` of `owner` changed. */
   touched(t: Tile, owner: string | null): void {
     this.epoch++;
+    this.topology++;
     if (owner !== null) this.versions.set(owner, this.version(owner) + 1);
     this.bumpAround(t);
   }
@@ -211,6 +258,7 @@ class TileHome {
       this.versions.set(to, this.version(to) + 1);
     }
     this.epoch++;
+    this.topology++;
   }
 }
 
@@ -228,6 +276,9 @@ class TrackedTile {
   #owner: string | null;
   #growthEndsAt: number | null;
   #structure: StructureId | null;
+  #toxic: boolean;
+  #effects: readonly TileEffect[];
+  #level: number;
   #home: TileHome | null = null;
   #index = -1;
 
@@ -236,18 +287,21 @@ class TrackedTile {
     this.#owner = f.owner;
     this.#growthEndsAt = f.growthEndsAt;
     this.#structure = f.structure;
+    this.#toxic = f.toxic;
+    this.#effects = Object.isFrozen(f.effects) ? f.effects : Object.freeze([...f.effects]);
+    this.#level = f.level;
     const self = this as unknown as Record<string, unknown>;
     self.q = f.q;
     self.r = f.r;
     Object.defineProperties(this, DESCRIPTORS);
     self.growthStartedAt = f.growthStartedAt;
-    self.exhaustion = f.exhaustion;
     self.disconnectedSince = f.disconnectedSince;
     self.capture = f.capture;
     self.reservedFor = f.reservedFor;
-    self.toxic = f.toxic;
-    self.effects = f.effects;
-    self.level = f.level;
+  }
+
+  static hasCut(t: TrackedTile): boolean {
+    return t.#effects.length > 0 && t.#effects.some((e) => e.kind === "cut");
   }
 
   static attach(t: TrackedTile, home: TileHome, index: number): void {
@@ -273,7 +327,11 @@ class TrackedTile {
         set(this: TrackedTile, v: Terrain) {
           const from = this.#terrain;
           if (v === from) return;
+          const grown = this.#growthEndsAt === null;
+          const rhizo = this.#structure === "rhizomorph";
+          this.#home?.toggleNet(this as unknown as Tile, this.#owner, grown, rhizo, from === "roots", -1);
           this.#terrain = v;
+          this.#home?.toggleNet(this as unknown as Tile, this.#owner, grown, rhizo, v === "roots", 1);
           this.#home?.touched(this as unknown as Tile, this.#owner);
           if (from === "wetland" || v === "wetland") this.#home?.wetlandsChanged();
         },
@@ -286,8 +344,54 @@ class TrackedTile {
         set(this: TrackedTile, v: string | null) {
           const from = this.#owner;
           if (v === from) return;
+          const grown = this.#growthEndsAt === null;
+          const rhizo = this.#structure === "rhizomorph";
+          const roots = this.#terrain === "roots";
+          this.#home?.toggleNet(this as unknown as Tile, from, grown, rhizo, roots, -1);
           this.#owner = v;
+          this.#home?.toggleNet(this as unknown as Tile, v, grown, rhizo, roots, 1);
+          if (TrackedTile.hasCut(this)) {
+            this.#home?.cutsChanged(from, -1);
+            this.#home?.cutsChanged(v, 1);
+          }
           this.#home?.ownerChanged(this as unknown as Tile, from, v);
+        },
+      },
+      toxic: {
+        enumerable: true,
+        get(this: TrackedTile) {
+          return this.#toxic;
+        },
+        set(this: TrackedTile, v: boolean) {
+          if (v === this.#toxic) return;
+          this.#toxic = v;
+          this.#home?.contentChanged(this.#owner);
+        },
+      },
+      level: {
+        enumerable: true,
+        get(this: TrackedTile) {
+          return this.#level;
+        },
+        set(this: TrackedTile, v: number) {
+          if (v === this.#level) return;
+          this.#level = v;
+          this.#home?.contentChanged(this.#owner);
+        },
+      },
+      effects: {
+        enumerable: true,
+        // Frozen: effects are replaced, never changed in place, so that every change is seen.
+        get(this: TrackedTile) {
+          return this.#effects;
+        },
+        set(this: TrackedTile, v: readonly TileEffect[]) {
+          if (v === this.#effects) return;
+          const cutBefore = TrackedTile.hasCut(this);
+          this.#effects = Object.isFrozen(v) ? v : Object.freeze([...v]);
+          const cutAfter = TrackedTile.hasCut(this);
+          if (cutBefore !== cutAfter) this.#home?.cutsChanged(this.#owner, cutAfter ? 1 : -1);
+          this.#home?.contentChanged(this.#owner);
         },
       },
       growthEndsAt: {
@@ -296,8 +400,13 @@ class TrackedTile {
           return this.#growthEndsAt;
         },
         set(this: TrackedTile, v: number | null) {
-          if (v === this.#growthEndsAt) return;
+          const from = this.#growthEndsAt;
+          if (v === from) return;
+          const rhizo = this.#structure === "rhizomorph";
+          const roots = this.#terrain === "roots";
+          this.#home?.toggleNet(this as unknown as Tile, this.#owner, from === null, rhizo, roots, -1);
           this.#growthEndsAt = v;
+          this.#home?.toggleNet(this as unknown as Tile, this.#owner, v === null, rhizo, roots, 1);
           this.#home?.touched(this as unknown as Tile, this.#owner);
         },
       },
@@ -309,7 +418,11 @@ class TrackedTile {
         set(this: TrackedTile, v: StructureId | null) {
           const from = this.#structure;
           if (v === from) return;
+          const grown = this.#growthEndsAt === null;
+          const roots = this.#terrain === "roots";
+          this.#home?.toggleNet(this as unknown as Tile, this.#owner, grown, from === "rhizomorph", roots, -1);
           this.#structure = v;
+          this.#home?.toggleNet(this as unknown as Tile, this.#owner, grown, v === "rhizomorph", roots, 1);
           if (this.#home !== null) this.#home.reservoirs += (v === "reservoir" ? 1 : 0) - (from === "reservoir" ? 1 : 0);
           this.#home?.touched(this as unknown as Tile, this.#owner);
         },
@@ -473,4 +586,40 @@ export function borderTilesOf(tiles: Map<string, Tile>): readonly Tile[] | null 
 /** Position of a tile in the map order, for sorting tiles of an indexed map. */
 export function mapOrder(t: Tile): number {
   return t instanceof TrackedTile ? TrackedTile.indexOf(t) : -1;
+}
+
+/**
+ * A signature of `owner`'s grown tiles and Rhizomorphes (what their network's hops depend on), or null if
+ * `tiles` is not indexed.
+ */
+export function networkSignature(tiles: Map<string, Tile>, owner: string): string | null {
+  const home = homeOf(tiles);
+  return home ? home.netSignature(owner) : null;
+}
+
+/** Whether some tile of `owner` carries a Coupure (active or expired), or null if `tiles` is not indexed. */
+export function hasCutEffects(tiles: Map<string, Tile>, owner: string): boolean | null {
+  const home = homeOf(tiles);
+  return home ? home.cutCount(owner) > 0 : null;
+}
+
+/**
+ * A number that changes whenever a tile changes owner, growth, structure or terrain anywhere on the map
+ * (not its level, toxins or effects); null when the map is not indexed.
+ */
+export function topologyEpoch(tiles: Map<string, Tile>): number | null {
+  const home = homeOf(tiles);
+  return home ? home.topology : null;
+}
+
+/**
+ * A number that changes whenever a tracked field of a tile within `radius` of `t` (or of one of their
+ * neighbours) changes, or null if `t` is not a tile of an indexed `tiles`.
+ */
+export function diskVersion(tiles: Map<string, Tile>, t: Tile, radius: number): number | null {
+  const home = homeFor(tiles, t);
+  if (!home) return null;
+  let v = 0;
+  for (const n of home.disk(t, radius)) v += home.neighbourhoodVersion(n);
+  return v;
 }

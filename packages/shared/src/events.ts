@@ -1,6 +1,7 @@
 import {
   BOAR,
   CARCASS,
+  DAY_PLACE,
   DYING_TREE,
   EVENT_KINDS,
   EVENTS,
@@ -12,7 +13,7 @@ import {
   type Terrain,
 } from "./balance";
 import { atFloor, refreshToxins, tileCounts, type ForestState } from "./forest";
-import { ringAt } from "./forestgen";
+import { forestPlacement, ringAt, zoneAt, type Placement } from "./forestgen";
 import {
   EVENT_CASTER,
   networkHops,
@@ -23,7 +24,7 @@ import {
 } from "./game";
 import { HEX_DIRECTIONS, hexDistance, hexEquals, hexesInRadius, hexKey, hexNeighbors, type Hex } from "./hex";
 import { hashInts, mulberry32 } from "./rng";
-import { seasonAt } from "./season";
+import { phaseAt, seasonAt } from "./season";
 
 /**
  * Random events and the world boss (GDD §7, M6). A season's events are drawn from the forest seed
@@ -47,6 +48,8 @@ export interface ForestEvent {
   q: number;
   r: number;
   cells: Hex[];
+  /** M9: the centre of each copy of an event of the day's zone (one per group of slices). */
+  spots?: Hex[];
   /** Centred in the forest centre: stronger (GDD §2.5). */
   strong: boolean;
   /** Nématodes and Arbre mourant: life left and at the start. */
@@ -188,14 +191,30 @@ export function placeEvent(forest: ForestState, e: ForestEvent): void {
       break;
     }
     case "treefall": {
-      const pool = land.filter((t) => strongAt(t) && t.terrain !== "rock" && t.terrain !== "stump" && t.terrain !== "carcass");
+      // M9: in the zone of the day, the same places in every group of slices.
+      const places = dayPlaces(forest, e);
+      const fits = (t: Tile | undefined): t is Tile => t !== undefined && isLand(t) && t.terrain !== "rock" && t.terrain !== "stump" && t.terrain !== "carcass";
+      const pool = places.reference.filter(fits);
       const n = TREEFALL.minStumps + Math.floor(rng() * (TREEFALL.maxStumps - TREEFALL.minStumps + 1));
-      for (let i = 0; i < n && pool.length > 0; i++) cells.push(pool.splice(Math.floor(rng() * pool.length), 1)[0]!);
+      const perCopy = Math.ceil(n / places.copies);
+      const picked: Tile[] = [];
+      for (let i = 0; i < perCopy && pool.length > 0; i++) picked.push(pool.splice(Math.floor(rng() * pool.length), 1)[0]!);
+      const taken = new Set<Tile>();
+      for (let g = 0; g < places.copies; g++) {
+        for (const t of picked) {
+          const copy = places.copyOf(t, g);
+          if (fits(copy) && !taken.has(copy)) {
+            taken.add(copy);
+            cells.push(copy);
+          }
+        }
+      }
+      e.spots = Array.from({ length: places.copies }, (_, g) => places.copyOf(picked[0] ?? centre, g)).filter((t): t is Tile => t !== undefined).map((t) => ({ q: t.q, r: t.r }));
       centre = cells[0] ?? centre;
       break;
     }
     case "carcass": {
-      const wild = land.filter((t) => t.owner === null && t.reservedFor === null && ["litter", "humus", "deadwood", "acid"].includes(t.terrain));
+      const wild = land.filter((t) => t.owner === null && t.reservedFor === null && ["litter", "humus", "deadwood"].includes(t.terrain));
       centre = pick(wild, rng) ?? centre;
       cells = [centre];
       break;
@@ -208,18 +227,40 @@ export function placeEvent(forest: ForestState, e: ForestEvent): void {
       break;
     }
     case "tree": {
-      // The 7-tile cluster of the centre with the fewest colonised tiles, nearest the middle; no Cœur,
-      // Sclérote or wetland in it.
-      let best: { h: Hex; key: [number, number, number, number] } | null = null;
-      for (const t of tiles) {
-        if (!strongAt(t)) continue;
-        const cluster = hexesInRadius(t, 1).map((h) => forest.tiles.get(hexKey(h)));
-        if (cluster.some((c) => !c || !isLand(c) || isSheltered(forest, c))) continue;
-        const key: [number, number, number, number] = [cluster.filter((c) => c!.owner !== null).length, hexDistance(t, { q: 0, r: 0 }), t.q, t.r];
-        if (!best || compare(key, best.key) < 0) best = { h: t, key };
+      // M9: one 7-tile cluster per group of slices, in the zone of the day, at the same place in every
+      // group: the place whose clusters hold the fewest colonised tiles, nearest the middle; no Cœur,
+      // Sclérote or wetland in any of them.
+      const places = dayPlaces(forest, e);
+      let best: { centre: Hex; spots: Hex[]; clusters: Hex[][]; key: [number, number, number, number, number] } | null = null;
+      for (const t of places.reference) {
+        // Whole clusters inside the zone first.
+        let outside = 0;
+        const clusters: Hex[][] = [];
+        const spots: Hex[] = [];
+        let colonised = 0;
+        let ok = true;
+        for (let g = 0; g < places.copies && ok; g++) {
+          const c = places.copyOf(t, g);
+          if (!c) {
+            ok = false;
+            break;
+          }
+          const cluster = hexesInRadius(c, 1).map((h) => forest.tiles.get(hexKey(h)));
+          if (cluster.some((x) => !x || !isLand(x) || isSheltered(forest, x))) ok = false;
+          colonised += cluster.filter((x) => x?.owner !== null).length;
+          outside += cluster.filter((x) => x !== undefined && zoneAt(forest.layout, forest.radius, x) !== places.zone).length;
+          clusters.push(zone(forest, c, 1));
+          spots.push({ q: c.q, r: c.r });
+        }
+        if (!ok) continue;
+        const key: [number, number, number, number, number] = [outside > 0 ? 1 : 0, colonised, hexDistance(t, { q: 0, r: 0 }), t.q, t.r];
+        if (!best || compare(key, best.key) < 0) best = { centre: t, spots, clusters, key };
       }
-      centre = best?.h ?? { q: 0, r: 0 };
-      cells = zone(forest, centre, 1);
+      // Copies may touch on a small map: each tile once.
+      const seen = new Set<string>();
+      cells = (best ? best.clusters.flat() : zone(forest, { q: 0, r: 0 }, 1)).filter((h) => !seen.has(hexKey(h)) && seen.add(hexKey(h)) !== undefined);
+      centre = best ? best.centre : { q: 0, r: 0 };
+      if (best) e.spots = best.spots;
       break;
     }
   }
@@ -227,6 +268,33 @@ export function placeEvent(forest: ForestState, e: ForestEvent): void {
   e.r = centre.r;
   e.cells = cells.map((h) => ({ q: h.q, r: h.r }));
   e.strong = strongAt(centre) && e.kind !== "tree" && e.kind !== "treefall";
+}
+
+/**
+ * Where the events of the day's zone go (M9): `reference` holds the tiles of the zone of the day in the first
+ * group of DAY_PLACE.copiesEvery slices, in map order; `copyOf(t, g)` is the tile at the same place (same
+ * band and position in its slice) in group `g`.
+ */
+function dayPlaces(forest: ForestState, e: ForestEvent): { zone: number; reference: Tile[]; copies: number; copyOf: (t: Hex, g: number) => Tile | undefined } {
+  const capacity = forest.layout.capacity;
+  const every = Math.max(1, Math.min(capacity, DAY_PLACE.copiesEvery));
+  const copies = Math.max(1, Math.floor(capacity / every));
+  const placement = forestPlacement(capacity, forest.radius);
+  const day = phaseAt(e.startsAt).index + 1;
+  const bySpot = new Map<string, Tile>();
+  const reference: Tile[] = [];
+  const spot = (pl: Placement, slice: number) => `${pl.band}:${slice}:${pl.p}`;
+  for (const t of sortedTiles(forest)) {
+    const pl = placement.get(hexKey(t));
+    if (!pl) continue;
+    bySpot.set(spot(pl, pl.slice), t);
+    if (pl.slice < every && zoneAt(forest.layout, forest.radius, t) === day) reference.push(t);
+  }
+  const copyOf = (h: Hex, g: number) => {
+    const pl = placement.get(hexKey(h));
+    return pl ? bySpot.get(spot(pl, (pl.slice + g * every) % capacity)) : undefined;
+  };
+  return { zone: day, reference, copies, copyOf };
 }
 
 function compare(a: readonly number[], b: readonly number[]): number {
@@ -315,33 +383,29 @@ function startEvent(forest: ForestState, e: ForestEvent, now: number): EventOutc
   const strength = e.strong ? EVENTS.centreStrength : 1;
   switch (e.kind) {
     case "storm":
-      for (const t of cells) t.effects.push({ kind: "storm", by: EVENT_CASTER, until: e.endsAt, power: STORM.bonus * strength });
+      for (const t of cells) t.effects = [...t.effects, { kind: "storm", by: EVENT_CASTER, until: e.endsAt, power: STORM.bonus * strength }];
       break;
     case "fire":
       for (const t of cells) {
         if (!isLand(t)) continue;
         tryTake(forest, e, t, out, counts);
-        t.effects = t.effects.filter((x) => x.kind !== "ashes");
-        t.effects.push({ kind: "ashes", by: EVENT_CASTER, until: e.startsAt + FIRE.ashesMs, power: FIRE.ashesFactor });
+        t.effects = [...t.effects.filter((x) => x.kind !== "ashes"), { kind: "ashes", by: EVENT_CASTER, until: e.startsAt + FIRE.ashesMs, power: FIRE.ashesFactor }];
       }
       break;
     case "boar":
       for (const t of cells) {
         tryTake(forest, e, t, out, counts);
-        t.exhaustion = 0; // The soil is turned over: fresh again.
       }
       break;
     case "treefall":
       for (const t of cells) {
         t.terrain = "stump";
-        t.exhaustion = 0;
       }
       break;
     case "carcass":
       e.restore = cells.map((t) => ({ q: t.q, r: t.r, terrain: t.terrain }));
       for (const t of cells) {
         t.terrain = "carcass";
-        t.exhaustion = 0;
       }
       break;
     case "nematodes": {
@@ -365,7 +429,6 @@ function startEvent(forest: ForestState, e: ForestEvent, now: number): EventOutc
       for (const t of cells) {
         tryTake(forest, e, t, out, counts);
         t.terrain = "tree";
-        t.exhaustion = 0;
       }
       break;
     }
@@ -460,7 +523,6 @@ function endEvent(forest: ForestState, e: ForestEvent): EventOutcome {
     // The dead tree leaves Stumps.
     for (const t of cells) {
       if (t.terrain === "tree") t.terrain = "stump";
-      t.exhaustion = 0;
     }
   }
   return out;

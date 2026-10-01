@@ -1,4 +1,4 @@
-import { FOREST, FOREST_TERRAINS, RUIN_PLACE, type Terrain } from "./balance";
+import { FOREST, FOREST_TERRAINS, RUIN_PLACE, ZONES, type Terrain } from "./balance";
 import { hex, hexDistance, hexesInRadius, hexKey, hexNeighbors, hexToPixel, type Hex } from "./hex";
 import type { GeneratedMap, MapTile } from "./mapgen";
 import { hashFloat } from "./rng";
@@ -57,7 +57,37 @@ function computeRing(radius: number, h: Hex): Ring {
   return "rim";
 }
 
-/** Yield multiplier of a tile (GDD §2.5: ×3 to ×5 in the centre). Always 1 on solo maps. */
+/**
+ * Zone of a tile (M9, DECIDED): 7 rings of the same thickness, 1 on the rim to 7 in the centre. Always 1 on
+ * solo maps.
+ */
+export function zoneAt(layout: MapLayout, radius: number, h: Hex): number {
+  if (layout.kind === "solo") return 1;
+  const cached = zoneCache.get(h);
+  if (cached !== undefined && cached.radius === radius && cached.q === h.q && cached.r === h.r) return cached.zone;
+  const zone = zoneOf(radius, h);
+  zoneCache.set(h, { radius, q: h.q, r: h.r, zone });
+  return zone;
+}
+
+const zoneCache = new WeakMap<Hex, { radius: number; q: number; r: number; zone: number }>();
+
+/**
+ * Zone at a distance from the centre: `count` rings of equal thickness (the rim's outer edge included),
+ * measured on the radial bands of the slices (distance rounded to a whole hex step), so that a place has
+ * the same zone in every slice.
+ */
+export function zoneOf(radius: number, h: Hex): number {
+  const rho = Math.round(centreDistance(h)) / radius;
+  return ZONES.count - Math.min(ZONES.count - 1, Math.max(0, Math.floor(rho * ZONES.count)));
+}
+
+/** A per-zone value (zone 1 … 7) of a ZONES table. */
+export function zoneValue(table: readonly number[], zone: number): number {
+  return table[Math.max(1, Math.min(table.length, zone)) - 1]!;
+}
+
+/** Yield multiplier of a tile (M9: by zone, ×1 on the rim to ×4 in the centre). Always 1 on solo maps. */
 export function richnessAt(layout: MapLayout, radius: number, h: Hex): number {
   if (layout.kind === "solo") return 1;
   // Pure function of the place: kept per tile object (M9 speed-up).
@@ -71,17 +101,7 @@ export function richnessAt(layout: MapLayout, radius: number, h: Hex): number {
 const richnessCache = new WeakMap<Hex, { radius: number; q: number; r: number; value: number }>();
 
 function computeRichness(radius: number, h: Hex): number {
-  const ring = ringAt(radius, h);
-  if (ring === "rim") return FOREST.richness.rim;
-  if (ring === "middle") return FOREST.richness.middle;
-  const depth = Math.max(0, 1 - centreDistance(h) / (radius * FOREST.ring.centre)); // 0 at the edge, 1 at the centre
-  return FOREST.richness.centreEdge + (FOREST.richness.centreMiddle - FOREST.richness.centreEdge) * depth;
-}
-
-/** Lifetime multiplier of a tile (GDD §2.5: little exhaustion on the rim). Always 1 on solo maps. */
-export function lifetimeFactorAt(layout: MapLayout, radius: number, h: Hex): number {
-  if (layout.kind === "solo") return 1;
-  return ringAt(radius, h) === "rim" ? FOREST.rimLifetimeFactor : 1;
+  return zoneValue(ZONES.richness, zoneOf(radius, h));
 }
 
 /** Where a hex sits in the forest's slices. */

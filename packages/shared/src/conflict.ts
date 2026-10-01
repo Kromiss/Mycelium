@@ -73,8 +73,7 @@ export function act(forest: ForestState, casterId: string, action: string, h: He
   caster.cooldowns[action] = now + ACTIONS[action].cooldownMs;
 
   const mark = (t: Tile) => {
-    t.effects = t.effects.filter((e) => !(e.kind === action && e.by === casterId));
-    t.effects.push({ kind: action, by: casterId, until });
+    t.effects = [...t.effects.filter((e) => !(e.kind === action && e.by === casterId)), { kind: action, by: casterId, until }];
   };
   if (action === "assault" || action === "cut") mark(tile);
   else {

@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   ANTI_FRUSTRATION,
   ECONOMY,
-  EXHAUSTION,
   HEART_MOVE_COOLDOWN_MS,
   HUMIDITY,
   OFFLINE,
@@ -73,7 +72,6 @@ describe("new game", () => {
         owner: SOLO_PLAYER,
         growthEndsAt: null,
         growthStartedAt: null,
-        exhaustion: 0,
         disconnectedSince: null,
         capture: null,
         reservedFor: null,
@@ -316,8 +314,7 @@ describe("production", () => {
     const s = game();
     s.nutrients = 0;
     advance(s, T0 + 10_000);
-    const e = (EXHAUSTION.max * 10_000) / TERRAIN_STATS.humus.lifetimeMs;
-    expect(s.nutrients).toBeCloseTo(10 * (1 - e / 2), 8);
+    expect(s.nutrients).toBeCloseTo(10, 8);
     expect(s.biomass).toBeCloseTo(s.nutrients * ECONOMY.biomassConversionRate, 10);
     s.upgrades.biomassConversion = 5;
     expect(conversionRate(s.upgrades)).toBeCloseTo(ECONOMY.biomassConversionRate * 1.5, 10);
@@ -356,51 +353,23 @@ describe("production", () => {
   });
 });
 
-describe("exhaustion", () => {
-  it("wears a producing tile down to its cap over its lifetime, then stops", () => {
-    const s = game("litter");
+describe("no wear (M9)", () => {
+  it("keeps a producing tile at full yield, however long it produces", () => {
+    const s = game("deadwood");
     own(s, hex(1, 0));
-    const L = TERRAIN_STATS.litter.lifetimeMs;
-    advance(s, T0 + L / 2);
-    expect(tileAt(s, hex(1, 0)).exhaustion).toBeCloseTo(EXHAUSTION.max / 2, 10);
-    advance(s, T0 + L);
-    expect(tileAt(s, hex(1, 0)).exhaustion).toBeCloseTo(EXHAUSTION.max, 10);
-    advance(s, T0 + 10 * L);
-    expect(tileAt(s, hex(1, 0)).exhaustion).toBe(EXHAUSTION.max);
-    // A worn tile keeps 60 % of its yield.
-    expect(tileProduction(s, tileAt(s, hex(1, 0)))).toBeCloseTo(0.5 * (1 - EXHAUSTION.max) * 0.99 * 1.05, 10);
+    const before = tileProduction(s, tileAt(s, hex(1, 0)));
+    advance(s, T0 + 7 * 24 * HOUR);
+    const t = tileAt(s, hex(1, 0));
+    expect(t.terrain).toBe("deadwood");
+    expect(tileProduction(s, t)).toBeCloseTo(before, 10);
   });
 
-  it("integrates the decline exactly", () => {
+  it("produces at a steady rate", () => {
     const s = game("litter");
     s.nutrients = 0;
     tileAt(s, hex(0, 0)).terrain = "litter";
-    const L = TERRAIN_STATS.litter.lifetimeMs;
-    const m = EXHAUSTION.max;
-    advance(s, T0 + 2 * L);
-    // ∫0^L (1 − mτ/L) dτ + L × (1 − m) = L(1 − m/2) + L(1 − m)
-    expect(s.nutrients).toBeCloseTo((0.5 * L * (1 - m / 2 + 1 - m)) / 1000, 6);
-  });
-
-  it("turns worn-out Dead wood into fresh Humus", () => {
-    const s = game("deadwood");
-    own(s, hex(1, 0));
-    advance(s, T0 + TERRAIN_STATS.deadwood.lifetimeMs + 1);
-    const t = tileAt(s, hex(1, 0));
-    expect(t.terrain).toBe("humus");
-    expect(t.exhaustion).toBeLessThan(0.001);
-  });
-
-  it("never regenerates", () => {
-    const s = game("litter");
-    const wild = tileAt(s, hex(2, 2));
-    wild.exhaustion = 0.3;
-    own(s, hex(1, 0));
-    tileAt(s, hex(1, 0)).exhaustion = 0.2;
-    tileAt(s, hex(1, 0)).owner = null; // Lost: wear stays on the tile.
-    advance(s, T0 + 48 * HOUR);
-    expect(wild.exhaustion).toBe(0.3);
-    expect(tileAt(s, hex(1, 0)).exhaustion).toBe(0.2);
+    advance(s, T0 + 10 * HOUR);
+    expect(s.nutrients).toBeCloseTo(0.5 * 10 * 3600, 6);
   });
 });
 
@@ -409,7 +378,6 @@ describe("offline", () => {
     const s = game("humus");
     s.nutrients = 0;
     goOffline(s, T0);
-    // Keep exhaustion out of the way to check the factor alone.
     const check = cloneGame(s);
     advance(check, T0 + OFFLINE.fullMs - 1);
     expect(productionRate(check, check.updatedAt)).toBeGreaterThan(0);

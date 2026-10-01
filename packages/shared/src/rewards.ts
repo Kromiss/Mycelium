@@ -3,8 +3,6 @@
  * Pure rules: the server computes the standings of a finished forest with them and keeps the result on
  * the accounts.
  */
-import { STRAIN_IDS, type StrainId } from "./balance";
-
 const HOUR = 3_600_000;
 
 // ---------------------------------------------------------------------------
@@ -101,7 +99,8 @@ export function secondaryBoard(lines: readonly SeasonLine[], board: SecondaryBoa
 }
 
 // ---------------------------------------------------------------------------
-// Rewards kept after the wipe (GDD §8.2): titles, network colours, Carpophore skins, strains
+// Rewards kept after the wipe (GDD §8.2): titles, network colours, Carpophore skins (no strain to unlock
+// since M9: both strains are open to everyone)
 
 export const TITLE_IDS = ["champion", "conqueror", "treeEater", "colossus", "frugal", "allied", ...LEAGUES] as const;
 export type TitleId = (typeof TITLE_IDS)[number];
@@ -111,7 +110,7 @@ export type ColorId = (typeof COLOR_IDS)[number];
 export const SKIN_IDS = ["morel", "coprinus", "clavaria", "amanita"] as const;
 export type SkinId = (typeof SKIN_IDS)[number];
 
-export type RewardKind = "title" | "color" | "skin" | "strain";
+export type RewardKind = "title" | "color" | "skin";
 export interface Reward {
   kind: RewardKind;
   id: string;
@@ -129,7 +128,7 @@ const BOARD_TITLES: Record<SecondaryBoard, TitleId> = {
 const LEAGUE_COLORS: Record<Exclude<LeagueId, "bronze">, ColorId> = { silver: "moss", gold: "amber", diamond: "ice", primordial: "violet" };
 const PODIUM_COLORS: ColorId[] = ["gold", "silver", "copper"];
 
-/** Carpophore skins and Moisissure unlock with the account's career (seasons played, fruitings, trophies). */
+/** Carpophore skins unlock with the account's career (seasons played, fruitings, trophies). */
 export const REWARDS = {
   skins: {
     morel: { fruitings: 5 },
@@ -137,8 +136,6 @@ export const REWARDS = {
     clavaria: { trophies: 25 },
     amanita: { seasons: 10 },
   } as Readonly<Record<SkinId, Partial<Career>>>,
-  /** Moisissure (M7, DECIDED): after 3 seasons played. */
-  moldSeasons: 3,
 } as const;
 
 /** Totals over every season an account played. */
@@ -156,14 +153,12 @@ export function isReward(kind: string, id: string): boolean {
       return (COLOR_IDS as readonly string[]).includes(id);
     case "skin":
       return (SKIN_IDS as readonly string[]).includes(id);
-    case "strain":
-      return (STRAIN_IDS as readonly string[]).includes(id);
     default:
       return false;
   }
 }
 
-/** Rewards earned by a career, whatever the season: skins and Moisissure. */
+/** Rewards earned by a career, whatever the season: the Carpophore skins. */
 export function careerRewards(career: Career): Reward[] {
   const out: Reward[] = [];
   for (const id of SKIN_IDS) {
@@ -172,7 +167,6 @@ export function careerRewards(career: Career): Reward[] {
       out.push({ kind: "skin", id });
     }
   }
-  if (career.seasons >= REWARDS.moldSeasons) out.push({ kind: "strain", id: "mold" satisfies StrainId });
   return out;
 }
 

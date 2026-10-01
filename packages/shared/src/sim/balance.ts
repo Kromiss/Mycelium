@@ -5,14 +5,14 @@
  * plays every spot once and the map itself cancels out.
  * Used by `balance.test.ts` and `pnpm --filter @mycelium/shared simulate:balance`.
  */
-import { MUTATION_BRANCHES, STARTER_STRAINS, type MutationBranch, type StrainId } from "../balance";
+import { MUTATION_BRANCHES, STRAIN_IDS, type MutationBranch, type StrainId } from "../balance";
 import { simulateForestWeek, type ForestSimOptions } from "./forest-week";
 import type { BotPlan } from "./week";
 
 const BRANCHES = Object.keys(MUTATION_BRANCHES) as MutationBranch[];
 
 /** The 12 combinations: a strain and a first branch (the two others follow in a fixed order). */
-export const COMBOS: BotPlan[] = STARTER_STRAINS.flatMap((strain) =>
+export const COMBOS: BotPlan[] = STRAIN_IDS.flatMap((strain) =>
   BRANCHES.map((first) => ({ strain, branches: [first, ...BRANCHES.filter((b) => b !== first)] })),
 );
 
@@ -74,7 +74,7 @@ export function simulateBalance(options: BalanceOptions = {}): BalanceReport {
     Object.fromEntries(keys.map((k) => [k, row(samples.filter((x) => pick(x) === k))])) as Record<K, BalanceRow>;
   return {
     forests,
-    byStrain: group(STARTER_STRAINS, (x) => x.strain),
+    byStrain: group(STRAIN_IDS, (x) => x.strain),
     byBranch: group(BRANCHES, (x) => x.branch),
     byCombo: group(
       COMBOS.map((c) => `${c.strain}/${c.branches[0]}`),

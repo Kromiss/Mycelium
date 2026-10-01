@@ -32,7 +32,6 @@ export interface TileDto extends Hex {
   owner: string | null;
   growthEndsAt: number | null;
   growthStartedAt: number | null;
-  exhaustion: number;
   disconnectedSince: number | null;
   capture: { by: string; progress: number } | null;
   reservedFor: string | null;
@@ -87,7 +86,6 @@ export interface GameSnapshot {
   listens?: Record<string, number>;
   conquests?: number;
   activeMs?: number;
-  unlockedStrains?: StrainId[];
   /** M8: the player's Bourgeons, and when the next one grows. */
   buds?: Bud[];
   nextBudAt?: number | null;
@@ -101,7 +99,6 @@ export const TERRAIN_CODES: Record<Terrain, string> = {
   stump: "s",
   roots: "r",
   rock: "k",
-  acid: "a",
   carcass: "c",
   tree: "t",
   ruin: "u",
@@ -110,17 +107,9 @@ export const TERRAIN_CODES: Record<Terrain, string> = {
 const TERRAIN_BY_CODE = Object.fromEntries(TERRAINS.map((t) => [TERRAIN_CODES[t], t])) as Record<string, Terrain>;
 
 /** Snapshot of a player's game; `visible` limits the tiles sent (all tiles when omitted). */
-/**
- * `visible`: the tiles the player sees (all when absent). `masked`: tiles sent as bare wild ground,
- * without owner or anything that would tell who holds them (a hidden Truffe, GDD §4.3).
- */
-export function toSnapshot(state: GameState, visible?: Set<string>, masked?: Set<string>): GameSnapshot {
+export function toSnapshot(state: GameState, visible?: Set<string>): GameSnapshot {
   const tiles: TileDto[] = [];
   for (const [k, t] of state.tiles) {
-    if (masked?.has(k)) {
-      tiles.push({ q: t.q, r: t.r, t: TERRAIN_CODES[t.terrain], owner: null, growthEndsAt: null, growthStartedAt: null, exhaustion: 0, disconnectedSince: null, capture: null, reservedFor: null });
-      continue;
-    }
     if (visible && !visible.has(k)) continue;
     const dto: TileDto = {
       q: t.q,
@@ -129,7 +118,6 @@ export function toSnapshot(state: GameState, visible?: Set<string>, masked?: Set
       owner: t.owner,
       growthEndsAt: t.growthEndsAt,
       growthStartedAt: t.growthStartedAt,
-      exhaustion: t.exhaustion,
       disconnectedSince: t.disconnectedSince,
       capture: t.capture && { ...t.capture },
       reservedFor: t.reservedFor,
@@ -178,7 +166,6 @@ export function toSnapshot(state: GameState, visible?: Set<string>, masked?: Set
     listens: { ...state.listens },
     conquests: state.conquests,
     activeMs: state.activeMs,
-    unlockedStrains: [...state.unlockedStrains],
     buds: state.buds.map((b) => ({ ...b })),
     nextBudAt: state.nextBudAt,
   };
@@ -197,7 +184,6 @@ export function fromSnapshot(s: GameSnapshot, seed = 0): GameState {
       owner: o.owner,
       growthEndsAt: o.growthEndsAt,
       growthStartedAt: o.growthStartedAt ?? null,
-      exhaustion: o.exhaustion,
       disconnectedSince: o.disconnectedSince,
       capture: o.capture && { ...o.capture },
       reservedFor: o.reservedFor ?? null,
@@ -246,7 +232,6 @@ export function fromSnapshot(s: GameSnapshot, seed = 0): GameState {
     listens: normalizeListens(s.listens),
     conquests: s.conquests ?? 0,
     activeMs: s.activeMs ?? 0,
-    unlockedStrains: Array.isArray(s.unlockedStrains) ? s.unlockedStrains.filter((x) => typeof x === "string" && isStrainId(x)) : [],
     buds: normalizeBuds(s.buds),
     nextBudAt: typeof s.nextBudAt === "number" ? s.nextBudAt : null,
     tiles,

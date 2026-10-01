@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { ACTION_EFFECTS, ACTIONS, ANTI_FRUSTRATION, BORDERS, CENTRE_RISK } from "./balance";
+import { ACTION_EFFECTS, ACTIONS, ANTI_FRUSTRATION, BORDERS, CENTRE_RISK, ZONES } from "./balance";
+import { zoneAt, zoneValue } from "./forestgen";
 import { act, actionCost, checkAct } from "./conflict";
 import { advanceForest, inCentre, joinForest, newForest, refreshReservations, resolveBorders, type ForestState } from "./forest";
 import { advance, biomassRate, networkHops, placeBiomass, tileProduction, type GameState } from "./game";
@@ -91,9 +92,10 @@ describe("active actions (GDD §6.2)", () => {
     const plain = timeToTake(arena().f, border);
     expect(plain).toBeCloseTo(plainCaptureMs(f, "a", border), -4);
     act(f, "a", "assault", border, T0);
-    // Full speed ×4: a Humus tile falls in 45 min / 4 (slowed by its cohesion), within the 30 min of the assault.
+    // Full speed ×4: a Humus tile falls in 45 min / 4 (slowed by its cohesion and its zone), within the 30 min of the assault.
     const { hold } = cohesionDefence(f, tile(f, border));
-    expect(timeToTake(f, border)).toBeCloseTo((BORDERS.captureMs.humus * hold) / ACTION_EFFECTS.assaultSpeed, -4);
+    const zone = zoneValue(ZONES.capture, zoneAt(f.layout, f.radius, border));
+    expect(timeToTake(f, border)).toBeCloseTo((BORDERS.captureMs.humus * zone * hold) / ACTION_EFFECTS.assaultSpeed, -4);
   });
 
   it("Assaut needs the attacker above parity", () => {

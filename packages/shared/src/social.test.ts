@@ -223,7 +223,9 @@ describe("Ruins and relics (M7)", () => {
     ruin.terrain = "ruin";
     expect(colonize(a, ruin, T0)).toEqual({ ok: true });
     expect(a.enzymes).toBeLessThan(1_000);
-    advanceForest(f, T0 + TERRAIN_STATS.ruin.growthSeconds * 1000 + 1);
+    // Its growth: the Ruine's, longer in inner zones (M9).
+    expect(ruin.growthEndsAt! - T0).toBeGreaterThanOrEqual(TERRAIN_STATS.ruin.growthSeconds * 1000);
+    advanceForest(f, ruin.growthEndsAt! + 1);
     expect(ruin.owner).toBe("a");
     expect(ruin.terrain).toBe("rubble");
     expect(a.relicPicks).toBe(1);

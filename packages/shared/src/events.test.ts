@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { DYING_TREE, EVENTS, FIRE, NEMATODES, STORM, TREEFALL, type EventKind } from "./balance";
 import { eventNotices, resolveEvents, scheduleEvents, type ForestEvent } from "./events";
 import { advanceForest, joinForest, newForest, type ForestState } from "./forest";
-import { ringAt } from "./forestgen";
+import { centreDistance, zoneAt } from "./forestgen";
 import { productionRate, tileProduction, type GameState } from "./game";
 import { hex, hexesInRadius, hexKey, type Hex } from "./hex";
 import { seasonAt } from "./season";
@@ -114,8 +114,8 @@ describe("events (GDD §7)", () => {
     advanceForest(f, WED + STORM.durationMs + MIN);
     resolveEvents(f, 5_000, WED + STORM.durationMs + MIN);
     expect(f.events[0]!.status).toBe("over");
-    // Back to normal, apart from the wear of the last 4 h.
-    expect(tileProduction(a, tile) / before).toBeCloseTo(1 - tile.exhaustion, 2);
+    // Back to normal (no wear since M9).
+    expect(tileProduction(a, tile) / before).toBeCloseTo(1, 2);
   });
 
   it("Incendie: burns at most 10 % of a colony, never its Cœur, and leaves rich ashes", () => {
@@ -141,15 +141,6 @@ describe("events (GDD §7)", () => {
     f.events = [announced("boar", WED, hexesInRadius(b.heart, 1))];
     resolveEvents(f, 5_000, WED);
     expect(owned(f, "b")).toBe(7);
-  });
-
-  it("Sanglier: turns the soil over", () => {
-    const { f } = forest();
-    const line = [hex(-1, 1), hex(0, 1), hex(1, 1)];
-    for (const h of line) f.tiles.get(hexKey(h))!.exhaustion = 0.3;
-    f.events = [announced("boar", WED, line)];
-    resolveEvents(f, 5_000, WED);
-    for (const h of line) expect(f.tiles.get(hexKey(h))!.exhaustion).toBe(0);
   });
 
   it("Chute d'arbres: new Stumps", () => {
@@ -230,12 +221,35 @@ describe("events (GDD §7)", () => {
     expect(f.events).toEqual([]);
   });
 
-  it("places the world boss in the centre, away from Cœurs", () => {
-    const { f } = forest();
+  it("places the world boss in the zone of the day (M9), away from Cœurs", () => {
+    const { f, a, b } = forest();
     f.events = [{ ...announced("tree", WED, [hex(0, 0)], DYING_TREE.durationMs), status: "scheduled" }];
     resolveEvents(f, 5_000, WED - EVENTS.announceMs);
     const e = f.events[0]!;
+    // A forest of 4: one group of 3 slices, so one tree of 7 tiles, centred in zone 3 on Wednesday.
     expect(e.cells).toHaveLength(7);
-    expect(ringAt(f.radius, e)).toBe("centre");
+    expect(e.spots).toHaveLength(1);
+    expect(zoneAt(f.layout, f.radius, e)).toBe(3);
+    for (const p of [a, b]) expect(e.cells.some((c) => c.q === p.heart.q && c.r === p.heart.r)).toBe(false);
+  });
+
+  it("copies the centre events for every group of 3 slices (M9)", () => {
+    const f = newForest(7, SEASON.start, 12);
+    f.events = [
+      { ...announced("tree", SEASON.days[3]! + 14 * HOUR, [hex(0, 0)], DYING_TREE.durationMs), status: "scheduled" },
+      { ...announced("treefall", SEASON.days[3]! + 10 * HOUR, [hex(0, 0)]), status: "scheduled", id: 1 },
+    ];
+    resolveEvents(f, 5_000, SEASON.days[3]! + 14 * HOUR - EVENTS.announceMs);
+    const [tree, fall] = f.events;
+    // Thursday: zone 4, one copy per group of 3 slices, all at the same distance from the centre.
+    expect(tree!.spots).toHaveLength(4);
+    expect(tree!.cells).toHaveLength(4 * 7);
+    for (const s of tree!.spots!) expect(zoneAt(f.layout, f.radius, s)).toBe(4);
+    const distances = new Set(tree!.spots!.map((s) => Math.round(centreDistance(s))));
+    expect(distances.size).toBe(1);
+    expect(fall!.spots).toHaveLength(4);
+    expect(fall!.cells.length % 4).toBe(0);
+    expect(fall!.cells.length).toBeGreaterThanOrEqual(TREEFALL.minStumps);
+    for (const c of fall!.cells) expect(zoneAt(f.layout, f.radius, c)).toBe(4);
   });
 });

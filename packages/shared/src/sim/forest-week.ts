@@ -10,7 +10,7 @@ import { advanceForest, joinForest, newForest, resolveBorders, type CaptureEvent
 import { ringAt, type Ring } from "../forestgen";
 import { goOffline, goOnline, networkHops, productionRate, type Tile } from "../game";
 import { hexKey } from "../hex";
-import { ownedTilesOf, tilesEpoch } from "../tile-index";
+import { ownedTilesOf, topologyEpoch } from "../tile-index";
 import { seasonAt } from "../season";
 import { PROFILES, botPlay, defaultPlan, type BotPlan, type Profile } from "./week";
 
@@ -61,7 +61,7 @@ export interface ForestSimResult {
   snapshots: ForestSnapshot[];
   captures: Array<CaptureEvent & { hour: number; ring: Ring }>;
   /** Final map, for pictures. */
-  tiles: Array<{ q: number; r: number; terrain: string; owner: string | null; exhaustion: number; structure: string | null; connected: boolean }>;
+  tiles: Array<{ q: number; r: number; terrain: string; owner: string | null; structure: string | null; connected: boolean }>;
   hearts: Record<string, { q: number; r: number }>;
   spawns: Record<string, { q: number; r: number }>;
   /** Hours at which the forest reached 50 %, 90 % and 100 % occupancy (null if never). */
@@ -114,7 +114,7 @@ export function simulateForestWeek(options: ForestSimOptions = {}): ForestSimRes
   // Recounted only when a tile changed (M9 speed-up).
   let occupiedAt: { epoch: number | null; value: number } = { epoch: null, value: 0 };
   const occupied = () => {
-    const epoch = tilesEpoch(forest.tiles);
+    const epoch = topologyEpoch(forest.tiles);
     if (epoch !== null && occupiedAt.epoch === epoch) return occupiedAt.value;
     let n = 0;
     for (const p of forest.players.values()) for (const t of ownedTilesOf(forest.tiles, p.id)) if (fillable(t)) n++;
@@ -205,7 +205,6 @@ export function simulateForestWeek(options: ForestSimOptions = {}): ForestSimRes
       r: t.r,
       terrain: t.terrain,
       owner: t.owner,
-      exhaustion: t.exhaustion,
       structure: t.structure,
       connected: t.owner !== null && networkHops(forest.players.get(t.owner)!).has(hexKey(t)),
     })),
