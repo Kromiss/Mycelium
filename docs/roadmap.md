@@ -457,8 +457,9 @@ visé ; un robot connecté 24 h/24 ne fait que **0,5 à 0,8 action utile par min
   Fredoka + Nunito ; cases sauvages en bulles pastel ; colonies en une tache ronde de la couleur du joueur ;
   niveau en 1 à 3 points puis un petit champignon (50+) ; Cœur en champignon avec des yeux ; Bourgeon en
   étoile jaune pâle ; 7 zones teintées de plus en plus fort et entourées d'un trait noir (`#2B2430`, ~2,4 px),
-  estompé (~25 %) sur les colonies. Remplace le rendu de M8 (filaments → tapis → champignons). À composer :
-  la palette des 12 couleurs de joueurs, dans le même esprit.
+  estompé (~25 %) sur les colonies. Remplace le rendu de M8 (filaments → tapis → champignons).
+  **12 couleurs de joueurs** (principale/foncée) : Lavande `#8F7CF2`/`#563BE1`, Corail `#F58C85`/`#E64D43`, Menthe `#5ACEA8`/`#379F7D`, Ciel `#78BCF1`/`#3796E0`, Bonbon `#F691C3`/`#E74E9A`, Citron `#E7DF39`/`#B0A91E`, Pomme `#6FBC46`/`#4D7D33`, Abricot `#F5C983`/`#E6A641`, Prune `#A35DA8`/`#6F4172`, Lagon `#3EA8A7`/`#2B6968`, Framboise `#E0516C`/`#B62A44`, Indigo `#4042D4`/`#2A2B99`. Ordre autour de la forêt : Menthe → Indigo → Framboise → Lavande → Citron → Lagon → Pomme → Bonbon → Abricot → Ciel → Corail → Prune
+  (deux voisins restent très différents, daltonisme compris).
 - **3× plus de cases** : `TILE_SCALE` passe de 5 à **15** (~750 cases par joueur, ~8 500 cases de terre par
   forêt au lieu de ~2 840), pour plus d'expansion et plus d'achats par minute. Le facteur de taille par petite
   case se recalcule pour garder le même rythme (≈ 1,036^(1/3) ≈ 1,012, à confirmer en simulation).
@@ -471,12 +472,22 @@ visé ; un robot connecté 24 h/24 ne fait que **0,5 à 0,8 action utile par min
   robots** (aucun joueur humain, pour observer une semaine en accéléré) ; sauter à un jour ou une phase ; se
   donner des ressources ; suivre un robot ; voir le remplissage et les actions par minute ; arrêter ou effacer
   une forêt de test.
+- **Remise à zéro à la livraison** (accord du propriétaire, 1ᵉʳ octobre 2026) : comptes et forêts sont
+  supprimés, tout repart de zéro avec les nouvelles règles ; une migration destructive est autorisée (marquée
+  `-- allow-destructive`). Sur la prod, l'opération est déclenchée par le propriétaire (CLAUDE.md interdit à
+  Claude de lancer une remise à zéro de la prod).
+- **Événements du centre symétriques** : la Chute d'arbres et l'Arbre mourant tombent en **plusieurs
+  exemplaires placés pareil pour toutes les parts** (proposition : un par groupe de 3 parts, soit 4 en
+  zone 4 le jeudi), pour qu'aucun joueur n'en soit plus proche qu'un autre.
+- **Branche Décomposeur** : les 2 mutations retirées sont remplacées par 2 nouvelles, économiques, pour
+  revenir à 5 (à valider, voir ci-dessous).
 - **Retirés aussi** : les mutations **Usure lente** et **Acidophile** (la branche Décomposeur passe à
   3 mutations), le terrain **Sol acide**, et la récompense de la Moisissure après 3 saisons (sans remplacement).
 
 🔸 Décisions à prendre avant de commencer :
 - Valeurs des paliers des 7 zones (difficulté et richesse) : proposées par Claude après simulation,
   validées par le propriétaire.
+- Les 2 nouvelles mutations du Décomposeur (Claude propose, le propriétaire valide).
 
 À faire :
 - **En premier : accélérer les simulations.** Objectif : une semaine de forêt de 12 robots (cases ×3) en
@@ -489,8 +500,8 @@ visé ; un robot connecté 24 h/24 ne fait que **0,5 à 0,8 action utile par min
 - `packages/shared` : nouveau `sizeFactor` ; suppression de l'usure (production, `EXHAUSTION`, Bois mort →
   Humus, Moisissure, Usure lente, Acidophile, Sol acide) ; gradient de difficulté par distance au centre dans le coût, la pousse et la prise ;
   2 souches et nouvelles valeurs ; renommage de la mutation ; tests.
-- Serveur : migration pour les joueurs et forêts qui ont une souche retirée (souche remise à choisir) et
-  pour l'usure stockée sur les cases ; rien à purger sans accord (migrations vers l'avant uniquement).
+- Serveur : migration de remise à zéro (comptes et forêts supprimés, accord donné) et suppression de l'usure
+  stockée sur les cases ; événements du centre symétriques.
 - Client : choix entre 2 souches, plus d'usure affichée, coût et temps de pousse visibles selon la zone ;
   nouveau rendu « Pastille ronde » des tuiles et de l'interface (couleurs, polices) ; textes EN + FR.
 - Cases ×3 : `TILE_SCALE = 15` et facteur de taille recalé ; vérifier le tick serveur, la taille des messages
