@@ -20,7 +20,7 @@ des points de départ à équilibrer, centralisés dans `packages/shared`.
 | M6 Profondeur : conflit & événements | 0.7.0 | étape 5 | Actions actives, événements, world boss | ✅ (testé en local) |
 | M7 Social | 0.8.0 | étape 6 | Alliances, ligues, récompenses | ✅ (testé en local) |
 | M8 Incrémental : enrichissement & cohésion | 0.9.0 | — | Niveaux de case, Bourgeons, bonus des cases collées, nouveau visuel | ✅ (testé en local) |
-| M9 Refonte : rythme, centre & souches | 0.10.0 | étape 8 | Forêt remplie au 6ᵉ–7ᵉ jour, usure retirée, 7 zones, 2 souches, visuel des tuiles | à faire |
+| M9 Refonte : rythme, centre & souches | 0.10.0 | étape 8 | Forêt remplie au 6ᵉ–7ᵉ jour, cases ×3, usure retirée, 7 zones, 2 souches, visuel, admin de test | à faire |
 | M10 Bêta fermée | 0.11.0 | — | Plusieurs forêts, équilibrage, charge | à faire |
 | Lancement | 1.0.0 | — | Ouverture publique | — |
 
@@ -459,12 +459,25 @@ visé ; un robot connecté 24 h/24 ne fait que **0,5 à 0,8 action utile par min
   étoile jaune pâle ; 7 zones teintées de plus en plus fort et entourées d'un trait noir (`#2B2430`, ~2,4 px),
   estompé (~25 %) sur les colonies. Remplace le rendu de M8 (filaments → tapis → champignons). À composer :
   la palette des 12 couleurs de joueurs, dans le même esprit.
+- **3× plus de cases** : `TILE_SCALE` passe de 5 à **15** (~750 cases par joueur, ~8 500 cases de terre par
+  forêt au lieu de ~2 840), pour plus d'expansion et plus d'achats par minute. Le facteur de taille par petite
+  case se recalcule pour garder le même rythme (≈ 1,036^(1/3) ≈ 1,012, à confirmer en simulation).
+- **Parties de test à réglages prédéfinis** : lancer une forêt de test en choisissant le **nombre de robots**,
+  le **facteur de temps** (mode rapide) et les autres réglages utiles, sans redémarrer le serveur (aujourd'hui
+  `BOTS` et `TIME_SCALE` sont des variables d'environnement fixées au démarrage, pour tout le serveur).
+- **Interface d'administration cachée** : une page réservée aux admins (`ADMIN_NAMES`), absente des menus,
+  pour lancer et piloter ces parties de test et faire beaucoup d'essais.
 - **Retirés aussi** : les mutations **Usure lente** et **Acidophile** (la branche Décomposeur passe à
   3 mutations), le terrain **Sol acide**, et la récompense de la Moisissure après 3 saisons (sans remplacement).
 
 🔸 Décisions à prendre avant de commencer :
 - Valeurs des paliers des 7 zones (difficulté et richesse) : proposées par Claude après simulation,
   validées par le propriétaire.
+- Contenu de l'interface d'admin : Claude propose une liste (par exemple créer une forêt de test avec graine,
+  robots et facteur de temps ; sauter à un jour ou une phase ; donner des ressources ; suivre un robot ;
+  voir le remplissage et les actions par minute ; arrêter ou effacer une forêt de test), le propriétaire tranche.
+- Où vit l'admin : en prod aussi (réservé aux admins, forêts de test isolées des classements, ligues et
+  récompenses) ou seulement en local et en staging.
 
 À faire :
 - `packages/shared` : nouveau `sizeFactor` ; suppression de l'usure (production, `EXHAUSTION`, Bois mort →
@@ -474,6 +487,12 @@ visé ; un robot connecté 24 h/24 ne fait que **0,5 à 0,8 action utile par min
   pour l'usure stockée sur les cases ; rien à purger sans accord (migrations vers l'avant uniquement).
 - Client : choix entre 2 souches, plus d'usure affichée, coût et temps de pousse visibles selon la zone ;
   nouveau rendu « Pastille ronde » des tuiles et de l'interface (couleurs, polices) ; textes EN + FR.
+- Cases ×3 : `TILE_SCALE = 15` et facteur de taille recalé ; vérifier le tick serveur, la taille des messages
+  et le rendu client (zoom, lisibilité de la DA) avec ~8 500 cases.
+- Parties de test : réglages par forêt (robots, facteur de temps, graine…) au lieu de variables globales ;
+  forêts de test marquées comme telles ; tests.
+- Interface d'admin cachée : route non listée, accès vérifié **côté serveur** (cachée ne veut pas dire
+  protégée), textes EN + FR.
 - Simulations : `simulate:forest` (90 % entre le 6ᵉ et le 7ᵉ jour, à revérifier après l'usure et le
   gradient), `simulate:balance` (aucune des 2 souches ne domine), `simulate:profiles` (écart actif /
   occasionnel ≤ ×6).
@@ -481,7 +500,8 @@ visé ; un robot connecté 24 h/24 ne fait que **0,5 à 0,8 action utile par min
 **Terminé quand** : la forêt de 12 robots est occupée à 90 % entre le jour 6 et le jour 7, l'usure n'existe
 plus nulle part (règles, base, rendu), chaque zone N est atteinte vers le jour N par les robots actifs, le rendu « Pastille ronde » est en place,
 les deux souches finissent à égalité en moyenne dans `simulate:balance`, un joueur à 3 × 10 min/jour finit avec au plus 6× moins
-de biomasse qu'un joueur à 12 h/jour, et `pnpm check` est vert.
+de biomasse qu'un joueur à 12 h/jour, la forêt compte 3× plus de cases sans ralentir le tick, un admin peut lancer depuis l'interface cachée une
+forêt de test avec ses robots et son facteur de temps, et `pnpm check` est vert.
 
 ## M10 — Bêta fermée (0.11.0)
 
