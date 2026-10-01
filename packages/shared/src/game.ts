@@ -49,7 +49,7 @@ import {
 import { lifetimeFactorAt, richnessAt, ringAt, type MapLayout } from "./forestgen";
 import { hexDistance, hexEquals, hexKey, hexNeighbors, type Hex } from "./hex";
 import { generateMap, START_HEX } from "./mapgen";
-import { asTileOf, makeTile, neighbourTiles, ownedCountOf, ownedTilesOf, ownerVersion, tileKey, touchesWetland } from "./tile-index";
+import { asTileOf, makeTile, neighbourhoodVersion, neighbourTiles, ownedCountOf, ownedTilesOf, ownerVersion, tileKey, touchesWetland } from "./tile-index";
 import { hashFloat } from "./rng";
 import { NEUTRAL_EFFECTS, nextPhaseChange, phaseAt, type PhaseEffects } from "./season";
 
@@ -708,6 +708,9 @@ export function tileYield(terrain: Terrain, upgrades: Upgrades): number {
   return TERRAIN_STATS[terrain].yieldPerSecond * digestion * wood;
 }
 
+const rootsCounted = new WeakMap<Map<string, number>, number>();
+const rootsCountedTiles = new WeakMap<Map<string, number>, Map<string, Tile>>();
+
 /** Production multiplier of a structure on its own tile (GDD §4.1). */
 export function structureFactor(structure: StructureId | null): number {
   if (structure === "node") return 1 + STRUCTURES.nodeBonus;
@@ -720,8 +723,16 @@ export function structureFactor(structure: StructureId | null): number {
  * player's traits (mutations and strain) and Témérité.
  */
 export function networkBonus(state: GameState, hops: Map<string, number> = networkHops(state), at: number = state.updatedAt): number {
-  let roots = 0;
-  for (const k of hops.keys()) if (state.tiles.get(k)!.terrain === "roots") roots++;
+  // The count only changes with the hops map (a new map whenever the player's tiles change).
+  let roots = rootsCounted.get(hops);
+  if (roots === undefined || rootsCountedTiles.get(hops) !== state.tiles) {
+    roots = 0;
+    for (const k of hops.keys()) if (state.tiles.get(k)!.terrain === "roots") roots++;
+    if (ownerVersion(state.tiles, state.id) !== null) {
+      rootsCounted.set(hops, roots);
+      rootsCountedTiles.set(hops, state.tiles);
+    }
+  }
   return (1 + ROOTS.networkBonus * roots * rootsFactor(state)) * traitProduction(state, at) * temerityFactor(state);
 }
 
@@ -855,8 +866,20 @@ export function isEnrichable(tile: { terrain: Terrain }): boolean {
  */
 export function enrichBaseCost(state: GameState, tile: Tile, owned: number = ownedCount(state)): number {
   if (!isEnrichable(tile)) return 0;
-  return TERRAIN_STATS[tile.terrain].baseCost * Math.pow(ECONOMY.sizeFactor, owned) * ENRICH.baseShare;
+  return TERRAIN_STATS[tile.terrain].baseCost * sizePower(owned) * ENRICH.baseShare;
 }
+
+/** `sizeFactor ^ owned`, remembered for the last few sizes (the same few sizes come back all the time). */
+function sizePower(owned: number): number {
+  let v = sizePowers.get(owned);
+  if (v === undefined) {
+    v = Math.pow(ECONOMY.sizeFactor, owned);
+    if (sizePowers.size > 4096) sizePowers.clear();
+    sizePowers.set(owned, v);
+  }
+  return v;
+}
+const sizePowers = new Map<number, number>();
 
 /** Nutrients for the next `levels` levels of a tile: `base_case × 1.12 ^ level` each. */
 export function enrichCost(state: GameState, tile: Tile, levels = 1, owned: number = ownedCount(state)): number {
@@ -1126,7 +1149,7 @@ export function colonizationCost(state: GameState, target: Hex & { terrain: Terr
   return (
     TERRAIN_STATS[target.terrain].baseCost *
     (1 + ECONOMY.distanceFactor * dist) *
-    Math.pow(ECONOMY.sizeFactor, ownedCount(state)) *
+    sizePower(ownedCount(state)) *
     thrifty *
     effectsAt(state, at).colonizationCost *
     (state.strain === "pleurotus" ? STRAINS.pleurotus.colonizationCost : 1) *
@@ -1205,7 +1228,7 @@ export function heartReadyAt(state: GameState): number {
  * growing tile, or next to a tile already in the queue, so a whole path can be planned.
  */
 export function checkColonize(state: GameState, h: Hex): ActionResult {
-  const tile = state.tiles.get(hexKey(h));
+  const tile = asTileOf(state.tiles, h) ?? state.tiles.get(hexKey(h));
   if (!tile) return { ok: false, error: "unknown_tile" };
   if (!canColonizeTerrain(state, tile.terrain)) return { ok: false, error: "impassable" };
   if (TERRAIN_STATS[tile.terrain].paidInEnzymes && !state.enzymesUnlocked) return { ok: false, error: "locked" };
@@ -1214,8 +1237,8 @@ export function checkColonize(state: GameState, h: Hex): ActionResult {
   if (tile.reservedFor !== null && tile.reservedFor !== state.id) return { ok: false, error: "reserved" };
   if (queueIndex(state, h) >= 0) return { ok: false, error: "already_queued" };
   if (state.queue.length >= QUEUE_MAX) return { ok: false, error: "queue_full" };
-  const planned = new Set(state.queue.map(hexKey));
-  const reachable = hexNeighbors(h).some((n) => isMine(state, state.tiles.get(hexKey(n))) || planned.has(hexKey(n)));
+  // Next to one of the player's tiles, or to a tile of the queue (queued tiles are always on the map).
+  const reachable = neighbourTiles(state.tiles, tile).some((n) => n.owner === state.id) || state.queue.some((q) => hexDistance(q, tile) === 1);
   if (!reachable) return { ok: false, error: "not_adjacent" };
   return { ok: true };
 }
@@ -1642,9 +1665,58 @@ interface Window {
   signalsPerMs: number;
 }
 
+/** Phase effect objects, numbered for the production cache. */
+const effectIds = new WeakMap<PhaseEffects, number>();
+
+/** What a tile's `baseProduction` depends on beyond the tile and its neighbours, for one player at `t`. */
+function productionContext(state: GameState, t: number): string {
+  const fx = effectsAt(state, t);
+  let fxId = effectIds.get(fx);
+  if (fxId === undefined) {
+    fxId = nextEffectId++;
+    effectIds.set(fx, fxId);
+  }
+  const monday = state.mondayBonus > 0 && state.calendar && phaseAt(t).id === "germination" ? state.mondayBonus : 0;
+  return `${state.upgrades.digestion}|${state.upgrades.woodDecomposer}|${state.mutations.join(",")}|${state.strain}|${fxId}|${monday}`;
+}
+let nextEffectId = 0;
+
+interface ProductionCache {
+  tiles: Map<string, Tile>;
+  context: string;
+  entries: Map<Tile, { level: number; hops: number; around: number; toxic: boolean; value: number }>;
+}
+const productionCaches = new WeakMap<GameState, ProductionCache>();
+
+/**
+ * `baseProduction`, kept per tile until the tile, its neighbours, its level, its distance to the Cœur or
+ * the player's context change (M9 speed-up: same numbers). Tiles with timed effects are always recomputed.
+ */
+function cachedBaseProduction(state: GameState, cache: ProductionCache, tile: Tile, hops: number, at: number): number {
+  if (tile.effects.length > 0) return baseProduction(state, tile, hops, at);
+  const around = neighbourhoodVersion(state.tiles, tile);
+  if (around === null) return baseProduction(state, tile, hops, at);
+  const e = cache.entries.get(tile);
+  if (e !== undefined && e.level === tile.level && e.hops === hops && e.around === around && e.toxic === tile.toxic) return e.value;
+  const value = baseProduction(state, tile, hops, at);
+  cache.entries.set(tile, { level: tile.level, hops, around, toxic: tile.toxic, value });
+  return value;
+}
+
+function productionCache(state: GameState, t: number): ProductionCache {
+  const context = productionContext(state, t);
+  let cache = productionCaches.get(state);
+  if (!cache || cache.tiles !== state.tiles || cache.context !== context) {
+    cache = { tiles: state.tiles, context, entries: new Map() };
+    productionCaches.set(state, cache);
+  }
+  return cache;
+}
+
 function planWindow(state: GameState, t: number): Window {
   const hops = networkHops(state, t);
   const bonus = networkBonus(state, hops, t);
+  const cache = productionCache(state, t);
   const producers: Producer[] = [];
   let enzymes = 0;
   let roots = 0;
@@ -1657,7 +1729,7 @@ function planWindow(state: GameState, t: number): Window {
     if (isGrown(state, tile) && d !== undefined) {
       producers.push({
         tile,
-        basePerMs: (baseProduction(state, tile, d, t) * bonus) / 1000,
+        basePerMs: (cachedBaseProduction(state, cache, tile, d, t) * bonus) / 1000,
         lifetime,
         biomassWeight: placeBiomass(state, tile),
         siphonBy: siphonedBy(tile, state.id, t),

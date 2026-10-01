@@ -12,6 +12,7 @@ export * from "./rewards";
 export * from "./rng";
 export * from "./season";
 export * from "./social";
+export { makeTile, ownedTilesOf, ownedCountOf, ownerCounts, neighbourTiles, tilesWithin, tilesEpoch, ownerVersion, tileKey, type TileFields } from "./tile-index";
 
 export const GAME_NAME = "Mycelium";
 export { botPlay } from "./sim/week";

@@ -25,7 +25,7 @@ import {
   type Tile,
 } from "./game";
 import { hexDistance, hexEquals, hexesInRadius, hexKey, hexNeighbors, type Hex } from "./hex";
-import { asTileOf, neighbourTiles, ownedTilesOf, ownerCounts, tileKey, tilesWithin } from "./tile-index";
+import { asTileOf, neighbourTiles, ownedTilesOf, ownerCounts, tileKey, tilesEpoch, tilesWithin } from "./tile-index";
 import { fromSnapshot, toSnapshot, type GameSnapshot, type TileDto } from "./protocol";
 import { phaseAt } from "./season";
 import type { ForestEvent } from "./events";
@@ -217,9 +217,13 @@ export function inCentre(forest: ForestState, h: Hex): boolean {
  */
 export function refreshToxins(forest: ForestState): void {
   const toxic = new Set([...forest.players.values()].filter((p) => hasMutation(p, "toxins")).map((p) => p.id));
-  // M9 speed-up: nothing to do when nobody is toxic and no tile is marked.
+  // M9 speed-up: nothing to do when nobody is toxic and no tile is marked, or when neither the tiles, the
+  // toxic players nor the pacts changed since the last time.
   const state = toxinState.get(forest);
   if (toxic.size === 0 && state !== undefined && !state.marked) return;
+  const epoch = tilesEpoch(forest.tiles);
+  const signature = `${[...toxic].join(",")}/${[...forest.players.values()].map((p) => `${p.id}:${p.pact}`).join(",")}`;
+  if (epoch !== null && state !== undefined && state.epoch === epoch && state.signature === signature) return;
   let marked = false;
   for (const t of forest.tiles.values()) {
     const owner = t.owner;
@@ -230,10 +234,10 @@ export function refreshToxins(forest: ForestState): void {
     t.toxic = v;
     if (v) marked = true;
   }
-  toxinState.set(forest, { marked });
+  toxinState.set(forest, { marked, epoch, signature });
 }
 
-const toxinState = new WeakMap<ForestState, { marked: boolean }>();
+const toxinState = new WeakMap<ForestState, { marked: boolean; epoch: number | null; signature: string }>();
 
 /**
  * A tile that cannot be taken right now: a Cœur lost less than a day ago, a Sclérote, or the start zone

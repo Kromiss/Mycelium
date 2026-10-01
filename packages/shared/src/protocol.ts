@@ -1,3 +1,4 @@
+import { makeTile } from "./tile-index";
 import { ACTION_IDS, RELIC_IDS, TERRAINS, type RelicId, type ActionId, type EventKind, type MutationId, type StrainId, type StructureId, type Terrain, type UpgradeId } from "./balance";
 import {
   isMutationId,
@@ -189,7 +190,7 @@ export function fromSnapshot(s: GameSnapshot, seed = 0): GameState {
   for (const o of s.tiles) {
     const terrain = TERRAIN_BY_CODE[o.t];
     if (!terrain) throw new Error(`Invalid terrain code ${o.t}`);
-    tiles.set(hexKey(o), {
+    tiles.set(hexKey(o), makeTile({
       q: o.q,
       r: o.r,
       terrain,
@@ -204,7 +205,7 @@ export function fromSnapshot(s: GameSnapshot, seed = 0): GameState {
       toxic: o.x === 1,
       effects: normalizeEffects(o.e),
       level: typeof o.v === "number" && Number.isInteger(o.v) && o.v > 0 ? o.v : 0,
-    });
+    }));
   }
   return {
     id: s.id,

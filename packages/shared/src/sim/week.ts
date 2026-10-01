@@ -66,6 +66,7 @@ import {
 } from "../game";
 import { hexDistance, hexKey, hexNeighbors } from "../hex";
 import { centreDistance, ringAt } from "../forestgen";
+import { neighbourTiles, tileKey } from "../tile-index";
 
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
@@ -413,16 +414,17 @@ function moveHeartToCentre(state: GameState, now: number): void {
 }
 
 function sumHops(state: GameState, from: { q: number; r: number }, network: Map<string, number>): number {
-  const seen = new Set([hexKey(from)]);
-  let frontier = [from];
+  const start = state.tiles.get(hexKey(from));
+  if (!start) return 0;
+  const seen = new Set<Tile>([start]);
+  let frontier: Tile[] = [start];
   let sum = 0;
   for (let d = 1; frontier.length; d++) {
-    const next: typeof frontier = [];
+    const next: Tile[] = [];
     for (const h of frontier) {
-      for (const n of hexNeighbors(h)) {
-        const k = hexKey(n);
-        if (seen.has(k) || !network.has(k)) continue;
-        seen.add(k);
+      for (const n of neighbourTiles(state.tiles, h)) {
+        if (seen.has(n) || !network.has(tileKey(state.tiles, n))) continue;
+        seen.add(n);
         sum += d;
         next.push(n);
       }

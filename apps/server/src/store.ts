@@ -1,5 +1,6 @@
 import {
   deserializeForest,
+  makeTile,
   forestSpawns,
   hexKey,
   isMutationId,
@@ -757,7 +758,7 @@ export class PgStore implements GameStore {
     );
     const tiles = new Map<string, Tile>();
     for (const h of hexes.rows) {
-      tiles.set(hexKey(h), {
+      tiles.set(hexKey(h), makeTile({
         q: h.q,
         r: h.r,
         terrain: h.terrain,
@@ -772,7 +773,7 @@ export class PgStore implements GameStore {
         toxic: false,
         effects: normalizeEffects(h.effects),
         level: h.level ?? 0,
-      });
+      }));
     }
     const layout = { kind: "forest", capacity: row.capacity } as const;
     const seed = Number(row.seed);

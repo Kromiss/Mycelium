@@ -147,13 +147,28 @@ class TileHome {
     this.wet = null;
   }
 
-  /** A tracked field of a tile of `owner` changed. */
-  touched(owner: string | null): void {
+  /** Per tile: changes whenever a tracked field of the tile or of one of its neighbours changes. */
+  private nbv: Uint32Array | null = null;
+
+  neighbourhoodVersion(t: Tile): number {
+    return this.nbv === null ? 0 : this.nbv[indexOf(t)]!;
+  }
+
+  private bumpAround(t: Tile): void {
+    this.nbv ??= new Uint32Array(this.list.length);
+    this.nbv[indexOf(t)]!++;
+    for (const n of this.neighbours(t)) this.nbv[indexOf(n)]!++;
+  }
+
+  /** A tracked field of the tile `t` of `owner` changed. */
+  touched(t: Tile, owner: string | null): void {
     this.epoch++;
     if (owner !== null) this.versions.set(owner, this.version(owner) + 1);
+    this.bumpAround(t);
   }
 
   ownerChanged(t: Tile, from: string | null, to: string | null): void {
+    this.bumpAround(t);
     if (from !== null) {
       const o = this.ownedOf(from);
       o.set.delete(t);
@@ -230,7 +245,7 @@ class TrackedTile {
           const from = this.#terrain;
           if (v === from) return;
           this.#terrain = v;
-          this.#home?.touched(this.#owner);
+          this.#home?.touched(this as unknown as Tile, this.#owner);
           if (from === "wetland" || v === "wetland") this.#home?.wetlandsChanged();
         },
       },
@@ -254,7 +269,7 @@ class TrackedTile {
         set(this: TrackedTile, v: number | null) {
           if (v === this.#growthEndsAt) return;
           this.#growthEndsAt = v;
-          this.#home?.touched(this.#owner);
+          this.#home?.touched(this as unknown as Tile, this.#owner);
         },
       },
       structure: {
@@ -265,7 +280,7 @@ class TrackedTile {
         set(this: TrackedTile, v: StructureId | null) {
           if (v === this.#structure) return;
           this.#structure = v;
-          this.#home?.touched(this.#owner);
+          this.#home?.touched(this as unknown as Tile, this.#owner);
         },
       },
     };
@@ -393,4 +408,18 @@ export function asTileOf(tiles: Map<string, Tile>, h: object): Tile | undefined 
 export function touchesWetland(tiles: Map<string, Tile>, h: object): boolean | null {
   const home = homeFor(tiles, h);
   return home ? home.touchesWetland(h as Tile) : null;
+}
+
+/**
+ * A number that changes whenever a tracked field of the tile `t` or of one of its neighbours changes, or
+ * null if `t` is not a tile of an indexed `tiles`.
+ */
+export function neighbourhoodVersion(tiles: Map<string, Tile>, t: Tile): number | null {
+  const home = homeFor(tiles, t);
+  return home ? home.neighbourhoodVersion(t) : null;
+}
+
+/** Position of a tile in its indexed map (0 …), or −1. */
+export function tileIndex(tiles: Map<string, Tile>, t: Tile): number {
+  return homeFor(tiles, t) ? indexOf(t) : -1;
 }
