@@ -111,11 +111,13 @@ export const ECONOMY = {
   /**
    * Colonisation cost: `base × (1 + distanceFactor × dist_cœur) × sizeFactor ^ nb_cases × zone` (GDD §2.3).
    * sizeFactor: 1.02 in the GDD, 1.13 in M5, 1.14 per M7 tile in M8 (forest full around day 4–5). M9,
-   * DECIDED: the forest fills between day 6 and 7, with ≈ 1.036 per tile at the ×5 scale (≈ 1.19 per M7
-   * tile, ≈ 1.012 per tile at ×15).
+   * DECIDED: the forest fills between day 6 and 7. With the 7 zones, 1.037 per tile at the ×5 scale
+   * (≈ 1.0122 per tile at ×15) gives 90 % filled on day 4.9 to 6.4 (4 maps of 12 robots, 2 October 2026);
+   * 1.0375 reaches day 6.1–6.9 on 3 maps out of 4 but the active / casual gap then goes up to ×9.
+   * PROPOSED, to be validated by the owner.
    */
   distanceFactor: 0.05 / Math.sqrt(TILE_SCALE),
-  sizeFactor: 1.036 ** (5 / TILE_SCALE),
+  sizeFactor: 1.037 ** (5 / TILE_SCALE),
   /** Upgrade cost: `base × upgradeCostGrowth ^ level` (GDD §10). */
   upgradeCostGrowth: 1.15,
   /** How many colonisations may grow at the same time; the others wait in the queue. PLACEHOLDER. */
@@ -217,19 +219,23 @@ export const FOREST = {
  * M9, DECIDED: the forest is cut into 7 rings of the same thickness, one per day of the season, from the
  * rim (zone 1) to the centre (zone 7). Each zone is richer and harder to take than the one outside it:
  * colonising costs more, hyphae grow longer and captures by a neighbour take longer. No lock: only the
- * economy decides, so that a colony reaches zone N around day N. Values by zone, from 1 to 7: PLACEHOLDER,
- * proposed after simulation.
+ * economy decides, so that a colony reaches zone N around day N. Values by zone, from 1 to 7: PROPOSED
+ * after simulation (2 October 2026, 12 robots at the ×15 scale, 4 maps), to be validated by the owner:
+ * cost ×2 per zone (×40 in the centre instead of ×64, which changed nothing), richness ×1.4 per zone,
+ * growth and capture times +20 % per zone. The first robot reaches zone 2 on day 1.0, zone 3 on day
+ * 1.5–1.9, zone 4 on day 2.0–2.8, zone 5 on day 3.4–4.4, zone 6 on day 4.5–4.6, zone 7 on day 4.6–6.1
+ * on 2 maps out of 4.
  */
 export const ZONES = {
   count: 7,
   /** Yield multiplier (replaces the rim ×1 / middle ×1.5 / centre ×3–5 of §2.5). */
-  richness: [1, 1.25, 1.55, 1.95, 2.45, 3.1, 4],
+  richness: [1, 1.4, 1.96, 2.744, 3.8416, 5.3782, 7.5295],
   /** Colonisation cost multiplier (nutrients). */
-  cost: [1, 1.6, 2.6, 4.2, 6.8, 11, 18],
+  cost: [1, 2, 4, 8, 16, 32, 40],
   /** Hyphae growth time multiplier. */
-  growth: [1, 1.15, 1.3, 1.5, 1.75, 2, 2.3],
+  growth: [1, 1.2, 1.4, 1.6, 1.8, 2, 2.2],
   /** Capture time multiplier, for a neighbour taking the tile. */
-  capture: [1, 1.15, 1.3, 1.5, 1.75, 2, 2.3],
+  capture: [1, 1.2, 1.4, 1.6, 1.8, 2, 2.2],
 } as const;
 
 /** Players see the tiles within this distance of their network (GDD §2.1 fog). */

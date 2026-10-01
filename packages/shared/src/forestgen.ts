@@ -87,7 +87,7 @@ export function zoneValue(table: readonly number[], zone: number): number {
   return table[Math.max(1, Math.min(table.length, zone)) - 1]!;
 }
 
-/** Yield multiplier of a tile (M9: by zone, ×1 on the rim to ×4 in the centre). Always 1 on solo maps. */
+/** Yield multiplier of a tile (M9: by zone, ×1 on the rim to ×7.5 in the centre). Always 1 on solo maps. */
 export function richnessAt(layout: MapLayout, radius: number, h: Hex): number {
   if (layout.kind === "solo") return 1;
   // Pure function of the place: kept per tile object (M9 speed-up).

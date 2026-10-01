@@ -22,11 +22,15 @@ describe("robot profiles", () => {
     expect(new Set(counts).size).toBe(1);
   });
 
-  it("keeps home robots out of the centre and sends centre robots there", () => {
+  it("keeps home robots out of the centre and sends centre robots deeper", () => {
     const home = last.filter((r) => r.profile.endsWith("-home"));
     const centre = last.filter((r) => r.profile.endsWith("-centre"));
     for (const r of home) expect(r.tilesByRing.centre, r.id).toBe(0);
-    expect(centre.reduce((s, r) => s + r.tilesByRing.centre, 0)).toBeGreaterThan(0);
+    // M9: the inner zones cost more and take longer, so after 3 days the centre robots are on their way
+    // (zone 5 and beyond are reached around day 4–5): more of their tiles are past the rim.
+    const deep = (rows: typeof last) => rows.reduce((s, r) => s + r.tilesByRing.middle + r.tilesByRing.centre, 0) / rows.reduce((s, r) => s + r.tiles, 0);
+    console.log(`share of tiles past the rim on day 3: home ${(deep(home) * 100).toFixed(1)} %, centre ${(deep(centre) * 100).toFixed(1)} %`);
+    expect(deep(centre)).toBeGreaterThan(deep(home));
   });
 
   it("summarises the final standings by profile", () => {

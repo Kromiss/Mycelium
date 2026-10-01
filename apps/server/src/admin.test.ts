@@ -34,7 +34,7 @@ async function setup(options: { adminTools?: boolean } = {}) {
   return { store, service, join, wait: (ms: number) => (real += ms) };
 }
 
-const settings = (over: Partial<TestForestSettings> = {}): TestForestSettings => ({ name: "Essai", ...TEST_FOREST_PRESETS.week, capacity: 4, bots: 2, timeScale: 60, ...over });
+const settings = (over: Partial<TestForestSettings> = {}): TestForestSettings => ({ name: "Essai", ...TEST_FOREST_PRESETS.week, seed: 20261002, capacity: 4, bots: 2, timeScale: 60, ...over });
 
 async function admin(service: ForestService, id: string, client: Spy, op: AdminOp): Promise<AdminState> {
   await service.admin(id, op, client);

@@ -190,7 +190,14 @@ export function botPlay(state: GameState, now: number, sessionStart: boolean, pl
   const queued = state.queue.length;
   const buds = state.buds.length;
   if (plan.strain !== null && state.strain === null && ownedCount(state) <= 1) chooseStrain(state, plan.strain);
-  if (plan.fruit && state.fruitings === 0 && now >= state.joinedAt + plan.fruit.hour * 3_600_000) fruit(state, plan.fruit.radius, now);
+  // Fruiting is due: the robot saves its nutrients for the Carpophore until it has fruited.
+  const saving = plan.fruit !== undefined && state.fruitings === 0 && now >= state.joinedAt + plan.fruit.hour * 3_600_000 && !fruit(state, plan.fruit.radius, now);
+  if (saving) {
+    if (state.automation.upgrades) setAutomation(state, { upgrades: false }, now);
+    pickBuds(state, now);
+    const after = actionMarks(state);
+    return before.reduce((n, b, i) => n + Math.max(0, after[i]! - b), Math.max(0, buds - state.buds.length));
+  }
   spendSpores(state);
   takeMutations(state, plan, now);
   if (sessionStart && now >= heartReadyAt(state)) moveHeartToCentre(state, now);
@@ -240,19 +247,22 @@ function enrichTiles(state: GameState, now: number): void {
 }
 
 /** Builds a Carpophore on the Cœur (or next to it) if needed, then fruits. */
-function fruit(state: GameState, radius: number, now: number): void {
+function fruit(state: GameState, radius: number, now: number): boolean {
   if (carpophores(state) === 0) {
+    if (state.nutrients < structureCost(state, "carpophore")) return false;
     const hops = networkHops(state);
-    const spot = [...hops.keys()]
+    const near = [...hops.keys()]
       .map((k) => state.tiles.get(k)!)
       .filter((t) => hexDistance(state.heart, t) <= 1)
-      .sort((a, b) => hexDistance(state.heart, a) - hexDistance(state.heart, b))
-      .find((t) => t.structure === null || t.structure === "node");
-    if (!spot) return;
-    if (spot.structure !== null) demolish(state, spot, now); // Replaces a Node.
-    if (!build(state, spot, "carpophore", now).ok) return;
+      .sort((a, b) => hexDistance(state.heart, a) - hexDistance(state.heart, b));
+    // A free tile or a Node first; else any structure but the Sclerotium (busy colonies build everywhere).
+    const spot = near.find((t) => t.structure === null || t.structure === "node") ?? near.find((t) => t.structure !== "sclerotium");
+    if (!spot) return true; // Nowhere to fruit: give up.
+    if (spot.structure !== null) demolish(state, spot, now);
+    if (!build(state, spot, "carpophore", now).ok) return true;
   }
   if (fruitingPreview(state, radius, now).lost.length > 0) fructify(state, radius, now);
+  return true;
 }
 
 /** Value of one Spore shop level, as a share of biomass gained. */

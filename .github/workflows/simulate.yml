@@ -71,6 +71,8 @@ jobs:
             ${stop:+--stop $stop} --summary "$PWD/out/summary.json" | tee out/report.txt
           node -e 'const fs=require("fs");const s=JSON.parse(fs.readFileSync("out/summary.json"));s.name=process.env.VARIANT_NAME;fs.writeFileSync("out/summary.json",JSON.stringify(s))'
           { echo '```'; cat out/report.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          # One annotation per run: the measures, readable through the checks API.
+          echo "::notice title=sim ${VARIANT_NAME} ${{ matrix.seed }}::$(cat out/summary.json)"
       - uses: actions/upload-artifact@v4
         with:
           name: sim-${{ strategy.job-index }}
