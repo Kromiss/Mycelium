@@ -20,7 +20,7 @@ des points de départ à équilibrer, centralisés dans `packages/shared`.
 | M6 Profondeur : conflit & événements | 0.7.0 | étape 5 | Actions actives, événements, world boss | ✅ (testé en local) |
 | M7 Social | 0.8.0 | étape 6 | Alliances, ligues, récompenses | ✅ (testé en local) |
 | M8 Incrémental : enrichissement & cohésion | 0.9.0 | — | Niveaux de case, Bourgeons, bonus des cases collées, nouveau visuel | ✅ (testé en local) |
-| M9 Refonte : rythme, centre & souches | 0.10.0 | étape 8 | Forêt remplie au 6ᵉ–7ᵉ jour, usure retirée, centre plus dur, 2 souches | à faire |
+| M9 Refonte : rythme, centre & souches | 0.10.0 | étape 8 | Forêt remplie au 6ᵉ–7ᵉ jour, usure retirée, 7 zones, 2 souches, visuel des tuiles | à faire |
 | M10 Bêta fermée | 0.11.0 | — | Plusieurs forêts, équilibrage, charge | à faire |
 | Lancement | 1.0.0 | — | Ouverture publique | — |
 
@@ -450,12 +450,17 @@ visé ; un robot connecté 24 h/24 ne fait que **0,5 à 0,8 action utile par min
   ×0,95 le lundi → ×1,25 le dimanche. **Pleurote, Truffe et Moisissure retirées** (avec les cases cachées
   de la Truffe) ; la mutation *Cordyceps* devient *Parasitisme* (même effet) ; plus de souche à débloquer.
 - **Actions par minute** : aucune nouvelle action pour le moment (question laissée ouverte).
+- **Visuel des tuiles retravaillé** : plus **minimaliste et mignon** (formes simples, palette douce, moins de
+  détails), en gardant la lecture d'un coup d'œil (qui possède quoi, niveau, cohésion, état de la case) et en
+  rendant les **7 zones** lisibles sur la carte.
 - **Retirés aussi** : les mutations **Usure lente** et **Acidophile** (la branche Décomposeur passe à
   3 mutations), le terrain **Sol acide**, et la récompense de la Moisissure après 3 saisons (sans remplacement).
 
 🔸 Décisions à prendre avant de commencer :
 - Valeurs des paliers des 7 zones (difficulté et richesse) : proposées par Claude après simulation,
   validées par le propriétaire.
+- Direction visuelle des tuiles : Claude propose 2 ou 3 pistes en maquette avant de coder, le propriétaire
+  choisit.
 
 À faire :
 - `packages/shared` : nouveau `sizeFactor` ; suppression de l'usure (production, `EXHAUSTION`, Bois mort →
@@ -464,13 +469,14 @@ visé ; un robot connecté 24 h/24 ne fait que **0,5 à 0,8 action utile par min
 - Serveur : migration pour les joueurs et forêts qui ont une souche retirée (souche remise à choisir) et
   pour l'usure stockée sur les cases ; rien à purger sans accord (migrations vers l'avant uniquement).
 - Client : choix entre 2 souches, plus d'usure affichée, coût et temps de pousse visibles selon la zone ;
-  textes EN + FR.
+  nouveau rendu des tuiles (minimaliste et mignon, 7 zones lisibles) ; textes EN + FR.
 - Simulations : `simulate:forest` (90 % entre le 6ᵉ et le 7ᵉ jour, à revérifier après l'usure et le
   gradient), `simulate:balance` (aucune des 2 souches ne domine), `simulate:profiles` (écart actif /
   occasionnel ≤ ×6).
 
 **Terminé quand** : la forêt de 12 robots est occupée à 90 % entre le jour 6 et le jour 7, l'usure n'existe
-plus nulle part (règles, base, rendu), chaque zone N est atteinte vers le jour N par les robots actifs, les deux souches finissent à égalité en moyenne dans `simulate:balance`, un joueur à 3 × 10 min/jour finit avec au plus 6× moins
+plus nulle part (règles, base, rendu), chaque zone N est atteinte vers le jour N par les robots actifs, le nouveau rendu des tuiles est en place (style validé par le propriétaire),
+les deux souches finissent à égalité en moyenne dans `simulate:balance`, un joueur à 3 × 10 min/jour finit avec au plus 6× moins
 de biomasse qu'un joueur à 12 h/jour, et `pnpm check` est vert.
 
 ## M10 — Bêta fermée (0.11.0)
