@@ -7,6 +7,9 @@ import {
   chooseStrain,
   buySporeUpgrade,
   buyUpgrade,
+  enrich,
+  enrichBlock,
+  pickBud,
   colonize,
   conversionRate,
   FOREST,
@@ -409,6 +412,21 @@ export class ForestService {
 
   buyUpgrade(playerId: string, upgrade: string, client: GameClient): void {
     this.act_(playerId, client, (p) => buyUpgrade(p, upgrade));
+  }
+
+  /** M8: levels on one tile (1, 10 or "max"). */
+  enrich(playerId: string, q: number, r: number, count: number | "max", client: GameClient): void {
+    this.act_(playerId, client, (p) => enrich(p, { q, r }, count));
+  }
+
+  /** M8: one level on the tile and its neighbours of the colony. */
+  enrichBlock(playerId: string, q: number, r: number, client: GameClient): void {
+    this.act_(playerId, client, (p) => enrichBlock(p, { q, r }));
+  }
+
+  /** M8: picks a Bourgeon. */
+  pickBud(playerId: string, q: number, r: number, client: GameClient): void {
+    this.act_(playerId, client, (p, now) => pickBud(p, { q, r }, now));
   }
 
   build(playerId: string, q: number, r: number, structure: string, client: GameClient): void {

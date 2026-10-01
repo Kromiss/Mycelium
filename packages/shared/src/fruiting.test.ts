@@ -108,7 +108,7 @@ describe("Spore shop (GDD §5)", () => {
     grow(s, 1);
     const base = { prod: productionRate(s), conv: biomassConversion(s), points: mutationPoints(s), growth: growthTimeFactor(s, T0) };
     s.sporeUpgrades = { production: 2, growth: 1, conversion: 3, mutationPoint: 1 };
-    expect(productionRate(s)).toBeCloseTo(base.prod * 1.2, 10);
+    expect(productionRate(s)).toBeCloseTo(base.prod * (1 + 2 * SPORE_UPGRADES.production.perLevel), 10);
     expect(biomassConversion(s)).toBeCloseTo(conversionRate(s.upgrades) * 1.15, 12);
     expect(base.conv).toBe(conversionRate(s.upgrades));
     expect(mutationPoints(s)).toBe(base.points + 1);

@@ -19,7 +19,7 @@ des points de départ à équilibrer, centralisés dans `packages/shared`.
 | M5 Profondeur : économie | 0.6.0 | étape 5 | Structures, mutations, souches, fructification | ✅ (testé en local) |
 | M6 Profondeur : conflit & événements | 0.7.0 | étape 5 | Actions actives, événements, world boss | ✅ (testé en local) |
 | M7 Social | 0.8.0 | étape 6 | Alliances, ligues, récompenses | ✅ (testé en local) |
-| M8 Incrémental : enrichissement & cohésion | 0.9.0 | — | Niveaux de case, Bourgeons, bonus des cases collées, nouveau visuel | à faire |
+| M8 Incrémental : enrichissement & cohésion | 0.9.0 | — | Niveaux de case, Bourgeons, bonus des cases collées, nouveau visuel | ✅ (testé en local) |
 | M9 Bêta fermée | 0.10.0 | — | Plusieurs forêts, équilibrage, charge | à faire |
 | Lancement | 1.0.0 | — | Ouverture publique | — |
 
@@ -391,6 +391,35 @@ rendre les cases collées plus fortes que les filaments, et retravailler le visu
 **Terminé quand** : un joueur connecté a toujours un achat utile à faire à la minute, un profil
 « 3 × 10 min/jour » reste dans la cible du §9, une colonie compacte résiste nettement mieux qu'un
 filament, et on lit d'un coup d'œil le niveau et la solidité d'une colonie sur la carte.
+
+Livré en 0.9.0, validé en local (`BOTS=11 TIME_SCALE=60` et un joueur piloté : enrichissement, bourgeons,
+rendu) et par les simulations. Choix de réalisation **à valider** (dans `balance.ts`) :
+- `base_case` = 15 % du prix de base de la case à la taille de la colonie (`coût_base × 1,14 ^ nb_cases`,
+  sans la distance) : un niveau coûte une fraction d'une case neuve et rapporte à peu près autant. Avec
+  « une minute de rendement » (première idée), l'économie s'emballait : forêt pleine en 1,3 jour.
+- **Bourgeons : 18 s de production** au lieu de 60 s, pour tenir le plafond visé de ~10 % (60 s toutes
+  les 3 min en moyenne feraient un tiers de la production).
+- Bourgeons : sur une case productive au hasard, 3 au plus en même temps, tirés de la graine, du joueur et
+  de l'heure (même résultat quelle que soit la fréquence du serveur) ; ils poussent aussi en absence.
+- « Tout le bloc » = la case et ses 6 voisines de la colonie, un niveau chacune, les moins chères d'abord.
+- La Cohésion compte les voisines **poussées** (pas celles en train de pousser). En défense, elle
+  s'ajoute à la densité locale de la formule de pression au lieu de la remplacer (la remplacer par les
+  seules voisines figeait les fronts : une case avec 3 voisines devenait imprenable).
+- **Rosace insensible à la Coupure : pas mise en place**, car une Coupure vise une case collée au réseau
+  de l'attaquant, qui ne peut donc jamais être une Rosace. À redéfinir (voir points ouverts).
+- Fructification : les niveaux perdus comptent ×3 dans la valeur (`FRUITING.enrichWeight`), et la boutique
+  de Spores donne **+25 % de production par niveau** (au lieu de +10 %) : sans cela, perdre des cases
+  enrichies rendait la fructification perdante (×0,7 de biomasse au lieu de ×1,2 à ×1,45).
+- Pour garder le rythme (forêt pleine vers le 4ᵉ–5ᵉ jour) et l'équilibre des branches face à la défense
+  des cases collées : `1,14 ^ nb_cases` (au lieu de 1,12 / 1,13), Hyphes agressives +40 %, Cordyceps
+  pression ×1,4 et production ×0,95, Témérité jusqu'à +40 %. Les robots activent l'achat automatique.
+
+Constats (forêt de 12 robots, cases ×5) :
+- Rythme : 90 % de la forêt au jour 3,1, pleine au jour 4,0 (avant M8 : 3,3 et 6,2).
+- Occasionnels : grâce à l'achat automatique (une case par minute même absent), les robots
+  « 3 × 10 min/jour » finissent 2ᵉ, 3ᵉ et 5ᵉ sur 12 (avant M8 : un seul dans la moitié haute).
+- Les prises aux frontières baissent (≈ 400 sur la semaine au lieu de ≈ 550) : c'est
+  l'effet voulu de la Cohésion, à surveiller avec de vrais joueurs.
 
 ## M9 — Bêta fermée (0.10.0)
 

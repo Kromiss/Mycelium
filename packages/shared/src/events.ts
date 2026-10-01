@@ -289,6 +289,7 @@ function release(t: Tile): void {
   t.growthStartedAt = null;
   t.disconnectedSince = null;
   t.capture = null;
+  t.level = 0;
   t.effects = t.effects.filter((x) => x.by === EVENT_CASTER);
 }
 

@@ -1,5 +1,15 @@
 import {
   ACTION_IDS,
+  affordableLevels,
+  budReward,
+  cohesion,
+  COHESION,
+  ENRICH,
+  enrichCost,
+  enrichFactor,
+  isEnrichable,
+  isRosette,
+  nextMilestone,
   ACTIONS,
   actionPrice,
   ANTI_FRUSTRATION,
@@ -151,6 +161,16 @@ const ui = {
   tileFacts: $("tile-facts"),
   tileNote: $("tile-note"),
   tileActions: $("tile-actions"),
+  tileEnrich: $("tile-enrich"),
+  enrichLevel: $("enrich-level"),
+  enrichFactor: $("enrich-factor"),
+  enrichBar: $("enrich-bar"),
+  enrichNext: $("enrich-next"),
+  enrich1: $("enrich-1") as HTMLButtonElement,
+  enrich10: $("enrich-10") as HTMLButtonElement,
+  enrichMax: $("enrich-max") as HTMLButtonElement,
+  enrichBlockButton: $("enrich-block") as HTMLButtonElement,
+  enrichLocked: $("enrich-locked"),
   queue: $("queue"),
   away: $("away"),
   awayTitle: $("away-title"),
@@ -397,6 +417,13 @@ async function startGame(token: string): Promise<void> {
   if (!mapView) {
     mapView = new MapView();
     await mapView.init($("map"), serverNow, selectTile);
+    // M8: tapping a bud picks it at once (the reward is shown right away, the server confirms).
+    mapView.onBud((h) => {
+      if (!game) return;
+      const reward = budReward(game, serverNow());
+      connection?.send({ type: "pickBud", q: h.q, r: h.r } satisfies ClientMessage);
+      toast(t("bud.picked", { nutrients: fmt(reward.nutrients) }), "good");
+    });
   }
   setStatus("status.connecting");
   connection = new Connection(token, {
@@ -905,6 +932,17 @@ const demolishItem = (() => {
   return { li, button };
 })();
 
+// M8 enrichment (GDD §4.4): ×1, ×10, max, and the whole block.
+const sendEnrich = (count: number | "max") => {
+  if (selected) connection?.send({ type: "enrich", q: selected.q, r: selected.r, count } satisfies ClientMessage);
+};
+ui.enrich1.addEventListener("click", () => sendEnrich(1));
+ui.enrich10.addEventListener("click", () => sendEnrich(ENRICH.batch));
+ui.enrichMax.addEventListener("click", () => sendEnrich("max"));
+ui.enrichBlockButton.addEventListener("click", () => {
+  if (selected) connection?.send({ type: "enrichBlock", q: selected.q, r: selected.r } satisfies ClientMessage);
+});
+
 $("away-close").addEventListener("click", () => (ui.away.hidden = true));
 $("tile-close").addEventListener("click", () => selectTile(null));
 $("zoom-in").addEventListener("click", () => mapView?.zoomBy(1.25));
@@ -1210,6 +1248,20 @@ function render(): void {
   renderTile(game);
 }
 
+/** M8 Cohésion of a colonised tile: its neighbours, and what they give in production and defence. */
+function cohesionFact(g: GameState, tile: Tile): [MessageKey, string] {
+  const n = cohesion(g.tiles, tile);
+  return [
+    "tile.cohesion",
+    t("tile.cohesionValue", {
+      count: n,
+      production: Math.round(COHESION.production * n * 100),
+      pressure: Math.round(COHESION.pressure * n * 100),
+      capture: Math.round(COHESION.captureTime * n * 100),
+    }),
+  ];
+}
+
 interface TileAction {
   label: string;
   action: "colonize" | "unqueue" | "moveHeart";
@@ -1248,6 +1300,8 @@ function renderTile(g: GameState): void {
           : t("tile.underAttack", { name: owners.get(tile.capture.by)?.name ?? "?", percent: pct });
     }
     facts.push(["tile.yield", t("tile.yieldValue", { value: fmt(tileYield(tile.terrain, g.upgrades) * richness(g, tile)) })]);
+    if (tile.level > 0) facts.push(["tile.level", String(tile.level)]);
+    facts.push(cohesionFact(g, tile));
     if (tile.structure) facts.push(["tile.structure", t(`structure.${tile.structure}.name`)]);
     const theirs = owners.get(tile.owner)?.tiles ?? Infinity;
     note =
@@ -1273,6 +1327,7 @@ function renderTile(g: GameState): void {
         facts.push(["tile.heartShield", formatDuration(g.heartShieldUntil - now)]);
       }
       facts.push(["tile.production", t("tile.yieldValue", { value: fmt(tileProduction(g, tile, hops)) })]);
+      facts.push(cohesionFact(g, tile));
       if (tile.structure) facts.push(["tile.structure", t(`structure.${tile.structure}.name`)]);
       if (tile.structure === "gland" && hops.has(hexKey(tile))) facts.push(["tile.enzymes", t("tile.enzymesValue", { value: fmt(glandRate(tile) * 3600) })]);
       facts.push(["tile.exhaustion", percent(tile.exhaustion)]);
@@ -1289,6 +1344,7 @@ function renderTile(g: GameState): void {
         });
       }
     }
+    if (isRosette(g.tiles, tile)) note ||= t("tile.rosette");
     note ||= terrainNote(tile.terrain);
     buildable = hops.has(hexKey(tile)) && tile.growthEndsAt === null;
   } else {
@@ -1340,6 +1396,7 @@ function renderTile(g: GameState): void {
       return [dt, dd];
     }),
   );
+  renderEnrich(g, tile, hops);
   renderStructures(g, tile, buildable);
   renderConflict(g, tile, now);
   renderTileSocial(g, tile, now);
@@ -1355,6 +1412,37 @@ function renderTile(g: GameState): void {
     b.disabled = a.disabled;
     b.className = a.primary ? "primary" : "";
   });
+}
+
+/** M8: the tile's level, what it gives, the next milestone, and the buttons to buy more. */
+function renderEnrich(g: GameState, tile: Tile, hops: Map<string, number>): void {
+  const mine = tile.owner === g.id;
+  ui.tileEnrich.hidden = !mine || !isEnrichable(tile);
+  if (ui.tileEnrich.hidden) return;
+  const ready = tile.growthEndsAt === null && hops.has(hexKey(tile));
+  const rosette = isRosette(g.tiles, tile);
+  ui.enrichLevel.textContent = t("enrich.level", { level: tile.level });
+  ui.enrichFactor.textContent = tile.level > 0 ? t("enrich.factor", { value: fmtFactor(enrichFactor(tile.level, rosette)) }) : "";
+  const next = nextMilestone(tile.level);
+  const previous = next <= ENRICH.milestones[0]! ? 0 : [...ENRICH.milestones].reverse().find((m) => m < next) ?? next - ENRICH.milestoneEvery;
+  ui.enrichBar.style.width = `${Math.round(((tile.level - previous) / (next - previous)) * 100)}%`;
+  ui.enrichNext.textContent = t("enrich.next", { level: next });
+  ui.enrichLocked.hidden = ready;
+  const one = enrichCost(g, tile);
+  const ten = Math.max(1, affordableLevels(g, tile, ENRICH.batch));
+  const max = affordableLevels(g, tile);
+  ui.enrich1.textContent = t("enrich.one", { cost: fmt(one) });
+  ui.enrich10.textContent = t("enrich.ten", { count: ten, cost: fmt(enrichCost(g, tile, ten)) });
+  ui.enrichMax.textContent = t("enrich.max", { count: max });
+  ui.enrichBlockButton.textContent = t("enrich.block");
+  ui.enrich1.disabled = !ready || g.nutrients < one;
+  ui.enrich10.disabled = ui.enrich1.disabled;
+  ui.enrichMax.disabled = !ready || max === 0;
+  ui.enrichBlockButton.disabled = !ready || g.nutrients < one;
+}
+
+function fmtFactor(x: number): string {
+  return new Intl.NumberFormat(locale(), { maximumFractionDigits: x < 10 ? 2 : 0 }).format(x);
 }
 
 function terrainNote(terrain: Terrain): string {

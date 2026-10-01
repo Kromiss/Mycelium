@@ -5,7 +5,33 @@ versions [semver](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-10-01
+
+M8 — Incrémental : enrichissement & cohésion (GDD §2.3, §4.4, §11).
+
+### Added
+- **Enrichissement des cases** : chaque case a un niveau, acheté tout de suite en nutriments
+  (×1, ×10, Max, ou « tout le bloc » : un niveau sur la case et ses voisines). +8 % de production par
+  niveau, production doublée aux paliers 10, 25, 50, 100 puis tous les 100 niveaux. Une case prise
+  garde la moitié de ses niveaux ; les niveaux perdus en fructifiant rapportent des Spores ; l'achat
+  automatique enrichit au plus une case par minute.
+- **Bourgeons** : toutes les 2 à 4 min, un bourgeon pousse sur une case du réseau ; le toucher donne
+  18 s de production ; il fane après 5 min.
+- **Cohésion** : +5 % de production par voisine de la même colonie ; en défense, pression adverse
+  −8 % et prise +15 % plus longue par voisine.
+- Migration `0015` : `hex.level`, `players.buds`, `players.next_bud_at`.
+
 ### Changed
+- **Visuel des cases** : une colonie se dessine d'un seul tenant (plus de joints entre ses cases), avec
+  un contour extérieur d'autant plus épais que la case est entourée ; le niveau se voit (filaments,
+  tapis blanc, champignons aux paliers 50 et 100) ; l'usure délave le sol ; une case en train d'être
+  prise pulse en rouge.
+- Équilibrage (à valider) : coût de colonisation `1,14 ^ nb_cases` (réparti sur les petites cases),
+  Hyphes agressives +40 %, Cordyceps pression ×1,4 et production ×0,95, Témérité jusqu'à +40 %,
+  Résilience −15 %, boutique de Spores +25 % de production par niveau ; les robots activent l'achat
+  automatique.
+
+### Changed (essai de fin septembre)
 - **Carte plus lisible** : les cases possédées sont nettement plus visibles (remplissage plus fort) et
   chaque colonie est entourée d'une bordure continue à sa couleur (la tienne, épaisse et lumineuse).
 - **Cœur mis en avant** : case dorée, bulbe animé qui grossit quand on dézoome, onde qui s'en échappe,

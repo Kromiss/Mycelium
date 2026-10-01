@@ -30,6 +30,12 @@ import {
   chooseStrain,
   cloneGame,
   demolish,
+  automationUnlocked,
+  setAutomation,
+  enrichCost,
+  enrichPayback,
+  isEnrichable,
+  pickBud,
   colonizationCost,
   fructify,
   fruitingPreview,
@@ -171,8 +177,44 @@ export function botPlay(state: GameState, now: number, sessionStart: boolean, pl
   takeMutations(state, plan, now);
   if (sessionStart && now >= heartReadyAt(state)) moveHeartToCentre(state, now);
   fillQueue(state, now, plan.aim);
+  // M8: robots switch on the automatic reinvestment (upgrades, and one tile enriched a minute) once it is unlocked.
+  if (!state.automation.upgrades && automationUnlocked(state).upgrades) setAutomation(state, { upgrades: true }, now);
+  pickBuds(state, now);
   buyUpgrades(state);
+  enrichTiles(state, now);
   buildStructures(state, now);
+}
+
+/** M8: a connected robot picks every bud waiting. */
+function pickBuds(state: GameState, now: number): void {
+  for (const b of [...state.buds]) pickBud(state, b, now);
+}
+
+/**
+ * M8: enriches tiles while a level pays back better than the next tile of the queue (biomass per
+ * nutrient), best level first.
+ */
+function enrichTiles(state: GameState, now: number): void {
+  const nextTile = state.queue[0] ? state.tiles.get(hexKey(state.queue[0])) : undefined;
+  const tileRoi = nextTile && nextTile.owner === null ? tileValue(state, nextTile) : 0;
+  const conv = conversionRate(state.upgrades);
+  const hops = networkHops(state, now);
+  const owned = ownedCount(state);
+  // Same units as `tileValue`: biomass per second per nutrient, before the network bonus.
+  const ratio = (t: Tile) => enrichPayback(state, t, owned) * conv;
+  const tiles = [...hops.keys()].map((k) => state.tiles.get(k)!).filter(isEnrichable);
+  const ratios = tiles.map(ratio);
+  for (let guard = 0; guard < 500; guard++) {
+    let best = -1;
+    for (let i = 0; i < tiles.length; i++) if (ratios[i]! > tileRoi && (best < 0 || ratios[i]! > ratios[best]!)) best = i;
+    if (best < 0) return;
+    const t = tiles[best]!;
+    const cost = enrichCost(state, t, 1, owned);
+    if (state.nutrients < cost) return;
+    state.nutrients -= cost;
+    t.level += 1;
+    ratios[best] = ratio(t);
+  }
 }
 
 /** Builds a Carpophore on the Cœur (or next to it) if needed, then fruits. */
@@ -192,7 +234,7 @@ function fruit(state: GameState, radius: number, now: number): void {
 }
 
 /** Value of one Spore shop level, as a share of biomass gained. */
-const SPORE_VALUE: Record<SporeUpgradeId, number> = { production: 0.1, conversion: 0.05, mutationPoint: 0.08, growth: 0.03 };
+const SPORE_VALUE: Record<SporeUpgradeId, number> = { production: 0.25, conversion: 0.05, mutationPoint: 0.08, growth: 0.03 };
 
 function spendSpores(state: GameState): void {
   for (;;) {

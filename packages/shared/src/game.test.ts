@@ -80,6 +80,7 @@ describe("new game", () => {
         structure: null,
         toxic: false,
         effects: [],
+        level: 0,
       },
     ]);
     expect(s.nutrients).toBe(ECONOMY.startingNutrients);
@@ -249,8 +250,9 @@ describe("network and transport", () => {
     own(s, hex(1, 0), hex(2, 0), hex(3, 0));
     expect(transportLoss(3)).toBeCloseTo(0.03, 10);
     expect(transportLoss(500)).toBe(TRANSPORT.maxLoss);
-    expect(tileProduction(s, tileAt(s, hex(3, 0)))).toBeCloseTo(1 * 0.97, 10);
-    expect(productionRate(s)).toBeCloseTo(1 + 0.99 + 0.98 + 0.97, 10);
+    // M8 Cohésion: +5 % per neighbour of the same colony (the line's ends have one, the middle two).
+    expect(tileProduction(s, tileAt(s, hex(3, 0)))).toBeCloseTo(1 * 0.97 * 1.05, 10);
+    expect(productionRate(s)).toBeCloseTo(1.05 + 0.99 * 1.1 + 0.98 * 1.1 + 0.97 * 1.05, 10);
   });
 
   it("stops producing on disconnected tiles, then loses them", () => {
@@ -307,7 +309,7 @@ describe("production", () => {
     const s = game("humus");
     own(s, hex(1, 0));
     tileAt(s, hex(2, 0)).terrain = "wetland";
-    expect(tileProduction(s, tileAt(s, hex(1, 0)))).toBeCloseTo((1 + HUMIDITY.wetlandBonus) * 0.99, 10);
+    expect(tileProduction(s, tileAt(s, hex(1, 0)))).toBeCloseTo((1 + HUMIDITY.wetlandBonus) * 0.99 * 1.05, 10);
   });
 
   it("converts a share of the production into biomass", () => {
@@ -366,7 +368,7 @@ describe("exhaustion", () => {
     advance(s, T0 + 10 * L);
     expect(tileAt(s, hex(1, 0)).exhaustion).toBe(EXHAUSTION.max);
     // A worn tile keeps 60 % of its yield.
-    expect(tileProduction(s, tileAt(s, hex(1, 0)))).toBeCloseTo(0.5 * (1 - EXHAUSTION.max) * 0.99, 10);
+    expect(tileProduction(s, tileAt(s, hex(1, 0)))).toBeCloseTo(0.5 * (1 - EXHAUSTION.max) * 0.99 * 1.05, 10);
   });
 
   it("integrates the decline exactly", () => {

@@ -170,6 +170,33 @@ describe("forests", () => {
     expect(stranger.last("actionError")?.error).toBe("not_authenticated");
   });
 
+  it("enriches tiles and picks buds (M8)", async () => {
+    const { service, wait } = await setup();
+    const a = await play(service, "Alpha");
+    const forest = service.forestState(a.account.id)!;
+    const me = forest.players.get(a.account.id)!;
+    const heart = me.heart;
+    me.nutrients = 1e9;
+    service.enrich(a.account.id, heart.q, heart.r, 10, a.client);
+    expect(a.client.last("state")!.game.tiles.find((t) => t.q === heart.q && t.r === heart.r)?.v).toBe(10);
+    service.enrich(a.account.id, heart.q, heart.r, "max", a.client);
+    expect(a.client.last("state")!.game.tiles.find((t) => t.q === heart.q && t.r === heart.r)!.v).toBeGreaterThan(10);
+    service.enrichBlock(a.account.id, heart.q, heart.r, a.client);
+    service.enrich(a.account.id, 99, 99, 1, a.client);
+    expect(a.client.last("actionError")?.error).toBe("unknown_tile");
+    service.pickBud(a.account.id, heart.q, heart.r, a.client);
+    expect(a.client.last("actionError")?.error).toBe("no_bud");
+    // Buds grow within a few minutes and reach the client.
+    wait(5 * 60_000);
+    await service.tick();
+    const buds = a.client.last("state")!.game.buds!;
+    expect(buds.length).toBeGreaterThan(0);
+    const before = me.nutrients;
+    service.pickBud(a.account.id, buds[0]!.q, buds[0]!.r, a.client);
+    expect(me.nutrients).toBeGreaterThan(before);
+    expect(a.client.last("state")!.game.buds!.length).toBe(buds.length - 1);
+  });
+
   it("summarises the absence when the player comes back", async () => {
     const { service, wait } = await setup();
     const a = await play(service, "Alpha");

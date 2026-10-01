@@ -25,6 +25,7 @@ import {
 } from "./forestgen";
 import { checkColonize, networkHops, type GameState } from "./game";
 import { hex, hexDistance, hexesInRadius, hexKey, hexNeighbors, type Hex } from "./hex";
+import { plainCaptureMs } from "./testing";
 
 const T0 = Date.UTC(2026, 9, 5);
 const HOUR = 3_600_000;
@@ -188,7 +189,7 @@ describe("borders (GDD §6.1)", () => {
   it("lets the stronger network take a tile after its capture time", () => {
     const { f, a, border } = arena();
     const tile = f.tiles.get(hexKey(border))!;
-    const duration = BORDERS.captureMs[tile.terrain];
+    const duration = plainCaptureMs(f, "a", border);
     let t = T0;
     const step = 5_000;
     while (t < T0 + duration - step) {

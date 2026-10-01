@@ -91,6 +91,10 @@ describe.each(stores)("%s store", (_name, make) => {
     pa.relics = ["vigour"];
     pa.relicPicks = 1;
     pa.listens = { [b.id]: T0 + 7_200_000 };
+    // M8: enrichment levels and buds.
+    someTile.level = 12;
+    pa.buds = [{ q: someTile.q, r: someTile.r, until: T0 + 3_700_000 }];
+    pa.nextBudAt = T0 + 3_780_000;
     await store.saveForest(record.id, forest);
 
     expect(await store.listForests()).toContainEqual(record);

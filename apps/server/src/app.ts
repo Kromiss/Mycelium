@@ -177,6 +177,18 @@ function onConnection(ws: WebSocket, game: ForestService): void {
         if (!player) return send(ws, { type: "actionError", error: "not_authenticated" });
         game.buyUpgrade(player.id, msg.upgrade, client);
         return;
+      case "enrich":
+        if (!player) return send(ws, { type: "actionError", error: "not_authenticated" });
+        game.enrich(player.id, msg.q, msg.r, msg.count, client);
+        return;
+      case "enrichBlock":
+        if (!player) return send(ws, { type: "actionError", error: "not_authenticated" });
+        game.enrichBlock(player.id, msg.q, msg.r, client);
+        return;
+      case "pickBud":
+        if (!player) return send(ws, { type: "actionError", error: "not_authenticated" });
+        game.pickBud(player.id, msg.q, msg.r, client);
+        return;
       case "build":
         if (!player) return send(ws, { type: "actionError", error: "not_authenticated" });
         game.build(player.id, msg.q, msg.r, msg.structure, client);

@@ -23,6 +23,7 @@ import {
 } from "./game";
 import { hex, hexDistance, hexesInRadius, hexKey, type Hex } from "./hex";
 import { fromSnapshot, parseClientMessage, toSnapshot } from "./protocol";
+import { plainCaptureMs } from "./testing";
 
 const T0 = Date.UTC(2026, 9, 8, 8); // A Thursday.
 const HOUR = 3_600_000;
@@ -185,7 +186,7 @@ describe("structures (GDD §4.1)", () => {
     const far = tileProduction(s, tileAt(s, hex(3, 0)));
     const near = tileProduction(s, tileAt(s, hex(0, 1)));
     expect(near).toBe(0); // Not owned.
-    expect(far).toBeCloseTo(TERRAIN_STATS.humus.yieldPerSecond * (1 - TRANSPORT.lossPerHop), 10);
+    expect(far).toBeCloseTo(TERRAIN_STATS.humus.yieldPerSecond * (1 - TRANSPORT.lossPerHop) * 1.05, 10); // + one neighbour (M8)
   });
 
   it("Sclérote: one per player", () => {
@@ -270,14 +271,16 @@ function timeToTake(f: ForestState, border: Hex): number {
 describe("structures at the border (GDD §4.1, §6.1)", () => {
   it("a plain Humus tile falls after its capture time", () => {
     const { f, border } = duel();
-    expect(timeToTake(f, border)).toBeCloseTo(BORDERS.captureMs.humus, -4);
+    const plain = plainCaptureMs(f, "a", border);
+    expect(timeToTake(f, border)).toBeCloseTo(plain, -4);
   });
 
   it("Rhizomorphe halves the capture speed", () => {
     const { f, b, border } = duel();
     build(b, border, "rhizomorph", T0);
     expect(defenceFactor(f, f.tiles.get(hexKey(border))!)).toBe(STRUCTURES.rhizomorphCaptureFactor);
-    expect(timeToTake(f, border)).toBeCloseTo(BORDERS.captureMs.humus / STRUCTURES.rhizomorphCaptureFactor, -4);
+    const plain = plainCaptureMs(f, "a", border);
+    expect(timeToTake(f, border)).toBeCloseTo(plain / STRUCTURES.rhizomorphCaptureFactor, -4);
   });
 
   it("the owner's Rock next to a tile is a rampart", () => {

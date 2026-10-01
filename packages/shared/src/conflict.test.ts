@@ -5,6 +5,8 @@ import { advanceForest, inCentre, joinForest, newForest, refreshReservations, re
 import { advance, biomassRate, networkHops, placeBiomass, tileProduction, type GameState } from "./game";
 import { hex, hexesInRadius, hexKey, type Hex } from "./hex";
 import { seasonAt } from "./season";
+import { plainCaptureMs } from "./testing";
+import { cohesionDefence } from "./forest";
 
 const T0 = Date.UTC(2026, 9, 5);
 const HOUR = 3_600_000;
@@ -87,10 +89,11 @@ describe("active actions (GDD §6.2)", () => {
   it("Assaut takes the tile 4× faster, even below twice the pressure", () => {
     const { f, border } = arena();
     const plain = timeToTake(arena().f, border);
-    expect(plain).toBeCloseTo(BORDERS.captureMs.humus, -4);
+    expect(plain).toBeCloseTo(plainCaptureMs(f, "a", border), -4);
     act(f, "a", "assault", border, T0);
-    // Full speed ×4: a Humus tile falls in 45 min / 4, well within the 30 min of the assault.
-    expect(timeToTake(f, border)).toBeCloseTo(BORDERS.captureMs.humus / ACTION_EFFECTS.assaultSpeed, -4);
+    // Full speed ×4: a Humus tile falls in 45 min / 4 (slowed by its cohesion), within the 30 min of the assault.
+    const { hold } = cohesionDefence(f, tile(f, border));
+    expect(timeToTake(f, border)).toBeCloseTo((BORDERS.captureMs.humus * hold) / ACTION_EFFECTS.assaultSpeed, -4);
   });
 
   it("Assaut needs the attacker above parity", () => {
@@ -176,8 +179,9 @@ describe("anti-frustration (GDD §6.4)", () => {
     // b's Cœur sits on the border.
     b.heart = hex(1, 0);
     tile(f, hex(5, 0)).structure = "sclerotium";
+    const plain = plainCaptureMs(f, "a", hex(1, 0));
     const took = timeToTake(f, hex(1, 0), T0, 12 * HOUR);
-    expect(took).toBeCloseTo(BORDERS.captureMs.humus / ANTI_FRUSTRATION.heartCaptureFactor, -4);
+    expect(took).toBeCloseTo(plain / ANTI_FRUSTRATION.heartCaptureFactor, -4);
     expect(b.heart).toEqual(hex(5, 0));
     expect(b.heartShieldUntil).toBe(T0 + took + ANTI_FRUSTRATION.heartShieldMs);
   });
@@ -193,7 +197,8 @@ describe("anti-frustration (GDD §6.4)", () => {
     const { f, border } = arena();
     for (const h of hexesInRadius(hex(-4, 3), 1)) tile(f, h).owner = "a";
     tile(f, hex(-5, 2)).owner = "a";
-    expect(timeToTake(f, border)).toBeCloseTo(BORDERS.captureMs.humus / ANTI_FRUSTRATION.bullyCaptureFactor, -4);
+    const plain = plainCaptureMs(f, "a", border);
+    expect(timeToTake(f, border)).toBeCloseTo(plain / ANTI_FRUSTRATION.bullyCaptureFactor, -4);
   });
 
   it("never lets a player fall below 7 tiles", () => {

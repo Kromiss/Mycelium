@@ -8,6 +8,7 @@ import {
   normalizeUpgrades,
   type ActionError,
   type Automation,
+  type Bud,
   type GameState,
   type SporeUpgrades,
   type Tile,
@@ -40,6 +41,8 @@ export interface TileDto extends Hex {
   x?: 1;
   /** Timed effects (actions, events), omitted when there are none. */
   e?: TileEffect[];
+  /** Enrichment level (M8), omitted at 0. */
+  v?: number;
 }
 
 /** A player's game as sent to them: their own economy, and the tiles they can see. */
@@ -84,6 +87,9 @@ export interface GameSnapshot {
   conquests?: number;
   activeMs?: number;
   unlockedStrains?: StrainId[];
+  /** M8: the player's Bourgeons, and when the next one grows. */
+  buds?: Bud[];
+  nextBudAt?: number | null;
 }
 
 export const TERRAIN_CODES: Record<Terrain, string> = {
@@ -130,6 +136,7 @@ export function toSnapshot(state: GameState, visible?: Set<string>, masked?: Set
     if (t.structure !== null) dto.s = t.structure;
     if (t.toxic) dto.x = 1;
     if (t.effects.length > 0) dto.e = t.effects.map((e) => ({ ...e }));
+    if (t.level > 0) dto.v = t.level;
     tiles.push(dto);
   }
   return {
@@ -171,6 +178,8 @@ export function toSnapshot(state: GameState, visible?: Set<string>, masked?: Set
     conquests: state.conquests,
     activeMs: state.activeMs,
     unlockedStrains: [...state.unlockedStrains],
+    buds: state.buds.map((b) => ({ ...b })),
+    nextBudAt: state.nextBudAt,
   };
 }
 
@@ -194,6 +203,7 @@ export function fromSnapshot(s: GameSnapshot, seed = 0): GameState {
       structure: typeof o.s === "string" && isStructureId(o.s) ? o.s : null,
       toxic: o.x === 1,
       effects: normalizeEffects(o.e),
+      level: typeof o.v === "number" && Number.isInteger(o.v) && o.v > 0 ? o.v : 0,
     });
   }
   return {
@@ -236,9 +246,19 @@ export function fromSnapshot(s: GameSnapshot, seed = 0): GameState {
     conquests: s.conquests ?? 0,
     activeMs: s.activeMs ?? 0,
     unlockedStrains: Array.isArray(s.unlockedStrains) ? s.unlockedStrains.filter((x) => typeof x === "string" && isStrainId(x)) : [],
+    buds: normalizeBuds(s.buds),
+    nextBudAt: typeof s.nextBudAt === "number" ? s.nextBudAt : null,
     tiles,
     updatedAt: s.updatedAt,
   };
+}
+
+/** Bourgeons from untrusted data. */
+export function normalizeBuds(raw: unknown): Bud[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((b): b is Bud => typeof b === "object" && b !== null && Number.isInteger(b.q) && Number.isInteger(b.r) && typeof b.until === "number")
+    .map((b) => ({ q: b.q, r: b.r, until: b.until }));
 }
 
 /** Relics from untrusted data. */
@@ -527,6 +547,12 @@ export type ClientMessage =
   | { type: "unqueue"; q: number; r: number }
   | { type: "moveHeart"; q: number; r: number }
   | { type: "buyUpgrade"; upgrade: string }
+  /** M8: buys levels on one of the player's tiles: 1, 10, or as many as possible ("max"). */
+  | { type: "enrich"; q: number; r: number; count: number | "max" }
+  /** M8: one level on the tile and on each of its neighbours of the same colony. */
+  | { type: "enrichBlock"; q: number; r: number }
+  /** M8: picks a Bourgeon. */
+  | { type: "pickBud"; q: number; r: number }
   /** Builds a structure on one of the player's tiles (GDD §4.1). */
   | { type: "build"; q: number; r: number; structure: string }
   | { type: "demolish"; q: number; r: number }
@@ -622,6 +648,13 @@ export function parseClientMessage(raw: string): ClientMessage | null {
       return { type: "ping" };
     case "auth":
       return isStr(m.token, 200) ? { type: "auth", token: m.token } : null;
+    case "enrich":
+      if (!isInt(m.q) || !isInt(m.r)) return null;
+      if (m.count === "max") return { type: "enrich", q: m.q, r: m.r, count: "max" };
+      return isInt(m.count) && m.count >= 1 && m.count <= 1000 ? { type: "enrich", q: m.q, r: m.r, count: m.count } : null;
+    case "enrichBlock":
+    case "pickBud":
+      return isInt(m.q) && isInt(m.r) ? { type: m.type, q: m.q, r: m.r } : null;
     case "colonize":
     case "unqueue":
     case "moveHeart":

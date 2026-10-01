@@ -1,11 +1,13 @@
-import { ACTION_EFFECTS, ANTI_FRUSTRATION, BORDERS, CENTRE_RISK, FOREST, MUTATIONS, ROCK, STRAINS, STRUCTURES, VISION_RADIUS, FOG_ENABLED } from "./balance";
+import { ACTION_EFFECTS, ANTI_FRUSTRATION, BORDERS, CENTRE_RISK, COHESION, ENRICH, FOREST, MUTATIONS, ROCK, STRAINS, STRUCTURES, VISION_RADIUS, FOG_ENABLED } from "./balance";
 import { generateForestMap, ringAt, type MapLayout } from "./forestgen";
 import {
   activeEffect,
   advance,
   effectsAt,
   capturedFactor,
+  cohesion,
   conquestFactor,
+  refreshBuds,
   biomassConversion,
   emptySporeUpgrades,
   hasMutation,
@@ -140,7 +142,10 @@ export function advanceForest(forest: ForestState, to: number): void {
   refreshReservations(forest, forest.updatedAt);
   refreshPacts(forest);
   refreshToxins(forest);
-  for (const p of forest.players.values()) advance(p, to);
+  for (const p of forest.players.values()) {
+    advance(p, to);
+    refreshBuds(p, to);
+  }
   forest.updatedAt = to;
   settleSiphons(forest, to);
   settlePacts(forest, to);
@@ -259,6 +264,15 @@ export function defenceFactor(forest: ForestState, tile: Tile): number {
   return f;
 }
 
+/**
+ * M8 Cohésion in defence: each neighbour of the defender's colony weakens the attacker's pressure by 8 %
+ * (`pushBack`, a multiplier on the attack) and makes the capture 15 % longer (`hold`, a divisor of its speed).
+ */
+export function cohesionDefence(forest: ForestState, tile: Tile): { neighbours: number; pushBack: number; hold: number } {
+  const n = cohesion(forest.tiles, tile);
+  return { neighbours: n, pushBack: Math.max(0, 1 - COHESION.pressure * n), hold: 1 + COHESION.captureTime * n };
+}
+
 /** Capture speed from the two pressures: 0 up to parity, full speed from `fullSpeedRatio`. */
 export function captureSpeed(attack: number, defence: number): number {
   if (attack <= 0) return 0;
@@ -295,8 +309,9 @@ export function resolveBorders(forest: ForestState, dt: number, now: number): Ca
       }
       if (attackers.size > 0) {
         const defence = pressure(forest, defender.id, tile);
+        const { pushBack } = cohesionDefence(forest, tile);
         for (const a of attackers) {
-          const attack = pressure(forest, a, tile, connected.get(a));
+          const attack = pressure(forest, a, tile, connected.get(a)) * pushBack;
           // Assaut (GDD §6.2): full speed as soon as the attacker is above parity, ×4.
           const assault = tile.effects.length > 0 && tile.effects.some((e) => e.kind === "assault" && e.by === a && e.until > now);
           let speed = assault ? (attack > defence ? ACTION_EFFECTS.assaultSpeed : 0) : captureSpeed(attack, defence);
@@ -322,8 +337,9 @@ export function resolveBorders(forest: ForestState, dt: number, now: number): Ca
     // GDD §2.5: the offline shield is weaker in the centre.
     const shield = shielded ? (inCentre(forest, tile) ? CENTRE_RISK.shieldFactor : BORDERS.shieldFactor) : 1;
     const isHeart = hexEquals(defender.heart, tile);
+    const { hold: held } = cohesionDefence(forest, tile);
     tile.capture.progress +=
-      (dt / duration) *
+      (dt / duration / held) *
       best.speed *
       phaseSpeed *
       shield *
@@ -380,6 +396,8 @@ function conquer(attacker: GameState, tile: Tile): void {
     hasMutation(attacker, "cordyceps") &&
     !(tile.structure === "sclerotium" && [...attacker.tiles.values()].some((t) => t !== tile && t.owner === attacker.id && t.structure === "sclerotium"));
   if (!keep) tile.structure = null;
+  // M8: the tile keeps half of its enrichment levels.
+  tile.level = Math.floor(tile.level * ENRICH.capturedKeep);
   attacker.trophies += 1;
   attacker.conquests += 1;
   const perSecond = tileYield(tile.terrain, attacker.upgrades) * richness(attacker, tile);

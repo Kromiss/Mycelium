@@ -116,6 +116,19 @@
       <dl id="tile-facts"></dl>
       <p class="tile-note" id="tile-note" hidden></p>
       <div class="tile-actions" id="tile-actions"></div>
+      <div class="tile-enrich" id="tile-enrich" hidden>
+        <h4 data-i18n="enrich.title"></h4>
+        <p class="enrich-level"><strong id="enrich-level"></strong> <span class="muted" id="enrich-factor"></span></p>
+        <div class="enrich-bar" aria-hidden="true"><span id="enrich-bar"></span></div>
+        <p class="muted enrich-next" id="enrich-next"></p>
+        <div class="enrich-buttons">
+          <button type="button" class="primary" id="enrich-1"></button>
+          <button type="button" id="enrich-10"></button>
+          <button type="button" id="enrich-max"></button>
+        </div>
+        <button type="button" class="ghost enrich-block" id="enrich-block" data-i18n-aria="enrich.blockHint"></button>
+        <p class="muted" id="enrich-locked" data-i18n="enrich.locked" hidden></p>
+      </div>
       <div class="tile-structures" id="tile-structures" hidden>
         <h4 data-i18n="tile.structures"></h4>
         <ul id="structure-list"></ul>

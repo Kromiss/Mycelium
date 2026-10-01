@@ -1,5 +1,8 @@
 import {
+  BUDS,
   checkColonize,
+  cohesion,
+  ENRICH,
   EXHAUSTION,
   growthProgress,
   hashFloat,
@@ -86,6 +89,13 @@ const PLAN = 0xf2e6b8;
 /** The Cœur's own colour, so it stands apart from the green network. */
 const HEART = 0xffd166;
 const HEART_CORE = 0xfff4d6;
+/** Worn ground is washed out toward this pale colour (GDD §11, M8 visuals). */
+const WASH = 0xb9b4a0;
+/** Bourgeons (M8). */
+const BUD = 0xfff0a8;
+const BUD_CORE = 0xffffff;
+/** Tap radius around a bud, in world pixels. */
+const BUD_TAP = SIZE * 0.55;
 /** At most this many nutrient particles flow toward the Cœur each frame. */
 const MAX_FLOWS = 600;
 
@@ -115,6 +125,7 @@ export class MapView {
   private events: EventDto[] = [];
   private now: () => number = Date.now;
   private onSelect: (h: Hex | null) => void = () => {};
+  private onBudTap: (h: Hex) => void = () => {};
 
   private readonly pointers = new Map<number, { x: number; y: number }>();
   private dragStart: { x: number; y: number; moved: boolean } | null = null;
@@ -164,12 +175,17 @@ export class MapView {
       game.queue.map(hexKey).join("|"),
       tiles
         .filter((t) => t.owner !== null || t.exhaustion > 0)
-        .map((t) => `${hexKey(t)}${t.owner ?? ""}${t.structure ?? ""}${t.growthEndsAt === null ? "" : "g"}${t.disconnectedSince === null ? "" : "x"}${Math.round(t.exhaustion * 20)}`)
+        .map((t) => `${hexKey(t)}${t.owner ?? ""}${t.structure ?? ""}${t.growthEndsAt === null ? "" : "g"}${t.disconnectedSince === null ? "" : "x"}${Math.round(t.exhaustion * 20)}l${t.level}`)
         .join(";"),
     ].join("#");
     if (signature === this.networkSignature) return;
     this.networkSignature = signature;
     this.drawNetwork(game);
+  }
+
+  /** M8: what to do when the player taps one of their buds. */
+  onBud(handler: (h: Hex) => void): void {
+    this.onBudTap = handler;
   }
 
   select(h: Hex | null): void {
@@ -312,6 +328,36 @@ export class MapView {
     }
   }
 
+  /**
+   * The tile's enrichment level (M8): fine threads at first, a dense white mat around level 25, and small
+   * mushrooms coming out at the milestones 50 and 100.
+   */
+  private drawLevel(g: Graphics, seed: number, tile: Hex & { level: number }, x: number, y: number, color: number, strength: number): void {
+    const level = tile.level;
+    if (level <= 0) return;
+    const rnd = (i: number) => hashFloat(seed, 41, tile.q, tile.r, i);
+    if (level >= 10) {
+      const mat = Math.min(1, (level - 10) / 15);
+      g.poly(hexPoints(x, y, SIZE * (0.5 + 0.35 * mat))).fill({ color: MYCELIUM, alpha: (0.1 + 0.18 * mat) * strength });
+    }
+    const threads = Math.min(9, 1 + Math.floor(level / 3));
+    for (let i = 0; i < threads; i++) {
+      const a = rnd(i) * Math.PI * 2;
+      const len = SIZE * (0.5 + rnd(i + 20) * 0.35);
+      const bend = (rnd(i + 40) - 0.5) * 0.9;
+      g.moveTo(x, y)
+        .quadraticCurveTo(x + Math.cos(a + bend) * len * 0.5, y + Math.sin(a + bend) * len * 0.5, x + Math.cos(a) * len, y + Math.sin(a) * len)
+        .stroke({ width: level >= 25 ? 1.6 : 1.1, color, alpha: 0.55 * strength, cap: "round" });
+    }
+    const caps = level >= ENRICH.milestones[3]! ? 2 : level >= ENRICH.milestones[2]! ? 1 : 0;
+    for (let i = 0; i < caps; i++) {
+      const cx = x + (i === 0 ? -0.28 : 0.22) * SIZE;
+      const cy = y + (i === 0 ? 0.2 : -0.05) * SIZE;
+      g.rect(cx - 1.3, cy - 1, 2.6, 5).fill({ color: 0xf2e6b8, alpha: strength });
+      g.moveTo(cx - 5, cy).arc(cx, cy, 5, Math.PI, 0).closePath().fill({ color: 0xe8d9a8, alpha: strength }).stroke({ width: 1, color: 0x6a5a38, alpha: 0.8 * strength });
+    }
+  }
+
   /** A small mark for a structure, in the tile's upper-right corner. */
   private drawStructure(g: Graphics, structure: StructureId, x: number, y: number, skin?: SkinId): void {
     const cx = x + SIZE * 0.38;
@@ -347,18 +393,28 @@ export class MapView {
     const hops = networkHops(game);
     const connected = [...game.tiles.values()].filter((t) => hops.has(hexKey(t)));
 
+    // Ground: worn tiles are washed out (wear never goes away). Colonised tiles are drawn edge to edge,
+    // without the gaps of the wild ground, so a colony reads as one living patch (M8).
     for (const t of game.tiles.values()) {
       const { x, y } = hexToPixel(t, SIZE);
-      // Wear darkens the ground, owned or not (it never goes away).
       const wear = t.exhaustion / EXHAUSTION.max;
-      if (wear > 0.02) net.poly(hexPoints(x, y, SIZE - 1)).fill({ color: 0x000000, alpha: wear * 0.35 });
+      if (t.owner !== null) {
+        const shade = 0.88 + 0.24 * hashFloat(game.seed, 11, t.q, t.r);
+        net.poly(hexPoints(x, y, SIZE + 0.3)).fill({ color: scaleColor(TERRAIN_COLORS[t.terrain], shade) });
+        this.drawTexture(net, game.seed, t, x, y);
+      }
+      if (wear > 0.02) net.poly(hexPoints(x, y, t.owner !== null ? SIZE + 0.3 : SIZE - 1)).fill({ color: WASH, alpha: wear * 0.3 });
+    }
+
+    for (const t of game.tiles.values()) {
       if (t.owner === null) continue;
+      const { x, y } = hexToPixel(t, SIZE);
       if (t.owner !== game.id) {
         // Another player's tile.
         const owner = this.owners.get(t.owner);
         const color = ownerColor(owner);
-        net.poly(hexPoints(x, y, SIZE - 1)).fill({ color, alpha: t.disconnectedSince === null ? 0.34 : 0.18 });
-        net.poly(hexPoints(x, y, SIZE - 2.5)).stroke({ width: 1, color, alpha: 0.4 });
+        net.poly(hexPoints(x, y, SIZE + 0.3)).fill({ color, alpha: t.disconnectedSince === null ? 0.34 : 0.18 });
+        this.drawLevel(net, game.seed, t, x, y, color, 0.55);
         if (owner?.ally) net.poly(hexPoints(x, y, SIZE - 5)).stroke({ width: 1.5, color: ALLY_RIM, alpha: 0.65 });
         if (owner?.tainted) net.poly(hexPoints(x, y, SIZE - 5)).stroke({ width: 2.5, color: TAINT_RIM, alpha: 0.85 });
         continue;
@@ -366,39 +422,47 @@ export class MapView {
       if (t.growthEndsAt !== null) {
         net.poly(hexPoints(x, y, SIZE - 1)).fill({ color: GLOW, alpha: 0.14 });
       } else if (t.disconnectedSince !== null) {
-        net.poly(hexPoints(x, y, SIZE - 1)).fill({ color: WITHER, alpha: 0.32 });
+        net.poly(hexPoints(x, y, SIZE + 0.3)).fill({ color: WITHER, alpha: 0.32 });
         net.poly(hexPoints(x, y, SIZE - 2.5)).stroke({ width: 1.5, color: WITHER, alpha: 0.7 });
       } else {
         // Own tiles read clearly above the terrain; wear only dims them a little.
-        net.poly(hexPoints(x, y, SIZE - 1)).fill({ color: GLOW, alpha: 0.36 * (1 - (t.exhaustion / EXHAUSTION.max) * 0.35) });
-        net.poly(hexPoints(x, y, SIZE - 2.5)).stroke({ width: 1.2, color: MYCELIUM, alpha: 0.3 });
+        net.poly(hexPoints(x, y, SIZE + 0.3)).fill({ color: GLOW, alpha: 0.3 * (1 - (t.exhaustion / EXHAUSTION.max) * 0.35) });
+        this.drawLevel(net, game.seed, t, x, y, MYCELIUM, 1);
       }
     }
 
-    // Territory borders: one outline around each colony, only on edges facing another owner.
-    const mine: number[][] = [];
-    const theirs = new Map<string, number[][]>();
+    // Territory borders: one outline around each colony, only on its outer edges. The thicker the edge,
+    // the more neighbours of the colony hold that tile (M8 Cohésion): solid blocks look solid.
+    const mine: number[][][] = Array.from({ length: 7 }, () => []);
+    const theirs = new Map<string, number[][][]>();
     for (const t of game.tiles.values()) {
-      if (t.owner === null) continue;
+      if (t.owner === null || t.growthEndsAt !== null) continue;
       const c = hexToPixel(t, SIZE);
-      for (const n of hexNeighbors(t)) {
-        if (game.tiles.get(hexKey(n))?.owner === t.owner) continue;
-        const edge = hexEdge(c, hexToPixel(n, SIZE), SIZE - 1);
-        if (t.owner === game.id) mine.push(edge);
-        else (theirs.get(t.owner) ?? theirs.set(t.owner, []).get(t.owner)!).push(edge);
+      const n = cohesion(game.tiles, t);
+      for (const nb of hexNeighbors(t)) {
+        if (game.tiles.get(hexKey(nb))?.owner === t.owner) continue;
+        const edge = hexEdge(c, hexToPixel(nb, SIZE), SIZE);
+        if (t.owner === game.id) mine[n]!.push(edge);
+        else (theirs.get(t.owner) ?? theirs.set(t.owner, Array.from({ length: 7 }, () => [])).get(t.owner)!)[n]!.push(edge);
       }
     }
-    for (const [owner, edges] of theirs) {
-      for (const [x1, y1, x2, y2] of edges) net.moveTo(x1!, y1!).lineTo(x2!, y2!);
-      net.stroke({ width: 2.5, color: ownerColor(this.owners.get(owner)), alpha: 0.95, cap: "round" });
+    for (const [owner, byCohesion] of theirs) {
+      const color = ownerColor(this.owners.get(owner));
+      byCohesion.forEach((edges, n) => {
+        for (const [x1, y1, x2, y2] of edges) net.moveTo(x1!, y1!).lineTo(x2!, y2!);
+        if (edges.length) net.stroke({ width: 1.5 + 0.6 * n, color, alpha: 0.95, cap: "round" });
+      });
     }
-    for (const [width, alpha, color] of [
-      [10, 0.18, GLOW],
-      [3.5, 0.95, MYCELIUM],
-    ] as const) {
-      for (const [x1, y1, x2, y2] of mine) net.moveTo(x1!, y1!).lineTo(x2!, y2!);
-      if (mine.length) net.stroke({ width, color, alpha, cap: "round" });
-    }
+    mine.forEach((edges, n) => {
+      if (!edges.length) return;
+      for (const [width, alpha, color] of [
+        [8 + 1.5 * n, 0.16, GLOW],
+        [2 + 0.8 * n, 0.95, MYCELIUM],
+      ] as const) {
+        for (const [x1, y1, x2, y2] of edges) net.moveTo(x1!, y1!).lineTo(x2!, y2!);
+        net.stroke({ width, color, alpha, cap: "round" });
+      }
+    });
 
     // Filaments between neighbouring connected tiles (each pair once).
     const segments: Array<[number, number, number, number]> = [];
@@ -530,6 +594,8 @@ export class MapView {
       const { x, y } = hexToPixel(t, SIZE);
       const mine = t.capture.by === game.id;
       const color = mine ? GLOW : t.owner === game.id ? WITHER : ownerColor(this.owners.get(t.capture.by));
+      // One of your tiles being taken throbs red.
+      if (t.owner === game.id) fx.poly(hexPoints(x, y, SIZE - 1)).fill({ color: WITHER, alpha: 0.1 + 0.2 * pulse });
       const start = -Math.PI / 2;
       const r = SIZE * 0.72;
       fx.moveTo(x + r * Math.cos(start), y + r * Math.sin(start));
@@ -570,6 +636,20 @@ export class MapView {
           fx.circle(ex, ey, 3.5 + (e.kind === "assault" ? pulse : 0)).fill({ color, alpha: 0.95 });
         }
       });
+    }
+
+    // Bourgeons (M8): a glowing bud to tap, fading as its time runs out.
+    for (const b of game.buds) {
+      if (b.until <= now) continue;
+      const { x, y } = hexToPixel(b, SIZE);
+      const left = Math.min(1, (b.until - now) / BUDS.lifeMs);
+      const bob = Math.sin(performance.now() / 300 + b.q * 1.7 + b.r) * 1.5;
+      const k = Math.max(1, 0.7 / this.world.scale.x); // Still easy to spot when zoomed out.
+      fx.circle(x, y + bob, (16 + 4 * pulse) * k).fill({ color: BUD, alpha: 0.3 * (0.4 + 0.6 * left) });
+      fx.circle(x, y + bob, (11 + 6 * pulse) * k).stroke({ width: 2 * k, color: BUD, alpha: 0.6 * left });
+      fx.moveTo(x, y + 10 * k + bob).quadraticCurveTo(x - 3 * k, y + 4 * k + bob, x, y - 1 * k + bob).stroke({ width: 2.5 * k, color: MYCELIUM, alpha: 0.95 });
+      fx.circle(x, y - 4 * k + bob, 7.5 * k).fill({ color: BUD, alpha: 0.6 + 0.4 * left }).stroke({ width: 1.5 * k, color: 0x6a5a20, alpha: 0.8 });
+      fx.circle(x - 2.2 * k, y - 6.5 * k + bob, 2.2 * k).fill({ color: BUD_CORE, alpha: 0.95 });
     }
 
     if (this.highlighted) {
@@ -692,7 +772,19 @@ export class MapView {
       return;
     }
     const scale = this.world.scale.x;
-    const h = pixelToHex((sx - this.world.x) / scale, (sy - this.world.y) / scale, SIZE);
+    const wx = (sx - this.world.x) / scale;
+    const wy = (sy - this.world.y) / scale;
+    const now = this.now();
+    const bud = this.game.buds.find((b) => {
+      if (b.until <= now) return false;
+      const p = hexToPixel(b, SIZE);
+      return Math.hypot(wx - p.x, wy - p.y) < Math.max(BUD_TAP, 18 / scale);
+    });
+    if (bud) {
+      this.onBudTap({ q: bud.q, r: bud.r });
+      return;
+    }
+    const h = pixelToHex(wx, wy, SIZE);
     const exists = this.game.tiles.has(hexKey(h));
     const same = this.selected && this.selected.q === h.q && this.selected.r === h.r;
     this.onSelect(exists && !same ? h : null);

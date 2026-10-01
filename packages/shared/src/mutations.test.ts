@@ -25,6 +25,7 @@ import {
 } from "./game";
 import { hex, hexesInRadius, hexKey, type Hex } from "./hex";
 import { fromSnapshot, parseClientMessage, toSnapshot } from "./protocol";
+import { plainCaptureMs } from "./testing";
 
 const T0 = Date.UTC(2026, 9, 8, 8); // A Thursday.
 const HOUR = 3_600_000;
@@ -106,7 +107,8 @@ describe("Décomposeur", () => {
     for (const t of c.tiles.values()) t.exhaustion = EXHAUSTION.max;
     c.nutrients = 0;
     advance(c, T0 + HOUR);
-    expect(c.nutrients).toBeCloseTo((heart + far) * (1 - MUTATIONS.slowWearCap), 6);
+    // Both tiles touch each other: +5 % cohesion each (M8).
+    expect(c.nutrients).toBeCloseTo((heart + far) * 1.05 * (1 - MUTATIONS.slowWearCap), 6);
   });
 
   it("Saprophyte: Dead wood and Stumps +50 %", () => {
@@ -227,13 +229,14 @@ describe("Symbiote", () => {
     const s = game();
     own(s, hex(1, 0), hex(2, 0));
     give(s, "mycelialCords");
-    expect(tileProduction(s, tileAt(s, hex(2, 0)))).toBeCloseTo(TERRAIN_STATS.humus.yieldPerSecond * (1 - 2 * TRANSPORT.lossPerHop * MUTATIONS.mycelialCords), 10);
+    expect(tileProduction(s, tileAt(s, hex(2, 0)))).toBeCloseTo(TERRAIN_STATS.humus.yieldPerSecond * (1 - 2 * TRANSPORT.lossPerHop * MUTATIONS.mycelialCords) * 1.05, 10);
   });
 
-  it("Résilience: your tiles are taken 25 % slower", () => {
+  it("Résilience: your tiles are taken slower", () => {
     const { f, b, border } = duel();
     give(b, "resilience");
-    expect(timeToTake(f, border)).toBeCloseTo(BORDERS.captureMs.humus / MUTATIONS.resilience, -4);
+    const plain = plainCaptureMs(f, "a", border);
+    expect(timeToTake(f, border)).toBeCloseTo(plain / MUTATIONS.resilience, -4);
   });
 
   it("Bioluminescence: enemy networks seen 3 tiles away", () => {
@@ -277,7 +280,8 @@ describe("strains (GDD §4.3)", () => {
     expect(tileAt(s, hex(1, 0)).growthEndsAt! - T0).toBe(growthDurationMs("humus", s.upgrades, STRAINS.pleurotus.growthTime));
     const { f, b, border } = duel();
     b.strain = "pleurotus";
-    expect(timeToTake(f, border)).toBeCloseTo(BORDERS.captureMs.humus / STRAINS.pleurotus.capturedSpeed, -4);
+    const plain = plainCaptureMs(f, "a", border);
+    expect(timeToTake(f, border)).toBeCloseTo(plain / STRAINS.pleurotus.capturedSpeed, -4);
   });
 
   it("Armillaire: grows from Monday to Sunday", () => {

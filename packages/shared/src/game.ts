@@ -2,6 +2,9 @@ import {
   ACTION_EFFECTS,
   ANTI_FRUSTRATION,
   AUTOMATION,
+  BUDS,
+  COHESION,
+  ENRICH,
   CENTRE_RISK,
   ECONOMY,
   FRUITING,
@@ -46,6 +49,7 @@ import {
 import { lifetimeFactorAt, richnessAt, ringAt, type MapLayout } from "./forestgen";
 import { hexDistance, hexEquals, hexKey, hexNeighbors, type Hex } from "./hex";
 import { generateMap, START_HEX } from "./mapgen";
+import { hashFloat } from "./rng";
 import { NEUTRAL_EFFECTS, nextPhaseChange, phaseAt, type PhaseEffects } from "./season";
 
 /**
@@ -85,6 +89,15 @@ export interface Tile extends Hex {
   toxic: boolean;
   /** Timed effects on the tile: active actions (GDD §6.2) and, later, events. Expired ones are pruned by the forest. */
   effects: TileEffect[];
+  /** Enrichissement level (M8, GDD §4.4), 0 on a wild tile; bought by the owner, half kept on capture. */
+  level: number;
+}
+
+/** A Bourgeon (M8, GDD §4.4) waiting on one of the player's tiles until `until` (ms since epoch). */
+export interface Bud {
+  q: number;
+  r: number;
+  until: number;
 }
 
 /** Kinds of timed tile effects: active actions, and the Orage and Cendres left by events (M6). */
@@ -194,6 +207,10 @@ export interface GameState {
   activeMs: number;
   /** Strains the account unlocked beyond the starter ones (M7 rewards: Moisissure). */
   unlockedStrains: StrainId[];
+  /** Bourgeons waiting to be picked (M8). */
+  buds: Bud[];
+  /** When the next Bourgeon grows (ms since epoch), null before the first one is scheduled. */
+  nextBudAt: number | null;
   /** Every tile of the map, keyed by `hexKey`. */
   readonly tiles: Map<string, Tile>;
   /** Time up to which the game has been simulated (ms since epoch). */
@@ -252,7 +269,10 @@ export type ActionError =
   | "invalid_amount"
   | "no_relic"
   | "unknown_relic"
-  | "relic_owned";
+  | "relic_owned"
+  | "not_productive"
+  | "invalid_count"
+  | "no_bud";
 
 export type ActionResult = { ok: true } | { ok: false; error: ActionError };
 
@@ -319,6 +339,7 @@ export function wildTile(h: Hex, terrain: Terrain): Tile {
     structure: null,
     toxic: false,
     effects: [],
+    level: 0,
   };
 }
 
@@ -337,6 +358,7 @@ export function newPlayer(
     start.disconnectedSince = null;
     start.capture = null;
     start.structure = null;
+    start.level = 0;
   }
   return {
     id,
@@ -378,6 +400,8 @@ export function newPlayer(
     conquests: 0,
     activeMs: 0,
     unlockedStrains: [],
+    buds: [],
+    nextBudAt: null,
     tiles: map.tiles,
     updatedAt: now,
   };
@@ -717,7 +741,8 @@ function baseProduction(state: GameState, tile: Tile, hops: number, at: number):
     (1 - transportLoss(hops, hasMutation(state, "mycelialCords") ? MUTATIONS.mycelialCords : 1)) *
     phaseProduction(state, tile, effectsAt(state, at), at) *
     (tile.toxic ? 1 - MUTATIONS.toxins : 1) *
-    (tile.effects.length > 0 ? effectProduction(tile, at) : 1)
+    (tile.effects.length > 0 ? effectProduction(tile, at) : 1) *
+    tileGrowthFactor(state.tiles, tile)
   );
 }
 
@@ -729,6 +754,268 @@ export function effectProduction(tile: Tile, at: number): number {
   const ashes = activeEffect(tile, "ashes", at);
   if (ashes) m *= ashes.power ?? 1;
   return m;
+}
+
+// ---------------------------------------------------------------------------
+// M8 — cohesion, enrichment and buds (GDD §2.3, §4.4)
+
+/** Grown tiles of the tile's owner among its six neighbours: its Cohésion, 0 to 6. */
+export function cohesion(tiles: Map<string, Tile>, tile: Hex & { owner: string | null }): number {
+  if (tile.owner === null) return 0;
+  let n = 0;
+  for (const h of hexNeighbors(tile)) {
+    const t = tiles.get(hexKey(h));
+    if (t !== undefined && t.owner === tile.owner && t.growthEndsAt === null) n++;
+  }
+  return n;
+}
+
+/** A Rosace: all six neighbours belong to the same colony (it cannot be cut; its levels count more). */
+export function isRosette(tiles: Map<string, Tile>, tile: Hex & { owner: string | null }): boolean {
+  return cohesion(tiles, tile) === 6;
+}
+
+/** Production multiplier of a tile from its cohesion: +5 % per neighbour of the same colony. */
+export function cohesionProduction(neighbours: number): number {
+  return 1 + COHESION.production * neighbours;
+}
+
+/** Milestones (levels 10, 25, 50, 100, then every 100) a tile has reached: each doubles its production. */
+export function milestonesReached(level: number): number {
+  let m = 0;
+  for (const x of ENRICH.milestones) if (level >= x) m++;
+  const last = ENRICH.milestones[ENRICH.milestones.length - 1]!;
+  if (level > last) m += Math.floor((level - last) / ENRICH.milestoneEvery);
+  return m;
+}
+
+/** The next milestone above `level`. */
+export function nextMilestone(level: number): number {
+  for (const x of ENRICH.milestones) if (level < x) return x;
+  const last = ENRICH.milestones[ENRICH.milestones.length - 1]!;
+  return last + (Math.floor((level - last) / ENRICH.milestoneEvery) + 1) * ENRICH.milestoneEvery;
+}
+
+/** Production multiplier of an enrichment level: `(1 + 8 % × level) × 2 ^ milestones`, its bonus +10 % on a Rosace. */
+export function enrichFactor(level: number, rosette = false): number {
+  if (level <= 0) return 1;
+  const f = (1 + ENRICH.perLevel * level) * Math.pow(2, milestonesReached(level));
+  return rosette ? 1 + (f - 1) * (1 + COHESION.rosetteEnrich) : f;
+}
+
+/** Everything a tile's neighbours and levels add to its production (M8): cohesion × enrichment. */
+export function tileGrowthFactor(tiles: Map<string, Tile>, tile: Tile): number {
+  const n = cohesion(tiles, tile);
+  return cohesionProduction(n) * enrichFactor(tile.level, n === 6);
+}
+
+/** Tiles that can be enriched: those that produce nutrients (not Rock, Ruins or rubble). */
+export function isEnrichable(tile: { terrain: Terrain }): boolean {
+  return TERRAIN_STATS[tile.terrain].yieldPerSecond > 0;
+}
+
+/**
+ * `base_case`: a share of the tile's base price at the colony's size (`baseCost × 1.13 ^ nb_cases`), so a
+ * level costs a fraction of a new tile, and gets dearer as the colony grows (M8, tuned).
+ */
+export function enrichBaseCost(state: GameState, tile: Tile, owned: number = ownedCount(state)): number {
+  if (!isEnrichable(tile)) return 0;
+  return TERRAIN_STATS[tile.terrain].baseCost * Math.pow(ECONOMY.sizeFactor, owned) * ENRICH.baseShare;
+}
+
+/** Nutrients for the next `levels` levels of a tile: `base_case × 1.12 ^ level` each. */
+export function enrichCost(state: GameState, tile: Tile, levels = 1, owned: number = ownedCount(state)): number {
+  const base = enrichBaseCost(state, tile, owned);
+  const g = ENRICH.costGrowth;
+  return (base * Math.pow(g, tile.level) * (Math.pow(g, levels) - 1)) / (g - 1);
+}
+
+/** Nutrients spent so far on a tile's levels (they count in the value of a fruiting). */
+export function enrichSpent(state: GameState, tile: Tile): number {
+  if (tile.level <= 0 || !isEnrichable(tile)) return 0;
+  const g = ENRICH.costGrowth;
+  return (enrichBaseCost(state, tile) * (Math.pow(g, tile.level) - 1)) / (g - 1);
+}
+
+/** Levels the player can pay for on this tile right now, up to `max`. */
+export function affordableLevels(state: GameState, tile: Tile, max: number = ENRICH.maxBatch): number {
+  const base = enrichBaseCost(state, tile) * Math.pow(ENRICH.costGrowth, tile.level);
+  if (base <= 0) return 0;
+  const g = ENRICH.costGrowth;
+  // Largest n with base × (g^n − 1) / (g − 1) ≤ nutrients.
+  const n = Math.floor(Math.log(1 + (Math.max(0, state.nutrients) * (g - 1)) / base) / Math.log(g) + 1e-9);
+  let out = Math.max(0, Math.min(max, n));
+  while (out > 0 && enrichCost(state, tile, out) > state.nutrients) out--;
+  return out;
+}
+
+/** Checks enriching a tile: the player's own, grown, connected and productive, and at least one level paid. */
+export function checkEnrich(state: GameState, h: Hex, hops: Map<string, number> = networkHops(state)): ActionResult {
+  const tile = state.tiles.get(hexKey(h));
+  if (!tile) return { ok: false, error: "unknown_tile" };
+  if (!isMine(state, tile) || tile.growthEndsAt !== null || !hops.has(hexKey(tile))) return { ok: false, error: "not_connected" };
+  if (!isEnrichable(tile)) return { ok: false, error: "not_productive" };
+  if (state.nutrients < enrichCost(state, tile)) return { ok: false, error: "not_enough_nutrients" };
+  return { ok: true };
+}
+
+/**
+ * Enriches a tile (GDD §4.4): buys up to `count` levels, as many as the nutrients pay for ("×1", "×10"),
+ * or as many as possible with "max".
+ */
+export function enrich(state: GameState, h: Hex, count: number | "max"): ActionResult {
+  if (count !== "max" && (!Number.isInteger(count) || count < 1 || count > ENRICH.maxBatch)) return { ok: false, error: "invalid_count" };
+  const check = checkEnrich(state, h);
+  if (!check.ok) return check;
+  const tile = state.tiles.get(hexKey(h))!;
+  const n = affordableLevels(state, tile, count === "max" ? ENRICH.maxBatch : count);
+  state.nutrients -= enrichCost(state, tile, n);
+  tile.level += n;
+  return check;
+}
+
+/**
+ * "Enrichir tout le bloc" (GDD §4.4): one level on the tile and on each of its connected neighbours of the
+ * same colony, cheapest first, while the nutrients last.
+ */
+export function enrichBlock(state: GameState, h: Hex): ActionResult {
+  const hops = networkHops(state);
+  const centre = state.tiles.get(hexKey(h));
+  if (!centre) return { ok: false, error: "unknown_tile" };
+  if (!isMine(state, centre) || centre.growthEndsAt !== null || !hops.has(hexKey(centre))) return { ok: false, error: "not_connected" };
+  const block = [centre, ...hexNeighbors(centre).map((n) => state.tiles.get(hexKey(n)))].filter(
+    (t): t is Tile => t !== undefined && isMine(state, t) && t.growthEndsAt === null && hops.has(hexKey(t)) && isEnrichable(t),
+  );
+  if (block.length === 0) return { ok: false, error: "not_productive" };
+  block.sort((a, b) => enrichCost(state, a) - enrichCost(state, b));
+  let bought = 0;
+  for (const t of block) {
+    const cost = enrichCost(state, t);
+    if (state.nutrients < cost) break;
+    state.nutrients -= cost;
+    t.level += 1;
+    bought++;
+  }
+  return bought > 0 ? { ok: true } : { ok: false, error: "not_enough_nutrients" };
+}
+
+/**
+ * Nutrients per second (fresh terms, before the network bonus, the phase and transport) that the tile's
+ * next level adds, per nutrient it costs: what sets one tile apart from another for enrichment.
+ */
+export function enrichPayback(state: GameState, t: Tile, owned: number = ownedCount(state), cap: number = wearCap(state)): number {
+  const n = cohesion(state.tiles, t);
+  const now = enrichFactor(t.level, n === 6);
+  const yieldNow =
+    tileYield(t.terrain, state.upgrades) * terrainFactor(state, t.terrain) * richness(state, t) * humidity(state, t) * cohesionProduction(n) * now * (1 - Math.min(t.exhaustion, cap));
+  return (yieldNow * (enrichFactor(t.level + 1, n === 6) / now - 1)) / enrichCost(state, t, 1, owned);
+}
+
+/**
+ * The tile whose next level pays back best, for auto-reinvestment: production gained per nutrient, from
+ * what sets a tile apart (terrain, place, cohesion, level, wear); what every tile shares (network
+ * bonus, phase) does not change the choice. Connected tiles only.
+ */
+export function autoEnrichTarget(state: GameState, at: number): Tile | null {
+  const hops = networkHops(state, at);
+  const owned = ownedCount(state);
+  const cap = wearCap(state);
+  let best: Tile | null = null;
+  let bestRatio = 0;
+  for (const k of hops.keys()) {
+    const t = state.tiles.get(k)!;
+    if (!isEnrichable(t)) continue;
+    const ratio = enrichPayback(state, t, owned, cap);
+    if (ratio > bestRatio) {
+      bestRatio = ratio;
+      best = t;
+    }
+  }
+  return best;
+}
+
+/** A 32-bit hash of a player id, to draw their buds. */
+function idHash(id: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 16777619) >>> 0;
+  return h;
+}
+
+/** Delay before the bud after the one at `at`: 2 to 4 minutes, drawn from the player and the time. */
+function budGap(state: GameState, at: number): number {
+  const x = hashFloat(state.seed, idHash(state.id), Math.floor(at / 1000), 1);
+  return Math.round(BUDS.minEveryMs + x * (BUDS.maxEveryMs - BUDS.minEveryMs));
+}
+
+/**
+ * Grows and fades Bourgeons up to `to` (GDD §4.4). They grow every 2 to 4 minutes whether the player is
+ * there or not, on a random grown tile of theirs, and fade after 5 minutes. Draws depend only on the
+ * player, the forest seed and the time, so the result does not depend on how often this is called.
+ */
+export function refreshBuds(state: GameState, to: number): void {
+  state.buds = state.buds.filter((b) => {
+    const t = state.tiles.get(hexKey(b));
+    return b.until > to && t !== undefined && t.owner === state.id && t.growthEndsAt === null;
+  });
+  let at: number = state.nextBudAt ?? state.joinedAt + budGap(state, state.joinedAt);
+  while (at <= to) {
+    // Only the buds still alive at `to` need a place.
+    if (at + BUDS.lifeMs > to) growBud(state, at);
+    at += budGap(state, at);
+  }
+  state.nextBudAt = at;
+}
+
+/** Every tile of a map, as an array (the set of tiles never changes, only their content). */
+const tileLists = new WeakMap<Map<string, Tile>, Tile[]>();
+function tileList(tiles: Map<string, Tile>): Tile[] {
+  let list = tileLists.get(tiles);
+  if (!list || list.length !== tiles.size) {
+    list = [...tiles.values()];
+    tileLists.set(tiles, list);
+  }
+  return list;
+}
+
+/**
+ * Puts a bud on a random grown, productive tile of the player: tiles of the map are drawn at random
+ * until one fits (fast on a shared forest), then, failing that, among all the player's tiles.
+ */
+function growBud(state: GameState, at: number): void {
+  const taken = new Set(state.buds.map(hexKey));
+  const fits = (t: Tile) => t.owner === state.id && t.growthEndsAt === null && isEnrichable(t) && !taken.has(hexKey(t));
+  const all = tileList(state.tiles);
+  const seedHash = idHash(state.id);
+  const second = Math.floor(at / 1000);
+  let spot: Tile | undefined;
+  for (let i = 0; i < 64 && !spot; i++) {
+    const t = all[Math.floor(hashFloat(state.seed, seedHash, second, 2, i) * all.length)]!;
+    if (fits(t)) spot = t;
+  }
+  if (!spot) {
+    const spots = all.filter(fits);
+    if (spots.length === 0) return;
+    spot = spots[Math.floor(hashFloat(state.seed, seedHash, second, 3) * spots.length)]!;
+  }
+  state.buds.push({ q: spot.q, r: spot.r, until: at + BUDS.lifeMs });
+  if (state.buds.length > BUDS.max) state.buds.shift();
+}
+
+/** What picking a bud gives right now: `BUDS.rewardSeconds` of the player's production. */
+export function budReward(state: GameState, at: number = state.updatedAt): { nutrients: number; biomass: number } {
+  const nutrients = productionRate(state, at) * BUDS.rewardSeconds;
+  return { nutrients, biomass: nutrients * biomassConversion(state) * effectsAt(state, at).biomass };
+}
+
+/** Picks a Bourgeon (GDD §4.4): nutrients and the biomass they are worth, at once. */
+export function pickBud(state: GameState, h: Hex, now: number): ActionResult {
+  const i = state.buds.findIndex((b) => hexEquals(b, h) && b.until > now);
+  if (i < 0) return { ok: false, error: "no_bud" };
+  const reward = budReward(state, now);
+  state.buds.splice(i, 1);
+  state.nutrients += reward.nutrients;
+  state.biomass += reward.biomass;
+  return { ok: true };
 }
 
 /** Total nutrients per second right now (GDD §10 `production_totale`), including the offline factor. */
@@ -994,7 +1281,11 @@ export interface FruitingPreview {
 export function fruitingPreview(state: GameState, radius: number, at: number = state.updatedAt): FruitingPreview {
   const lost = [...state.tiles.values()].filter((t) => t.owner === state.id && hexDistance(state.heart, t) > radius);
   let value = 0;
-  for (const t of lost) if (!TERRAIN_STATS[t.terrain].paidInEnzymes) value += colonizationCost(state, t, at);
+  for (const t of lost) {
+    if (!TERRAIN_STATS[t.terrain].paidInEnzymes) value += colonizationCost(state, t, at);
+    // M8: what was spent enriching the tiles given up counts too.
+    value += enrichSpent(state, t) * FRUITING.enrichWeight;
+  }
   const base = Math.pow(value / FRUITING.valueDivisor, FRUITING.exponent);
   const spores = Math.floor(base * (1 + STRUCTURES.carpophoreSporeBonus * carpophores(state)));
   return { lost, value, spores };
@@ -1023,6 +1314,7 @@ export function fructify(state: GameState, radius: number, now: number): ActionR
     t.growthStartedAt = null;
     t.disconnectedSince = null;
     t.capture = null;
+    t.level = 0;
   }
   state.queue = [];
   state.spores += spores;
@@ -1109,6 +1401,16 @@ function autoInvest(state: GameState, at: number): boolean {
   const head = state.queue[0] ? state.tiles.get(hexKey(state.queue[0])) : undefined;
   const reserve = head && head.owner === null && !TERRAIN_STATS[head.terrain].paidInEnzymes ? colonizationCost(state, head, at) : 0;
   let bought = false;
+  // M8: one tile enriched per minute at most (GDD §4.4), on the minute grid so that the result does not
+  // depend on how often the game is advanced.
+  if (at % ENRICH.autoEveryMs === 0) {
+    const target = autoEnrichTarget(state, at);
+    if (target && state.nutrients - enrichCost(state, target) >= reserve) {
+      state.nutrients -= enrichCost(state, target);
+      target.level += 1;
+      bought = true;
+    }
+  }
   for (;;) {
     let cheapest: UpgradeId | null = null;
     for (const id of UPGRADE_IDS) if (cheapest === null || upgradeCost(id, state.upgrades[id]) < upgradeCost(cheapest, state.upgrades[cheapest])) cheapest = id;
@@ -1242,6 +1544,7 @@ export function advance(state: GameState, to: number): void {
           tile.growthEndsAt = null;
           tile.growthStartedAt = null;
           tile.disconnectedSince = null;
+          tile.level = 0;
           changed = true;
         }
       }
@@ -1458,6 +1761,7 @@ function startQueued(state: GameState, now: number): boolean {
     tile.owner = state.id;
     tile.capture = null;
     tile.structure = null;
+    tile.level = 0;
     tile.growthStartedAt = now;
     tile.growthEndsAt = now + growthDurationMs(tile.terrain, state.upgrades, growthTimeFactor(state, now));
     tile.disconnectedSince = null;
@@ -1491,6 +1795,7 @@ export function clonePlayer(state: GameState, tiles: Map<string, Tile>): GameSta
     relics: [...state.relics],
     listens: { ...state.listens },
     unlockedStrains: [...state.unlockedStrains],
+    buds: state.buds.map((b) => ({ ...b })),
     tiles,
   };
 }

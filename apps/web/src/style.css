@@ -1360,3 +1360,64 @@ button.player {
   font-size: 0.9rem;
   color: var(--fg);
 }
+
+/* M8: tile enrichment (GDD §4.4) */
+.tile-enrich h4 {
+  margin: 14px 0 6px;
+  font-family: system-ui, sans-serif;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.tile-enrich p {
+  margin: 0 0 6px;
+  font-family: system-ui, sans-serif;
+  font-size: 0.82rem;
+}
+
+.tile-enrich .enrich-level strong {
+  color: var(--glow);
+  font-size: 0.95rem;
+}
+
+.enrich-bar {
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(236, 232, 214, 0.1);
+  overflow: hidden;
+  margin: 2px 0 6px;
+}
+
+.enrich-bar span {
+  display: block;
+  height: 100%;
+  background: var(--glow);
+  border-radius: 3px;
+  transition: width 0.25s;
+}
+
+.tile-enrich .enrich-next {
+  font-size: 0.74rem;
+}
+
+.enrich-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.enrich-buttons button,
+.enrich-block {
+  font-family: system-ui, sans-serif;
+  font-size: 0.78rem;
+  padding: 6px 4px;
+  line-height: 1.25;
+}
+
+.enrich-block {
+  width: 100%;
+}

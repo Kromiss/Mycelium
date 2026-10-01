@@ -117,8 +117,9 @@ export const ECONOMY = {
    * sizeFactor tuned from the GDD's 1.02 to 1.13: each tile makes the next one 13 % dearer.
    */
   distanceFactor: 0.05 / Math.sqrt(TILE_SCALE),
-  // ×5 tiles experiment: 1.12 instead of 1.13 before the root, so that the forest still fills around day 4–5.
-  sizeFactor: TILE_SCALE === 1 ? 1.13 : 1.12 ** (1 / TILE_SCALE),
+  // ×5 tiles experiment: 1.12 instead of 1.13 before the root, so that the forest still fills around day 4–5;
+  // M8 (enrichment and cohesion speed the economy up): 1.14, for the same pace.
+  sizeFactor: 1.14 ** (1 / TILE_SCALE),
   /** Upgrade cost: `base × upgradeCostGrowth ^ level` (GDD §10). */
   upgradeCostGrowth: 1.15,
   /** How many colonisations may grow at the same time; the others wait in the queue. PLACEHOLDER. */
@@ -318,21 +319,21 @@ export const MUTATIONS = {
   /** Dormance: offline production ×1.5, online ×0.8. */
   dormancyOffline: 1.5,
   dormancyOnline: 0.8,
-  /** Hyphes agressives: border pressure +25 %. */
-  aggressiveHyphae: 0.25,
+  /** Hyphes agressives: border pressure +40 % (+25 % until M8, raised to answer the cohesion defence). */
+  aggressiveHyphae: 0.4,
   /** Pillage: conquest bonus ×2. */
   plunder: 2,
   /** Toxines: enemy tiles touching yours produce 15 % less. */
   toxins: 0.15,
-  /** Témérité: +3 % production per tile of yours on an enemy border, up to +30 %. */
+  /** Témérité: +3 % production per tile of yours on an enemy border, up to +40 %. */
   temerityPerTile: 0.03 / LENGTH_SCALE,
-  temerityMax: 0.3,
+  temerityMax: 0.4, // M8: +40 % at most (30 % before), to answer the cohesion defence.
   /** Mycorhize: Roots ×4 (yield and network bonus). */
   mycorrhiza: 4,
   /** Cordons mycéliens: no transport loss. */
   mycelialCords: 0,
-  /** Résilience: captures of your tiles −25 %. */
-  resilience: 0.75,
+  /** Résilience: captures of your tiles −15 % (−25 % until M8: it now adds to the cohesion defence). */
+  resilience: 0.85,
   /** Bioluminescence: enemy networks seen this far. */
   bioluminescenceVision: span(3),
 } as const;
@@ -352,7 +353,8 @@ export const STRAINS = {
   /** Armillaire: production ×0.95 on Monday, +0.05 each day, ×1.25 on Sunday (×1 outside the calendar). */
   armillaria: { monday: 0.95, perDay: 0.05 },
   /** Cordyceps: conquest. */
-  cordyceps: { pressure: 1.2, conquestBonus: 1.5, production: 0.9 },
+  // M8: pressure ×1.4 (×1.2 before) and production ×0.95 (×0.9 before), to answer the cohesion defence.
+  cordyceps: { pressure: 1.4, conquestBonus: 1.5, production: 0.95 },
   /** Truffe: tiles away from the border stay hidden from enemies; Roots +30 %. */
   truffle: { roots: 1.3 },
   /**
@@ -371,6 +373,8 @@ export const FRUITING = {
   /** `spores = floor((value of the lost tiles / valueDivisor) ^ exponent)` (GDD §5). */
   valueDivisor: 1e4,
   exponent: 0.6,
+  /** M8: the nutrients spent enriching the tiles given up count this many times in the value. */
+  enrichWeight: 3,
 } as const;
 
 export const SPORE_UPGRADE_IDS = ["production", "growth", "conversion", "mutationPoint"] as const;
@@ -378,8 +382,8 @@ export const SPORE_UPGRADE_IDS = ["production", "growth", "conversion", "mutatio
 export type SporeUpgradeId = (typeof SPORE_UPGRADE_IDS)[number];
 
 export const SPORE_UPGRADES: Readonly<Record<SporeUpgradeId, { baseCost: number; perLevel: number }>> = {
-  /** Production +10 % per level (additive). */
-  production: { baseCost: 10, perLevel: 0.1 },
+  /** Production +25 % per level (additive; +10 % until M8, raised so that fruiting still pays once tiles are enriched). */
+  production: { baseCost: 10, perLevel: 0.25 },
   /** Growth time −10 % per level (compounded). */
   growth: { baseCost: 10, perLevel: 0.1 },
   /** Biomass conversion +5 % per level (additive). */
@@ -538,3 +542,58 @@ export const RELICS = {
 
 /** Where the Ruine of each slice lies: in the middle ring, at this share of the radius, off the spawn axis. */
 export const RUIN_PLACE = { distance: 0.5, p: 0.25 } as const;
+
+// ---------------------------------------------------------------------------
+// M8 — incremental: tile enrichment, buds, cohesion (GDD §2.3, §4.4). DECIDED: the proposed package;
+// numbers PLACEHOLDER.
+
+/**
+ * Enrichissement: each owned tile has a level, bought at once with nutrients. Level n → n+1 costs
+ * `base_case × costGrowth ^ n`, with `base_case` = `baseShare` of the tile's base price at the colony's
+ * size (`baseCost × sizeFactor ^ nb_cases`, like colonising it without the distance), so a level stays a
+ * fraction of a new tile and pays back about as well: many small purchases instead of a runaway (tuned
+ * with the forest simulation). Each level gives +`perLevel` production to the tile, and every milestone
+ * doubles it.
+ */
+export const ENRICH = {
+  baseShare: 0.15,
+  costGrowth: 1.12,
+  perLevel: 0.08,
+  /** Levels that double the tile's production; after the last one, every `milestoneEvery` more levels. */
+  milestones: [10, 25, 50, 100] as readonly number[],
+  milestoneEvery: 100,
+  /** "×10" buys this many levels; "Max" at most this many in one go. */
+  batch: 10,
+  maxBatch: 1000,
+  /** A captured tile keeps this share of its levels (rounded down). */
+  capturedKeep: 0.5,
+  /** Auto-reinvestment enriches at most one tile per this many ms (GDD §4.4: one per minute). */
+  autoEveryMs: 60_000,
+} as const;
+
+/**
+ * Bourgeons: every 2 to 4 minutes a bud grows on a random tile of the network; clicking it gives
+ * `rewardSeconds` of the player's production; it fades after `lifeMs`. DECIDED intent: about 10 % of the
+ * production at most, so the reward is 18 s (60 s every 3 min on average would be a third).
+ */
+export const BUDS = {
+  minEveryMs: 2 * 60_000,
+  maxEveryMs: 4 * 60_000,
+  lifeMs: 5 * 60_000,
+  rewardSeconds: 18,
+  /** Buds waiting at the same time, at most. */
+  max: 3,
+} as const;
+
+/**
+ * Cohésion: each owned tile counts its grown neighbours of the same colony (0 to 6). Production
+ * +`production` per neighbour; in defence, the attacker's pressure −`pressure` and the capture time
+ * +`captureTime` per neighbour. A Rosace (all 6 neighbours) cannot be cut and its enrichment bonus
+ * counts +`rosetteEnrich`.
+ */
+export const COHESION = {
+  production: 0.05,
+  pressure: 0.08,
+  captureTime: 0.15,
+  rosetteEnrich: 0.1,
+} as const;
