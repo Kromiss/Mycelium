@@ -25,7 +25,7 @@ import {
   type Tile,
 } from "./game";
 import { hexDistance, hexEquals, hexesInRadius, hexKey, hexNeighbors, type Hex } from "./hex";
-import { asTileOf, neighbourTiles, ownedTilesOf, ownerCounts, tileKey, tilesEpoch, tilesWithin } from "./tile-index";
+import { asTileOf, borderTilesOf, mapOrder, neighbourTiles, ownedTilesOf, ownerCounts, tileKey, tilesEpoch, tilesWithin } from "./tile-index";
 import { fromSnapshot, toSnapshot, type GameSnapshot, type TileDto } from "./protocol";
 import { phaseAt } from "./season";
 import type { ForestEvent } from "./events";
@@ -321,7 +321,7 @@ export function resolveBorders(forest: ForestState, dt: number, now: number): Ca
   const counts = tileCounts(forest);
   const events: CaptureEvent[] = [];
 
-  for (const tile of forest.tiles.values()) {
+  for (const tile of borderScan(forest)) {
     if (tile.owner === null) continue;
     const defender = forest.players.get(tile.owner);
     if (!defender) continue;
@@ -360,6 +360,7 @@ export function resolveBorders(forest: ForestState, dt: number, now: number): Ca
       continue;
     }
     if (!tile.capture || tile.capture.by !== best.id) tile.capture = { by: best.id, progress: 0 };
+    capturing(forest).add(tile);
     const shielded = defender.lastSeenAt !== null && now - defender.lastSeenAt >= BORDERS.shieldAfterMs;
     // GDD §2.5: the offline shield is weaker in the centre.
     const shield = shielded ? (inCentre(forest, tile) ? CENTRE_RISK.shieldFactor : BORDERS.shieldFactor) : 1;
@@ -388,6 +389,34 @@ export function resolveBorders(forest: ForestState, dt: number, now: number): Ca
     refreshToxins(forest);
   }
   return events;
+}
+
+/** Tiles where a capture may be under way (M9 speed-up), found by a full scan the first time. */
+const captureTiles = new WeakMap<ForestState, Set<Tile>>();
+
+function capturing(forest: ForestState): Set<Tile> {
+  let set = captureTiles.get(forest);
+  if (!set) {
+    set = new Set();
+    for (const t of forest.tiles.values()) if (t.capture) set.add(t);
+    captureTiles.set(forest, set);
+  }
+  return set;
+}
+
+/**
+ * The tiles `resolveBorders` must look at, in map order: every tile touching another owner, and every tile
+ * with a capture under way (it falls back). The others have nothing to do. The whole map when not indexed.
+ */
+function borderScan(forest: ForestState): Iterable<Tile> {
+  const border = borderTilesOf(forest.tiles);
+  if (border === null) return forest.tiles.values();
+  const set = capturing(forest);
+  for (const t of set) if (!t.capture) set.delete(t);
+  if (set.size === 0) return border;
+  const all = new Set<Tile>(border);
+  for (const t of set) all.add(t);
+  return [...all].sort((a, b) => mapOrder(a) - mapOrder(b));
 }
 
 /**

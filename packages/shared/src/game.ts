@@ -49,7 +49,7 @@ import {
 import { lifetimeFactorAt, richnessAt, ringAt, type MapLayout } from "./forestgen";
 import { hexDistance, hexEquals, hexKey, hexNeighbors, type Hex } from "./hex";
 import { generateMap, START_HEX } from "./mapgen";
-import { asTileOf, makeTile, neighbourhoodVersion, neighbourTiles, ownedCountOf, ownedTilesOf, ownerVersion, tileKey, touchesWetland } from "./tile-index";
+import { asTileOf, hasReservoirs, makeTile, neighbourhoodVersion, neighbourTiles, ownedCountOf, ownedTilesOf, ownerVersion, tileKey, touchesWetland } from "./tile-index";
 import { hashFloat } from "./rng";
 import { NEUTRAL_EFFECTS, nextPhaseChange, phaseAt, type PhaseEffects } from "./season";
 
@@ -491,6 +491,7 @@ export function humidity(state: GameState, h: Hex): number {
   const wet = touchesWetland(state.tiles, h);
   if (wet !== null) {
     if (wet) return 1 + HUMIDITY.wetlandBonus;
+    if (hasReservoirs(state.tiles) === false) return 1;
     for (const t of neighbourTiles(state.tiles, h as Tile)) if (t.structure === "reservoir" && isGrown(state, t)) return 1 + HUMIDITY.wetlandBonus;
     return 1;
   }

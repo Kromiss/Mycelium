@@ -44,6 +44,8 @@ class TileHome {
   private readonly versions = new Map<string, number>();
   /** Bumped by every tracked change anywhere on the map. */
   epoch = 0;
+  /** Réservoirs on the map (grown or not): humidity only looks for them when there is one. */
+  reservoirs = 0;
 
   constructor(
     readonly tiles: Map<string, Tile>,
@@ -57,6 +59,7 @@ class TileHome {
       this.keys[i] = k;
       TrackedTile.attach(t as unknown as TrackedTile, this, i);
       if (t.owner !== null) this.ownedOf(t.owner).set.add(t);
+      if (t.structure === "reservoir") this.reservoirs++;
       i++;
     }
   }
@@ -167,8 +170,34 @@ class TileHome {
     this.bumpAround(t);
   }
 
+  /** Tiles owned by someone and touching a tile of another owner; null until first asked. */
+  private border: Set<Tile> | null = null;
+  private borderSorted: Tile[] | null = null;
+
+  private refreshBorder(t: Tile): void {
+    const o = t.owner;
+    const on = o !== null && this.neighbours(t).some((n) => n.owner !== null && n.owner !== o);
+    if (on === this.border!.has(t)) return;
+    if (on) this.border!.add(t);
+    else this.border!.delete(t);
+    this.borderSorted = null;
+  }
+
+  borderTiles(): readonly Tile[] {
+    if (this.border === null) {
+      this.border = new Set();
+      for (const t of this.list) this.refreshBorder(t);
+    }
+    if (this.borderSorted === null) this.borderSorted = [...this.border].sort((a, b) => indexOf(a) - indexOf(b));
+    return this.borderSorted;
+  }
+
   ownerChanged(t: Tile, from: string | null, to: string | null): void {
     this.bumpAround(t);
+    if (this.border !== null) {
+      this.refreshBorder(t);
+      for (const n of this.neighbours(t)) this.refreshBorder(n);
+    }
     if (from !== null) {
       const o = this.ownedOf(from);
       o.set.delete(t);
@@ -278,8 +307,10 @@ class TrackedTile {
           return this.#structure;
         },
         set(this: TrackedTile, v: StructureId | null) {
-          if (v === this.#structure) return;
+          const from = this.#structure;
+          if (v === from) return;
           this.#structure = v;
+          if (this.#home !== null) this.#home.reservoirs += (v === "reservoir" ? 1 : 0) - (from === "reservoir" ? 1 : 0);
           this.#home?.touched(this as unknown as Tile, this.#owner);
         },
       },
@@ -422,4 +453,24 @@ export function neighbourhoodVersion(tiles: Map<string, Tile>, t: Tile): number 
 /** Position of a tile in its indexed map (0 …), or −1. */
 export function tileIndex(tiles: Map<string, Tile>, t: Tile): number {
   return homeFor(tiles, t) ? indexOf(t) : -1;
+}
+
+/** Whether any Réservoir stands on the map, or null if `tiles` is not indexed. */
+export function hasReservoirs(tiles: Map<string, Tile>): boolean | null {
+  const home = homeOf(tiles);
+  return home ? home.reservoirs > 0 : null;
+}
+
+/**
+ * Owned tiles touching a tile of another owner, in map order, or null if `tiles` is not indexed. Do not
+ * change the returned array (a new one is made after any change of owner).
+ */
+export function borderTilesOf(tiles: Map<string, Tile>): readonly Tile[] | null {
+  const home = homeOf(tiles);
+  return home ? home.borderTiles() : null;
+}
+
+/** Position of a tile in the map order, for sorting tiles of an indexed map. */
+export function mapOrder(t: Tile): number {
+  return t instanceof TrackedTile ? TrackedTile.indexOf(t) : -1;
 }
