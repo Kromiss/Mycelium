@@ -466,18 +466,17 @@ visé ; un robot connecté 24 h/24 ne fait que **0,5 à 0,8 action utile par min
   le **facteur de temps** (mode rapide) et les autres réglages utiles, sans redémarrer le serveur (aujourd'hui
   `BOTS` et `TIME_SCALE` sont des variables d'environnement fixées au démarrage, pour tout le serveur).
 - **Interface d'administration cachée** : une page réservée aux admins (`ADMIN_NAMES`), absente des menus,
-  pour lancer et piloter ces parties de test et faire beaucoup d'essais.
+  **uniquement en local et en staging** pour le moment (désactivée en prod). Elle permet de :
+  créer une forêt de test (graine, nombre de robots, facteur de temps) ; lancer une forêt **avec seulement des
+  robots** (aucun joueur humain, pour observer une semaine en accéléré) ; sauter à un jour ou une phase ; se
+  donner des ressources ; suivre un robot ; voir le remplissage et les actions par minute ; arrêter ou effacer
+  une forêt de test.
 - **Retirés aussi** : les mutations **Usure lente** et **Acidophile** (la branche Décomposeur passe à
   3 mutations), le terrain **Sol acide**, et la récompense de la Moisissure après 3 saisons (sans remplacement).
 
 🔸 Décisions à prendre avant de commencer :
 - Valeurs des paliers des 7 zones (difficulté et richesse) : proposées par Claude après simulation,
   validées par le propriétaire.
-- Contenu de l'interface d'admin : Claude propose une liste (par exemple créer une forêt de test avec graine,
-  robots et facteur de temps ; sauter à un jour ou une phase ; donner des ressources ; suivre un robot ;
-  voir le remplissage et les actions par minute ; arrêter ou effacer une forêt de test), le propriétaire tranche.
-- Où vit l'admin : en prod aussi (réservé aux admins, forêts de test isolées des classements, ligues et
-  récompenses) ou seulement en local et en staging.
 
 À faire :
 - `packages/shared` : nouveau `sizeFactor` ; suppression de l'usure (production, `EXHAUSTION`, Bois mort →
@@ -492,7 +491,8 @@ visé ; un robot connecté 24 h/24 ne fait que **0,5 à 0,8 action utile par min
 - Parties de test : réglages par forêt (robots, facteur de temps, graine…) au lieu de variables globales ;
   forêts de test marquées comme telles ; tests.
 - Interface d'admin cachée : route non listée, accès vérifié **côté serveur** (cachée ne veut pas dire
-  protégée), textes EN + FR.
+  protégée), désactivée en prod par la configuration ; forêts de test hors classements, ligues et récompenses ;
+  forêt « robots seuls » ; textes EN + FR.
 - Simulations : `simulate:forest` (90 % entre le 6ᵉ et le 7ᵉ jour, à revérifier après l'usure et le
   gradient), `simulate:balance` (aucune des 2 souches ne domine), `simulate:profiles` (écart actif /
   occasionnel ≤ ×6).
@@ -500,8 +500,8 @@ visé ; un robot connecté 24 h/24 ne fait que **0,5 à 0,8 action utile par min
 **Terminé quand** : la forêt de 12 robots est occupée à 90 % entre le jour 6 et le jour 7, l'usure n'existe
 plus nulle part (règles, base, rendu), chaque zone N est atteinte vers le jour N par les robots actifs, le rendu « Pastille ronde » est en place,
 les deux souches finissent à égalité en moyenne dans `simulate:balance`, un joueur à 3 × 10 min/jour finit avec au plus 6× moins
-de biomasse qu'un joueur à 12 h/jour, la forêt compte 3× plus de cases sans ralentir le tick, un admin peut lancer depuis l'interface cachée une
-forêt de test avec ses robots et son facteur de temps, et `pnpm check` est vert.
+de biomasse qu'un joueur à 12 h/jour, la forêt compte 3× plus de cases sans ralentir le tick, un admin peut lancer en local ou en staging, depuis l'interface cachée,
+une forêt de test avec ses robots et son facteur de temps (y compris une forêt de robots seuls), et `pnpm check` est vert.
 
 ## M10 — Bêta fermée (0.11.0)
 
