@@ -1,0 +1,88 @@
+name: Simulate
+
+# Forest week simulations in parallel (M9): several seeds and balance variants at once, with the
+# results in the run's summary. Run it from the Actions tab (Run workflow), or push a branch named
+# sim/<anything>: it then uses packages/shared/sim-matrix.json.
+on:
+  workflow_dispatch:
+    inputs:
+      seeds:
+        description: "Seeds, comma-separated"
+        default: "20261005,20261006,20261007,20261008"
+      variants:
+        description: 'Balance variants, JSON list of {"name": ..., "overrides": {...}} (see sim/variant.ts)'
+        default: '[{"name":"current","overrides":{}}]'
+      days:
+        description: "Days to simulate"
+        default: "7"
+      stop:
+        description: "Stop early: ninety (90 % occupied), full, or empty for the whole week"
+        default: ""
+  push:
+    branches: ["sim/**"]
+
+permissions:
+  contents: read
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      seeds: ${{ steps.plan.outputs.seeds }}
+      variants: ${{ steps.plan.outputs.variants }}
+      days: ${{ steps.plan.outputs.days }}
+      stop: ${{ steps.plan.outputs.stop }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: plan
+        env:
+          SEEDS: ${{ inputs.seeds }}
+          VARIANTS: ${{ inputs.variants }}
+          DAYS: ${{ inputs.days }}
+          STOP: ${{ inputs.stop }}
+        run: node scripts/sim-plan.mjs >> "$GITHUB_OUTPUT"
+
+  run:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        seed: ${{ fromJSON(needs.plan.outputs.seeds) }}
+        variant: ${{ fromJSON(needs.plan.outputs.variants) }}
+    name: ${{ matrix.variant.name }} / ${{ matrix.seed }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Simulate
+        env:
+          SIM_VARIANT: ${{ toJSON(matrix.variant.overrides) }}
+          VARIANT_NAME: ${{ matrix.variant.name }}
+        run: |
+          mkdir -p out
+          stop="${{ needs.plan.outputs.stop }}"
+          pnpm --filter @mycelium/shared simulate:forest --seed ${{ matrix.seed }} --days ${{ needs.plan.outputs.days }} \
+            ${stop:+--stop $stop} --summary "$PWD/out/summary.json" | tee out/report.txt
+          node -e 'const fs=require("fs");const s=JSON.parse(fs.readFileSync("out/summary.json"));s.name=process.env.VARIANT_NAME;fs.writeFileSync("out/summary.json",JSON.stringify(s))'
+          { echo '```'; cat out/report.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sim-${{ strategy.job-index }}
+          path: out/
+
+  report:
+    needs: run
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: results
+      - run: node scripts/sim-report.mjs results >> "$GITHUB_STEP_SUMMARY"

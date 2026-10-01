@@ -3,6 +3,11 @@
 // forest (rows every 3 h, captures, daily maps) for charts and pictures.
 import { mkdirSync, writeFileSync } from "node:fs";
 import { formatProfileSummary, simulateProfiles, STUDY_PROFILES, summarizeProfiles, type ProfileSimResult } from "./profiles";
+import { applyVariant, variantFromEnv } from "./variant";
+
+// Balance numbers changed for this run (SIM_VARIANT, JSON; see variant.ts).
+const variant = variantFromEnv();
+if (variant) applyVariant(variant);
 
 const arg = (name: string) => {
   const i = process.argv.indexOf(`--${name}`);

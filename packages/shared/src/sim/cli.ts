@@ -1,5 +1,10 @@
 // Prints the solo week curve for both profiles: pnpm --filter @mycelium/shared simulate
 import { formatReport, PROFILES, simulateWeek } from "./week";
+import { applyVariant, variantFromEnv } from "./variant";
+
+// Balance numbers changed for this run (SIM_VARIANT, JSON; see variant.ts).
+const variant = variantFromEnv();
+if (variant) applyVariant(variant);
 
 for (const profile of Object.values(PROFILES)) {
   const started = performance.now();

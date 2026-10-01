@@ -3,11 +3,11 @@
  * real rules (economy, borders, protections). Used by `forest-week.test.ts` in CI and by
  * `pnpm --filter @mycelium/shared simulate:forest`.
  */
-import { FOREST, TERRAIN_STATS, type ActionId, type EventKind } from "../balance";
+import { FOREST, TERRAIN_STATS, ZONES, type ActionId, type EventKind } from "../balance";
 import { resolveEvents } from "../events";
 import { botAct } from "./fight";
 import { advanceForest, joinForest, newForest, resolveBorders, type CaptureEvent } from "../forest";
-import { ringAt, type Ring } from "../forestgen";
+import { ringAt, zoneAt, type Ring } from "../forestgen";
 import { goOffline, goOnline, networkHops, productionRate, type Tile } from "../game";
 import { hexKey } from "../hex";
 import { ownedTilesOf, topologyEpoch } from "../tile-index";
@@ -34,6 +34,11 @@ export interface ForestSimOptions {
   fight?: boolean;
   /** M6: the season's events happen (default true). */
   events?: boolean;
+  /**
+   * M9: stop as soon as this measure is known ("ninety": the forest is 90 % occupied, "full": 99.9 %), to
+   * save time when only the pacing is wanted. The rest of the result stops there too.
+   */
+  stopAt?: "ninety" | "full";
 }
 
 export interface ForestSnapshot {
@@ -68,6 +73,49 @@ export interface ForestSimResult {
   filled: { half: number | null; ninety: number | null; full: number | null };
   /** M6: actions used, Cœurs taken, tiles lost to events, and the world bosses. */
   conflict: ConflictStats;
+  /**
+   * M9: for each player, the first hour at which they held a grown tile of each zone (index 0 = zone 1),
+   * null if never.
+   */
+  zones: Record<string, Array<number | null>>;
+  /** Hour at which the simulation ended (earlier than `days` with `stopAt`). */
+  endHour: number;
+}
+
+/** Final biomass of each schedule, and how far apart they are (GDD §9: at most ×6). */
+export interface ScheduleGap {
+  /** Mean final biomass by profile name. */
+  mean: Record<string, number>;
+  /** Most active profile's mean over the least active's. */
+  ratio: number;
+}
+
+/** Final biomass by profile (schedule) of a forest week, and the gap between the extremes. */
+export function scheduleGap(r: ForestSimResult): ScheduleGap {
+  const last = r.snapshots[r.snapshots.length - 1]!;
+  const by = new Map<string, number[]>();
+  for (const p of last.players) by.set(p.profile, [...(by.get(p.profile) ?? []), p.biomass]);
+  const mean = Object.fromEntries([...by].map(([k, v]) => [k, v.reduce((a, b) => a + b, 0) / v.length]));
+  const values = Object.values(mean);
+  return { mean, ratio: Math.max(...values) / Math.max(1e-9, Math.min(...values)) };
+}
+
+/**
+ * Median hour (over the players of a profile) at which each zone was first reached, by profile: index 0
+ * is zone 1. Null where fewer than half the players of the profile got there.
+ */
+export function zoneReach(r: ForestSimResult): Record<string, Array<number | null>> {
+  const last = r.snapshots[r.snapshots.length - 1]!;
+  const out: Record<string, Array<number | null>> = {};
+  for (const profile of new Set(last.players.map((p) => p.profile))) {
+    const ids = last.players.filter((p) => p.profile === profile).map((p) => p.id);
+    out[profile] = Array.from({ length: ZONES.count }, (_, z) => {
+      const hours = ids.map((id) => r.zones[id]?.[z] ?? null).map((h) => (h === null ? Infinity : h)).sort((a, b) => a - b);
+      const median = hours[Math.floor((hours.length - 1) / 2)]!;
+      return Number.isFinite(median) ? median : null;
+    });
+  }
+  return out;
 }
 
 export interface ConflictStats {
@@ -94,6 +142,7 @@ export function simulateForestWeek(options: ForestSimOptions = {}): ForestSimRes
     planOf = (_i: number, id: string) => defaultPlan(id),
     fight = true,
     events = true,
+    stopAt,
   } = options;
   // The forest opens on Monday 00:00 Paris, like a real season (phases follow the calendar).
   const t0 = seasonAt(Date.UTC(2026, 9, 5, 12)).start;
@@ -152,7 +201,21 @@ export function simulateForestWeek(options: ForestSimOptions = {}): ForestSimRes
 
   const conflict: ConflictStats = { actions: { assault: 0, toxin: 0, cut: 0, siphon: 0 }, hearts: 0, eventLosses: 0, events: {}, bosses: [], minTiles: 0 };
   const wasOnline = new Map<string, boolean>();
+  const zones: ForestSimResult["zones"] = {};
+  /** Notes the zones each player holds a grown tile in (every hour). */
+  const noteZones = (t: number) => {
+    for (const p of forest.players.values()) {
+      const reached = (zones[p.id] ??= Array.from({ length: ZONES.count }, () => null));
+      for (const tile of ownedTilesOf(forest.tiles, p.id)) {
+        if (tile.growthEndsAt !== null) continue;
+        const z = zoneAt(forest.layout, forest.radius, tile) - 1;
+        if (reached[z] === null) reached[z] = (t - t0) / HOUR;
+      }
+    }
+  };
+  let end = t0;
   for (let t = t0 + stepMs; t <= t0 + days * DAY; t += stepMs) {
+    end = t;
     for (const j of pending.filter((x) => x.at <= t && !forest.players.has(x.id))) {
       joinForest(forest, j.id, t);
       profiles.set(j.id, j.profile);
@@ -192,7 +255,12 @@ export function simulateForestWeek(options: ForestSimOptions = {}): ForestSimRes
     if (filled.half === null && occ >= 0.5) filled.half = hour;
     if (filled.ninety === null && occ >= 0.9) filled.ninety = hour;
     if (filled.full === null && occ >= 0.999) filled.full = hour;
+    if ((t - t0) % HOUR === 0) noteZones(t);
     if ((t - t0) % (6 * HOUR) === 0) snapshot(t);
+    if ((stopAt === "ninety" && filled.ninety !== null) || (stopAt === "full" && filled.full !== null)) {
+      if ((t - t0) % (6 * HOUR) !== 0) snapshot(t);
+      break;
+    }
   }
 
   return {
@@ -211,6 +279,8 @@ export function simulateForestWeek(options: ForestSimOptions = {}): ForestSimRes
     hearts: Object.fromEntries([...forest.players.values()].map((p) => [p.id, { ...p.heart }])),
     spawns: Object.fromEntries([...forest.players.values()].map((p) => [p.id, { ...p.spawn }])),
     filled,
+    zones,
+    endHour: (end - t0) / HOUR,
     conflict: { ...conflict, minTiles: Math.min(...[...forest.players.keys()].map((id) => [...forest.tiles.values()].filter((x) => x.owner === id).length)) },
   };
 }
@@ -226,6 +296,11 @@ export function formatForestReport(r: ForestSimResult): string {
       `events ${Object.entries(c.events).map(([k, v]) => `${k} ${v}`).join(", ")}; ` +
       `bosses ${c.bosses.map((b) => `h${b.hour.toFixed(0)}: ${b.contributors} players${b.killed ? ", killed" : ""}`).join("; ") || "none"}; fewest tiles at the end ${c.minTiles}`,
   );
+  const gap = scheduleGap(r);
+  lines.push(`  final biomass by schedule: ${Object.entries(gap.mean).map(([k, v]) => `${k} ${v.toExponential(2)}`).join(", ")}; gap ×${gap.ratio.toFixed(1)}`);
+  for (const [profile, hours] of Object.entries(zoneReach(r))) {
+    lines.push(`  zones reached (${profile}): ${hours.map((h, i) => `z${i + 1} ${h === null ? "never" : `day ${(h / 24).toFixed(1)}`}`).join(", ")}`);
+  }
   for (const s of r.snapshots.filter((x) => x.hour % 24 === 0 && x.hour > 0)) {
     const tiles = s.players.map((p) => p.tiles);
     const bio = s.players.map((p) => p.biomass);
