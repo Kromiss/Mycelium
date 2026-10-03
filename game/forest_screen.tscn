@@ -1,0 +1,35 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://game/forest_screen.gd" id="1_screen"]
+[ext_resource type="PackedScene" path="res://view/map/forest_view.tscn" id="2_view"]
+[ext_resource type="Script" path="res://view/camera/map_camera.gd" id="3_camera"]
+
+[node name="ForestScreen" type="Node2D"]
+script = ExtResource("1_screen")
+
+[node name="ForestView" parent="." instance=ExtResource("2_view")]
+unique_name_in_owner = true
+
+[node name="MapCamera" type="Camera2D" parent="."]
+unique_name_in_owner = true
+script = ExtResource("3_camera")
+
+[node name="Hud" type="CanvasLayer" parent="."]
+
+[node name="HudColumn" type="VBoxContainer" parent="Hud"]
+unique_name_in_owner = true
+offset_left = 28.0
+offset_top = 20.0
+offset_right = 1400.0
+offset_bottom = 120.0
+mouse_filter = 2
+
+[node name="ModeLabel" type="Label" parent="Hud/HudColumn"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"HeaderLabel"
+
+[node name="HintLabel" type="Label" parent="Hud/HudColumn"]
+layout_mode = 2
+theme_type_variation = &"HintLabel"
+text = "FOREST_HINT"

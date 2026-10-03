@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <!-- Icône provisoire : le Cœur (un champignon avec deux yeux) posé sur une bulle d'Humus. -->
+  <circle cx="128" cy="128" r="120" fill="#E2CDB0" stroke="#3B3340" stroke-width="8"/>
+  <!-- Pied -->
+  <rect x="98" y="122" width="60" height="76" rx="26" fill="#FFFDF8" stroke="#3B3340" stroke-width="8"/>
+  <!-- Chapeau -->
+  <path d="M40 132 C40 70 82 44 128 44 C174 44 216 70 216 132 C216 142 208 148 198 148 L58 148 C48 148 40 142 40 132 Z"
+        fill="#8F7CF2" stroke="#3B3340" stroke-width="8" stroke-linejoin="round"/>
+  <!-- Taches du chapeau -->
+  <circle cx="92" cy="92" r="12" fill="#FFFDF8"/>
+  <circle cx="160" cy="80" r="9" fill="#FFFDF8"/>
+  <circle cx="182" cy="118" r="7" fill="#FFFDF8"/>
+  <!-- Yeux -->
+  <circle cx="114" cy="170" r="8" fill="#3B3340"/>
+  <circle cx="142" cy="170" r="8" fill="#3B3340"/>
+</svg>

@@ -1,0 +1,12 @@
+# Fins de ligne normalisées pour les fichiers texte
+* text=auto eol=lf
+
+# Fichiers binaires (stockés directement dans git, sans Git LFS)
+*.ttf binary
+*.otf binary
+*.png binary
+*.jpg binary
+*.ico binary
+*.ogg binary
+*.wav binary
+*.mp3 binary

@@ -1,0 +1,28 @@
+keys,en,fr
+GAME_TITLE,Mycelium : Last Colony,Mycelium : Last Colony
+MENU_PLAY,Play,Jouer
+MENU_DUEL,Duel,Duel
+MENU_FFA,FFA,FFA
+MENU_CUSTOM_SOON,Custom game (soon),Partie personnalisée (bientôt)
+MENU_TUTORIAL_SOON,Tutorial (soon),Tutoriel (bientôt)
+MENU_PROFILE_SOON,Profile (soon),Profil (bientôt)
+MENU_SETTINGS,Settings,Paramètres
+MENU_QUIT,Quit,Quitter
+MENU_VERSION,Version %s,Version %s
+SETTINGS_TITLE,Settings,Paramètres
+SETTINGS_THEME,Theme,Thème
+THEME_LIGHT,Light,Clair
+THEME_DARK,Dark,Sombre
+THEME_SYSTEM,System,Système
+SETTINGS_LANGUAGE,Language,Langue
+LANG_FR,Français,Français
+LANG_EN,English,English
+SETTINGS_WINDOW_MODE,Display,Affichage
+WINDOW_MAXIMIZED,Maximized window,Fenêtre maximisée
+WINDOW_WINDOWED,Windowed,Fenêtré
+WINDOW_FULLSCREEN,Fullscreen,Plein écran
+SETTINGS_RESOLUTION,Window size,Taille de la fenêtre
+SETTINGS_BACK,Back,Retour
+FOREST_MODE_DUEL,Duel forest,Forêt de Duel
+FOREST_MODE_FFA,FFA forest,Forêt de FFA
+FOREST_HINT,Right-click drag or screen edges: move · Wheel: zoom · Esc: menu,Clic droit maintenu ou bords de l'écran : déplacer · Molette : zoom · Échap : menu

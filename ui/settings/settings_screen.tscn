@@ -1,0 +1,78 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://ui/settings/settings_screen.gd" id="1_settings"]
+
+[node name="SettingsScreen" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_settings")
+
+[node name="Center" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Card" type="PanelContainer" parent="Center"]
+layout_mode = 2
+
+[node name="Column" type="VBoxContainer" parent="Center/Card"]
+layout_mode = 2
+theme_override_constants/separation = 28
+
+[node name="Title" type="Label" parent="Center/Card/Column"]
+layout_mode = 2
+theme_type_variation = &"HeaderLabel"
+text = "SETTINGS_TITLE"
+horizontal_alignment = 1
+
+[node name="Grid" type="GridContainer" parent="Center/Card/Column"]
+layout_mode = 2
+theme_override_constants/h_separation = 40
+theme_override_constants/v_separation = 18
+columns = 2
+
+[node name="ThemeLabel" type="Label" parent="Center/Card/Column/Grid"]
+layout_mode = 2
+text = "SETTINGS_THEME"
+
+[node name="ThemeOption" type="OptionButton" parent="Center/Card/Column/Grid"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(380, 0)
+layout_mode = 2
+
+[node name="LanguageLabel" type="Label" parent="Center/Card/Column/Grid"]
+layout_mode = 2
+text = "SETTINGS_LANGUAGE"
+
+[node name="LanguageOption" type="OptionButton" parent="Center/Card/Column/Grid"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="WindowLabel" type="Label" parent="Center/Card/Column/Grid"]
+layout_mode = 2
+text = "SETTINGS_WINDOW_MODE"
+
+[node name="WindowOption" type="OptionButton" parent="Center/Card/Column/Grid"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="ResolutionLabel" type="Label" parent="Center/Card/Column/Grid"]
+layout_mode = 2
+text = "SETTINGS_RESOLUTION"
+
+[node name="ResolutionOption" type="OptionButton" parent="Center/Card/Column/Grid"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="BackButton" type="Button" parent="Center/Card/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 4
+text = "SETTINGS_BACK"

@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="Palette" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://view/palette.gd" id="1_palette"]
+
+[resource]
+script = ExtResource("1_palette")
+background = Color(0.121569, 0.105882, 0.14902, 1)
+card = Color(0.164706, 0.145098, 0.196078, 1)
+text = Color(0.94902, 0.92549, 0.968627, 1)
+text_secondary = Color(0.72549, 0.686275, 0.768627, 1)
+line = Color(0.227451, 0.2, 0.270588, 1)
+humus = Color(0.435294, 0.368627, 0.313725, 1)
+zone_edge = Color(0.164706, 0.145098, 0.188235, 1)
+zone_center = Color(0.290196, 0.231373, 0.211765, 1)
+zone_line = Color(0.94902, 0.92549, 0.968627, 1)

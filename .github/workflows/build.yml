@@ -1,0 +1,49 @@
+name: Build
+
+# À chaque fusion sur main : exporte Mycelium.exe et publie une version préliminaire
+# v<version>-build.<n> (par exemple v0.1.0-build.12) avec le .exe joint.
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-main
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Installer Godot
+        id: godot
+        uses: ./.github/actions/setup-godot
+        with:
+          templates: "true"
+
+      - name: Tests
+        run: |
+          "${{ steps.godot.outputs.godot }}" --headless -s addons/gut/gut_cmdln.gd -gconfig=res://.gutconfig.json
+
+      - name: Export Windows
+        run: |
+          mkdir -p build/windows
+          "${{ steps.godot.outputs.godot }}" --headless --export-release "Windows Desktop" build/windows/Mycelium.exe
+          test -s build/windows/Mycelium.exe
+
+      - name: Version préliminaire
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          VERSION=$(sed -n 's/^config\/version="\(.*\)"$/\1/p' project.godot)
+          TAG="v${VERSION}-build.${GITHUB_RUN_NUMBER}"
+          gh release create "$TAG" build/windows/Mycelium.exe \
+            --target "$GITHUB_SHA" --prerelease --title "$TAG" \
+            --notes "Build automatique de main ($GITHUB_SHA). Version préliminaire : la version définitive v${VERSION} est publiée par le workflow Release."

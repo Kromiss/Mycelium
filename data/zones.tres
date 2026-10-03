@@ -1,0 +1,56 @@
+[gd_resource type="Resource" script_class="ZoneTable" load_steps=9 format=3]
+
+[ext_resource type="Script" path="res://sim/defs/zone_def.gd" id="1_zone"]
+[ext_resource type="Script" path="res://sim/defs/zone_table.gd" id="2_table"]
+
+[sub_resource type="Resource" id="zone_1"]
+script = ExtResource("1_zone")
+zone = 1
+richness_pm = 1000
+colonize_cost_pm = 1000
+growth_time_pm = 1000
+capture_time_pm = 1000
+
+[sub_resource type="Resource" id="zone_2"]
+script = ExtResource("1_zone")
+zone = 2
+richness_pm = 1500
+colonize_cost_pm = 1400
+growth_time_pm = 1200
+capture_time_pm = 1200
+
+[sub_resource type="Resource" id="zone_3"]
+script = ExtResource("1_zone")
+zone = 3
+richness_pm = 2000
+colonize_cost_pm = 2000
+growth_time_pm = 1500
+capture_time_pm = 1500
+
+[sub_resource type="Resource" id="zone_4"]
+script = ExtResource("1_zone")
+zone = 4
+richness_pm = 2600
+colonize_cost_pm = 2800
+growth_time_pm = 1900
+capture_time_pm = 1800
+
+[sub_resource type="Resource" id="zone_5"]
+script = ExtResource("1_zone")
+zone = 5
+richness_pm = 3300
+colonize_cost_pm = 3800
+growth_time_pm = 2400
+capture_time_pm = 2100
+
+[sub_resource type="Resource" id="zone_6"]
+script = ExtResource("1_zone")
+zone = 6
+richness_pm = 4000
+colonize_cost_pm = 5000
+growth_time_pm = 3000
+capture_time_pm = 2500
+
+[resource]
+script = ExtResource("2_table")
+zones = Array[ExtResource("1_zone")]([SubResource("zone_1"), SubResource("zone_2"), SubResource("zone_3"), SubResource("zone_4"), SubResource("zone_5"), SubResource("zone_6")])
