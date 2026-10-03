@@ -29,6 +29,8 @@ Les valeurs chiffrées de ce document sont des **points de départ à simuler**,
 ### 2.1 Menu principal
 **Jouer** (Duel, FFA), **Partie personnalisée**, **Tutoriel**, **Profil**, **Paramètres**, **Quitter**.
 
+*G1 (décidé le 4 octobre 2026)* : une entrée **Bac à sable** lance la partie d'économie de G1 : le joueur est **seul** sur une forêt de **Duel ou de FFA, au choix**, avec la couleur **Menthe** ; Duel et FFA restent grisés jusqu'aux robots (G4).
+
 ### 2.2 Duel (1 contre 1)
 - **Contre un robot** : disponible dès le départ. Choix de la difficulté (Facile, Normal, Difficile).
 - **Contre un joueur** : **à long terme** (§15). D'abord par invitation d'un ami Steam, puis par file d'attente.
@@ -100,7 +102,8 @@ Le robot ne fait qu'attaquer sur commande du script (étape 8) ; le reste du tem
 ## 3. Déroulé d'une partie
 
 ### 3.1 Départ
-- Chaque colonie démarre avec un **Cœur et 3 cases** au bord de son secteur (zone 1), avec de quoi poser ses premières cases et un bâtiment.
+- Chaque colonie démarre avec **3 cases, Cœur compris** : le Cœur sur l'anneau extérieur, au milieu de son secteur (zone 1), et 2 cases collées à lui, côté centre.
+- **Stock de départ : 6 U** (180 nutriments), de quoi poser ses premières cases et un bâtiment.
 - **Protection de départ : aucune attaque avant 2:00.**
 
 ### 3.2 Frise de la partie
@@ -158,15 +161,15 @@ Six anneaux concentriques de **même épaisseur** : **2 anneaux d'hexagones par 
 Cible : une colonie moyenne atteint la zone N vers la minute 3,5 × N. La limitation vient **des ressources**, pas d'un verrou.
 
 ### 4.4 Règles d'expansion
-- On ne colonise qu'une case **adjacente** à son réseau.
-- Coût = `base × (1 + 0,05 × distance_au_cœur) × difficulté_zone × 1,02 ^ nb_cases` (à simuler).
-- La colonisation n'est pas instantanée : les hyphes **poussent** (~4 s en zone 1), ce qui laisse une fenêtre de réaction.
-- **File d'expansion** : jusqu'à 5 colonisations programmées.
-- **Cohésion** : chaque case compte ses voisines possédées (0 à 6). Production **+5 % par voisine** (max +30 %) ; en défense, temps de prise **+15 % par voisine**. Une **Rosace** (6 voisines) ne peut pas être visée par une Coupure.
+- On ne colonise qu'une case **adjacente** à son réseau. Une case **en pousse ne fait pas encore partie du réseau** : on ne peut pas coloniser sa voisine avant la fin de la pousse.
+- Coût = `base × (1 + 0,05 × distance_au_cœur) × difficulté_zone × 1,02 ^ nb_cases` (à simuler), avec `base` = **U = 30** nutriments. `nb_cases` ne compte que les **cases poussées** (pas les cases en pousse). Le terme `0,05 × distance_au_cœur` est **à décider plus tard** (absent en G1, à trancher avec la migration du Cœur) ; s'il est gardé, la distance se mesure **par le réseau** (plus court chemin à travers ses propres cases).
+- La colonisation n'est pas instantanée : les hyphes **poussent** (~4 s en zone 1), ce qui laisse une fenêtre de réaction. Les durées sont en **secondes entières** (1 tick par seconde) : 4 s en zone 1, arrondies dans les autres zones.
+- **Pousses simultanées** : **une seule** au départ ; un **nouveau bâtiment**, à définir en G2, en ajoutera.
+- **File d'expansion** : jusqu'à 5 colonisations programmées. Le coût est payé **au démarrage de la pousse**, au prix du moment : une case attend en file d'avoir les nutriments. On peut **retirer une case de la file** ; une pousse lancée va à son terme.
+- **Cohésion** : chaque case compte ses voisines possédées (0 à 6), **cases poussées seulement**. Production **+5 % par voisine** (max +30 %) ; en défense, temps de prise **+15 % par voisine**. Une **Rosace** (6 voisines) ne peut pas être visée par une Coupure.
 
 ### 4.5 Le réseau
-- Les nutriments remontent vers le **Cœur** ; une case perd **1 % par saut** de distance.
-- Un **Rhizomorphe** (§7.2) supprime la perte le long de sa chaîne.
+- Les nutriments remontent vers le **Cœur**. **Pas de perte de transport** (la perte de 1 % par saut et le Rhizomorphe ont été retirés le 4 octobre 2026).
 - Une **Coupure** (§9.4) isole une portion du réseau : les cases coupées ne produisent plus (sans dépérir) tant que dure la Coupure.
 
 ---
@@ -181,7 +184,8 @@ Cible : une colonie moyenne atteint la zone N vers la minute 3,5 × N. La limita
 | **Biomasse** | Total des nutriments produits : sert au départage à 30:00 (production moyenne = biomasse ÷ durée) et aux statistiques | Conversion des nutriments produits |
 
 - **3 ressources visibles au début** (Nutriments, Humidité, Biomasse) ; les Enzymes apparaissent avec la Glande enzymatique.
-- **Stock plafonné** : **3 min de production** (+2 min par Grenier). Ce qui dépasse est perdu : on dépense en continu.
+- **Stock plafonné** : **3 min de production** (+2 min par Grenier). Ce qui dépasse est perdu : on dépense en continu. *Pas de plafond en G1 : il arrive en G2 avec le Grenier.*
+- *En G1* (aucun bâtiment), le facteur d'humidité vaut ×1 et l'Humidité reste **cachée** ; elle apparaît en G2.
 - La Biomasse ne se dépense pas et ne débloque rien.
 
 ---
@@ -195,7 +199,7 @@ Quand le **nombre de cases** franchit un seuil, **la production de la colonie do
 
 | Palier | Cases | Production | Débloque |
 |---|---|---|---|
-| Départ | 3 | ×1 | Nœud de digestion, Réservoir, Rhizomorphe |
+| Départ | 3 | ×1 | Nœud de digestion, Réservoir |
 | 1 | 5 | ×2 | Grenier, Pépinière |
 | 2 | 10 | ×4 | Glande enzymatique, Sclérote |
 | 3 | 20 | ×8 | Écorce, Toxinière |
@@ -210,13 +214,16 @@ Quand le **nombre de cases** franchit un seuil, **la production de la colonie do
 Richesse de zone (jusqu'à ×4), Cohésion (jusqu'à +30 %), bâtiments et voisinage (§7.3), équilibre d'humidité (jusqu'à +20 %), souche (jusqu'à +25 %), événements (Floraison, Orage). Ils **se multiplient entre eux** au lieu de s'additionner.
 
 ### 6.3 Boucle de réinvestissement
-Une case neuve doit se rembourser vite : cible **~20 s au début**, **moins de 60 s en fin de partie** malgré des coûts plus élevés. Chaque palier relance la boucle (nouvelles cases rentables, nouveaux bâtiments).
+Une case neuve doit se rembourser vite : cible **~10 s au début** (décidé le 4 octobre 2026, au lieu de ~20 s), **moins de 60 s en fin de partie** malgré des coûts plus élevés. Chaque palier relance la boucle (nouvelles cases rentables, nouveaux bâtiments).
+
+Valeurs de départ (à simuler) : une case d'Humus de zone 1 rapporte **≈ 3,33 nutriments/s** (10/s pour la colonie de départ de 3 cases) ; le **Cœur produit comme une case normale** ; **U = 30** nutriments (≈ 9 s de production d'une case).
 
 ### 6.4 Ordre de grandeur
-Cible : **~10 nutriments/s au départ → 1e5 à 1e6 nutriments/s en fin de partie**, soit un facteur de 10 000 à 100 000 en 30 min (à simuler). Les nombres s'écrivent avec des suffixes (K, M, B, T).
+Cible : **~10 nutriments/s pour la colonie au départ → 1e5 à 1e6 nutriments/s en fin de partie**, soit un facteur de 10 000 à 100 000 en 30 min (à simuler). Les nombres s'écrivent avec des suffixes (K, M, B, T).
 
 ### 6.5 Retour visuel (le « boum »)
-- Chaque **palier** déclenche une **onde** qui part du Cœur, fait pulser les cases une à une et lance un petit feu d'artifice de particules, avec un son et le message « Palier ×2 ! ».
+- **La colonie vit dans son entièreté** : une **onde continue** parcourt la colonie de ses bords **vers le Cœur**, comme les nutriments qui remontent. À chaque palier, elle devient **plus fréquente et plus intense**.
+- Au franchissement d'un **palier** : message « Palier ×2 ! » et le **Cœur qui saute** un instant. Les particules et le son viendront avec l'audio (G6).
 - Les **compteurs défilent** (nutriments qui montent à vue d'œil) et une **courbe de production** reste affichée dans le HUD.
 - La tache de la colonie **grossit de façon visible** ; la Floraison collective fait « éclore » tout le réseau.
 
@@ -246,7 +253,6 @@ Les déblocages suivent les **paliers de colonie** (§6.1). Un bâtiment dont le
 |---|---|---|---|---|
 | **Nœud de digestion** | Départ | 2 U | Partout | +50 % de rendement de la case |
 | **Réservoir** | Départ | 2 U | Partout | +3 Humidité/min ; cases à ≤ 2 : +5 % de production |
-| **Rhizomorphe** | Départ | 1 U | Partout | Aucune perte de transport sur sa chaîne ; insensible à la Coupure |
 | **Grenier** | Palier 1 | 3 U | Partout | +2 min de plafond de stock |
 | **Pépinière** | Palier 1 | 4 U | Partout | Pousse −30 % dans un rayon de 3 ; +1 chantier simultané |
 | **Glande enzymatique** | Palier 2 | 5 U | Partout | +20 Enzymes/min |
@@ -273,8 +279,8 @@ Chaque bâtiment **consomme** de l'Humidité (0,5/min) ; les **Réservoirs** en 
 Exemple : 12 bâtiments (dont 2 Réservoirs) consomment 6/min et les 2 Réservoirs produisent 6/min : ratio 1, tout va bien. Avec un seul Réservoir, le ratio tombe à 0,5 et ta production est divisée par deux. Règle pratique : **environ 1 Réservoir pour 5 autres bâtiments**.
 
 ### 7.5 Le Cœur
-- Unique, non démolissable. Il collecte les nutriments et définit la distance de transport.
-- **Migration** : on peut le déplacer vers une case adjacente à son réseau (30 s d'immobilisation, recharge 3 min). Utile pour rapprocher le Cœur du centre (moins de pertes de transport) ou l'éloigner d'un front.
+- Unique, non démolissable. Il collecte les nutriments ; le réseau se mesure à partir de lui.
+- **Migration** : on peut le déplacer vers une case adjacente à son réseau (30 s d'immobilisation, recharge 3 min). Utile pour rapprocher le Cœur du centre ou l'éloigner d'un front. *Reportée après G1.*
 - Se prend **4× plus lentement** qu'une case normale.
 
 ### 7.6 Désactivation et capture
@@ -285,7 +291,7 @@ Exemple : 12 bâtiments (dont 2 Réservoirs) consomment 6/min et les 2 Réservoi
 - on ne peut plus en construire de nouveaux du même type, mais on peut le démolir (remboursement 50 %) ;
 - il se **réactive tout seul** dès que la colonie repasse au-dessus du seuil.
 
-Les effets déjà lancés (action en recharge, filament ou chantier en cours) vont à leur terme. Les bâtiments de départ (Nœud de digestion, Réservoir, Rhizomorphe) ne se désactivent jamais. Un **Sclérote désactivé ne peut pas recueillir le Cœur** : tomber sous le palier 2 juste avant de perdre son Cœur est fatal.
+Les effets déjà lancés (action en recharge, filament ou chantier en cours) vont à leur terme. Les bâtiments de départ (Nœud de digestion, Réservoir) ne se désactivent jamais. Un **Sclérote désactivé ne peut pas recueillir le Cœur** : tomber sous le palier 2 juste avant de perdre son Cœur est fatal.
 
 **Capture.** Quand une case est prise, **son bâtiment passe à l'attaquant avec la case**, intact et à la couleur du capteur :
 - il est **actif** si le capteur a atteint le palier qui le débloque ;
@@ -339,7 +345,7 @@ Elles coûtent des Enzymes, rechargent et **exigent le bâtiment correspondant**
 |---|---|---|---|---|---|
 | **Assaut** | Poste d'assaut | Maintenir sur un filament puis relâcher (charge d'un anneau) | 30 Enzymes | 90 s | Prise 4× plus rapide pendant 20 s |
 | **Toxine** | Toxinière | « Arroser » : peindre la zone visée d'un trait | 20 Enzymes | 2 min | La case et ses voisines : production −50 % pendant 60 s |
-| **Coupure** | Poste d'assaut | **Trancher** un lien du réseau ennemi d'un balayage | 40 Enzymes | 3 min | La case ne fait plus passer les nutriments pendant 45 s (ni Rhizomorphe, ni Cœur, ni Rosace) |
+| **Coupure** | Poste d'assaut | **Trancher** un lien du réseau ennemi d'un balayage | 40 Enzymes | 3 min | La case ne fait plus passer les nutriments pendant 45 s (ni Cœur, ni Rosace) |
 | **Siphon** | Haustorium | Tirer un tuyau d'une case ennemie vers une des siennes | 25 Enzymes | 90 s | Vole 20 % de la production des cases à ≤ 2 pendant 60 s |
 
 ### 9.5 Cœur, Sclérote, élimination
@@ -403,12 +409,13 @@ Cosmétiques gagnés en jouant (titres, couleurs de réseau, effets de particule
 ```
 production_case    = rendement × richesse_zone × (1 + bonus_bâtiment + voisinage)
                      × (1 + 0,05 × voisines) × modif_événement
-production_totale  = Σ production_case × (1 − perte_transport(distance))
+production_totale  = Σ production_case (cases reliées au Cœur)
                      × 2 ^ paliers_atteints × facteur_humidité × bonus_souche(t)
 paliers_atteints   = nombre de seuils (5, 10, 20, 40, 80, 160 cases) ≤ nb_cases
 bonus_souche(t)    = 1,00 + 0,25 × t / 30 min
 facteur_humidité   = clamp(production_humidité / consommation_humidité ; 0,5 ; 1,2)
 coût_colonisation  = base × (1 + 0,05 × dist_cœur) × difficulté_zone × 1,02 ^ nb_cases
+                     (base = U = 30 ; terme dist_cœur à décider, absent en G1 ; nb_cases = cases poussées)
 coût_bâtiment      = base_bâtiment × 1,12 ^ nb_déjà_construits_du_même_type
 coût_filament      = 0,25 × coût_colonisation(case visée)
 stock_max          = production_totale × (3 min + 2 min × nb_greniers)
@@ -438,7 +445,7 @@ Menu principal, **mode Duel**, **mode FFA**, **salon de partie personnalisée**,
 | Ciel | `#78BCF1` | `#3796E0` | Lagon | `#3EA8A7` | `#2B6968` |
 | Bonbon | `#F691C3` | `#E74E9A` | Framboise | `#E0516C` | `#B62A44` |
 | Citron | `#E7DF39` | `#B0A91E` | Indigo | `#4042D4` | `#2A2B99` |
-- Une colonie se dessine comme **une seule tache arrondie** ; le **Cœur** est un champignon avec deux petits yeux.
+- Une colonie se dessine comme **une seule tache arrondie** ; le **Cœur** est un champignon avec deux petits yeux. *G1 : version simple d'abord* : cases colorées une par une, Cœur dans la teinte foncée de la colonie, case en pousse avec une jauge qui se remplit ; la tache arrondie vient plus tard.
 - **Bâtiments** : un pictogramme rond et simple au centre de la case. **États** : bâtiment désactivé = pictogramme grisé avec un petit cadenas (info-bulle : « palier N requis, X cases ») ; bâtiment capturé = pictogramme à la couleur du capteur ; pousse = cercle pointillé ; **en construction** = pictogramme pointillé avec jauge ; prise en cours = anneau de la couleur de l'attaquant ; coupée = barre blanche.
 - **Filament d'assaut** : un trait vivant de la couleur de l'attaquant, qui ondule et s'épaissit à mesure que la prise avance.
 
@@ -462,6 +469,7 @@ Les couleurs de colonie sont **éclaircies si besoin** en mode sombre pour garde
 - **Déplacement** : clic droit maintenu (on fait glisser la carte) et souris contre les **bords de l'écran**.
 - **Zoom** : molette, **centré sur la position de la souris**.
 - Le clic gauche reste réservé au jeu (sélection, filaments).
+- **Coloniser** : clic gauche sur une case libre collée à la colonie = la pousse démarre tout de suite (sinon la commande est refusée) ; **Maj + clic gauche** = mise en file d'expansion.
 
 ### 13.5 Paramètres
 Affichage (plein écran, fenêtré, résolution, **thème clair / sombre / système**), audio, langue (français et anglais), commandes (raccourcis modifiables), accessibilité (taille de l'interface, palette adaptée au daltonisme).
@@ -502,7 +510,7 @@ Affichage (plein écran, fenêtré, résolution, **thème clair / sombre / syst�
 
 ### 14.3 Données et rendu
 - État de la carte en **tableaux compacts** (`PackedInt32Array` : propriétaire, bâtiment, progression de pousse, de prise et de construction, zone, intégrité). Quelques centaines de cases : coût négligeable.
-- Transport : recherche en largeur depuis le Cœur, recalculée de façon incrémentale.
+- Réseau : recherche en largeur depuis le Cœur (cases reliées, îlots, Coupure), recalculée de façon incrémentale.
 - Cases-bulles en `MultiMeshInstance2D` ; colonies en taches arrondies via `Geometry2D.merge_polygons` et `offset_polygon` (jointures rondes) ; filaments en `Line2D` animés par shader ; thème clair/sombre par deux ressources `Theme` interchangeables.
 - Objectif : **60 images/s** sur un PC modeste.
 
@@ -521,7 +529,7 @@ Aucune action de modification (pas d'arrêt de partie, pas de ressources, pas de
 | Jalon | Contenu |
 |---|---|
 | **G0 : Fondations** | Dépôt transformé pour Godot, vérification automatique et version GitHub avec le .exe à chaque fusion sur main ; carte hex (6 zones, un terrain) en Duel et FFA, rendu « Pastille ronde », caméra ; menu principal minimal (entrées futures grisées) ; écran Paramètres (thème, langue, affichage) |
-| **G1 : Solo économie** | Colonisation, Cœur, transport, production, Cohésion, **paliers de colonie** et retours visuels |
+| **G1 : Solo économie** | Colonisation (pousse, file d'expansion), Cœur, réseau, production, Cohésion, **paliers de colonie** et retours visuels (onde continue, palier). Entrée **Bac à sable** : joueur seul sur une forêt de Duel ou de FFA au choix. Horloge de partie affichée (sans bonus de l'Armillaire), pause et vitesse ×2 / ×4. HUD : nutriments qui défilent, courbe de production, Biomasse, barre du prochain palier. Livré en **deux étapes** (simulation et tests, puis affichage et HUD) ; version **0.2.0** |
 | **G2 : City builder** | Bâtiments, chantiers, files, voisinage, humidité, déblocages par palier |
 | **G3 : Combat et fin de partie** | Filament d'assaut, trancher, actions actives, Sclérote, élimination, **butin et transfert du territoire**, événements, frise de partie |
 | **G4 : Duel et FFA contre robots** | Menus, robots (3 difficultés, profils), pause, accélération, résultats |
@@ -553,15 +561,20 @@ Le jeu est donc complet et jouable en solo avant le multijoueur. Pour ne pas avo
 15. **Modèle économique** (gratuit ou payant) : pas encore décidé.
 16. **Départage à 30:00** : production moyenne sur toute la partie, puis nombre de cases.
 17. **Tests multijoueur entre amis avec l'App ID 480** (Spacewar) avant d'avoir un App ID réel, puis passage à l'App ID du jeu une fois la page Steam créée.
+18. **Perte de transport et Rhizomorphe retirés** (4 octobre 2026).
+19. **Économie de départ** : 3 cases Cœur compris, U = 30, ≈ 3,33 nutriments/s par case, stock de départ 6 U, remboursement d'une case en ~10 s au début.
+20. **Une pousse à la fois** au départ ; un nouveau bâtiment (G2) en ajoutera.
 
 ### Questions ouvertes
 - **Triche de l'hôte** : la vérification par empreinte suffit-elle pour un classement du Duel ?
+- **Coût et distance au Cœur** : garder ou non le terme `0,05 × distance` du coût de colonisation (à trancher avec la migration du Cœur).
+- **Pousses simultanées** : quel nouveau bâtiment en ajoute (G2) ?
 - **Statistiques d'administration** : les statistiques globales Steam suffisent-elles, ou faut-il un petit service de collecte ?
 
 ### À simuler
 - Contact et rythme : la carte ne rétrécissant pas, rien ne force les colonies à se rencontrer. S'affrontent-elles assez tôt ? Combien de parties finissent au temps plutôt que par élimination ?
 - Atteint-on la zone N vers la minute 3,5 × N ?
-- Courbe de production : facteur de 10 000 à 100 000 sur 30 min ; temps de remboursement d'une case (20 s à 60 s).
+- Courbe de production : facteur de 10 000 à 100 000 sur 30 min ; temps de remboursement d'une case (~10 s au début, moins de 60 s en fin de partie).
 - Seuils des paliers (5, 10, 20, 40, 80, 160) selon la taille de la forêt (Duel ~198 cases par colonie, FFA ~153).
 - Taille des zones : la Clairière (zone 6) ne fait que ~7 cases en Duel et ~19 en FFA ; est-ce assez pour une case objectif ?
 - Temps de prise et efficacité de « trancher » : peut-on encore éliminer quelqu'un ?

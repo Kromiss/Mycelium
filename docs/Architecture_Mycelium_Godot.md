@@ -64,7 +64,7 @@ res://
 │   │   ├── command_system.gd   Validation et application des commandes
 │   │   ├── growth_system.gd    Pousse des cases, chantiers
 │   │   ├── combat_system.gd    Filaments, prises, actions actives, élimination
-│   │   ├── economy_system.gd   Production, transport, humidité, stock
+│   │   ├── economy_system.gd   Production, réseau, humidité, stock
 │   │   ├── tier_system.gd      Paliers, activation et désactivation des bâtiments
 │   │   ├── event_system.gd     Frise, événements aléatoires
 │   │   └── victory_system.gd   Fin de partie, départage
@@ -137,7 +137,7 @@ res://
 | 2 | `GrowthSystem` | Avance la pousse des cases et les chantiers |
 | 3 | `CombatSystem` | Avance les filaments et les prises, applique les actions actives, traite les éliminations et le butin |
 | 4 | `TierSystem` | Recalcule les paliers, active ou désactive les bâtiments |
-| 5 | `EconomySystem` | Transport, humidité, production, plafond de stock, biomasse |
+| 5 | `EconomySystem` | Réseau (cases reliées au Cœur), humidité, production, plafond de stock, biomasse |
 | 6 | `EventSystem` | Déclenche et fait avancer les événements de la frise |
 | 7 | `VictorySystem` | Fin de partie, classement, départage à 30:00 |
 | 8 | `StateHash` | Calcule l'empreinte de l'état |
@@ -224,7 +224,7 @@ Fin de partie visée : ~1e6 nutriments/s, soit ~1e9 en millièmes par seconde ; 
 | Fichiers | `snake_case` | `economy_system.gd` |
 | Classes (`class_name`) | `PascalCase` | `EconomySystem` |
 | Fonctions, variables | `snake_case` | `compute_production()` |
-| Privé | préfixe `_` | `_transport_loss()` |
+| Privé | préfixe `_` | `_cohesion_bonus()` |
 | Constantes, énumérations | `CONSTANT_CASE` | `MAX_FILAMENTS` |
 | Signaux | `snake_case`, au passé | `cell_captured` |
 | Nœuds dans les scènes | `PascalCase` | `BuildingPalette` |
@@ -246,7 +246,7 @@ Ordre dans un fichier : `class_name`, `extends`, commentaire `##` de la classe, 
 class_name EconomySystem
 extends RefCounted
 ## Calcule la production de chaque colonie à chaque tick :
-## rendement des cases, transport vers le Cœur, humidité, paliers et plafond de stock.
+## rendement des cases reliées au Cœur, humidité, paliers et plafond de stock.
 
 const PER_MILLE: int = 1000
 
@@ -339,7 +339,7 @@ Le ressenti (rythme, plaisir des gestes, lisibilité), le rendu visuel, les perf
 | Jalon | Code concerné |
 |---|---|
 | G0 | Transformation du dépôt, arborescence, autoloads, thèmes, traductions, `hex.gd`, `map_generator.gd` (zones uniquement), rendu de la carte, caméra, menu principal, écran Paramètres, GUT et workflows |
-| G1 | `GameState`, `Simulation`, commandes de colonisation, `GrowthSystem`, `EconomySystem`, `TierSystem`, `fixed.gd`, `sim_rng.gd`, `state_hash.gd`, `LocalTransport`, `Session` |
+| G1 | `GameState`, `Simulation`, commandes de colonisation, `GrowthSystem`, `EconomySystem`, `TierSystem`, `fixed.gd`, `sim_rng.gd`, `state_hash.gd`, `LocalTransport`, `Session` ; positions de départ dans `map_generator.gd` ; écran Bac à sable, HUD et effets de palier. Livré en deux étapes : d'abord `sim/`, `data/` et leurs tests, puis `game/`, `view/` et `ui/` |
 | G2 | Bâtiments (`data/buildings/`), chantiers, voisinage, humidité, désactivation |
 | G3 | `CombatSystem`, gestes dans `view/input/`, `EventSystem`, `VictorySystem` |
 | G4 | `ai/`, `tools/sim_runner.gd`, menus, résultats |
