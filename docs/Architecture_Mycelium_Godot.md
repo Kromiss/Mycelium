@@ -52,7 +52,7 @@ res://
 ├── autoload/                 Singletons (3 maximum)
 │   ├── settings.gd           Paramètres du joueur : les applique (thème, langue, fenêtre) et les enregistre
 │   ├── settings_store.gd     Valeurs des paramètres et lecture/écriture du fichier (testable seul)
-│   ├── steam_service.gd      Accès à GodotSteam (initialisation, identité, amis, salons) — jalon G7
+│   ├── steam_service.gd      Accès à GodotSteam (initialisation, identité, amis, salons) — jalon G5 (salons en G6)
 │   └── scene_router.gd       Changement d'écran (menu, partie, résultats)
 ├── sim/                      Règles du jeu, code pur (RefCounted uniquement)
 │   ├── simulation.gd         Point d'entrée : tick(commandes) -> TickResult
@@ -81,7 +81,7 @@ res://
 ├── net/                      Transport des commandes et des différences
 │   ├── transport.gd          Interface commune
 │   ├── local_transport.gd    Solo, tutoriel, tests
-│   └── steam_transport.gd    En ligne : hôte ou invité (jalon G7)
+│   └── steam_transport.gd    En ligne : hôte ou invité (jalon G6)
 ├── game/
 │   ├── session.gd            Relie simulation, transport, robots et affichage
 │   ├── local_view_state.gd   Copie de l'état côté affichage (mise à jour par différences)
@@ -115,7 +115,7 @@ res://
 │   ├── unit/                 Un fichier de test par système
 │   ├── integration/          Parties complètes, déterminisme, scènes
 │   └── fixtures/             Forêts et situations de test
-└── addons/                   GUT (tests), GodotSteam (G7)
+└── addons/                   GUT (tests), GodotSteam (G5)
 ```
 
 ---
@@ -186,7 +186,7 @@ Fin de partie visée : ~1e6 nutriments/s, soit ~1e9 en millièmes par seconde ; 
 
 - `Transport` est une interface : `send_command(cmd)`, signal `tick_received(result)`.
 - `LocalTransport` : la simulation tourne dans le jeu ; les commandes sont transmises directement. Utilisé en solo, dans le tutoriel et dans les tests.
-- `SteamTransport` (jalon G7) :
+- `SteamTransport` (jalon G6) :
   - **Hôte** : fait tourner la simulation, reçoit les commandes des invités par Steam Networking Sockets, envoie les différences et l'empreinte de chaque tick.
   - **Invité** : envoie ses commandes, applique les différences, **rejoue la simulation localement** à partir des commandes et compare l'empreinte ; un écart arrête la partie et la signale.
 - Le reste du jeu (`game/`, `view/`, `ui/`) ne sait pas quel transport est utilisé.
@@ -196,7 +196,7 @@ Fin de partie visée : ~1e6 nutriments/s, soit ~1e9 en millièmes par seconde ; 
 ## 8. Session, scènes et singletons
 
 - `Session` (`game/session.gd`) assemble une partie : crée la simulation et le transport, inscrit les robots, cadence les ticks (1 par seconde, ×2 ou ×4 en Bac à sable), met à jour `LocalViewState` et émet des **signaux** (`cell_changed`, `tier_reached`, `filament_launched`, `colony_eliminated`…).
-- **Singletons limités à trois** : `Settings`, `SceneRouter` et, au jalon G7, `SteamService`. L'état de la partie n'est **jamais** dans un singleton : il appartient à la `Session` en cours.
+- **Singletons limités à trois** : `Settings`, `SceneRouter` et, à partir du jalon G5, `SteamService`. L'état de la partie n'est **jamais** dans un singleton : il appartient à la `Session` en cours.
 - Une scène par écran (`ui/menus/main_menu.tscn`, `ui/hud/hud.tscn`…), une scène par élément réutilisable (bouton de bâtiment, ligne de classement).
 
 ---
@@ -302,7 +302,7 @@ Dès G1, le `sim_runner` est piloté par le **panneau de simulations** (GDD §14
 Lance des centaines de parties de robots sans affichage et en temps accéléré, puis écrit un rapport (CSV) : minute d'arrivée dans chaque zone, courbe de production, nombre d'éliminations avant 26:00, parties finies au temps, efficacité des filaments et de « trancher », effet du butin. C'est l'outil qui répond aux questions « À simuler » du GDD.
 
 ### 11.4 Ce qui n'est pas couvert par les tests automatiques
-Le ressenti (rythme, plaisir des gestes, lisibilité), le rendu visuel, les performances sur un vrai PC, l'exécutable Windows et tout ce qui passe par Steam : ces points se vérifient **en jouant** (G6 et G7).
+Le ressenti (rythme, plaisir des gestes, lisibilité), le rendu visuel, les performances sur un vrai PC, l'exécutable Windows et tout ce qui passe par Steam : ces points se vérifient **en jouant** (G5 et G6).
 
 ---
 
@@ -345,6 +345,5 @@ Le ressenti (rythme, plaisir des gestes, lisibilité), le rendu visuel, les perf
 | G2 | Bâtiments (`data/buildings/`), chantiers et file de construction, voisinage, Enzymes, plafond de stock, désactivation ; palette et menu rond ; robots composés (profil d'expansion + profil de bâtisseur + pourcentage) dans le panneau de simulations. Trois étapes : `sim/` et tests ; affichage, HUD et Bac à sable ; robots et panneau |
 | G3 | `CombatSystem`, gestes dans `view/input/`, `EventSystem`, `VictorySystem` |
 | G4 | `ai/` (robots complets), `tools/sim_runner.gd` étendu, menus, résultats |
-| G5 | Salon de partie personnalisée, surcharge des paramètres, préréglages |
-| G6 | Tutoriel, audio, traduction, profil, succès Steam |
-| G7 | `SteamTransport`, salons et invitations, vérification par empreinte, interface d'administration. **Première étape : tests entre amis avec l'App ID 480** (Spacewar) : l'App ID est lu depuis la configuration (jamais écrit en dur), les salons portent une clé de métadonnée propre au jeu et à sa version et la recherche filtre dessus (l'App ID 480 est partagé avec d'autres développeurs), et `steam_appid.txt` est réservé aux builds de test, jamais inclus dans l'export final |
+| G5 | Tutoriel, audio, traduction, profil ; `SteamService` avec GodotSteam et l'App ID 480 (initialisation, identité, amis) |
+| G6 | `SteamTransport`, salons et invitations, partie personnalisée (salon, surcharge des paramètres, préréglages ; ancien G5), vérification par empreinte, interface d'administration. **Première étape : tests entre amis avec l'App ID 480** (Spacewar) : l'App ID est lu depuis la configuration (jamais écrit en dur), les salons portent une clé de métadonnée propre au jeu et à sa version et la recherche filtre dessus (l'App ID 480 est partagé avec d'autres développeurs), et `steam_appid.txt` est réservé aux builds de test, jamais inclus dans l'export final |

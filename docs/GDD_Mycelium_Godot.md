@@ -228,7 +228,7 @@ Cible : **~10 nutriments/s pour la colonie au départ → 1e5 à 1e6 nutriments/
 
 ### 6.5 Retour visuel (le « boum »)
 - **La colonie vit dans son entièreté** : une **onde continue** parcourt la colonie de ses bords **vers le Cœur**, comme les nutriments qui remontent. À chaque palier, elle devient **plus fréquente et plus intense**.
-- Au franchissement d'un **palier** : message « Palier ×2 ! » et le **Cœur qui saute** un instant. Les particules et le son viendront avec l'audio (G6).
+- Au franchissement d'un **palier** : message « Palier ×2 ! » et le **Cœur qui saute** un instant. Les particules et le son viendront avec l'audio (G5).
 - Les **compteurs défilent** (nutriments qui montent à vue d'œil) et une **courbe de production** reste affichée dans le HUD.
 - La tache de la colonie **grossit de façon visible** ; la Floraison collective fait « éclore » tout le réseau.
 
@@ -555,11 +555,12 @@ Outil d'équilibrage **séparé** de l'interface d'administration, disponible **
 | **G2 : City builder** | Bâtiments (Nœud de digestion, Grenier, Pépinière, Glande enzymatique, Mycorhize), chantiers, file de construction, voisinage, Enzymes, plafond de stock, déblocages et désactivation par palier ; pose (palette ou menu rond), démolition ; HUD (palette, file et chantiers, Enzymes, stock et plafond) ; pictogrammes validés sur maquettes ; réglages du Bac à sable pour les bâtiments ; robots du panneau de simulations (§14.5) avec profil de bâtisseur. Livré en **trois étapes** (simulation et tests ; affichage, HUD et Bac à sable ; robots et panneau) ; version **0.3.0** |
 | **G3 : Combat et fin de partie** | Filament d'assaut, trancher, actions actives, Sclérote, élimination, **butin et transfert du territoire**, événements, frise de partie |
 | **G4 : Duel et FFA contre robots** | Menus, robots (3 difficultés, profils), robots dans le Bac à sable, résultats (pause et vitesse réservées au Bac à sable depuis le 4 octobre 2026) |
-| **G5 : Partie personnalisée (local)** | Salon, emplacements, paramètres de forêt, préréglages |
-| **G6 : Habillage et bêta solo** | **Tutoriel**, audio, profil et statistiques, traduction, page Steam et succès, essais du jeu contre robots avec de vrais joueurs (Steam Playtest) |
-| **G7 : Multijoueur** | **Étape 1, tests entre amis avec l'App ID 480** (GodotSteam, sans page Steam ni frais, §14.1) : initialisation de Steam, salons et invitations d'amis, relais Steam, hébergement par un joueur, vérification par empreinte, déconnexion et pilote automatique, arrêt de la partie si l'hôte part. **Étape 2, version complète** : file d'attente Steam, FFA entre joueurs, Duel contre un joueur (invitation puis file d'attente, rang éventuel), partie personnalisée avec amis, chat, **interface d'administration en lecture seule** |
+| **G5 : Habillage et bêta solo** | **Tutoriel**, audio, profil et statistiques, traduction, essais du jeu contre robots avec de vrais joueurs ; **intégration de GodotSteam avec l'App ID 480** (initialisation de Steam, identité, amis), avancée du multijoueur le 4 octobre 2026 |
+| **G6 : Multijoueur** | **Étape 1, tests entre amis avec l'App ID 480** (sans page Steam ni frais, §14.1) : salons et invitations d'amis, relais Steam, hébergement par un joueur, vérification par empreinte, déconnexion et pilote automatique, arrêt de la partie si l'hôte part. **Étape 2, version complète** : file d'attente Steam, FFA entre joueurs, Duel contre un joueur (invitation puis file d'attente, rang éventuel), **partie personnalisée** complète (salon, emplacements, paramètres de forêt, préréglages, invitations d'amis ; l'ancien jalon G5 « Partie personnalisée (local) » y a été fusionné le 4 octobre 2026), chat, **interface d'administration en lecture seule** |
 
-Le jeu est donc complet et jouable en solo avant le multijoueur. Pour ne pas avoir à tout réécrire au G7, la simulation est construite dès le G1 pour ne recevoir que des **commandes** (§14.2) : le passage en ligne consiste surtout à faire tourner cette simulation chez l'hôte et à brancher le réseau Steam.
+**Hors feuille de route** : la **page Steam**, l'**App ID réel** (Steam Direct, 100 $), les **succès** et **Steam Playtest** se font dès que le propriétaire décide de payer, quel que soit le jalon en cours.
+
+Le jeu est donc complet et jouable en solo avant le multijoueur. Pour ne pas avoir à tout réécrire au G6, la simulation est construite dès le G1 pour ne recevoir que des **commandes** (§14.2) : le passage en ligne consiste surtout à faire tourner cette simulation chez l'hôte et à brancher le réseau Steam.
 
 ---
 
@@ -572,7 +573,7 @@ Le jeu est donc complet et jouable en solo avant le multijoueur. Pour ne pas avo
 4. **Déblocages par palier de colonie** (et non par le temps).
 5. **Production et déblocages liés au nombre de cases actuel** : perdre un palier **désactive** les bâtiments concernés (sans les détruire) ; capturer une case donne son bâtiment au capteur, actif ou désactivé selon son propre palier (§7.6).
 6. **Pas de pactes** dans la première version.
-7. **Tout le multijoueur dans le dernier jalon** (G7), FFA et Duel entre joueurs ensemble.
+7. **Tout le multijoueur dans le dernier jalon** (G6), FFA et Duel entre joueurs ensemble ; seule l'intégration de base de GodotSteam (App ID 480) est avancée en G5.
 8. **Plafond de 30 min** y compris en partie personnalisée.
 9. **Aucun rétrécissement de la carte** : c'est la richesse du centre, le butin et la Mort subite qui poussent au conflit.
 10. **Steam** pour la distribution, les comptes, les amis, les invitations et les salons.
@@ -684,28 +685,19 @@ Questions relevées en relisant chaque jalon. Elles seront posées sous forme de
 10. Robots dans le Bac à sable : choisis comme dans le panneau (paire de profils et pourcentage), avec une difficulté ?
 11. Panneau de simulations : ajoute-t-on les mesures de combat (éliminations avant 26:00, parties finies au temps, efficacité des filaments et de « trancher », effet du butin) ?
 
-### G5 : Partie personnalisée (local)
-1. La partie personnalisée sert à jouer **avec ses amis**, mais G5 est local (pas de réseau avant G7). Que contient G5 : l'écran du salon contre des robots seulement ? Faut-il le fusionner avec G7, ou avec le Bac à sable ?
-2. Réglages : la partie personnalisée garde-t-elle la liste courte du §2.4, ou reprend-elle les réglages complets du Bac à sable ?
-3. Partie à 3 colonies : quel rayon par défaut ?
-4. Rayons 5, 11, 17, 23 « à confirmer » ; peut-on combiner n'importe quel nombre de colonies avec n'importe quel rayon (6 colonies sur un rayon 5) ?
-5. Valeurs des plages « à valider » : richesse ×1 à ×8, difficulté faible / normale / forte, ressources peu / normales / beaucoup, événements rares / normaux / fréquents.
-6. Préréglages : quand arrive le code partageable ? Le Bac à sable aura-t-il les mêmes préréglages (« plus tard ») ?
-7. Une partie personnalisée compte-t-elle dans les statistiques du profil ?
-
-### G6 : Habillage et bêta solo
+### G5 : Habillage et bêta solo
 1. Tutoriel : quelle forêt (« petite forêt de Duel » : rayon 5 ?) ? Faut-il ajouter des étapes pour la file d'expansion, la Mycorhize ou les Enzymes ?
 2. Audio : style de la musique et des bruitages ; qui les produit (banques libres de droits, compositeur, autre) et sous quelle licence ?
-3. Profil et statistiques : enregistrés sur le PC (`user://`) avant G7, puis liés au compte Steam ? Sauvegarde Steam Cloud ?
+3. Profil et statistiques : enregistrés sur le PC (`user://`), liés au compte Steam ? Sauvegarde Steam Cloud ?
 4. Récompenses cosmétiques (§11.5 : titres, couleurs de réseau, effets de particules) : quel jalon, lesquelles, à quelles conditions ?
-5. Page Steam, succès et Steam Playtest demandent un **App ID réel** (Steam Direct, 100 $), alors que l'intégration de GodotSteam et les tests avec l'App ID 480 sont prévus en G7. Quand créer la page et payer ? GodotSteam arrive-t-il donc dès G6 ?
-6. Modèle économique (gratuit ou payant) : à décider avant la page Steam ?
-7. Langues : français et anglais seulement ?
-8. Paramètres audio et accessibilité (taille de l'interface, palette adaptée au daltonisme, §13.5) : quel jalon ?
-9. Icône définitive, logo et visuels de la page Steam : qui les fait ?
-10. Numéro de version de la bêta solo (0.7.0 ?) et de la sortie (1.0.0 ?).
+5. GodotSteam avec l'App ID 480 : que fait-on exactement en G5 (pseudo Steam affiché, liste d'amis, autre) ? Le jeu doit-il fonctionner sans Steam lancé ?
+6. Langues : français et anglais seulement ?
+7. Paramètres audio et accessibilité (taille de l'interface, palette adaptée au daltonisme, §13.5) : quel jalon ?
+8. Icône définitive et logo : qui les fait ?
+9. Essais avec de vrais joueurs sans Steam Playtest : par la version GitHub ? Comment recueillir leurs retours ?
+10. Numéro de version de la bêta solo.
 
-### G7 : Multijoueur
+### G6 : Multijoueur
 1. File d'attente : en Duel, au bout de combien de temps proposer un robot s'il n'y a personne ? En FFA, que faire avec moins de 4 joueurs après 2 min ?
 2. Classement du Duel (rang, classements Steam) : le fait-on ? Il dépend de la question sur la triche de l'hôte (§16).
 3. Hôte en file d'attente : le propriétaire du salon Steam, ou le joueur qui a la meilleure connexion ?
@@ -715,9 +707,22 @@ Questions relevées en relisant chaque jalon. Elles seront posées sous forme de
 7. Replay partagé en fin de partie : sous quelle forme (fichier, Steam) ?
 8. Interface d'administration : où est stockée la liste des comptes autorisés ? Les statistiques globales Steam ne fonctionnent pas avec l'App ID 480 : l'écran attend-il l'App ID réel ?
 9. Spectateurs en ligne : les éliminés restent-ils dans la partie et dans le chat ?
-10. Partie personnalisée en ligne : un invité absent est-il remplacé par un robot au lancement seulement, ou aussi en cours de partie ?
-11. Versions différentes entre l'hôte et un invité : on bloque la connexion ?
-12. Numéro de version des étapes 1 et 2.
+10. Versions différentes entre l'hôte et un invité : on bloque la connexion ?
+11. Numéro de version des étapes 1 et 2.
+
+**Partie personnalisée** (ancien jalon G5)
+12. Réglages : la partie personnalisée garde-t-elle la liste courte du §2.4, ou reprend-elle les réglages complets du Bac à sable ?
+13. Partie à 3 colonies : quel rayon par défaut ?
+14. Rayons 5, 11, 17, 23 « à confirmer » ; peut-on combiner n'importe quel nombre de colonies avec n'importe quel rayon (6 colonies sur un rayon 5) ?
+15. Valeurs des plages « à valider » : richesse ×1 à ×8, difficulté faible / normale / forte, ressources peu / normales / beaucoup, événements rares / normaux / fréquents.
+16. Préréglages : quand arrive le code partageable ? Le Bac à sable aura-t-il les mêmes préréglages (« plus tard ») ?
+17. Une partie personnalisée compte-t-elle dans les statistiques du profil ?
+18. Un invité absent est-il remplacé par un robot au lancement seulement, ou aussi en cours de partie ?
+
+### Hors feuille de route : sortie Steam
+1. Modèle économique (gratuit ou payant) : à décider avant la page Steam ?
+2. Visuels de la page Steam (capsules, captures, bande-annonce) : qui les fait ?
+3. Numéro de version de la sortie (1.0.0 ?).
 
 ### Questions communes à plusieurs jalons
 1. Peut-on quitter une partie solo et la reprendre plus tard (sauvegarde de partie en cours) ?
