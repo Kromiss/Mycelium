@@ -1,41 +1,45 @@
-# Mycelium
+# Mycelium : Last Colony
 
-Jeu incrémental compétitif sur une carte hexagonale : fais croître ton mycélium, conquiers la forêt
-et termine la semaine en tête du classement. Web, gratuit, wipe hebdomadaire.
+City builder incrémental compétitif sur une carte d'hexagones : fais grandir ta colonie de
+champignons, bâtis ta ville et sois la dernière colonie vivante. Parties de 30 minutes maximum,
+en Duel, en FFA ou en partie personnalisée. Jeu Godot, exécutable Windows, distribution Steam.
 
-## Démarrer en local
+## Télécharger
 
-Prérequis : Node 22 et pnpm (`corepack enable`).
+Chaque fusion sur `main` publie une version préliminaire avec `Mycelium.exe` dans l'onglet
+**Releases** du dépôt. Les versions définitives (`v0.x.0`) sont publiées en fin d'itération.
+
+## Développer
+
+Prérequis : **Godot 4.6.3** (version exacte), Git, et pour le formatage Python avec
+`pip install "gdtoolkit==4.5.0"`.
+
+1. Cloner le dépôt.
+2. Ouvrir `project.godot` dans Godot 4.6.3 et lancer le projet (F5).
+
+En ligne de commande (`godot` = l'exécutable Godot 4.6.3) :
 
 ```bash
-pnpm install
-pnpm dev:server   # http://localhost:3000/api/health
-pnpm dev:web      # http://localhost:5173
-pnpm check        # typecheck + tests + migrations + build, comme la CI
-pnpm --filter @mycelium/shared simulate   # courbe d'une semaine solo (2 profils de joueurs)
-pnpm --filter @mycelium/shared simulate:forest   # une semaine de forêt avec 12 robots
-pnpm --filter @mycelium/shared simulate:balance  # équilibre des souches et des branches (≈ 5 min)
-pnpm --filter @mycelium/shared simulate:profiles # 24 h/24 ou toutes les 3 h, centre ou base (≈ 5 min par forêt)
+godot --headless --import
+godot --headless -s addons/gut/gut_cmdln.gd -gconfig=res://.gutconfig.json   # tests
+gdformat --check autoload game sim ui view tests tools
+gdlint autoload game sim ui view tests tools
+godot --headless --export-release "Windows Desktop" build/windows/Mycelium.exe
 ```
 
-Postgres et Redis sont optionnels en local : sans `DATABASE_URL` / `REDIS_URL`, le serveur démarre et
-les signale comme `disabled` dans `/api/health`. Sans Postgres, les parties sont gardées en mémoire et
-perdues au redémarrage du serveur (le navigateur redemande alors un pseudo).
-Migrations : `DATABASE_URL=... pnpm --filter @mycelium/server migrate`.
-
-Tester à plusieurs en local : chaque navigateur (ou fenêtre privée) crée son compte. Pour remplir la
-forêt et accélérer le temps : `BOTS=11 TIME_SCALE=60 pnpm dev:server` (11 robots qui jouent seuls,
-1 minute réelle = 1 heure de jeu). Pour voir passer une semaine entière (phases, fin de saison, nouvelle
-forêt) : `TIME_SCALE=600`, soit une semaine en 17 minutes environ. Ces deux réglages sont refusés en
-production.
-
-Tests du stockage Postgres (ignorés sans base) : `TEST_DATABASE_URL=postgres://.../base_jetable pnpm test`
-— la base indiquée est **vidée** au début des tests.
+L'export demande les modèles d'export de Godot 4.6.3 (Éditeur > Gérer les modèles d'export).
 
 ## Documentation
 
-- [`CLAUDE.md`](CLAUDE.md) — règles du projet et des sessions Claude
-- [`docs/workflow.md`](docs/workflow.md) — branches, protocole de merge, réglages GitHub
-- [`docs/deploy.md`](docs/deploy.md) — prod, staging, mise en place du serveur, secrets
-- [`docs/versioning.md`](docs/versioning.md) — versions et releases
-- [`docs/roadmap.md`](docs/roadmap.md) — jalons de développement
+- [`docs/GDD_Mycelium_Godot.md`](docs/GDD_Mycelium_Godot.md) — le jeu (règles, modes, feuille de route)
+- [`docs/Architecture_Mycelium_Godot.md`](docs/Architecture_Mycelium_Godot.md) — organisation du code et normes
+- [`docs/workflow.md`](docs/workflow.md) — branches, livraison, réglages GitHub
+- [`docs/versioning.md`](docs/versioning.md) — versions et publications
+- [`CLAUDE.md`](CLAUDE.md) — règles des sessions Claude
+
+L'ancienne version web du jeu est conservée dans la branche `archive/web`.
+
+## Licences des ressources
+
+Polices Fredoka et Nunito : SIL Open Font License (voir `assets/fonts/`).
+GUT (tests) : licence MIT (voir `addons/gut/`).

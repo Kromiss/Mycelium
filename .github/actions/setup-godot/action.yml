@@ -1,0 +1,70 @@
+name: Installer Godot
+description: Télécharge Godot (version épinglée) et, si demandé, les modèles d'export Windows. Les deux sont mis en cache.
+
+inputs:
+  templates:
+    description: Installer aussi les modèles d'export Windows (« true » ou « false »)
+    default: "false"
+
+outputs:
+  godot:
+    description: Chemin de l'exécutable Godot
+    value: ${{ steps.paths.outputs.godot }}
+
+runs:
+  using: composite
+  steps:
+    - name: Version de Godot
+      id: paths
+      shell: bash
+      run: |
+        # Version épinglée du moteur : à changer ici et dans docs/Architecture_Mycelium_Godot.md.
+        echo "version=4.6.3" >> "$GITHUB_OUTPUT"
+        echo "godot=$HOME/godot/Godot_v4.6.3-stable_linux.x86_64" >> "$GITHUB_OUTPUT"
+
+    - name: Cache de Godot
+      id: cache-godot
+      uses: actions/cache@v4
+      with:
+        path: ~/godot
+        key: godot-${{ steps.paths.outputs.version }}
+
+    - name: Télécharger Godot
+      if: steps.cache-godot.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        set -euo pipefail
+        V=${{ steps.paths.outputs.version }}
+        mkdir -p ~/godot
+        curl -sSL -o /tmp/godot.zip "https://github.com/godotengine/godot/releases/download/${V}-stable/Godot_v${V}-stable_linux.x86_64.zip"
+        unzip -q -o /tmp/godot.zip -d ~/godot
+
+    - name: Cache des modèles d'export
+      if: inputs.templates == 'true'
+      id: cache-templates
+      uses: actions/cache@v4
+      with:
+        path: ~/.local/share/godot/export_templates
+        key: godot-templates-windows-${{ steps.paths.outputs.version }}
+
+    - name: Télécharger les modèles d'export Windows
+      if: inputs.templates == 'true' && steps.cache-templates.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        set -euo pipefail
+        V=${{ steps.paths.outputs.version }}
+        T=~/.local/share/godot/export_templates/${V}.stable
+        mkdir -p "$T"
+        curl -sSL -o /tmp/templates.tpz "https://github.com/godotengine/godot/releases/download/${V}-stable/Godot_v${V}-stable_export_templates.tpz"
+        unzip -q -o -j /tmp/templates.tpz templates/version.txt templates/windows_release_x86_64.exe \
+          templates/windows_debug_x86_64.exe templates/windows_release_x86_64_console.exe \
+          templates/windows_debug_x86_64_console.exe -d "$T"
+        rm /tmp/templates.tpz
+
+    - name: Importer le projet
+      shell: bash
+      run: |
+        # Le premier import génère les traductions et le cache des classes ; il peut afficher
+        # des erreurs sur des fichiers pas encore générés, d'où le second passage.
+        "${{ steps.paths.outputs.godot }}" --headless --import || true
+        "${{ steps.paths.outputs.godot }}" --headless --import

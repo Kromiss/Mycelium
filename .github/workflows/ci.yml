@@ -1,5 +1,7 @@
 name: CI
 
+# Vérifie chaque envoi sur dev et chaque PR : formatage, style, tests, export Windows de contrôle.
+
 on:
   push:
     branches: [dev]
@@ -11,31 +13,38 @@ permissions:
   contents: read
 
 jobs:
-  # Keep this job name: the rulesets on main and dev require the "check" status.
+  # Garder ce nom : les règles de protection de main et dev exigent le statut « check ».
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-python@v5
         with:
-          node-version-file: .nvmrc
-          cache: pnpm
+          python-version: "3.12"
 
-      - name: Install
-        run: pnpm install --frozen-lockfile
+      - name: Installer gdtoolkit
+        run: pip install "gdtoolkit==4.5.0"
 
-      - name: Typecheck
-        run: pnpm typecheck
+      - name: Formatage
+        run: gdformat --check autoload game sim ui view tests tools
+
+      - name: Style
+        run: gdlint autoload game sim ui view tests tools
+
+      - name: Installer Godot
+        id: godot
+        uses: ./.github/actions/setup-godot
+        with:
+          templates: "true"
 
       - name: Tests
-        run: pnpm test
+        run: |
+          "${{ steps.godot.outputs.godot }}" --headless -s addons/gut/gut_cmdln.gd -gconfig=res://.gutconfig.json
 
-      - name: Migrations
-        run: pnpm check:migrations
-
-      - name: Build
-        run: pnpm build
+      - name: Export Windows de contrôle
+        run: |
+          mkdir -p build/windows
+          "${{ steps.godot.outputs.godot }}" --headless --export-release "Windows Desktop" build/windows/Mycelium.exe
+          test -s build/windows/Mycelium.exe

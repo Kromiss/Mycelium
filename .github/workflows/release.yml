@@ -1,17 +1,15 @@
 name: Release
 
-# Creates the vX.Y.Z tag and the GitHub Release from the matching CHANGELOG.md entry.
-# Run it manually from main (cloud Claude sessions cannot push tags, so they trigger this instead),
-# or push a v* tag yourself.
+# Publie une version définitive vX.Y.Z avec Mycelium.exe et l'entrée correspondante du CHANGELOG.
+# À lancer à la main depuis main en fin d'itération (les sessions Claude cloud ne peuvent pas
+# pousser de tags, elles déclenchent donc ce workflow ou demandent au propriétaire de le lancer).
 
 on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Version tag, e.g. v0.2.0
+        description: Version à publier, par exemple v0.1.0
         required: true
-  push:
-    tags: ["v*"]
 
 permissions:
   contents: write
@@ -19,28 +17,27 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      - name: Validate
+      - name: Vérifier la version
         id: v
         env:
           INPUT_TAG: ${{ inputs.tag }}
         run: |
           set -euo pipefail
-          TAG="${INPUT_TAG:-$GITHUB_REF_NAME}"
+          TAG="$INPUT_TAG"
           if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "::error::Tag must look like v1.2.3 (got '$TAG')"; exit 1
+            echo "::error::La version doit ressembler à v1.2.3 (reçu : '$TAG')"; exit 1
           fi
-          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" && "$GITHUB_REF" != "refs/heads/main" ]]; then
-            echo "::error::Run this workflow from main"; exit 1
+          if [[ "$GITHUB_REF" != "refs/heads/main" ]]; then
+            echo "::error::Lancer ce workflow depuis main"; exit 1
           fi
           VERSION="${TAG#v}"
-          PKG_VERSION=$(node -p "require('./package.json').version")
-          if [[ "$PKG_VERSION" != "$VERSION" ]]; then
-            echo "::error::package.json is $PKG_VERSION but tag is $TAG — run pnpm version:bump $VERSION first"; exit 1
+          PROJECT_VERSION=$(sed -n 's/^config\/version="\(.*\)"$/\1/p' project.godot)
+          if [[ "$PROJECT_VERSION" != "$VERSION" ]]; then
+            echo "::error::project.godot est en $PROJECT_VERSION mais la version demandée est $TAG"; exit 1
           fi
           awk -v v="$VERSION" '
             $0 ~ "^## \\[" v "\\]" { found=1; next }
@@ -48,16 +45,29 @@ jobs:
             found { print }
           ' CHANGELOG.md > notes.md
           if [[ ! -s notes.md ]]; then
-            echo "::error::No '## [$VERSION]' entry in CHANGELOG.md"; exit 1
+            echo "::error::Aucune entrée '## [$VERSION]' dans CHANGELOG.md"; exit 1
           fi
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
-      - name: Create release
+      - name: Installer Godot
+        id: godot
+        uses: ./.github/actions/setup-godot
+        with:
+          templates: "true"
+
+      - name: Export Windows
+        run: |
+          mkdir -p build/windows
+          "${{ steps.godot.outputs.godot }}" --headless --export-release "Windows Desktop" build/windows/Mycelium.exe
+          test -s build/windows/Mycelium.exe
+
+      - name: Publier la version
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ steps.v.outputs.tag }}
         run: |
           if gh release view "$TAG" >/dev/null 2>&1; then
-            echo "::error::Release $TAG already exists"; exit 1
+            echo "::error::La version $TAG existe déjà"; exit 1
           fi
-          gh release create "$TAG" --target "$GITHUB_SHA" --title "$TAG" --notes-file notes.md
+          gh release create "$TAG" build/windows/Mycelium.exe \
+            --target "$GITHUB_SHA" --title "$TAG" --notes-file notes.md

@@ -1,10 +1,12 @@
-node_modules/
-dist/
-coverage/
+# Dossiers générés par Godot
+.godot/
+*.translation
+
+# Exports
+build/
+
+# Divers
 *.log
-.env
-.env.*
-!.env.example
 .DS_Store
 .vscode/
 .idea/

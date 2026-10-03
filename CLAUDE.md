@@ -1,77 +1,84 @@
 # CLAUDE.md — règles pour chaque session Claude sur Mycelium
 
-Lis ce fichier en entier avant d'agir, puis le fichier de `docs/` qui correspond à ta tâche
-(`workflow.md` pour git/merge, `deploy.md` pour la prod et le staging, `versioning.md` pour les versions).
+Lis ce fichier en entier avant d'agir, puis le document de `docs/` qui correspond à ta tâche :
+`GDD_Mycelium_Godot.md` (le jeu), `Architecture_Mycelium_Godot.md` (le code),
+`workflow.md` (git et livraison), `versioning.md` (versions).
 
 ## Le projet
 
-Mycelium est un jeu incrémental compétitif, web-first et gratuit : chaque joueur fait croître un
-mycélium sur une carte hexagonale à conquérir, avec du PvP, 20 à 30 joueurs par forêt (serveur) et un
-wipe chaque semaine ; l'objectif est de finir en tête du classement. Les détails de game design se
-décident avec le propriétaire (Kromiss) : ne pas inventer de règle de jeu sans lui demander.
+**Mycelium : Last Colony** est un city builder incrémental compétitif, en parties de 30 minutes
+maximum : chaque joueur fait grandir une colonie de champignons sur une carte d'hexagones, et le but
+est d'être la dernière colonie vivante. Modes Duel, FFA (jusqu'à 6) et Partie personnalisée, contre
+des robots puis en ligne. Cible : un exécutable Windows, distribué sur Steam.
 
-La référence de game design est **`GDD_Mycelium.md`**, dans les documents du projet Claude « Jeu
-incremental » (outil Projects). Lis-le avant toute tâche de gameplay. Les jalons sont dans
-`docs/roadmap.md`.
+Les détails de game design se décident avec le propriétaire (Kromiss) : **ne jamais inventer de règle
+de jeu, et poser la question au moindre doute**. La référence est `docs/GDD_Mycelium_Godot.md` (aussi
+dans les documents du projet Claude « Jeu incremental ») ; les jalons sont dans son §15.
+
+L'ancienne version web est archivée dans la branche `archive/web` : ne pas la modifier.
 
 ## Stack et arborescence
 
-Monorepo TypeScript, pnpm, Node 22.
+Godot **4.6.3** (épinglé), GDScript typé, moteur de rendu Compatibilité, tests GUT 9.6.1,
+formatage et style avec gdtoolkit 4.5.0. Le détail de l'arborescence est dans
+`docs/Architecture_Mycelium_Godot.md` §3 ; en bref :
 
 | Dossier | Contenu |
 |---|---|
-| `packages/shared` | code partagé client/serveur (grille hexagonale, protocole WebSocket, types) |
-| `apps/server` | serveur de jeu Node : HTTP `/api/*`, WebSocket `/ws`, Postgres, Redis |
-| `apps/server/migrations` | migrations SQL `NNNN_description.sql`, uniquement vers l'avant |
-| `apps/web` | client web (Vite) |
-| `deploy/` | Dockerfiles, docker-compose, Caddyfile, scripts de déploiement |
-| `.github/workflows/` | CI, déploiement prod, staging, releases |
+| `sim/` | règles du jeu, code pur sans nœud, déterministe |
+| `data/` | équilibrage et contenu (ressources `.tres`) |
+| `view/` | affichage de la carte (lecture seule) |
+| `ui/` | écrans et thème de l'interface |
+| `game/` | assemblage d'une partie |
+| `autoload/` | singletons `Settings` et `SceneRouter` |
+| `tests/` | tests GUT (`unit/`, `integration/`) |
+| `tools/` | outils de développement (captures d'écran…) |
+| `.github/workflows/` | CI, build de main, Release |
 
-Commandes : `pnpm install`, `pnpm dev:server`, `pnpm dev:web`, et avant toute livraison
-**`pnpm check`** (= typecheck + tests + vérif des migrations + build, exactement comme la CI).
+Commandes (avec `godot` = l'exécutable Godot 4.6.3) :
+
+```bash
+godot --headless --import                                              # importer le projet
+godot --headless -s addons/gut/gut_cmdln.gd -gconfig=res://.gutconfig.json   # tests
+gdformat --check autoload game sim ui view tests tools                 # formatage
+gdlint autoload game sim ui view tests tools                           # style
+godot --headless --export-release "Windows Desktop" build/windows/Mycelium.exe   # export
+```
+
+Avant toute livraison : import, tests, formatage et style doivent être verts, exactement comme la CI.
 
 ## Conventions
 
-- Code, identifiants, commentaires et messages de commit en **anglais**. Les échanges avec le
+- Noms (fichiers, classes, fonctions, variables, signaux, clés de traduction) en **anglais** ;
+  **commentaires en français** ; **messages de commit en français**. Les échanges avec le
   propriétaire se font en français.
-- Tout texte affiché au joueur passe par une couche i18n **EN + FR** (à créer avec le premier écran
-  qui en a besoin) ; jamais de texte en dur dans l'UI.
-- La logique de jeu pure (règles, calculs, grille) va dans `packages/shared` avec des tests ;
-  le serveur fait autorité, le client ne fait qu'afficher et prédire.
+- Tout texte affiché au joueur passe par `i18n/translations.csv` (**EN + FR**) ; jamais de texte en dur.
+- Les règles du jeu vivent uniquement dans `sim/`, sans nœud ni aléatoire global ni lecture de l'heure
+  (voir `docs/Architecture_Mycelium_Godot.md` §4). Aucun chiffre d'équilibrage dans le code : il va dans `data/`.
 - Chaque nouvelle fonctionnalité arrive avec ses tests.
+- Toute nouvelle décision prise avec le propriétaire est reportée dans le GDD ou le document d'architecture.
 
 ## Branches et livraison
 
-- `main` = la prod : chaque push sur `main` déploie. `dev` = branche d'intégration.
+- `main` reçoit uniquement des PR `dev → main`. Chaque fusion sur `main` publie une version
+  préliminaire avec `Mycelium.exe` (workflow **Build**). `dev` = branche d'intégration.
 - Une branche par fil de travail : `claude/<tâche>`.
 - Protocole de livraison (détails dans `docs/workflow.md`) :
   1. `git fetch origin dev` puis rebase sur `origin/dev` ;
-  2. si tu ajoutes une migration, renumérote-la après la dernière existante ;
-  3. `pnpm check` en local, tout doit être vert ;
-  4. `git push origin HEAD:dev` (fast-forward uniquement, jamais de force-push) ;
-  5. ouvrir une PR `dev → main`, attendre la CI verte.
-- Tu pousses sur `dev` directement (bypass admin du ruleset). **Jamais sur `main`.**
-- **Merge `dev → main` et déploiement : pas d'autonomie accordée pour l'instant.** Ouvre la PR et
-  demande au propriétaire de merger, sauf s'il t'a donné l'autorisation par écrit dans le fil en cours.
-  S'il l'accorde de façon permanente, mets à jour cette ligne.
-
-## Base de données
-
-- Migrations SQL uniquement vers l'avant ; ne jamais modifier une migration déjà mergée.
-- La CI refuse `DROP TABLE/COLUMN`, `TRUNCATE`, `DELETE FROM` et les changements de type, sauf
-  commentaire `-- allow-destructive` sur la ligne, à ne mettre qu'avec l'accord du propriétaire.
+  2. import, tests, formatage et style en local, tout doit être vert ;
+  3. `git push origin HEAD:dev` (avance rapide uniquement, jamais de force-push) ;
+  4. ouvrir une PR `dev → main`, attendre le check `check` vert.
+- Tu pousses sur `dev` directement (contournement admin des règles). **Jamais sur `main`.**
+- **Fusion `dev → main` : pas d'autonomie accordée.** Ouvre la PR et demande au propriétaire de la
+  fusionner, sauf autorisation écrite dans le fil en cours. S'il l'accorde de façon permanente,
+  mets à jour cette ligne.
 
 ## Versions
 
-Semver à partir de `0.1.0` : `0.x.0` par itération, `0.x.y` pour un correctif. En fin d'itération :
-`pnpm version:bump X.Y.Z`, entrée dans `CHANGELOG.md`, livraison normale, puis lancer le workflow
-**Release** avec `tag: vX.Y.Z` (les sessions cloud ne peuvent pas pousser de tags). Voir `docs/versioning.md`.
+Semver à partir de `0.1.0` : `0.x.0` par itération, `0.x.y` pour un correctif. La version est
+`application/config/version` dans `project.godot`. Voir `docs/versioning.md`.
 
 ## Limites
 
-- Ne jamais lancer de reset, de suppression de données ou de `down -v` sur la prod.
-- Ne jamais écrire de secret dans le repo, un commit, une issue ou le chat. Seuls les **noms** de
-  secrets apparaissent dans la doc.
-- Aucun accès SSH direct au serveur : tout passe par GitHub Actions. La vérification d'un deploy,
-  c'est le healthcheck du workflow.
-- Ne jamais merger une PR d'un collaborateur : c'est au propriétaire de la relire.
+- Ne jamais écrire de secret dans le dépôt, un commit, une issue ou le chat.
+- Ne jamais fusionner une PR d'un collaborateur : c'est au propriétaire de la relire.
