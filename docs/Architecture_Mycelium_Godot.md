@@ -196,7 +196,7 @@ Fin de partie visée : ~1e6 nutriments/s, soit ~1e9 en millièmes par seconde ; 
 ## 8. Session, scènes et singletons
 
 - `Session` (`game/session.gd`) assemble une partie : crée la simulation et le transport, inscrit les robots, cadence les ticks (1 par seconde, ×2 ou ×4 en Bac à sable), met à jour `LocalViewState` et émet des **signaux** (`cell_changed`, `tier_reached`, `filament_launched`, `colony_eliminated`…).
-- **Singletons limités à trois** : `Settings`, `SceneRouter` et, à partir du jalon G5, `SteamService`. `SteamService` est **facultatif** : le Bac à sable est purement local et doit fonctionner sans Steam ni GodotSteam ; aucun code de `sim/`, `game/` ou du Bac à sable n'en dépend. L'état de la partie n'est **jamais** dans un singleton : il appartient à la `Session` en cours.
+- **Singletons limités à trois** : `Settings`, `SceneRouter` et, à partir du jalon G5, `SteamService`. `SteamService` est **facultatif** : les modes locaux (joueur et robots : Bac à sable, Duel et FFA contre robots, tutoriel) sont **isolés des modes en ligne** et fonctionnent sans Steam ni GodotSteam. Aucun code de `sim/`, `ai/`, `game/` ni des écrans des modes locaux ne dépend de `SteamService` ou de `SteamTransport` ; seuls `net/steam_transport.gd` et les écrans du multijoueur (salons, invitations, file d'attente) y touchent. L'état de la partie n'est **jamais** dans un singleton : il appartient à la `Session` en cours.
 - Une scène par écran (`ui/menus/main_menu.tscn`, `ui/hud/hud.tscn`…), une scène par élément réutilisable (bouton de bâtiment, ligne de classement).
 
 ---
