@@ -78,7 +78,7 @@ Permet de créer **tout type de partie** : le type (Duel ou FFA, d'autres plus t
 ### 2.5 Robots
 - Les robots jouent **avec les mêmes règles et les mêmes commandes que les joueurs** : pas de triche. La difficulté joue sur la vitesse de réaction, la qualité du plan de ville et l'usage des attaques.
 - **Profils** : bâtisseur, expansionniste, agressif (pour varier les parties).
-- Ils servent aussi à compléter les salons, à remplacer un joueur déconnecté (§11.2) et à équilibrer les valeurs par simulation.
+- Ils servent aussi à compléter les salons, à remplacer un joueur déconnecté (§11.2) et à équilibrer les valeurs par simulation (dès G1, robots d'économie du panneau de simulations, §14.5).
 
 ### 2.6 Règles communes
 - **Durée maximale : 30:00**, tous modes, y compris personnalisés.
@@ -530,7 +530,19 @@ Raccourcis par défaut : **Espace** recentre la caméra sur le Cœur ; **P** met
 - **Joueurs en ligne** : les membres de ces salons (pseudo, mode, en attente ou en partie). Le nombre total de joueurs en jeu vient de Steam ; un joueur seul dans les menus n'est **pas visible** individuellement.
 - **Statistiques du jeu** : **statistiques globales Steam** (valeurs additionnées sur tous les joueurs) : parties jouées par mode, victoires, éliminations, durée de jeu, parties finies par élimination ou au temps, victoires contre robots par difficulté, déconnexions d'hôte. Les moyennes et répartitions fines (rangs, temps d'attente) demanderaient un petit service de collecte, **non prévu** pour l'instant.
 
-Aucune action de modification (pas d'arrêt de partie, pas de ressources, pas de sauts de temps). Pour **équilibrer** le jeu, les simulations accélérées passent par une **commande de développement** du jeu (robots seuls, temps accéléré), pas par cette interface.
+Aucune action de modification (pas d'arrêt de partie, pas de ressources, pas de sauts de temps). Pour **équilibrer** le jeu, les simulations accélérées passent par le **panneau de simulations** (§14.5), pas par cette interface.
+
+### 14.5 Panneau de simulations (développement) *(décidé le 4 octobre 2026, jalon G1)*
+Outil d'équilibrage **séparé** de l'interface d'administration, disponible **uniquement quand le jeu est lancé depuis l'éditeur Godot** : il n'existe dans aucun `.exe` livré.
+- **Lancement** : les **réglages du Bac à sable** (§2.1 bis), plus le **nombre de simulations** et la **durée simulée** (30 min par défaut). Deux façons : un **lancement simple** (N simulations par profil coché) ou un **balayage** (une valeur, son minimum, son maximum et son pas ; une série par valeur).
+- **Profils de robot** d'économie, à cocher pour les **comparer côte à côte** :
+  - **Hasardeux** : une case tirée au hasard parmi les 3 plus rentables (aléatoire tiré de la graine de chaque simulation) ;
+  - **Rentable** : le meilleur rapport production ajoutée (zone, Cohésion) / coût ;
+  - **Rapide** : le remboursement le plus court, durée de pousse comprise ;
+  - **Centre** : la case la plus riche qu'il peut payer.
+- **Mesures** : minute d'arrivée dans chaque zone et à chaque palier, production par minute, temps de remboursement d'une case (début, milieu, fin) et ce qui freine (part du temps à attendre les nutriments ou la pousse). Pour chacune : **moyenne, minimum, maximum et écart type**.
+- **Résultats** : tableaux (une colonne par profil) et courbes de production par minute (une par profil) ; export en **fichier CSV**. On peut **rejouer une simulation** sur la carte, en accéléré.
+
 
 ---
 
@@ -539,7 +551,7 @@ Aucune action de modification (pas d'arrêt de partie, pas de ressources, pas de
 | Jalon | Contenu |
 |---|---|
 | **G0 : Fondations** | Dépôt transformé pour Godot, vérification automatique et version GitHub avec le .exe à chaque fusion sur main ; carte hex (6 zones, un terrain) en Duel et FFA, rendu « Pastille ronde », caméra ; menu principal minimal (entrées futures grisées) ; écran Paramètres (thème, langue, affichage) |
-| **G1 : Solo économie** | Colonisation (pousse, file d'expansion), Cœur, réseau, production, Cohésion, **paliers de colonie** et retours visuels (onde continue, palier). Entrée **Bac à sable** : joueur seul sur une forêt de Duel ou de FFA au choix. Horloge de partie affichée (le bonus de l'Armillaire arrive en G3), pause (P + bouton) et vitesse (bouton ×1 / ×2 / ×4), réglages du Bac à sable avec retour aux valeurs par défaut et récapitulatif copiable (§2.1 bis). HUD : nutriments qui défilent, courbe de production, Biomasse, barre du prochain palier, grands nombres avec suffixes (K, M, B, T). Carte : cases colonisables **toujours marquées** (teinte à part pour celles payables tout de suite), **info-bulle au survol** d'une case (zone, coût, durée de pousse, production). Raccourcis modifiables dans les Paramètres (Espace = recentrer sur le Cœur, P = pause). Tests : enregistrement des commandes d'une partie et **rejeu à l'identique** (même empreinte). Livré en **deux étapes** (simulation et tests, puis affichage et HUD) ; version **0.2.0** |
+| **G1 : Solo économie** | Colonisation (pousse, file d'expansion), Cœur, réseau, production, Cohésion, **paliers de colonie** et retours visuels (onde continue, palier). Entrée **Bac à sable** : joueur seul sur une forêt de Duel ou de FFA au choix. Horloge de partie affichée (le bonus de l'Armillaire arrive en G3), pause (P + bouton) et vitesse (bouton ×1 / ×2 / ×4), réglages du Bac à sable avec retour aux valeurs par défaut et récapitulatif copiable (§2.1 bis). HUD : nutriments qui défilent, courbe de production, Biomasse, barre du prochain palier, grands nombres avec suffixes (K, M, B, T). Carte : cases colonisables **toujours marquées** (teinte à part pour celles payables tout de suite), **info-bulle au survol** d'une case (zone, coût, durée de pousse, production). Raccourcis modifiables dans les Paramètres (Espace = recentrer sur le Cœur, P = pause). Tests : enregistrement des commandes d'une partie et **rejeu à l'identique** (même empreinte). **Panneau de simulations** (§14.5) avec 4 profils de robot d'économie. Livré en **trois étapes** : 1) simulation et tests ; 2) affichage, HUD et Bac à sable ; 3) robots d'économie, simulations et panneau ; version **0.2.0** |
 | **G2 : City builder** | Bâtiments, chantiers, files, voisinage, humidité, déblocages par palier |
 | **G3 : Combat et fin de partie** | Filament d'assaut, trancher, actions actives, Sclérote, élimination, **butin et transfert du territoire**, événements, frise de partie |
 | **G4 : Duel et FFA contre robots** | Menus, robots (3 difficultés, profils), pause, accélération, résultats |

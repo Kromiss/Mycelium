@@ -110,7 +110,7 @@ res://
 │   └── translations.csv      Textes FR et EN
 ├── tools/
 │   ├── capture.gd            Captures d'écran d'un écran du jeu, pour validation visuelle
-│   └── sim_runner.gd         Parties de robots accélérées, sans affichage — jalon G4
+│   └── sim_runner.gd         Parties de robots accélérées, sans affichage — jalon G1 (économie), étendu en G4
 ├── tests/
 │   ├── unit/                 Un fichier de test par système
 │   ├── integration/          Parties complètes, déterminisme, scènes
@@ -178,6 +178,7 @@ Fin de partie visée : ~1e6 nutriments/s, soit ~1e9 en millièmes par seconde ; 
 - Décision par **utilité** : chaque évaluateur note les actions possibles (coloniser telle case, construire tel bâtiment, attaquer, trancher, migrer le Cœur) ; le robot choisit les meilleures.
 - **Difficulté** = délai de réaction, part d'erreurs, profondeur d'évaluation, taux de Frappes parfaites réussies. **Profil** = poids des évaluateurs (bâtisseur, expansionniste, agressif).
 - Les robots utilisent leur propre `SimRng` dérivé de la graine : une partie de robots est donc **rejouable à l'identique**.
+- **G1** : premiers robots d'économie (profils Hasardeux, Rentable, Rapide, Centre, GDD §14.5), qui ne font que coloniser ; ils servent au panneau de simulations et seront repris par les robots complets de G4.
 
 ---
 
@@ -297,6 +298,8 @@ func _colony_production(state: GameState, colony: ColonyState) -> int:
 | **Données** | Cohérence des `.tres` | Chaque bâtiment a un palier existant ; aucun coût nul ; chaque texte a sa traduction FR et EN |
 
 ### 11.3 Simulations d'équilibrage (`tools/sim_runner.gd`)
+Dès G1, le `sim_runner` est piloté par le **panneau de simulations** (GDD §14.5), une scène de `ui/` chargée seulement quand `OS.has_feature("editor")` est vrai : le panneau n'existe dans aucun export. Les simulations tournent sans affichage, avec une barre de progression ; les résultats (moyenne, min, max, écart type) s'exportent en CSV dans `user://`.
+
 Lance des centaines de parties de robots sans affichage et en temps accéléré, puis écrit un rapport (CSV) : minute d'arrivée dans chaque zone, courbe de production, nombre d'éliminations avant 26:00, parties finies au temps, efficacité des filaments et de « trancher », effet du butin. C'est l'outil qui répond aux questions « À simuler » du GDD.
 
 ### 11.4 Ce qui n'est pas couvert par les tests automatiques
@@ -339,10 +342,10 @@ Le ressenti (rythme, plaisir des gestes, lisibilité), le rendu visuel, les perf
 | Jalon | Code concerné |
 |---|---|
 | G0 | Transformation du dépôt, arborescence, autoloads, thèmes, traductions, `hex.gd`, `map_generator.gd` (zones uniquement), rendu de la carte, caméra, menu principal, écran Paramètres, GUT et workflows |
-| G1 | `GameState`, `Simulation`, commandes de colonisation, `GrowthSystem`, `EconomySystem`, `TierSystem`, `fixed.gd`, `sim_rng.gd`, `state_hash.gd`, `LocalTransport`, `Session` ; positions de départ dans `map_generator.gd` ; écran Bac à sable (réglages, valeurs par défaut, récapitulatif copiable), HUD, effets de palier, section Commandes des Paramètres ; enregistrement des commandes et test de rejeu. Livré en deux étapes : d'abord `sim/`, `data/` et leurs tests, puis `game/`, `view/` et `ui/` |
+| G1 | `GameState`, `Simulation`, commandes de colonisation, `GrowthSystem`, `EconomySystem`, `TierSystem`, `fixed.gd`, `sim_rng.gd`, `state_hash.gd`, `LocalTransport`, `Session` ; positions de départ dans `map_generator.gd` ; écran Bac à sable (réglages, valeurs par défaut, récapitulatif copiable), HUD, effets de palier, section Commandes des Paramètres ; enregistrement des commandes et test de rejeu ; robots d'économie (`ai/`), `tools/sim_runner.gd` et panneau de simulations (éditeur seulement). Livré en trois étapes : `sim/` et tests ; affichage, HUD et Bac à sable ; robots, simulations et panneau |
 | G2 | Bâtiments (`data/buildings/`), chantiers, voisinage, humidité, désactivation |
 | G3 | `CombatSystem`, gestes dans `view/input/`, `EventSystem`, `VictorySystem` |
-| G4 | `ai/`, `tools/sim_runner.gd`, menus, résultats |
+| G4 | `ai/` (robots complets), `tools/sim_runner.gd` étendu, menus, résultats |
 | G5 | Salon de partie personnalisée, surcharge des paramètres, préréglages |
 | G6 | Tutoriel, audio, traduction, profil, succès Steam |
 | G7 | `SteamTransport`, salons et invitations, vérification par empreinte, interface d'administration. **Première étape : tests entre amis avec l'App ID 480** (Spacewar) : l'App ID est lu depuis la configuration (jamais écrit en dur), les salons portent une clé de métadonnée propre au jeu et à sa version et la recherche filtre dessus (l'App ID 480 est partagé avec d'autres développeurs), et `steam_appid.txt` est réservé aux builds de test, jamais inclus dans l'export final |
