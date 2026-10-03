@@ -1,9 +1,0 @@
-**/node_modules
-**/dist
-**/coverage
-.git
-.github
-docs
-*.md
-.env
-.env.*

@@ -1,6 +1,0 @@
-{
-  "seeds": [20261005, 20261006, 20261007, 20261008],
-  "variants": [{ "name": "current", "overrides": {} }],
-  "days": 7,
-  "stop": ""
-}
