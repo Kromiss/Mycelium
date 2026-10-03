@@ -82,7 +82,7 @@ Permet de créer **tout type de partie** : le type (Duel ou FFA, d'autres plus t
 - Ils servent aussi à compléter les salons, à remplacer un joueur déconnecté (§11.2) et à équilibrer les valeurs par simulation (dès G1, robots d'économie du panneau de simulations, §14.5).
 
 ### 2.6 Règles communes
-- **Modes locaux et modes en ligne isolés** *(décidé le 4 octobre 2026)* : tous les modes locaux, où il n'y a que le joueur et des robots (Bac à sable, Duel et FFA contre robots, tutoriel), fonctionnent **sans Steam ni GodotSteam**. Steam ne sert qu'aux modes multijoueur (Duel et FFA entre joueurs, partie personnalisée avec des amis). **Les parties locales ne comptent pas** : elles servent d'entraînement et n'alimentent ni les statistiques ni les succès Steam.
+- **Modes locaux et modes en ligne isolés** *(décidé le 4 octobre 2026)* : tous les modes locaux, où il n'y a que le joueur et des robots (Bac à sable, Duel et FFA contre robots, tutoriel), fonctionnent **sans Steam ni GodotSteam**. Steam ne sert qu'aux modes multijoueur (Duel et FFA entre joueurs, partie personnalisée avec des amis). **Les parties locales ne comptent pas** : elles servent d'entraînement et n'alimentent ni les statistiques ni les succès Steam, et **ne donnent aucune récompense cosmétique**. Le **profil local** les enregistre quand même (statistiques et historique).
 - **Durée maximale : 30:00**, tous modes, y compris personnalisés.
 - **Pause et vitesse** : uniquement en Bac à sable (§2.1 bis), ni en Duel, ni en FFA, ni en partie personnalisée, y compris en spectateur.
 - **Résultat** : rang de partie = ordre d'élimination ; statistiques de fin (cases conquises, éliminations, durée de survie, pic de production).
@@ -692,11 +692,10 @@ Questions relevées en relisant chaque jalon. Elles seront posées sous forme de
 2. Audio : style de la musique et des bruitages ; qui les produit (banques libres de droits, compositeur, autre) et sous quelle licence ?
 3. Profil et statistiques : enregistrés sur le PC (`user://`), liés au compte Steam ? Sauvegarde Steam Cloud ?
 4. Récompenses cosmétiques (§11.5 : titres, couleurs de réseau, effets de particules) : quel jalon, lesquelles, à quelles conditions ?
-5. Les parties locales ne comptent pas pour Steam (§2.6) : le profil local (statistiques, historique) les enregistre-t-il quand même ? Et les récompenses cosmétiques (§11.5) peuvent-elles s'y gagner ?
-6. Langues : français et anglais seulement ?
-7. Paramètres audio et accessibilité (taille de l'interface, palette adaptée au daltonisme, §13.5) : quel jalon ?
-8. Icône définitive et logo : qui les fait ?
-9. Numéro de version de la bêta solo.
+5. Langues : français et anglais seulement ?
+6. Paramètres audio et accessibilité (taille de l'interface, palette adaptée au daltonisme, §13.5) : quel jalon ?
+7. Icône définitive et logo : qui les fait ?
+8. Numéro de version de la bêta solo.
 
 ### G6 : Multijoueur
 1. File d'attente : en Duel, au bout de combien de temps proposer un robot s'il n'y a personne ? En FFA, que faire avec moins de 4 joueurs après 2 min ?
