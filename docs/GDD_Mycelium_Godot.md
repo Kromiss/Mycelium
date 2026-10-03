@@ -29,7 +29,7 @@ Les valeurs chiffrées de ce document sont des **points de départ à simuler**,
 ### 2.1 Menu principal
 **Jouer** (Duel, FFA), **Partie personnalisée**, **Tutoriel**, **Profil**, **Paramètres**, **Quitter**.
 
-*G1 (décidé le 4 octobre 2026)* : une entrée **Bac à sable** lance la partie d'économie de G1 : le joueur est **seul** sur une forêt de **Duel ou de FFA, au choix**, avec la couleur **Menthe** ; Duel et FFA restent grisés jusqu'aux robots (G4).
+*G1 (décidé le 4 octobre 2026)* : une entrée **Bac à sable** lance la partie d'économie de G1 : le joueur est **seul** sur une forêt de **Duel ou de FFA, au choix**, avec la couleur **Menthe** ; Duel et FFA restent grisés jusqu'aux robots (G4), où le Bac à sable est retiré.
 
 ### 2.2 Duel (1 contre 1)
 - **Contre un robot** : disponible dès le départ. Choix de la difficulté (Facile, Normal, Difficile).
@@ -163,9 +163,11 @@ Cible : une colonie moyenne atteint la zone N vers la minute 3,5 × N. La limita
 ### 4.4 Règles d'expansion
 - On ne colonise qu'une case **adjacente** à son réseau. Une case **en pousse ne fait pas encore partie du réseau** : on ne peut pas coloniser sa voisine avant la fin de la pousse.
 - Coût = `base × (1 + 0,05 × distance_au_cœur) × difficulté_zone × 1,02 ^ nb_cases` (à simuler), avec `base` = **U = 30** nutriments. `nb_cases` ne compte que les **cases poussées** (pas les cases en pousse). Le terme `0,05 × distance_au_cœur` est **à décider plus tard** (absent en G1, à trancher avec la migration du Cœur) ; s'il est gardé, la distance se mesure **par le réseau** (plus court chemin à travers ses propres cases).
-- La colonisation n'est pas instantanée : les hyphes **poussent** (~4 s en zone 1), ce qui laisse une fenêtre de réaction. Les durées sont en **secondes entières** (1 tick par seconde) : 4 s en zone 1, arrondies dans les autres zones.
+- La colonisation n'est pas instantanée : les hyphes **poussent** (~4 s en zone 1), ce qui laisse une fenêtre de réaction. Les durées sont en **secondes entières** (1 tick par seconde) : 4 s en zone 1, **arrondies au plus proche** dans les autres zones (4 × 1,2 = 4,8 → 5 s).
 - **Pousses simultanées** : **une seule** au départ ; un **nouveau bâtiment**, à définir en G2, en ajoutera.
-- **File d'expansion** : jusqu'à 5 colonisations programmées. Le coût est payé **au démarrage de la pousse**, au prix du moment : une case attend en file d'avoir les nutriments. On peut **retirer une case de la file** ; une pousse lancée va à son terme.
+- **File d'expansion** : jusqu'à **5 cases, pousse en cours comprise** (1 en pousse + 4 en attente). Elles poussent **dans l'ordre où elles ont été ajoutées**. Le coût est payé **au démarrage de la pousse**, au prix du moment : une case attend en file d'avoir les nutriments.
+  - **En chaîne** : une case collée seulement à une case déjà en file peut y entrer ; elle attend que la précédente ait poussé.
+  - **Retirer** une case de la file la retire **avec toutes les cases qui en dépendent** en chaîne. Une pousse lancée va à son terme.
 - **Cohésion** : chaque case compte ses voisines possédées (0 à 6), **cases poussées seulement**. Production **+5 % par voisine** (max +30 %) ; en défense, temps de prise **+15 % par voisine**. Une **Rosace** (6 voisines) ne peut pas être visée par une Coupure.
 
 ### 4.5 Le réseau
@@ -307,7 +309,7 @@ Les effets déjà lancés (action en recharge, filament ou chantier en cours) vo
 
 ## 8. Souche unique
 
-Pour le moment, **une seule souche**, sans écran de choix : l'**Armillaire**. Elle grossit sur la durée : **production ×1,00 au départ → ×1,25 à 30:00** (croissance linéaire).
+Pour le moment, **une seule souche**, sans écran de choix : l'**Armillaire**. Elle grossit sur la durée : **production ×1,00 au départ → ×1,25 à 30:00** (croissance linéaire). *Arrive en G3, avec la fin de partie à 30:00.*
 D'autres souches pourront être ajoutées plus tard ; l'écran de choix arrivera avec la deuxième.
 
 ---
@@ -469,7 +471,8 @@ Les couleurs de colonie sont **éclaircies si besoin** en mode sombre pour garde
 - **Déplacement** : clic droit maintenu (on fait glisser la carte) et souris contre les **bords de l'écran**.
 - **Zoom** : molette, **centré sur la position de la souris**.
 - Le clic gauche reste réservé au jeu (sélection, filaments).
-- **Coloniser** : clic gauche sur une case libre collée à la colonie = la pousse démarre tout de suite (sinon la commande est refusée) ; **Maj + clic gauche** = mise en file d'expansion.
+- **Coloniser** : clic gauche sur une case libre collée à la colonie = la pousse démarre tout de suite (sinon la commande est refusée).
+- **File d'expansion** : **Maj + clic gauche** ajoute une case à la file, ou la retire si elle y est déjà. **Maj + clic gauche glissé** sur plusieurs cases les ajoute dans l'ordre du tracé ; le tracé **s'arrête** à la première case qui ne peut pas entrer en file ou quand la file est pleine (message), et repasser sur une case déjà en file ne change rien.
 
 ### 13.5 Paramètres
 Affichage (plein écran, fenêtré, résolution, **thème clair / sombre / système**), audio, langue (français et anglais), commandes (raccourcis modifiables), accessibilité (taille de l'interface, palette adaptée au daltonisme).
@@ -529,7 +532,7 @@ Aucune action de modification (pas d'arrêt de partie, pas de ressources, pas de
 | Jalon | Contenu |
 |---|---|
 | **G0 : Fondations** | Dépôt transformé pour Godot, vérification automatique et version GitHub avec le .exe à chaque fusion sur main ; carte hex (6 zones, un terrain) en Duel et FFA, rendu « Pastille ronde », caméra ; menu principal minimal (entrées futures grisées) ; écran Paramètres (thème, langue, affichage) |
-| **G1 : Solo économie** | Colonisation (pousse, file d'expansion), Cœur, réseau, production, Cohésion, **paliers de colonie** et retours visuels (onde continue, palier). Entrée **Bac à sable** : joueur seul sur une forêt de Duel ou de FFA au choix. Horloge de partie affichée (sans bonus de l'Armillaire), pause et vitesse ×2 / ×4. HUD : nutriments qui défilent, courbe de production, Biomasse, barre du prochain palier. Livré en **deux étapes** (simulation et tests, puis affichage et HUD) ; version **0.2.0** |
+| **G1 : Solo économie** | Colonisation (pousse, file d'expansion), Cœur, réseau, production, Cohésion, **paliers de colonie** et retours visuels (onde continue, palier). Entrée **Bac à sable** : joueur seul sur une forêt de Duel ou de FFA au choix. Horloge de partie affichée (le bonus de l'Armillaire arrive en G3), pause et vitesse ×2 / ×4. Le Bac à sable est **retiré en G4**. HUD : nutriments qui défilent, courbe de production, Biomasse, barre du prochain palier. Livré en **deux étapes** (simulation et tests, puis affichage et HUD) ; version **0.2.0** |
 | **G2 : City builder** | Bâtiments, chantiers, files, voisinage, humidité, déblocages par palier |
 | **G3 : Combat et fin de partie** | Filament d'assaut, trancher, actions actives, Sclérote, élimination, **butin et transfert du territoire**, événements, frise de partie |
 | **G4 : Duel et FFA contre robots** | Menus, robots (3 difficultés, profils), pause, accélération, résultats |
