@@ -64,7 +64,7 @@ res://
 │   │   ├── command_system.gd   Validation et application des commandes
 │   │   ├── growth_system.gd    Pousse des cases, chantiers
 │   │   ├── combat_system.gd    Filaments, prises, actions actives, élimination
-│   │   ├── economy_system.gd   Production, réseau, humidité, stock
+│   │   ├── economy_system.gd   Production, réseau, stock, Enzymes
 │   │   ├── tier_system.gd      Paliers, activation et désactivation des bâtiments
 │   │   ├── event_system.gd     Frise, événements aléatoires
 │   │   └── victory_system.gd   Fin de partie, départage
@@ -137,7 +137,7 @@ res://
 | 2 | `GrowthSystem` | Avance la pousse des cases et les chantiers |
 | 3 | `CombatSystem` | Avance les filaments et les prises, applique les actions actives, traite les éliminations et le butin |
 | 4 | `TierSystem` | Recalcule les paliers, active ou désactive les bâtiments |
-| 5 | `EconomySystem` | Réseau (cases reliées au Cœur), humidité, production, plafond de stock, biomasse |
+| 5 | `EconomySystem` | Réseau (cases reliées au Cœur), production, plafond de stock, Enzymes, biomasse |
 | 6 | `EventSystem` | Déclenche et fait avancer les événements de la frise |
 | 7 | `VictorySystem` | Fin de partie, classement, départage à 30:00 |
 | 8 | `StateHash` | Calcule l'empreinte de l'état |
@@ -247,7 +247,7 @@ Ordre dans un fichier : `class_name`, `extends`, commentaire `##` de la classe, 
 class_name EconomySystem
 extends RefCounted
 ## Calcule la production de chaque colonie à chaque tick :
-## rendement des cases reliées au Cœur, humidité, paliers et plafond de stock.
+## rendement des cases reliées au Cœur, paliers et plafond de stock.
 
 const PER_MILLE: int = 1000
 
@@ -276,8 +276,7 @@ func _colony_production(state: GameState, colony: ColonyState) -> int:
 	for cell: int in colony.cells:
 		total += _cell_production(state, cell)
 	# Chaque palier double la production (table précalculée en pour-mille).
-	total = Fixed.mul(total, _defs.tier_multiplier(colony.tier))
-	return Fixed.mul(total, _humidity_factor(colony))
+	return Fixed.mul(total, _defs.tier_multiplier(colony.tier))
 ```
 
 ---
@@ -343,7 +342,7 @@ Le ressenti (rythme, plaisir des gestes, lisibilité), le rendu visuel, les perf
 |---|---|
 | G0 | Transformation du dépôt, arborescence, autoloads, thèmes, traductions, `hex.gd`, `map_generator.gd` (zones uniquement), rendu de la carte, caméra, menu principal, écran Paramètres, GUT et workflows |
 | G1 | `GameState`, `Simulation`, commandes de colonisation, `GrowthSystem`, `EconomySystem`, `TierSystem`, `fixed.gd`, `sim_rng.gd`, `state_hash.gd`, `LocalTransport`, `Session` ; positions de départ dans `map_generator.gd` ; écran Bac à sable (réglages, valeurs par défaut, récapitulatif copiable), HUD, effets de palier, section Commandes des Paramètres ; enregistrement des commandes et test de rejeu ; robots d'économie (`ai/`), `tools/sim_runner.gd` et panneau de simulations (éditeur seulement). Livré en trois étapes : `sim/` et tests ; affichage, HUD et Bac à sable ; robots, simulations et panneau |
-| G2 | Bâtiments (`data/buildings/`), chantiers, voisinage, humidité, désactivation |
+| G2 | Bâtiments (`data/buildings/`), chantiers et file de construction, voisinage, Enzymes, plafond de stock, désactivation ; palette et menu rond ; robots composés (profil d'expansion + profil de bâtisseur + pourcentage) dans le panneau de simulations. Trois étapes : `sim/` et tests ; affichage, HUD et Bac à sable ; robots et panneau |
 | G3 | `CombatSystem`, gestes dans `view/input/`, `EventSystem`, `VictorySystem` |
 | G4 | `ai/` (robots complets), `tools/sim_runner.gd` étendu, menus, résultats |
 | G5 | Salon de partie personnalisée, surcharge des paramètres, préréglages |
