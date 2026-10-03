@@ -691,11 +691,10 @@ Questions relevées en relisant chaque jalon. Elles seront posées sous forme de
 1. Tutoriel : quelle forêt (« petite forêt de Duel » : rayon 5 ?) ? Faut-il ajouter des étapes pour la file d'expansion, la Mycorhize ou les Enzymes ?
 2. Audio : style de la musique et des bruitages ; qui les produit (banques libres de droits, compositeur, autre) et sous quelle licence ?
 3. Profil et statistiques : enregistrés sur le PC (`user://`), liés au compte Steam ? Sauvegarde Steam Cloud ?
-4. Récompenses cosmétiques (§11.5 : titres, couleurs de réseau, effets de particules) : quel jalon, lesquelles, à quelles conditions ?
-5. Langues : français et anglais seulement ?
-6. Paramètres audio et accessibilité (taille de l'interface, palette adaptée au daltonisme, §13.5) : quel jalon ?
-7. Icône définitive et logo : qui les fait ?
-8. Numéro de version de la bêta solo.
+4. Langues : français et anglais seulement ?
+5. Paramètres audio et accessibilité (taille de l'interface, palette adaptée au daltonisme, §13.5) : quel jalon ?
+6. Icône définitive et logo : qui les fait ?
+7. Numéro de version de la bêta solo.
 
 ### G6 : Multijoueur
 1. File d'attente : en Duel, au bout de combien de temps proposer un robot s'il n'y a personne ? En FFA, que faire avec moins de 4 joueurs après 2 min ?
@@ -709,6 +708,7 @@ Questions relevées en relisant chaque jalon. Elles seront posées sous forme de
 9. Spectateurs en ligne : les éliminés restent-ils dans la partie et dans le chat ?
 10. Versions différentes entre l'hôte et un invité : on bloque la connexion ?
 11. Numéro de version des étapes 1 et 2.
+11 bis. Récompenses cosmétiques (§11.5 : titres, couleurs de réseau, effets de particules) : seules les parties en ligne en donnent (§2.6). Lesquelles, à quelles conditions, et dans ce jalon ou plus tard ?
 
 **Partie personnalisée** (ancien jalon G5)
 12. Réglages : la partie personnalisée garde-t-elle la liste courte du §2.4, ou reprend-elle les réglages complets du Bac à sable ?
