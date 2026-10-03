@@ -29,7 +29,13 @@ Les valeurs chiffrées de ce document sont des **points de départ à simuler**,
 ### 2.1 Menu principal
 **Jouer** (Duel, FFA), **Partie personnalisée**, **Tutoriel**, **Profil**, **Paramètres**, **Quitter**.
 
-*G1 (décidé le 4 octobre 2026)* : une entrée **Bac à sable** lance la partie d'économie de G1 : le joueur est **seul** sur une forêt de **Duel ou de FFA, au choix**, avec la couleur **Menthe** ; Duel et FFA restent grisés jusqu'aux robots (G4), où le Bac à sable est retiré.
+### 2.1 bis Bac à sable *(décidé le 4 octobre 2026)*
+- Entrée du menu principal, **visible par tous les joueurs**, **gardée après G4**. Mode distinct de la partie personnalisée : en Bac à sable, il n'y a **que le joueur et des robots** (robots à partir de G4) ; la partie personnalisée sert à jouer avec ses amis. Il sert notamment aux tests d'équilibrage du propriétaire.
+- **En G1** : il lance la partie d'économie ; le joueur est **seul** sur une forêt de **Duel ou de FFA, au choix**, avec la couleur **Menthe**. Duel et FFA restent grisés jusqu'aux robots (G4).
+- **Pause et vitesse uniquement en Bac à sable** : pause par la touche **P** ou un bouton du HUD ; vitesse par un **bouton du HUD** qui passe de ×1 à ×2 puis ×4 (sans raccourci clavier).
+- **Le plus paramétrable possible** : un écran de réglages avant de lancer, présent **dès G1** et enrichi à chaque jalon de ce qu'il apporte (bâtiments, combat, robots…). En G1 : forêt et graine, stock de départ, chiffres d'économie (U, rendement, durée de pousse, pousses simultanées, paliers…), multiplicateurs des zones, et **le plus de paramètres possibles**. Un bouton **remet les valeurs par défaut**.
+- Les réglages **ne sont pas gardés** d'une partie à l'autre : chaque lancement repart des valeurs par défaut.
+- **Récapitulatif à tout moment** : un bouton du HUD copie dans le presse-papiers un texte lisible avec les **réglages** de la partie et ses **résultats** (durée, cases, paliers et production atteints), pour les transmettre après un test. Préréglages nommés : plus tard.
 
 ### 2.2 Duel (1 contre 1)
 - **Contre un robot** : disponible dès le départ. Choix de la difficulté (Facile, Normal, Difficile).
@@ -68,7 +74,6 @@ Permet de créer **tout type de partie** : le type (Duel ou FFA, d'autres plus t
 | Événements | normaux | aucun, rares, normaux, fréquents ; choix de ceux autorisés |
 | Butin d'élimination | 100 % | 0 à 200 % |
 | Durée maximale | 30 min | 5 à **30 min** (plafond fixe) |
-| Vitesse de jeu (solo uniquement) | ×1 | ×1, ×2, ×4 |
 
 ### 2.5 Robots
 - Les robots jouent **avec les mêmes règles et les mêmes commandes que les joueurs** : pas de triche. La difficulté joue sur la vitesse de réaction, la qualité du plan de ville et l'usage des attaques.
@@ -77,7 +82,7 @@ Permet de créer **tout type de partie** : le type (Duel ou FFA, d'autres plus t
 
 ### 2.6 Règles communes
 - **Durée maximale : 30:00**, tous modes, y compris personnalisés.
-- **Solo** : pause possible (si aucun humain adverse). Éliminé, on peut **accélérer la fin de partie** (×4) en spectateur.
+- **Pause et vitesse** : uniquement en Bac à sable (§2.1 bis), ni en Duel, ni en FFA, ni en partie personnalisée, y compris en spectateur.
 - **Résultat** : rang de partie = ordre d'élimination ; statistiques de fin (cases conquises, éliminations, durée de survie, pic de production).
 
 ### 2.7 Tutoriel
@@ -475,7 +480,9 @@ Les couleurs de colonie sont **éclaircies si besoin** en mode sombre pour garde
 - **File d'expansion** : **Maj + clic gauche** ajoute une case à la file, ou la retire si elle y est déjà. **Maj + clic gauche glissé** sur plusieurs cases les ajoute dans l'ordre du tracé ; le tracé **s'arrête** à la première case qui ne peut pas entrer en file ou quand la file est pleine (message), et repasser sur une case déjà en file ne change rien.
 
 ### 13.5 Paramètres
-Affichage (plein écran, fenêtré, résolution, **thème clair / sombre / système**), audio, langue (français et anglais), commandes (raccourcis modifiables), accessibilité (taille de l'interface, palette adaptée au daltonisme).
+Affichage (plein écran, fenêtré, résolution, **thème clair / sombre / système**), audio, langue (français et anglais), commandes (raccourcis modifiables, **dès G1**), accessibilité (taille de l'interface, palette adaptée au daltonisme).
+
+Raccourcis par défaut : **Espace** recentre la caméra sur le Cœur ; **P** met en pause (Bac à sable seulement).
 
 ### 13.6 HUD de partie
 - **Panneau latéral** : ressources, **courbe de production**, stock, **équilibre d'humidité**, file de construction, chantiers, cooldowns.
@@ -532,7 +539,7 @@ Aucune action de modification (pas d'arrêt de partie, pas de ressources, pas de
 | Jalon | Contenu |
 |---|---|
 | **G0 : Fondations** | Dépôt transformé pour Godot, vérification automatique et version GitHub avec le .exe à chaque fusion sur main ; carte hex (6 zones, un terrain) en Duel et FFA, rendu « Pastille ronde », caméra ; menu principal minimal (entrées futures grisées) ; écran Paramètres (thème, langue, affichage) |
-| **G1 : Solo économie** | Colonisation (pousse, file d'expansion), Cœur, réseau, production, Cohésion, **paliers de colonie** et retours visuels (onde continue, palier). Entrée **Bac à sable** : joueur seul sur une forêt de Duel ou de FFA au choix. Horloge de partie affichée (le bonus de l'Armillaire arrive en G3), pause et vitesse ×2 / ×4. Le Bac à sable est **retiré en G4**. HUD : nutriments qui défilent, courbe de production, Biomasse, barre du prochain palier. Livré en **deux étapes** (simulation et tests, puis affichage et HUD) ; version **0.2.0** |
+| **G1 : Solo économie** | Colonisation (pousse, file d'expansion), Cœur, réseau, production, Cohésion, **paliers de colonie** et retours visuels (onde continue, palier). Entrée **Bac à sable** : joueur seul sur une forêt de Duel ou de FFA au choix. Horloge de partie affichée (le bonus de l'Armillaire arrive en G3), pause (P + bouton) et vitesse (bouton ×1 / ×2 / ×4), réglages du Bac à sable avec retour aux valeurs par défaut et récapitulatif copiable (§2.1 bis). HUD : nutriments qui défilent, courbe de production, Biomasse, barre du prochain palier, grands nombres avec suffixes (K, M, B, T). Carte : cases colonisables **toujours marquées** (teinte à part pour celles payables tout de suite), **info-bulle au survol** d'une case (zone, coût, durée de pousse, production). Raccourcis modifiables dans les Paramètres (Espace = recentrer sur le Cœur, P = pause). Tests : enregistrement des commandes d'une partie et **rejeu à l'identique** (même empreinte). Livré en **deux étapes** (simulation et tests, puis affichage et HUD) ; version **0.2.0** |
 | **G2 : City builder** | Bâtiments, chantiers, files, voisinage, humidité, déblocages par palier |
 | **G3 : Combat et fin de partie** | Filament d'assaut, trancher, actions actives, Sclérote, élimination, **butin et transfert du territoire**, événements, frise de partie |
 | **G4 : Duel et FFA contre robots** | Menus, robots (3 difficultés, profils), pause, accélération, résultats |
