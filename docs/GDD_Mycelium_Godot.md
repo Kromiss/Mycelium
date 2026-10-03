@@ -27,7 +27,7 @@ Les valeurs chiffrées de ce document sont des **points de départ à simuler**,
 ## 2. Modes de jeu
 
 ### 2.1 Menu principal
-**Jouer** (Duel, FFA), **Partie personnalisée**, **Tutoriel**, **Profil**, **Paramètres**, **Quitter**.
+**Jouer** (Duel, FFA), **Bac à sable** (§2.1 bis), **Partie personnalisée**, **Tutoriel**, **Profil**, **Paramètres**, **Quitter**.
 
 ### 2.1 bis Bac à sable *(décidé le 4 octobre 2026)*
 - Entrée du menu principal, **visible par tous les joueurs**, **gardée après G4**. Mode distinct de la partie personnalisée : en Bac à sable, il n'y a **que le joueur et des robots** (robots à partir de G4) ; la partie personnalisée sert à jouer avec ses amis. Il sert notamment aux tests d'équilibrage du propriétaire.
@@ -554,7 +554,7 @@ Outil d'équilibrage **séparé** de l'interface d'administration, disponible **
 | **G1 : Solo économie** | Colonisation (pousse, file d'expansion), Cœur, réseau, production, Cohésion, **paliers de colonie** et retours visuels (onde continue, palier). Entrée **Bac à sable** : joueur seul sur une forêt de Duel ou de FFA au choix. Horloge de partie affichée (le bonus de l'Armillaire arrive en G3), pause (P + bouton) et vitesse (bouton ×1 / ×2 / ×4), réglages du Bac à sable avec retour aux valeurs par défaut et récapitulatif copiable (§2.1 bis). HUD : nutriments qui défilent, courbe de production, Biomasse, barre du prochain palier, grands nombres avec suffixes (K, M, B, T). Carte : cases colonisables **toujours marquées** (teinte à part pour celles payables tout de suite), **info-bulle au survol** d'une case (zone, coût, durée de pousse, production). Raccourcis modifiables dans les Paramètres (Espace = recentrer sur le Cœur, P = pause). Tests : enregistrement des commandes d'une partie et **rejeu à l'identique** (même empreinte). **Panneau de simulations** (§14.5) avec 4 profils de robot d'économie. Livré en **trois étapes** : 1) simulation et tests ; 2) affichage, HUD et Bac à sable ; 3) robots d'économie, simulations et panneau ; version **0.2.0** |
 | **G2 : City builder** | Bâtiments (Nœud de digestion, Grenier, Pépinière, Glande enzymatique, Mycorhize), chantiers, file de construction, voisinage, Enzymes, plafond de stock, déblocages et désactivation par palier ; pose (palette ou menu rond), démolition ; HUD (palette, file et chantiers, Enzymes, stock et plafond) ; pictogrammes validés sur maquettes ; réglages du Bac à sable pour les bâtiments ; robots du panneau de simulations (§14.5) avec profil de bâtisseur. Livré en **trois étapes** (simulation et tests ; affichage, HUD et Bac à sable ; robots et panneau) ; version **0.3.0** |
 | **G3 : Combat et fin de partie** | Filament d'assaut, trancher, actions actives, Sclérote, élimination, **butin et transfert du territoire**, événements, frise de partie |
-| **G4 : Duel et FFA contre robots** | Menus, robots (3 difficultés, profils), pause, accélération, résultats |
+| **G4 : Duel et FFA contre robots** | Menus, robots (3 difficultés, profils), robots dans le Bac à sable, résultats (pause et vitesse réservées au Bac à sable depuis le 4 octobre 2026) |
 | **G5 : Partie personnalisée (local)** | Salon, emplacements, paramètres de forêt, préréglages |
 | **G6 : Habillage et bêta solo** | **Tutoriel**, audio, profil et statistiques, traduction, page Steam et succès, essais du jeu contre robots avec de vrais joueurs (Steam Playtest) |
 | **G7 : Multijoueur** | **Étape 1, tests entre amis avec l'App ID 480** (GodotSteam, sans page Steam ni frais, §14.1) : initialisation de Steam, salons et invitations d'amis, relais Steam, hébergement par un joueur, vérification par empreinte, déconnexion et pilote automatique, arrêt de la partie si l'hôte part. **Étape 2, version complète** : file d'attente Steam, FFA entre joueurs, Duel contre un joueur (invitation puis file d'attente, rang éventuel), partie personnalisée avec amis, chat, **interface d'administration en lecture seule** |
@@ -609,3 +609,117 @@ Le jeu est donc complet et jouable en solo avant le multijoueur. Pour ne pas avo
 
 ### Idées pour plus tard
 Autres terrains et souches, pactes, population (hyphes) et logements, mode par équipes, forêts thématiques, classement du Duel.
+
+---
+
+## 17. Questions en attente *(relevées le 4 octobre 2026)*
+
+Questions relevées en relisant chaque jalon. Elles seront posées sous forme de QCM au début du jalon concerné, avant d'écrire le code ; les réponses remplaceront ces lignes dans les sections du document.
+
+### G3 : Combat et fin de partie
+
+**Contre qui se battre**
+1. Les robots n'arrivent qu'en G4 : face à qui teste-t-on le combat en G3 (colonie adverse inerte, robots d'économie de G1–G2 comme adversaires, second joueur sur le même PC) ?
+2. Peut-on ajouter des adversaires dans le Bac à sable dès G3 ?
+3. Panneau de simulations : les robots attaquent-ils dès G3 et mesure-t-on les éliminations, ou est-ce pour G4 ?
+
+**Filament d'assaut**
+4. Le coût (25 % du coût de colonisation de la case visée) est-il calculé pour l'attaquant (son nombre de cases, la zone de la case) ?
+5. Le filament part-il de la case sélectionnée ou de n'importe quelle case de l'attaquant collée à la cible ? Que devient-il si sa case de départ est prise ou coupée ?
+6. Tracé de front : chaque case survolée doit-elle toucher le réseau de l'attaquant, ou seulement la précédente du tracé ?
+7. Frappe parfaite : largeur de la fenêtre de timing, rythme de la pulsation, une seule tentative ou plusieurs ?
+8. Pendant une prise, la case visée produit-elle encore pour le défenseur ? Peut-on y construire ?
+9. Prise interrompue : la progression est-elle perdue ou gardée ?
+10. Deux attaquants sur la même case : est-ce possible, et qui la prend ?
+11. Peut-on attaquer une case en pousse ou en chantier ? Deux colonies qui colonisent la même case libre au même tick : qui l'obtient ?
+12. Temps de prise arrondis à la seconde, au plus proche comme la pousse ?
+
+**Trancher un filament**
+13. Le « coût pour le défenseur » n'est pas chiffré : combien, et en quelle ressource ?
+14. Qui peut trancher : seulement le défenseur visé, ou n'importe quelle colonie ?
+15. La recharge de 8 s vaut-elle pour tous les filaments ou par filament ?
+16. Risque d'impasse (recharge de 8 s = temps de prise de base de 8 s) : à traiter maintenant ou après simulation ?
+
+**Actions actives**
+17. Portée de base des actions (le Carpophore donne +2) : collée au réseau, ou quelques cases ?
+18. Assaut : durée de la charge ; effet sur un filament ou sur tous ?
+19. Toxine (« peindre la zone ») : combien de cases ; effet centré sur une case ou sur chaque case peinte ?
+20. Coupure : vise-t-on une case ou le lien entre deux cases ? Les cases isolées deviennent-elles des îlots pendant 45 s ?
+21. Siphon : « cases à ≤ 2 » de la case ennemie visée ou de la case de l'attaquant ?
+22. Recharges par colonie et par action ? Un second Poste d'assaut donne-t-il une charge de plus ?
+
+**Cœur, Sclérote, élimination**
+23. Bâtiments de frontière (et Sclérote, « case non frontière ») dont la case change de statut : actifs ou désactivés ?
+24. Renaissance sur le Sclérote : les 60 s de protection couvrent-elles le nouveau Cœur seul ou toute la colonie ?
+25. Deux colonies qui perdent leur Cœur au même tick : laquelle gagne ?
+26. Butin : les « 2 min de production » de la victime se calculent-elles avant ou après les pertes qui précèdent sa chute ?
+27. Migration du Cœur (reportée après G1) : arrive-t-elle en G3 ? Elle conditionne le terme de distance du coût de colonisation.
+
+**Événements**
+28. Tirage de l'événement aléatoire (toutes les 2 min environ) : mêmes chances pour tous ou des poids ? Comment choisir les cases touchées ?
+29. Arbre mourant : sa « vie », ses règles exactes, ce que deviennent ses 7 cases ; en Duel il remplit toute la Clairière (~7 cases), est-ce voulu ?
+30. Incendie : à qui profitent les Cendres (×2 pendant 2 min), et si personne ne recolonise ?
+31. Festin : combien rapporte la case très riche, et que devient-elle après 90 s ?
+32. Nématodes : nombre maximal de cases mangées, ce qu'elles deviennent, ce qui se passe si personne ne les digère.
+33. « Zone du moment » : comment la calculer quand une colonie couvre plusieurs zones, et en Bac à sable avec une seule colonie ?
+34. Réglages du Bac à sable pour les événements (lesquels, fréquence) dès G3 ?
+
+**Fin de partie et interface**
+35. À 30:00 en G3 : écran de résultats simple, ou l'écran complet prévu en G4 ?
+36. Mode spectateur après élimination : G3 ou G4 ?
+37. HUD de G3 : frise, temps restant, alertes, annonce des événements, journal, mini-classement : tout en G3 ?
+38. Pictogrammes des bâtiments de combat et visuel du filament : maquettes à valider d'abord, comme en G2 ?
+39. Livraison : trois étapes et version 0.4.0, ou découper davantage (combat, puis événements) ?
+
+### G4 : Duel et FFA contre robots
+1. Profils des robots : le §2.5 parle de bâtisseur, expansionniste et agressif, alors que les robots du panneau combinent un profil d'expansion, un profil de bâtisseur et un pourcentage. Les robots de jeu reprennent-ils cette composition, avec un profil de combat en plus ?
+2. Valeurs des difficultés Facile, Normal, Difficile (délai de réaction, part d'erreurs, profondeur d'évaluation, taux de Frappes parfaites).
+3. « Mêmes limites qu'un joueur » : nombre maximal de commandes par seconde pour un robot ?
+4. FFA contre robots : une difficulté pour tous ou une par robot (« mélange ») ? Profils choisis ou tirés au hasard ?
+5. Secteur et couleur du joueur en Duel et en FFA : choisis ou tirés au hasard ? Ordre des couleurs pour 2 et 6 colonies (daltonisme compris) ?
+6. Quitter une partie en cours : défaite enregistrée ? Confirmation demandée ?
+7. Éliminé en FFA contre robots, sans accélération possible : on attend la fin en spectateur ou on quitte avec son rang ?
+8. Écran de résultats : contenu exact (rang, statistiques, courbe de production, graine publiée) et boutons (rejouer, menu, revoir la partie).
+9. Replay en timelapse (§11.4) : dans quel jalon ?
+10. Robots dans le Bac à sable : choisis comme dans le panneau (paire de profils et pourcentage), avec une difficulté ?
+11. Panneau de simulations : ajoute-t-on les mesures de combat (éliminations avant 26:00, parties finies au temps, efficacité des filaments et de « trancher », effet du butin) ?
+
+### G5 : Partie personnalisée (local)
+1. La partie personnalisée sert à jouer **avec ses amis**, mais G5 est local (pas de réseau avant G7). Que contient G5 : l'écran du salon contre des robots seulement ? Faut-il le fusionner avec G7, ou avec le Bac à sable ?
+2. Réglages : la partie personnalisée garde-t-elle la liste courte du §2.4, ou reprend-elle les réglages complets du Bac à sable ?
+3. Partie à 3 colonies : quel rayon par défaut ?
+4. Rayons 5, 11, 17, 23 « à confirmer » ; peut-on combiner n'importe quel nombre de colonies avec n'importe quel rayon (6 colonies sur un rayon 5) ?
+5. Valeurs des plages « à valider » : richesse ×1 à ×8, difficulté faible / normale / forte, ressources peu / normales / beaucoup, événements rares / normaux / fréquents.
+6. Préréglages : quand arrive le code partageable ? Le Bac à sable aura-t-il les mêmes préréglages (« plus tard ») ?
+7. Une partie personnalisée compte-t-elle dans les statistiques du profil ?
+
+### G6 : Habillage et bêta solo
+1. Tutoriel : quelle forêt (« petite forêt de Duel » : rayon 5 ?) ? Faut-il ajouter des étapes pour la file d'expansion, la Mycorhize ou les Enzymes ?
+2. Audio : style de la musique et des bruitages ; qui les produit (banques libres de droits, compositeur, autre) et sous quelle licence ?
+3. Profil et statistiques : enregistrés sur le PC (`user://`) avant G7, puis liés au compte Steam ? Sauvegarde Steam Cloud ?
+4. Récompenses cosmétiques (§11.5 : titres, couleurs de réseau, effets de particules) : quel jalon, lesquelles, à quelles conditions ?
+5. Page Steam, succès et Steam Playtest demandent un **App ID réel** (Steam Direct, 100 $), alors que l'intégration de GodotSteam et les tests avec l'App ID 480 sont prévus en G7. Quand créer la page et payer ? GodotSteam arrive-t-il donc dès G6 ?
+6. Modèle économique (gratuit ou payant) : à décider avant la page Steam ?
+7. Langues : français et anglais seulement ?
+8. Paramètres audio et accessibilité (taille de l'interface, palette adaptée au daltonisme, §13.5) : quel jalon ?
+9. Icône définitive, logo et visuels de la page Steam : qui les fait ?
+10. Numéro de version de la bêta solo (0.7.0 ?) et de la sortie (1.0.0 ?).
+
+### G7 : Multijoueur
+1. File d'attente : en Duel, au bout de combien de temps proposer un robot s'il n'y a personne ? En FFA, que faire avec moins de 4 joueurs après 2 min ?
+2. Classement du Duel (rang, classements Steam) : le fait-on ? Il dépend de la question sur la triche de l'hôte (§16).
+3. Hôte en file d'attente : le propriétaire du salon Steam, ou le joueur qui a la meilleure connexion ?
+4. Chat : où va un signalement sans serveur à nous ? La sourdine est-elle seulement locale ?
+5. Pilote automatique et robot de remplacement (après 3 min) : quel profil et quelle difficulté ?
+6. Hôte qui quitte volontairement : où la défaite est-elle enregistrée ?
+7. Replay partagé en fin de partie : sous quelle forme (fichier, Steam) ?
+8. Interface d'administration : où est stockée la liste des comptes autorisés ? Les statistiques globales Steam ne fonctionnent pas avec l'App ID 480 : l'écran attend-il l'App ID réel ?
+9. Spectateurs en ligne : les éliminés restent-ils dans la partie et dans le chat ?
+10. Partie personnalisée en ligne : un invité absent est-il remplacé par un robot au lancement seulement, ou aussi en cours de partie ?
+11. Versions différentes entre l'hôte et un invité : on bloque la connexion ?
+12. Numéro de version des étapes 1 et 2.
+
+### Questions communes à plusieurs jalons
+1. Peut-on quitter une partie solo et la reprendre plus tard (sauvegarde de partie en cours) ?
+2. Les robots de jeu et ceux du panneau de simulations sont-ils les mêmes (même code, mêmes profils) ?
+3. Le panneau de simulations doit-il pouvoir comparer des robots de difficultés différentes à partir de G4 ?
