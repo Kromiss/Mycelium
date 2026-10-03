@@ -27,7 +27,16 @@ Les valeurs chiffrées de ce document sont des **points de départ à simuler**,
 ## 2. Modes de jeu
 
 ### 2.1 Menu principal
-**Jouer** (Duel, FFA), **Partie personnalisée**, **Tutoriel**, **Profil**, **Paramètres**, **Quitter**.
+**Jouer** (Duel, FFA), **Bac à sable** (§2.1 bis), **Partie personnalisée**, **Tutoriel**, **Profil**, **Paramètres**, **Quitter**.
+
+### 2.1 bis Bac à sable *(décidé le 4 octobre 2026)*
+- Entrée du menu principal, **visible par tous les joueurs**, **gardée après G4**. Mode distinct de la partie personnalisée : en Bac à sable, il n'y a **que le joueur et des robots** (robots à partir de G4) ; la partie personnalisée sert à jouer avec ses amis. Il sert notamment aux tests d'équilibrage du propriétaire.
+- **Purement local** : le Bac à sable fonctionne **sans Steam ni GodotSteam** (décidé le 4 octobre 2026).
+- **En G1** : il lance la partie d'économie ; le joueur est **seul** sur une forêt de **Duel ou de FFA, au choix**, avec la couleur **Menthe**. Duel et FFA restent grisés jusqu'aux robots (G4).
+- **Pause et vitesse uniquement en Bac à sable** : pause par la touche **P** ou un bouton du HUD ; vitesse par un **bouton du HUD** qui passe de ×1 à ×2 puis ×4 (sans raccourci clavier).
+- **Le plus paramétrable possible** : un écran de réglages avant de lancer, présent **dès G1** et enrichi à chaque jalon de ce qu'il apporte (bâtiments, combat, robots…). En G1 : forêt et graine, stock de départ, chiffres d'économie (U, rendement, durée de pousse, pousses simultanées, paliers…), multiplicateurs des zones, et **le plus de paramètres possibles**. Un bouton **remet les valeurs par défaut**.
+- Les réglages **ne sont pas gardés** d'une partie à l'autre : chaque lancement repart des valeurs par défaut.
+- **Récapitulatif à tout moment** : un bouton du HUD copie dans le presse-papiers un texte lisible avec les **réglages** de la partie et ses **résultats** (durée, cases, paliers et production atteints), pour les transmettre après un test. Préréglages nommés : plus tard.
 
 ### 2.2 Duel (1 contre 1)
 - **Contre un robot** : disponible dès le départ. Choix de la difficulté (Facile, Normal, Difficile).
@@ -66,16 +75,16 @@ Permet de créer **tout type de partie** : le type (Duel ou FFA, d'autres plus t
 | Événements | normaux | aucun, rares, normaux, fréquents ; choix de ceux autorisés |
 | Butin d'élimination | 100 % | 0 à 200 % |
 | Durée maximale | 30 min | 5 à **30 min** (plafond fixe) |
-| Vitesse de jeu (solo uniquement) | ×1 | ×1, ×2, ×4 |
 
 ### 2.5 Robots
 - Les robots jouent **avec les mêmes règles et les mêmes commandes que les joueurs** : pas de triche. La difficulté joue sur la vitesse de réaction, la qualité du plan de ville et l'usage des attaques.
 - **Profils** : bâtisseur, expansionniste, agressif (pour varier les parties).
-- Ils servent aussi à compléter les salons, à remplacer un joueur déconnecté (§11.2) et à équilibrer les valeurs par simulation.
+- Ils servent aussi à compléter les salons, à remplacer un joueur déconnecté (§11.2) et à équilibrer les valeurs par simulation (dès G1, robots d'économie du panneau de simulations, §14.5).
 
 ### 2.6 Règles communes
+- **Modes locaux et modes en ligne isolés** *(décidé le 4 octobre 2026)* : tous les modes locaux, où il n'y a que le joueur et des robots (Bac à sable, Duel et FFA contre robots, tutoriel), fonctionnent **sans Steam ni GodotSteam**. Steam ne sert qu'aux modes multijoueur (Duel et FFA entre joueurs, partie personnalisée avec des amis). **Les parties locales ne comptent pas** : elles servent d'entraînement et n'alimentent ni les statistiques ni les succès Steam, et **ne donnent aucune récompense cosmétique**. Le **profil local** les enregistre quand même (statistiques et historique).
 - **Durée maximale : 30:00**, tous modes, y compris personnalisés.
-- **Solo** : pause possible (si aucun humain adverse). Éliminé, on peut **accélérer la fin de partie** (×4) en spectateur.
+- **Pause et vitesse** : uniquement en Bac à sable (§2.1 bis), ni en Duel, ni en FFA, ni en partie personnalisée, y compris en spectateur.
 - **Résultat** : rang de partie = ordre d'élimination ; statistiques de fin (cases conquises, éliminations, durée de survie, pic de production).
 
 ### 2.7 Tutoriel
@@ -86,21 +95,21 @@ Une **courte partie scénarisée (~10 min)** contre un robot passif, sur une pet
 | 1 | Coloniser 2 cases | Expansion, pousse, coût |
 | 2 | Former un bloc de cases voisines | Cohésion |
 | 3 | Construire un Nœud de digestion | Bâtiments, chantiers |
-| 4 | Construire un Réservoir quand l'humidité baisse | Équilibre d'humidité |
-| 5 | Atteindre 5 puis 10 cases | Paliers de colonie, production qui double |
-| 6 | Construire le Sclérote | Seconde vie du Cœur |
-| 7 | Lancer un filament sur une case du robot, réussir une Frappe parfaite | Attaque |
-| 8 | Trancher le filament du robot | Défense |
-| 9 | Prendre le Cœur du robot | Élimination et butin |
+| 4 | Atteindre 5 puis 10 cases | Paliers de colonie, production qui double |
+| 5 | Construire le Sclérote | Seconde vie du Cœur |
+| 6 | Lancer un filament sur une case du robot, réussir une Frappe parfaite | Attaque |
+| 7 | Trancher le filament du robot | Défense |
+| 8 | Prendre le Cœur du robot | Élimination et butin |
 
-Le robot ne fait qu'attaquer sur commande du script (étape 8) ; le reste du temps, il ne joue pas.
+Le robot ne fait qu'attaquer sur commande du script (étape 7) ; le reste du temps, il ne joue pas.
 
 ---
 
 ## 3. Déroulé d'une partie
 
 ### 3.1 Départ
-- Chaque colonie démarre avec un **Cœur et 3 cases** au bord de son secteur (zone 1), avec de quoi poser ses premières cases et un bâtiment.
+- Chaque colonie démarre avec **3 cases, Cœur compris** : le Cœur sur l'anneau extérieur, au milieu de son secteur (zone 1), et 2 cases collées à lui, côté centre.
+- **Stock de départ : 6 U** (180 nutriments), de quoi poser ses premières cases et un bâtiment.
 - **Protection de départ : aucune attaque avant 2:00.**
 
 ### 3.2 Frise de la partie
@@ -158,15 +167,17 @@ Six anneaux concentriques de **même épaisseur** : **2 anneaux d'hexagones par 
 Cible : une colonie moyenne atteint la zone N vers la minute 3,5 × N. La limitation vient **des ressources**, pas d'un verrou.
 
 ### 4.4 Règles d'expansion
-- On ne colonise qu'une case **adjacente** à son réseau.
-- Coût = `base × (1 + 0,05 × distance_au_cœur) × difficulté_zone × 1,02 ^ nb_cases` (à simuler).
-- La colonisation n'est pas instantanée : les hyphes **poussent** (~4 s en zone 1), ce qui laisse une fenêtre de réaction.
-- **File d'expansion** : jusqu'à 5 colonisations programmées.
-- **Cohésion** : chaque case compte ses voisines possédées (0 à 6). Production **+5 % par voisine** (max +30 %) ; en défense, temps de prise **+15 % par voisine**. Une **Rosace** (6 voisines) ne peut pas être visée par une Coupure.
+- On ne colonise qu'une case **adjacente** à son réseau. Une case **en pousse ne fait pas encore partie du réseau** : on ne peut pas coloniser sa voisine avant la fin de la pousse.
+- Coût = `base × (1 + 0,05 × distance_au_cœur) × difficulté_zone × 1,02 ^ nb_cases` (à simuler), avec `base` = **U = 30** nutriments. `nb_cases` ne compte que les **cases poussées** (pas les cases en pousse). Le terme `0,05 × distance_au_cœur` est **à décider plus tard** (absent en G1, à trancher avec la migration du Cœur) ; s'il est gardé, la distance se mesure **par le réseau** (plus court chemin à travers ses propres cases).
+- La colonisation n'est pas instantanée : les hyphes **poussent** (~4 s en zone 1), ce qui laisse une fenêtre de réaction. Les durées sont en **secondes entières** (1 tick par seconde) : 4 s en zone 1, **arrondies au plus proche** dans les autres zones (4 × 1,2 = 4,8 → 5 s).
+- **Pousses simultanées** : **une seule** au départ ; chaque **Mycorhize** (§7.2) en ajoute une, **3 au plus**.
+- **File d'expansion** : jusqu'à **5 cases, pousse en cours comprise** (1 en pousse + 4 en attente). Elles poussent **dans l'ordre où elles ont été ajoutées**. Le coût est payé **au démarrage de la pousse**, au prix du moment : une case attend en file d'avoir les nutriments.
+  - **En chaîne** : une case collée seulement à une case déjà en file peut y entrer ; elle attend que la précédente ait poussé.
+  - **Retirer** une case de la file la retire **avec toutes les cases qui en dépendent** en chaîne. Une pousse lancée va à son terme.
+- **Cohésion** : chaque case compte ses voisines possédées (0 à 6), **cases poussées seulement**. Production **+5 % par voisine** (max +30 %) ; en défense, temps de prise **+15 % par voisine**. Une **Rosace** (6 voisines) ne peut pas être visée par une Coupure.
 
 ### 4.5 Le réseau
-- Les nutriments remontent vers le **Cœur** ; une case perd **1 % par saut** de distance.
-- Un **Rhizomorphe** (§7.2) supprime la perte le long de sa chaîne.
+- Les nutriments remontent vers le **Cœur**. **Pas de perte de transport** (la perte de 1 % par saut et le Rhizomorphe ont été retirés le 4 octobre 2026).
 - Une **Coupure** (§9.4) isole une portion du réseau : les cases coupées ne produisent plus (sans dépérir) tant que dure la Coupure.
 
 ---
@@ -177,11 +188,11 @@ Cible : une colonie moyenne atteint la zone N vers la minute 3,5 × N. La limita
 |---|---|---|
 | **Nutriments** | Monnaie de base : colonisation, bâtiments, filaments | Toutes les cases |
 | **Enzymes** | Bâtiments avancés et actions actives | Glande enzymatique, événements |
-| **Humidité** | Santé de la ville : trop peu = production réduite (§7.4) | Réservoirs, Orage |
 | **Biomasse** | Total des nutriments produits : sert au départage à 30:00 (production moyenne = biomasse ÷ durée) et aux statistiques | Conversion des nutriments produits |
 
-- **3 ressources visibles au début** (Nutriments, Humidité, Biomasse) ; les Enzymes apparaissent avec la Glande enzymatique.
-- **Stock plafonné** : **3 min de production** (+2 min par Grenier). Ce qui dépasse est perdu : on dépense en continu.
+- **2 ressources visibles au début** (Nutriments, Biomasse) ; les Enzymes apparaissent avec la première Glande enzymatique. **L'Humidité a été retirée** le 4 octobre 2026 (avec le Réservoir), pour garder le jeu simple et centré sur l'incrémental.
+- Les **Enzymes n'ont pas de plafond** de stock.
+- **Stock plafonné** : **3 min de production** (+2 min par Grenier). Ce qui dépasse est perdu : on dépense en continu. *Pas de plafond en G1 : il arrive en G2 avec le Grenier.*
 - La Biomasse ne se dépense pas et ne débloque rien.
 
 ---
@@ -195,10 +206,10 @@ Quand le **nombre de cases** franchit un seuil, **la production de la colonie do
 
 | Palier | Cases | Production | Débloque |
 |---|---|---|---|
-| Départ | 3 | ×1 | Nœud de digestion, Réservoir, Rhizomorphe |
+| Départ | 3 | ×1 | Nœud de digestion |
 | 1 | 5 | ×2 | Grenier, Pépinière |
 | 2 | 10 | ×4 | Glande enzymatique, Sclérote |
-| 3 | 20 | ×8 | Écorce, Toxinière |
+| 3 | 20 | ×8 | Mycorhize, Écorce, Toxinière |
 | 4 | 40 | ×16 | Poste d'assaut, Haustorium |
 | 5 | 80 | ×32 | Carpophore |
 | 6 | 160 | ×64 | (le prestige du conquérant) |
@@ -207,16 +218,19 @@ Quand le **nombre de cases** franchit un seuil, **la production de la colonie do
 - Rien ne s'achète : on grandit et le palier tombe tout seul.
 
 ### 6.2 Multiplicateurs qui se cumulent
-Richesse de zone (jusqu'à ×4), Cohésion (jusqu'à +30 %), bâtiments et voisinage (§7.3), équilibre d'humidité (jusqu'à +20 %), souche (jusqu'à +25 %), événements (Floraison, Orage). Ils **se multiplient entre eux** au lieu de s'additionner.
+Richesse de zone (jusqu'à ×4), Cohésion (jusqu'à +30 %), bâtiments et voisinage (§7.3), souche (jusqu'à +25 %), événements (Floraison, Orage). Ils **se multiplient entre eux** au lieu de s'additionner.
 
 ### 6.3 Boucle de réinvestissement
-Une case neuve doit se rembourser vite : cible **~20 s au début**, **moins de 60 s en fin de partie** malgré des coûts plus élevés. Chaque palier relance la boucle (nouvelles cases rentables, nouveaux bâtiments).
+Une case neuve doit se rembourser vite : cible **~10 s au début** (décidé le 4 octobre 2026, au lieu de ~20 s), **moins de 60 s en fin de partie** malgré des coûts plus élevés. Chaque palier relance la boucle (nouvelles cases rentables, nouveaux bâtiments).
+
+Valeurs de départ (à simuler) : une case d'Humus de zone 1 rapporte **≈ 3,33 nutriments/s** (10/s pour la colonie de départ de 3 cases) ; le **Cœur produit comme une case normale** ; **U = 30** nutriments (≈ 9 s de production d'une case).
 
 ### 6.4 Ordre de grandeur
-Cible : **~10 nutriments/s au départ → 1e5 à 1e6 nutriments/s en fin de partie**, soit un facteur de 10 000 à 100 000 en 30 min (à simuler). Les nombres s'écrivent avec des suffixes (K, M, B, T).
+Cible : **~10 nutriments/s pour la colonie au départ → 1e5 à 1e6 nutriments/s en fin de partie**, soit un facteur de 10 000 à 100 000 en 30 min (à simuler). Les nombres s'écrivent avec des suffixes (K, M, B, T).
 
 ### 6.5 Retour visuel (le « boum »)
-- Chaque **palier** déclenche une **onde** qui part du Cœur, fait pulser les cases une à une et lance un petit feu d'artifice de particules, avec un son et le message « Palier ×2 ! ».
+- **La colonie vit dans son entièreté** : une **onde continue** parcourt la colonie de ses bords **vers le Cœur**, comme les nutriments qui remontent. À chaque palier, elle devient **plus fréquente et plus intense**.
+- Au franchissement d'un **palier** : message « Palier ×2 ! » et le **Cœur qui saute** un instant. Les particules et le son viendront avec l'audio (G5).
 - Les **compteurs défilent** (nutriments qui montent à vue d'œil) et une **courbe de production** reste affichée dans le HUD.
 - La tache de la colonie **grossit de façon visible** ; la Floraison collective fait « éclore » tout le réseau.
 
@@ -228,29 +242,30 @@ Chaque case possédée peut accueillir **un bâtiment**, posé, déplacé ou dé
 
 ### 7.1 Principes
 1. **Un bâtiment par case**, sur une case possédée (pas en cours de pousse).
-2. **Construction non instantanée** : **3 à 20 s**. **Chantiers simultanés limités** (2 au départ, +1 par Pépinière).
+2. **Construction non instantanée** : **3 à 20 s**, selon le palier de déblocage du bâtiment (départ 3 s, palier 1 : 5 s, palier 2 : 8 s, palier 3 : 11 s, palier 4 : 15 s, palier 5 : 20 s). **Chantiers simultanés limités** : 2 au départ, +1 par Pépinière, **4 au plus**.
 3. **Règles de pose** : certains bâtiments exigent une case frontière ou un voisinage précis.
 4. **Voisinage** : des bâtiments adjacents se renforcent (§7.3).
-5. **Besoins** : l'équilibre d'humidité (§7.4).
-6. **Coût croissant** : `base × 1,12 ^ nb_déjà_construits_du_même_type`.
-7. **Démolir** rembourse 50 % ; **déplacer** = démolir + reposer.
+5. **Coût croissant** : `base × 1,12 ^ nb_du_même_type`, où l'on compte les bâtiments **terminés, en chantier et en file** de ce type (démolir fait donc baisser le prix suivant).
+6. **Démolir** est **instantané** et rembourse **50 % du prix payé** ; **déplacer** = démolir + reposer (pas de geste dédié).
+7. **Le Cœur est un bâtiment** : il occupe sa case (aucun autre bâtiment ne s'y pose) et n'apporte aucun bonus ; sa case produit comme les autres. S'il tombe sans Sclérote, la colonie est éliminée.
 8. **Capture** : le bâtiment passe à l'attaquant avec la case (§7.6). L'Incendie et le Sanglier, eux, détruisent tout.
-9. **File de construction** : jusqu'à 5 chantiers programmés.
+9. **File de construction**, distincte de la file d'expansion : **5 places, chantiers en cours compris**. **Toute pose entre dans la file** et démarre dès qu'un chantier se libère, dans l'ordre d'ajout. Le coût est payé **à la mise en file**. Annuler un bâtiment **en file** le rembourse à **100 %** ; annuler un **chantier** lancé le rembourse à **50 %**.
 
 Les coûts sont en multiples de **U**, le coût de colonisation d'une case de zone 1 au départ.
 
 ### 7.2 Catalogue
 Les déblocages suivent les **paliers de colonie** (§6.1). Un bâtiment dont le palier n'est plus atteint est **désactivé**, pas détruit (§7.6).
 
+**En G2** : Nœud de digestion, Grenier, Pépinière, Glande enzymatique et Mycorhize. Les bâtiments liés au combat (Sclérote, Écorce, Toxinière, Poste d'assaut, Haustorium, Carpophore) arrivent **tous en G3**.
+
 | Bâtiment | Débloqué | Coût | Règle de pose | Effet |
 |---|---|---|---|---|
 | **Nœud de digestion** | Départ | 2 U | Partout | +50 % de rendement de la case |
-| **Réservoir** | Départ | 2 U | Partout | +3 Humidité/min ; cases à ≤ 2 : +5 % de production |
-| **Rhizomorphe** | Départ | 1 U | Partout | Aucune perte de transport sur sa chaîne ; insensible à la Coupure |
 | **Grenier** | Palier 1 | 3 U | Partout | +2 min de plafond de stock |
-| **Pépinière** | Palier 1 | 4 U | Partout | Pousse −30 % dans un rayon de 3 ; +1 chantier simultané |
+| **Pépinière** | Palier 1 | 4 U | Partout | Pousse −30 % dans un rayon de 3 (plusieurs Pépinières ne se cumulent pas) ; +1 chantier simultané (4 au plus) |
 | **Glande enzymatique** | Palier 2 | 5 U | Partout | +20 Enzymes/min |
 | **Sclérote** | Palier 2 | 15 U + 50 Enzymes | Case non frontière, **1 seul** | Recueille le Cœur s'il tombe (§9.5) |
+| **Mycorhize** | Palier 3 | 6 U | Partout | +1 pousse simultanée (3 au plus en tout) |
 | **Écorce** | Palier 3 | 4 U + 10 Enzymes | Partout | Temps de prise ×2 sur sa case, +20 % sur ses voisines |
 | **Toxinière** | Palier 3 | 6 U + 20 Enzymes | Case frontière | Filaments ennemis visant ses voisines 15 % plus lents ; **débloque Toxine** |
 | **Poste d'assaut** | Palier 4 | 8 U + 40 Enzymes | Case frontière | +1 filament simultané (max 5) ; **débloque Assaut et Coupure** |
@@ -258,34 +273,33 @@ Les déblocages suivent les **paliers de colonie** (§6.1). Un bâtiment dont le
 | **Carpophore** | Palier 5 | 10 U | Partout | Portée des actions +2 ; montre l'état des Cœurs ennemis ; **visible et ciblé par tous** |
 
 ### 7.3 Voisinage (synergies)
-- **Nœud de digestion** : +10 % par Nœud adjacent (max +30 %) ; +10 % s'il touche un Réservoir.
-- **Glande enzymatique** : +25 % par Réservoir adjacent.
+- **Nœud de digestion** : +10 % par Nœud adjacent (max +30 %). L'ancien +10 % au contact d'un Réservoir est **à remplacer** (voisin à décider).
+- **Glande enzymatique** : +10 % par Glande adjacente (max +30 %).
+- Ces bonus **se multiplient** avec l'effet du bâtiment : un Nœud entouré de 3 Nœuds donne ×1,5 × 1,3 = ×1,95.
 - **Écorce** : +10 % de temps de prise par Écorce voisine (un mur).
-- **Rosace** : une case entourée de ses 6 voisines possédées compte **+10 %** sur l'effet de son bâtiment.
+- **Rosace** : une case entourée de ses 6 voisines possédées compte **+10 %** sur l'effet de son bâtiment, **pour les bâtiments qui produisent** (Nœud de digestion, Glande enzymatique).
 - Un **quartier compact** est fort mais plus facile à raser d'un coup (Incendie, Sanglier, attaque) : choisir sa densité est une décision.
 
-### 7.4 Équilibre d'humidité
-Chaque bâtiment **consomme** de l'Humidité (0,5/min) ; les **Réservoirs** en produisent (3/min). Le **ratio** est ce que tu produis divisé par ce que tu consommes, et il multiplie la production :
-- **ratio < 1** : production réduite (jusqu'à ×0,5) ;
-- **ratio 1** : normal ;
-- **ratio > 1** : bonus jusqu'à **+20 %**.
-
-Exemple : 12 bâtiments (dont 2 Réservoirs) consomment 6/min et les 2 Réservoirs produisent 6/min : ratio 1, tout va bien. Avec un seul Réservoir, le ratio tombe à 0,5 et ta production est divisée par deux. Règle pratique : **environ 1 Réservoir pour 5 autres bâtiments**.
+### 7.4 Poser et démolir *(décidé le 4 octobre 2026, jalon G2)*
+- **Poser** : on choisit un bâtiment dans la **palette** puis on clique sur les cases (Échap ou un clic droit court quitte ce mode) ; ou on **clique sur une case possédée** : un **menu rond** propose les bâtiments possibles.
+- Chaque pose entre dans la file de construction (§7.1).
+- **Démolir** : un bouton « Démolir » sur la case sélectionnée.
+- **Case frontière** (règle de pose) : une case qui **touche au moins une case non possédée** (libre ou ennemie). Ce que devient un bâtiment de frontière dont la case cesse d'être au bord se tranche en G3.
+- *L'équilibre d'humidité a été retiré le 4 octobre 2026.*
 
 ### 7.5 Le Cœur
-- Unique, non démolissable. Il collecte les nutriments et définit la distance de transport.
-- **Migration** : on peut le déplacer vers une case adjacente à son réseau (30 s d'immobilisation, recharge 3 min). Utile pour rapprocher le Cœur du centre (moins de pertes de transport) ou l'éloigner d'un front.
+- Unique, non démolissable. Il collecte les nutriments ; le réseau se mesure à partir de lui.
+- **Migration** : on peut le déplacer vers une case adjacente à son réseau (30 s d'immobilisation, recharge 3 min). Utile pour rapprocher le Cœur du centre ou l'éloigner d'un front. *Reportée après G1.*
 - Se prend **4× plus lentement** qu'une case normale.
 
 ### 7.6 Désactivation et capture
 
 **Désactivation (perte de palier).** Chaque bâtiment est lié à son palier de déblocage (§7.2). Si le nombre de cases de la colonie repasse **sous** ce seuil, le bâtiment **n'est pas détruit : il est désactivé**. Il reste sur sa case, mais :
 - il n'a **aucun effet** : ni production, ni synergie de voisinage (§7.3), ni bonus de Rosace, ni action débloquée, ni filament ou chantier supplémentaire ;
-- il **ne consomme plus d'humidité** ;
 - on ne peut plus en construire de nouveaux du même type, mais on peut le démolir (remboursement 50 %) ;
 - il se **réactive tout seul** dès que la colonie repasse au-dessus du seuil.
 
-Les effets déjà lancés (action en recharge, filament ou chantier en cours) vont à leur terme. Les bâtiments de départ (Nœud de digestion, Réservoir, Rhizomorphe) ne se désactivent jamais. Un **Sclérote désactivé ne peut pas recueillir le Cœur** : tomber sous le palier 2 juste avant de perdre son Cœur est fatal.
+Les effets déjà lancés (action en recharge, filament ou chantier en cours) vont à leur terme. Les bâtiments de départ (Nœud de digestion) ne se désactivent jamais. Un **Sclérote désactivé ne peut pas recueillir le Cœur** : tomber sous le palier 2 juste avant de perdre son Cœur est fatal.
 
 **Capture.** Quand une case est prise, **son bâtiment passe à l'attaquant avec la case**, intact et à la couleur du capteur :
 - il est **actif** si le capteur a atteint le palier qui le débloque ;
@@ -301,7 +315,7 @@ Les effets déjà lancés (action en recharge, filament ou chantier en cours) vo
 
 ## 8. Souche unique
 
-Pour le moment, **une seule souche**, sans écran de choix : l'**Armillaire**. Elle grossit sur la durée : **production ×1,00 au départ → ×1,25 à 30:00** (croissance linéaire).
+Pour le moment, **une seule souche**, sans écran de choix : l'**Armillaire**. Elle grossit sur la durée : **production ×1,00 au départ → ×1,25 à 30:00** (croissance linéaire). *Arrive en G3, avec la fin de partie à 30:00.*
 D'autres souches pourront être ajoutées plus tard ; l'écran de choix arrivera avec la deuxième.
 
 ---
@@ -339,7 +353,7 @@ Elles coûtent des Enzymes, rechargent et **exigent le bâtiment correspondant**
 |---|---|---|---|---|---|
 | **Assaut** | Poste d'assaut | Maintenir sur un filament puis relâcher (charge d'un anneau) | 30 Enzymes | 90 s | Prise 4× plus rapide pendant 20 s |
 | **Toxine** | Toxinière | « Arroser » : peindre la zone visée d'un trait | 20 Enzymes | 2 min | La case et ses voisines : production −50 % pendant 60 s |
-| **Coupure** | Poste d'assaut | **Trancher** un lien du réseau ennemi d'un balayage | 40 Enzymes | 3 min | La case ne fait plus passer les nutriments pendant 45 s (ni Rhizomorphe, ni Cœur, ni Rosace) |
+| **Coupure** | Poste d'assaut | **Trancher** un lien du réseau ennemi d'un balayage | 40 Enzymes | 3 min | La case ne fait plus passer les nutriments pendant 45 s (ni Cœur, ni Rosace) |
 | **Siphon** | Haustorium | Tirer un tuyau d'une case ennemie vers une des siennes | 25 Enzymes | 90 s | Vole 20 % de la production des cases à ≤ 2 pendant 60 s |
 
 ### 9.5 Cœur, Sclérote, élimination
@@ -401,15 +415,16 @@ Cosmétiques gagnés en jouant (titres, couleurs de réseau, effets de particule
 ## 12. Formules de base (à équilibrer)
 
 ```
-production_case    = rendement × richesse_zone × (1 + bonus_bâtiment + voisinage)
+production_case    = rendement × richesse_zone × (1 + bonus_bâtiment) × (1 + voisinage)
                      × (1 + 0,05 × voisines) × modif_événement
-production_totale  = Σ production_case × (1 − perte_transport(distance))
-                     × 2 ^ paliers_atteints × facteur_humidité × bonus_souche(t)
+production_totale  = Σ production_case (cases reliées au Cœur)
+                     × 2 ^ paliers_atteints × bonus_souche(t)
 paliers_atteints   = nombre de seuils (5, 10, 20, 40, 80, 160 cases) ≤ nb_cases
 bonus_souche(t)    = 1,00 + 0,25 × t / 30 min
-facteur_humidité   = clamp(production_humidité / consommation_humidité ; 0,5 ; 1,2)
 coût_colonisation  = base × (1 + 0,05 × dist_cœur) × difficulté_zone × 1,02 ^ nb_cases
-coût_bâtiment      = base_bâtiment × 1,12 ^ nb_déjà_construits_du_même_type
+                     (base = U = 30 ; terme dist_cœur à décider, absent en G1 ; nb_cases = cases poussées)
+coût_bâtiment      = base_bâtiment × 1,12 ^ nb_du_même_type   (terminés, en chantier et en file)
+durée_chantier     = 3 / 5 / 8 / 11 / 15 / 20 s selon le palier de déblocage (départ → palier 5)
 coût_filament      = 0,25 × coût_colonisation(case visée)
 stock_max          = production_totale × (3 min + 2 min × nb_greniers)
 temps_prise        = base_prise × prise_zone × (1 + 0,15 × voisines_défenseur) × facteur_écorce
@@ -438,8 +453,8 @@ Menu principal, **mode Duel**, **mode FFA**, **salon de partie personnalisée**,
 | Ciel | `#78BCF1` | `#3796E0` | Lagon | `#3EA8A7` | `#2B6968` |
 | Bonbon | `#F691C3` | `#E74E9A` | Framboise | `#E0516C` | `#B62A44` |
 | Citron | `#E7DF39` | `#B0A91E` | Indigo | `#4042D4` | `#2A2B99` |
-- Une colonie se dessine comme **une seule tache arrondie** ; le **Cœur** est un champignon avec deux petits yeux.
-- **Bâtiments** : un pictogramme rond et simple au centre de la case. **États** : bâtiment désactivé = pictogramme grisé avec un petit cadenas (info-bulle : « palier N requis, X cases ») ; bâtiment capturé = pictogramme à la couleur du capteur ; pousse = cercle pointillé ; **en construction** = pictogramme pointillé avec jauge ; prise en cours = anneau de la couleur de l'attaquant ; coupée = barre blanche.
+- Une colonie se dessine comme **une seule tache arrondie** ; le **Cœur** est un champignon avec deux petits yeux. *G1 : version simple d'abord* : cases colorées une par une, Cœur dans la teinte foncée de la colonie, case en pousse avec une jauge qui se remplit ; la tache arrondie vient plus tard.
+- **Bâtiments** : un pictogramme rond et simple au centre de la case (planche de maquettes à valider avant de coder, en G2). **États** : bâtiment désactivé = pictogramme grisé avec un petit cadenas (info-bulle : « palier N requis, X cases ») ; bâtiment capturé = pictogramme à la couleur du capteur ; pousse = cercle pointillé ; **en construction** = pictogramme pointillé avec jauge ; prise en cours = anneau de la couleur de l'attaquant ; coupée = barre blanche.
 - **Filament d'assaut** : un trait vivant de la couleur de l'attaquant, qui ondule et s'épaissit à mesure que la prise avance.
 
 ### 13.3 Mode sombre
@@ -462,12 +477,16 @@ Les couleurs de colonie sont **éclaircies si besoin** en mode sombre pour garde
 - **Déplacement** : clic droit maintenu (on fait glisser la carte) et souris contre les **bords de l'écran**.
 - **Zoom** : molette, **centré sur la position de la souris**.
 - Le clic gauche reste réservé au jeu (sélection, filaments).
+- **Coloniser** : clic gauche sur une case libre collée à la colonie = la pousse démarre tout de suite (sinon la commande est refusée).
+- **File d'expansion** : **Maj + clic gauche** ajoute une case à la file, ou la retire si elle y est déjà. **Maj + clic gauche glissé** sur plusieurs cases les ajoute dans l'ordre du tracé ; le tracé **s'arrête** à la première case qui ne peut pas entrer en file ou quand la file est pleine (message), et repasser sur une case déjà en file ne change rien.
 
 ### 13.5 Paramètres
-Affichage (plein écran, fenêtré, résolution, **thème clair / sombre / système**), audio, langue (français et anglais), commandes (raccourcis modifiables), accessibilité (taille de l'interface, palette adaptée au daltonisme).
+Affichage (plein écran, fenêtré, résolution, **thème clair / sombre / système**), audio, langue (français et anglais), commandes (raccourcis modifiables, **dès G1**), accessibilité (taille de l'interface, palette adaptée au daltonisme).
+
+Raccourcis par défaut : **Espace** recentre la caméra sur le Cœur ; **P** met en pause (Bac à sable seulement).
 
 ### 13.6 HUD de partie
-- **Panneau latéral** : ressources, **courbe de production**, stock, **équilibre d'humidité**, file de construction, chantiers, cooldowns.
+- **Panneau latéral** : ressources, **courbe de production**, stock et son plafond, Enzymes (dès la première Glande), file de construction et chantiers, cooldowns.
 - **Palette de bâtiments** (débloqués et coût) et **barre des paliers** (prochain seuil).
 - **Mini-classement** : colonies encore en vie, leur taille et leur production moyenne depuis le début (critère de départage à 30:00).
 - **Frise de la partie** : prochains événements, temps restant.
@@ -484,6 +503,9 @@ Affichage (plein écran, fenêtré, résolution, **thème clair / sombre / syst�
 - **Premier lancement** : fenêtre **maximisée** ; langue **du système** (français si Windows est en français, sinon anglais).
 - **Icône** : un champignon provisoire dans la DA (le Cœur avec ses deux yeux), à remplacer plus tard.
 - **Distribution : Steam** (Steam Direct). Intégration Steamworks via l'extension **GodotSteam** : comptes, amis, invitations, salons, succès.
+- **Tests multijoueur avant la sortie** : GodotSteam est utilisé avec l'**App ID 480 (« Spacewar »)**, l'application de test de Valve, pour tester le jeu en ligne entre amis sans payer le Steam Direct Fee (100 $ par jeu) ni créer de page Steam. Chaque testeur lance Steam puis le `.exe` de la version GitHub ; un fichier `steam_appid.txt` contenant `480` est placé à côté de l'exécutable de test (jamais dans l'export final).
+  - **Limites** : tout le monde apparaît « en train de jouer à Spacewar » ; pas de succès ni de statistiques globales Steam (l'écran de statistiques de l'interface d'administration ne peut donc pas être validé avec 480) ; les salons de l'App ID 480 sont partagés avec d'autres développeurs, donc chaque salon porte une **clé de métadonnée propre au jeu et à sa version**, et la recherche de salons filtre dessus.
+  - **App ID réel** : il remplace 480 dès que la page Steam existe. L'App ID est une **valeur de configuration**, jamais écrite en dur dans le code.
 - Configuration et profil enregistrés dans `user://` (thème, résolution, langue, raccourcis, préréglages de parties).
 
 ### 14.2 Architecture
@@ -499,7 +521,7 @@ Affichage (plein écran, fenêtré, résolution, **thème clair / sombre / syst�
 
 ### 14.3 Données et rendu
 - État de la carte en **tableaux compacts** (`PackedInt32Array` : propriétaire, bâtiment, progression de pousse, de prise et de construction, zone, intégrité). Quelques centaines de cases : coût négligeable.
-- Transport : recherche en largeur depuis le Cœur, recalculée de façon incrémentale.
+- Réseau : recherche en largeur depuis le Cœur (cases reliées, îlots, Coupure), recalculée de façon incrémentale.
 - Cases-bulles en `MultiMeshInstance2D` ; colonies en taches arrondies via `Geometry2D.merge_polygons` et `offset_polygon` (jointures rondes) ; filaments en `Line2D` animés par shader ; thème clair/sombre par deux ressources `Theme` interchangeables.
 - Objectif : **60 images/s** sur un PC modeste.
 
@@ -509,7 +531,20 @@ Affichage (plein écran, fenêtré, résolution, **thème clair / sombre / syst�
 - **Joueurs en ligne** : les membres de ces salons (pseudo, mode, en attente ou en partie). Le nombre total de joueurs en jeu vient de Steam ; un joueur seul dans les menus n'est **pas visible** individuellement.
 - **Statistiques du jeu** : **statistiques globales Steam** (valeurs additionnées sur tous les joueurs) : parties jouées par mode, victoires, éliminations, durée de jeu, parties finies par élimination ou au temps, victoires contre robots par difficulté, déconnexions d'hôte. Les moyennes et répartitions fines (rangs, temps d'attente) demanderaient un petit service de collecte, **non prévu** pour l'instant.
 
-Aucune action de modification (pas d'arrêt de partie, pas de ressources, pas de sauts de temps). Pour **équilibrer** le jeu, les simulations accélérées passent par une **commande de développement** du jeu (robots seuls, temps accéléré), pas par cette interface.
+Aucune action de modification (pas d'arrêt de partie, pas de ressources, pas de sauts de temps). Pour **équilibrer** le jeu, les simulations accélérées passent par le **panneau de simulations** (§14.5), pas par cette interface.
+
+### 14.5 Panneau de simulations (développement) *(décidé le 4 octobre 2026, jalon G1)*
+Outil d'équilibrage **séparé** de l'interface d'administration, disponible **uniquement quand le jeu est lancé depuis l'éditeur Godot** : il n'existe dans aucun `.exe` livré.
+- **Lancement** : les **réglages du Bac à sable** (§2.1 bis), plus le **nombre de simulations** et la **durée simulée** (30 min par défaut). Deux façons : un **lancement simple** (N simulations par profil coché) ou un **balayage** (une valeur, son minimum, son maximum et son pas ; une série par valeur).
+- **Robots** *(G2)* : on compose une **liste de robots** ; chacun a **un profil d'expansion** (ci-dessous), **un profil de bâtisseur** (Aucun, Producteur : Nœuds puis Glandes en grappes ; Accélérateur : Pépinières et Mycorhizes d'abord ; Hasardeux : un bâtiment au hasard parmi les meilleurs choix) et **un pourcentage réglable** des nutriments consacré à l'expansion (le reste à la construction). La liste est **gardée d'une session à l'autre**.
+- **Profils d'expansion**, à comparer côte à côte :
+  - **Hasardeux** : une case tirée au hasard parmi les 3 plus rentables (aléatoire tiré de la graine de chaque simulation) ;
+  - **Rentable** : le meilleur rapport production ajoutée (zone, Cohésion) / coût ;
+  - **Rapide** : le remboursement le plus court, durée de pousse comprise ;
+  - **Centre** : la case la plus riche qu'il peut payer.
+- **Mesures** : minute d'arrivée dans chaque zone et à chaque palier, production par minute, temps de remboursement d'une case (début, milieu, fin) et ce qui freine (part du temps à attendre les nutriments ou la pousse). Pour chacune : **moyenne, minimum, maximum et écart type**.
+- **Résultats** : tableaux (une colonne par profil) et courbes de production par minute (une par profil) ; export en **fichier CSV**. On peut **rejouer une simulation** sur la carte, en accéléré.
+
 
 ---
 
@@ -518,15 +553,16 @@ Aucune action de modification (pas d'arrêt de partie, pas de ressources, pas de
 | Jalon | Contenu |
 |---|---|
 | **G0 : Fondations** | Dépôt transformé pour Godot, vérification automatique et version GitHub avec le .exe à chaque fusion sur main ; carte hex (6 zones, un terrain) en Duel et FFA, rendu « Pastille ronde », caméra ; menu principal minimal (entrées futures grisées) ; écran Paramètres (thème, langue, affichage) |
-| **G1 : Solo économie** | Colonisation, Cœur, transport, production, Cohésion, **paliers de colonie** et retours visuels |
-| **G2 : City builder** | Bâtiments, chantiers, files, voisinage, humidité, déblocages par palier |
+| **G1 : Solo économie** | Colonisation (pousse, file d'expansion), Cœur, réseau, production, Cohésion, **paliers de colonie** et retours visuels (onde continue, palier). Entrée **Bac à sable** : joueur seul sur une forêt de Duel ou de FFA au choix. Horloge de partie affichée (le bonus de l'Armillaire arrive en G3), pause (P + bouton) et vitesse (bouton ×1 / ×2 / ×4), réglages du Bac à sable avec retour aux valeurs par défaut et récapitulatif copiable (§2.1 bis). HUD : nutriments qui défilent, courbe de production, Biomasse, barre du prochain palier, grands nombres avec suffixes (K, M, B, T). Carte : cases colonisables **toujours marquées** (teinte à part pour celles payables tout de suite), **info-bulle au survol** d'une case (zone, coût, durée de pousse, production). Raccourcis modifiables dans les Paramètres (Espace = recentrer sur le Cœur, P = pause). Tests : enregistrement des commandes d'une partie et **rejeu à l'identique** (même empreinte). **Panneau de simulations** (§14.5) avec 4 profils de robot d'économie. Livré en **trois étapes** : 1) simulation et tests ; 2) affichage, HUD et Bac à sable ; 3) robots d'économie, simulations et panneau ; version **0.2.0** |
+| **G2 : City builder** | Bâtiments (Nœud de digestion, Grenier, Pépinière, Glande enzymatique, Mycorhize), chantiers, file de construction, voisinage, Enzymes, plafond de stock, déblocages et désactivation par palier ; pose (palette ou menu rond), démolition ; HUD (palette, file et chantiers, Enzymes, stock et plafond) ; pictogrammes validés sur maquettes ; réglages du Bac à sable pour les bâtiments ; robots du panneau de simulations (§14.5) avec profil de bâtisseur. Livré en **trois étapes** (simulation et tests ; affichage, HUD et Bac à sable ; robots et panneau) ; version **0.3.0** |
 | **G3 : Combat et fin de partie** | Filament d'assaut, trancher, actions actives, Sclérote, élimination, **butin et transfert du territoire**, événements, frise de partie |
-| **G4 : Duel et FFA contre robots** | Menus, robots (3 difficultés, profils), pause, accélération, résultats |
-| **G5 : Partie personnalisée (local)** | Salon, emplacements, paramètres de forêt, préréglages |
-| **G6 : Habillage et bêta solo** | **Tutoriel**, audio, profil et statistiques, traduction, page Steam et succès, essais du jeu contre robots avec de vrais joueurs (Steam Playtest) |
-| **G7 : Multijoueur** | Amis, invitations, salons et file d'attente Steam, **hébergement par un joueur** via le relais Steam, vérification par empreinte, FFA entre joueurs, Duel contre un joueur (invitation puis file d'attente, rang éventuel), partie personnalisée avec amis, chat, déconnexion et pilote automatique, **interface d'administration en lecture seule** |
+| **G4 : Duel et FFA contre robots** | Menus, robots (3 difficultés, profils), robots dans le Bac à sable, résultats (pause et vitesse réservées au Bac à sable depuis le 4 octobre 2026) |
+| **G5 : Habillage et bêta solo** | **Tutoriel**, audio, profil et statistiques, traduction, essais du jeu contre robots avec de vrais joueurs (sans Steam) |
+| **G6 : Multijoueur** | **Étape 1, tests entre amis avec l'App ID 480** (GodotSteam, sans page Steam ni frais, §14.1) : initialisation de Steam, identité, salons et invitations d'amis, relais Steam, hébergement par un joueur, vérification par empreinte, déconnexion et pilote automatique, arrêt de la partie si l'hôte part. **Étape 2, version complète** : file d'attente Steam, FFA entre joueurs, Duel contre un joueur (invitation puis file d'attente, rang éventuel), **partie personnalisée** complète (salon, emplacements, paramètres de forêt, préréglages, invitations d'amis ; l'ancien jalon G5 « Partie personnalisée (local) » y a été fusionné le 4 octobre 2026), chat, **interface d'administration en lecture seule** |
 
-Le jeu est donc complet et jouable en solo avant le multijoueur. Pour ne pas avoir à tout réécrire au G7, la simulation est construite dès le G1 pour ne recevoir que des **commandes** (§14.2) : le passage en ligne consiste surtout à faire tourner cette simulation chez l'hôte et à brancher le réseau Steam.
+**Hors feuille de route** : la **page Steam**, l'**App ID réel** (Steam Direct, 100 $), les **succès** et **Steam Playtest** se font dès que le propriétaire décide de payer, quel que soit le jalon en cours.
+
+Le jeu est donc complet et jouable en solo avant le multijoueur. Pour ne pas avoir à tout réécrire au G6, la simulation est construite dès le G1 pour ne recevoir que des **commandes** (§14.2) : le passage en ligne consiste surtout à faire tourner cette simulation chez l'hôte et à brancher le réseau Steam.
 
 ---
 
@@ -539,7 +575,7 @@ Le jeu est donc complet et jouable en solo avant le multijoueur. Pour ne pas avo
 4. **Déblocages par palier de colonie** (et non par le temps).
 5. **Production et déblocages liés au nombre de cases actuel** : perdre un palier **désactive** les bâtiments concernés (sans les détruire) ; capturer une case donne son bâtiment au capteur, actif ou désactivé selon son propre palier (§7.6).
 6. **Pas de pactes** dans la première version.
-7. **Tout le multijoueur dans le dernier jalon** (G7), FFA et Duel entre joueurs ensemble.
+7. **Tout le multijoueur dans le dernier jalon** (G6), FFA et Duel entre joueurs ensemble, avec GodotSteam.
 8. **Plafond de 30 min** y compris en partie personnalisée.
 9. **Aucun rétrécissement de la carte** : c'est la richesse du centre, le butin et la Mort subite qui poussent au conflit.
 10. **Steam** pour la distribution, les comptes, les amis, les invitations et les salons.
@@ -549,23 +585,146 @@ Le jeu est donc complet et jouable en solo avant le multijoueur. Pour ne pas avo
 14. **Tutoriel guidé** de ~10 min, proposé au premier lancement.
 15. **Modèle économique** (gratuit ou payant) : pas encore décidé.
 16. **Départage à 30:00** : production moyenne sur toute la partie, puis nombre de cases.
+17. **Tests multijoueur entre amis avec l'App ID 480** (Spacewar) avant d'avoir un App ID réel, puis passage à l'App ID du jeu une fois la page Steam créée.
+18. **Perte de transport et Rhizomorphe retirés** (4 octobre 2026).
+19. **Économie de départ** : 3 cases Cœur compris, U = 30, ≈ 3,33 nutriments/s par case, stock de départ 6 U, remboursement d'une case en ~10 s au début.
+20. **Une pousse à la fois** au départ ; chaque Mycorhize (palier 3) en ajoute une, 3 au plus.
+21. **Humidité et Réservoir retirés** (4 octobre 2026), pour ne pas complexifier le jeu au détriment de l'incrémental. **Enzymes gardées** comme monnaie du combat et de la défense.
 
 ### Questions ouvertes
 - **Triche de l'hôte** : la vérification par empreinte suffit-elle pour un classement du Duel ?
+- **Coût et distance au Cœur** : garder ou non le terme `0,05 × distance` du coût de colonisation (à trancher avec la migration du Cœur).
+- **Nœud de digestion** : quel voisin remplace l'ancien +10 % au contact d'un Réservoir ?
+- **Bâtiments de frontière** : actifs ou désactivés quand leur case cesse d'être au bord (G3) ?
 - **Statistiques d'administration** : les statistiques globales Steam suffisent-elles, ou faut-il un petit service de collecte ?
 
 ### À simuler
 - Contact et rythme : la carte ne rétrécissant pas, rien ne force les colonies à se rencontrer. S'affrontent-elles assez tôt ? Combien de parties finissent au temps plutôt que par élimination ?
 - Atteint-on la zone N vers la minute 3,5 × N ?
-- Courbe de production : facteur de 10 000 à 100 000 sur 30 min ; temps de remboursement d'une case (20 s à 60 s).
+- Courbe de production : facteur de 10 000 à 100 000 sur 30 min ; temps de remboursement d'une case (~10 s au début, moins de 60 s en fin de partie).
 - Seuils des paliers (5, 10, 20, 40, 80, 160) selon la taille de la forêt (Duel ~198 cases par colonie, FFA ~153).
 - Taille des zones : la Clairière (zone 6) ne fait que ~7 cases en Duel et ~19 en FFA ; est-ce assez pour une case objectif ?
 - Temps de prise et efficacité de « trancher » : peut-on encore éliminer quelqu'un ?
 - Butin et transfert du territoire : le tueur gagne d'un coup des cases, des paliers et des bâtiments ; est-ce une boule de neige impossible à rattraper en FFA ?
-- Humidité : ratio, consommation (0,5/min) et production des Réservoirs (3/min).
 - Bâtiments capturés : la conquête devient-elle une boule de neige (on prend les cases et leurs bâtiments) ? Faut-il un délai de remise en service ?
 - Cas limites de §7.6 à trancher : bâtiment en construction annulé, Sclérote capturé détruit si le capteur en a déjà un.
 - Nombre d'éliminations avant 26:00 en FFA (cible : 3 à 5 colonies mortes avant la Mort subite).
 
 ### Idées pour plus tard
 Autres terrains et souches, pactes, population (hyphes) et logements, mode par équipes, forêts thématiques, classement du Duel.
+
+---
+
+## 17. Questions en attente *(relevées le 4 octobre 2026)*
+
+Questions relevées en relisant chaque jalon. Elles seront posées sous forme de QCM au début du jalon concerné, avant d'écrire le code ; les réponses remplaceront ces lignes dans les sections du document.
+
+### G3 : Combat et fin de partie
+
+**Contre qui se battre**
+1. Les robots n'arrivent qu'en G4 : face à qui teste-t-on le combat en G3 (colonie adverse inerte, robots d'économie de G1–G2 comme adversaires, second joueur sur le même PC) ?
+2. Peut-on ajouter des adversaires dans le Bac à sable dès G3 ?
+3. Panneau de simulations : les robots attaquent-ils dès G3 et mesure-t-on les éliminations, ou est-ce pour G4 ?
+
+**Filament d'assaut**
+4. Le coût (25 % du coût de colonisation de la case visée) est-il calculé pour l'attaquant (son nombre de cases, la zone de la case) ?
+5. Le filament part-il de la case sélectionnée ou de n'importe quelle case de l'attaquant collée à la cible ? Que devient-il si sa case de départ est prise ou coupée ?
+6. Tracé de front : chaque case survolée doit-elle toucher le réseau de l'attaquant, ou seulement la précédente du tracé ?
+7. Frappe parfaite : largeur de la fenêtre de timing, rythme de la pulsation, une seule tentative ou plusieurs ?
+8. Pendant une prise, la case visée produit-elle encore pour le défenseur ? Peut-on y construire ?
+9. Prise interrompue : la progression est-elle perdue ou gardée ?
+10. Deux attaquants sur la même case : est-ce possible, et qui la prend ?
+11. Peut-on attaquer une case en pousse ou en chantier ? Deux colonies qui colonisent la même case libre au même tick : qui l'obtient ?
+12. Temps de prise arrondis à la seconde, au plus proche comme la pousse ?
+
+**Trancher un filament**
+13. Le « coût pour le défenseur » n'est pas chiffré : combien, et en quelle ressource ?
+14. Qui peut trancher : seulement le défenseur visé, ou n'importe quelle colonie ?
+15. La recharge de 8 s vaut-elle pour tous les filaments ou par filament ?
+16. Risque d'impasse (recharge de 8 s = temps de prise de base de 8 s) : à traiter maintenant ou après simulation ?
+
+**Actions actives**
+17. Portée de base des actions (le Carpophore donne +2) : collée au réseau, ou quelques cases ?
+18. Assaut : durée de la charge ; effet sur un filament ou sur tous ?
+19. Toxine (« peindre la zone ») : combien de cases ; effet centré sur une case ou sur chaque case peinte ?
+20. Coupure : vise-t-on une case ou le lien entre deux cases ? Les cases isolées deviennent-elles des îlots pendant 45 s ?
+21. Siphon : « cases à ≤ 2 » de la case ennemie visée ou de la case de l'attaquant ?
+22. Recharges par colonie et par action ? Un second Poste d'assaut donne-t-il une charge de plus ?
+
+**Cœur, Sclérote, élimination**
+23. Bâtiments de frontière (et Sclérote, « case non frontière ») dont la case change de statut : actifs ou désactivés ?
+24. Renaissance sur le Sclérote : les 60 s de protection couvrent-elles le nouveau Cœur seul ou toute la colonie ?
+25. Deux colonies qui perdent leur Cœur au même tick : laquelle gagne ?
+26. Butin : les « 2 min de production » de la victime se calculent-elles avant ou après les pertes qui précèdent sa chute ?
+27. Migration du Cœur (reportée après G1) : arrive-t-elle en G3 ? Elle conditionne le terme de distance du coût de colonisation.
+
+**Événements**
+28. Tirage de l'événement aléatoire (toutes les 2 min environ) : mêmes chances pour tous ou des poids ? Comment choisir les cases touchées ?
+29. Arbre mourant : sa « vie », ses règles exactes, ce que deviennent ses 7 cases ; en Duel il remplit toute la Clairière (~7 cases), est-ce voulu ?
+30. Incendie : à qui profitent les Cendres (×2 pendant 2 min), et si personne ne recolonise ?
+31. Festin : combien rapporte la case très riche, et que devient-elle après 90 s ?
+32. Nématodes : nombre maximal de cases mangées, ce qu'elles deviennent, ce qui se passe si personne ne les digère.
+33. « Zone du moment » : comment la calculer quand une colonie couvre plusieurs zones, et en Bac à sable avec une seule colonie ?
+34. Réglages du Bac à sable pour les événements (lesquels, fréquence) dès G3 ?
+
+**Fin de partie et interface**
+35. À 30:00 en G3 : écran de résultats simple, ou l'écran complet prévu en G4 ?
+36. Mode spectateur après élimination : G3 ou G4 ?
+37. HUD de G3 : frise, temps restant, alertes, annonce des événements, journal, mini-classement : tout en G3 ?
+38. Pictogrammes des bâtiments de combat et visuel du filament : maquettes à valider d'abord, comme en G2 ?
+39. Livraison : trois étapes et version 0.4.0, ou découper davantage (combat, puis événements) ?
+
+### G4 : Duel et FFA contre robots
+1. Profils des robots : le §2.5 parle de bâtisseur, expansionniste et agressif, alors que les robots du panneau combinent un profil d'expansion, un profil de bâtisseur et un pourcentage. Les robots de jeu reprennent-ils cette composition, avec un profil de combat en plus ?
+2. Valeurs des difficultés Facile, Normal, Difficile (délai de réaction, part d'erreurs, profondeur d'évaluation, taux de Frappes parfaites).
+3. « Mêmes limites qu'un joueur » : nombre maximal de commandes par seconde pour un robot ?
+4. FFA contre robots : une difficulté pour tous ou une par robot (« mélange ») ? Profils choisis ou tirés au hasard ?
+5. Secteur et couleur du joueur en Duel et en FFA : choisis ou tirés au hasard ? Ordre des couleurs pour 2 et 6 colonies (daltonisme compris) ?
+6. Quitter une partie en cours : défaite enregistrée ? Confirmation demandée ?
+7. Éliminé en FFA contre robots, sans accélération possible : on attend la fin en spectateur ou on quitte avec son rang ?
+8. Écran de résultats : contenu exact (rang, statistiques, courbe de production, graine publiée) et boutons (rejouer, menu, revoir la partie).
+9. Replay en timelapse (§11.4) : dans quel jalon ?
+10. Robots dans le Bac à sable : choisis comme dans le panneau (paire de profils et pourcentage), avec une difficulté ?
+11. Panneau de simulations : ajoute-t-on les mesures de combat (éliminations avant 26:00, parties finies au temps, efficacité des filaments et de « trancher », effet du butin) ?
+
+### G5 : Habillage et bêta solo
+1. Tutoriel : quelle forêt (« petite forêt de Duel » : rayon 5 ?) ? Faut-il ajouter des étapes pour la file d'expansion, la Mycorhize ou les Enzymes ?
+2. Audio : style de la musique et des bruitages ; qui les produit (banques libres de droits, compositeur, autre) et sous quelle licence ?
+3. Profil et statistiques : enregistrés sur le PC (`user://`), liés au compte Steam ? Sauvegarde Steam Cloud ?
+4. Langues : français et anglais seulement ?
+5. Paramètres audio et accessibilité (taille de l'interface, palette adaptée au daltonisme, §13.5) : quel jalon ?
+6. Icône définitive et logo : qui les fait ?
+7. Numéro de version de la bêta solo.
+
+### G6 : Multijoueur
+1. File d'attente : en Duel, au bout de combien de temps proposer un robot s'il n'y a personne ? En FFA, que faire avec moins de 4 joueurs après 2 min ?
+2. Classement du Duel (rang, classements Steam) : le fait-on ? Il dépend de la question sur la triche de l'hôte (§16).
+3. Hôte en file d'attente : le propriétaire du salon Steam, ou le joueur qui a la meilleure connexion ?
+4. Chat : où va un signalement sans serveur à nous ? La sourdine est-elle seulement locale ?
+5. Pilote automatique et robot de remplacement (après 3 min) : quel profil et quelle difficulté ?
+6. Hôte qui quitte volontairement : où la défaite est-elle enregistrée ?
+7. Replay partagé en fin de partie : sous quelle forme (fichier, Steam) ?
+8. Interface d'administration : où est stockée la liste des comptes autorisés ? Les statistiques globales Steam ne fonctionnent pas avec l'App ID 480 : l'écran attend-il l'App ID réel ?
+9. Spectateurs en ligne : les éliminés restent-ils dans la partie et dans le chat ?
+10. Versions différentes entre l'hôte et un invité : on bloque la connexion ?
+11. Numéro de version des étapes 1 et 2.
+11 bis. Récompenses cosmétiques (§11.5 : titres, couleurs de réseau, effets de particules) : seules les parties en ligne en donnent (§2.6). Lesquelles, à quelles conditions, et dans ce jalon ou plus tard ?
+
+**Partie personnalisée** (ancien jalon G5)
+12. Réglages : la partie personnalisée garde-t-elle la liste courte du §2.4, ou reprend-elle les réglages complets du Bac à sable ?
+13. Partie à 3 colonies : quel rayon par défaut ?
+14. Rayons 5, 11, 17, 23 « à confirmer » ; peut-on combiner n'importe quel nombre de colonies avec n'importe quel rayon (6 colonies sur un rayon 5) ?
+15. Valeurs des plages « à valider » : richesse ×1 à ×8, difficulté faible / normale / forte, ressources peu / normales / beaucoup, événements rares / normaux / fréquents.
+16. Préréglages : quand arrive le code partageable ? Le Bac à sable aura-t-il les mêmes préréglages (« plus tard ») ?
+17. Une partie personnalisée compte-t-elle dans les statistiques du profil ?
+18. Un invité absent est-il remplacé par un robot au lancement seulement, ou aussi en cours de partie ?
+
+### Hors feuille de route : sortie Steam
+1. Modèle économique (gratuit ou payant) : à décider avant la page Steam ?
+2. Visuels de la page Steam (capsules, captures, bande-annonce) : qui les fait ?
+3. Numéro de version de la sortie (1.0.0 ?).
+
+### Questions communes à plusieurs jalons
+1. Peut-on quitter une partie solo et la reprendre plus tard (sauvegarde de partie en cours) ?
+2. Les robots de jeu et ceux du panneau de simulations sont-ils les mêmes (même code, mêmes profils) ?
+3. Le panneau de simulations doit-il pouvoir comparer des robots de difficultés différentes à partir de G4 ?

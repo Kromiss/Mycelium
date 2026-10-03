@@ -52,7 +52,7 @@ res://
 ├── autoload/                 Singletons (3 maximum)
 │   ├── settings.gd           Paramètres du joueur : les applique (thème, langue, fenêtre) et les enregistre
 │   ├── settings_store.gd     Valeurs des paramètres et lecture/écriture du fichier (testable seul)
-│   ├── steam_service.gd      Accès à GodotSteam (initialisation, identité, amis, salons) — jalon G7
+│   ├── steam_service.gd      Accès à GodotSteam (initialisation, identité, amis, salons) — jalon G6
 │   └── scene_router.gd       Changement d'écran (menu, partie, résultats)
 ├── sim/                      Règles du jeu, code pur (RefCounted uniquement)
 │   ├── simulation.gd         Point d'entrée : tick(commandes) -> TickResult
@@ -64,7 +64,7 @@ res://
 │   │   ├── command_system.gd   Validation et application des commandes
 │   │   ├── growth_system.gd    Pousse des cases, chantiers
 │   │   ├── combat_system.gd    Filaments, prises, actions actives, élimination
-│   │   ├── economy_system.gd   Production, transport, humidité, stock
+│   │   ├── economy_system.gd   Production, réseau, stock, Enzymes
 │   │   ├── tier_system.gd      Paliers, activation et désactivation des bâtiments
 │   │   ├── event_system.gd     Frise, événements aléatoires
 │   │   └── victory_system.gd   Fin de partie, départage
@@ -81,7 +81,7 @@ res://
 ├── net/                      Transport des commandes et des différences
 │   ├── transport.gd          Interface commune
 │   ├── local_transport.gd    Solo, tutoriel, tests
-│   └── steam_transport.gd    En ligne : hôte ou invité (jalon G7)
+│   └── steam_transport.gd    En ligne : hôte ou invité (jalon G6)
 ├── game/
 │   ├── session.gd            Relie simulation, transport, robots et affichage
 │   ├── local_view_state.gd   Copie de l'état côté affichage (mise à jour par différences)
@@ -110,12 +110,12 @@ res://
 │   └── translations.csv      Textes FR et EN
 ├── tools/
 │   ├── capture.gd            Captures d'écran d'un écran du jeu, pour validation visuelle
-│   └── sim_runner.gd         Parties de robots accélérées, sans affichage — jalon G4
+│   └── sim_runner.gd         Parties de robots accélérées, sans affichage — jalon G1 (économie), étendu en G4
 ├── tests/
 │   ├── unit/                 Un fichier de test par système
 │   ├── integration/          Parties complètes, déterminisme, scènes
 │   └── fixtures/             Forêts et situations de test
-└── addons/                   GUT (tests), GodotSteam (G7)
+└── addons/                   GUT (tests), GodotSteam (G6)
 ```
 
 ---
@@ -137,7 +137,7 @@ res://
 | 2 | `GrowthSystem` | Avance la pousse des cases et les chantiers |
 | 3 | `CombatSystem` | Avance les filaments et les prises, applique les actions actives, traite les éliminations et le butin |
 | 4 | `TierSystem` | Recalcule les paliers, active ou désactive les bâtiments |
-| 5 | `EconomySystem` | Transport, humidité, production, plafond de stock, biomasse |
+| 5 | `EconomySystem` | Réseau (cases reliées au Cœur), production, plafond de stock, Enzymes, biomasse |
 | 6 | `EventSystem` | Déclenche et fait avancer les événements de la frise |
 | 7 | `VictorySystem` | Fin de partie, classement, départage à 30:00 |
 | 8 | `StateHash` | Calcule l'empreinte de l'état |
@@ -167,7 +167,7 @@ Fin de partie visée : ~1e6 nutriments/s, soit ~1e9 en millièmes par seconde ; 
 - Chaque élément de contenu est une **ressource typée** : `BuildingDef`, `ZoneDef`, `TierDef`, `EventDef`, `ModeDef` (classes déclarées dans `sim/defs/`, champs exportés).
 - Exemple : `data/buildings/digestion_node.tres` contient l'identifiant, le coût en U, le palier de déblocage, la règle de pose, les effets et les synergies.
 - La simulation reçoit les définitions **au démarrage de la partie** ; elle ne charge rien elle-même pendant les ticks.
-- Les paramètres d'une partie personnalisée **surchargent** les valeurs du mode, sans jamais modifier les fichiers.
+- Les paramètres d'une partie personnalisée ou du **Bac à sable** **surchargent** les valeurs du mode, sans jamais modifier les fichiers.
 - Changer un chiffre d'équilibrage = modifier un `.tres`, relancer les tests et le `sim_runner`.
 
 ---
@@ -178,6 +178,7 @@ Fin de partie visée : ~1e6 nutriments/s, soit ~1e9 en millièmes par seconde ; 
 - Décision par **utilité** : chaque évaluateur note les actions possibles (coloniser telle case, construire tel bâtiment, attaquer, trancher, migrer le Cœur) ; le robot choisit les meilleures.
 - **Difficulté** = délai de réaction, part d'erreurs, profondeur d'évaluation, taux de Frappes parfaites réussies. **Profil** = poids des évaluateurs (bâtisseur, expansionniste, agressif).
 - Les robots utilisent leur propre `SimRng` dérivé de la graine : une partie de robots est donc **rejouable à l'identique**.
+- **G1** : premiers robots d'économie (profils Hasardeux, Rentable, Rapide, Centre, GDD §14.5), qui ne font que coloniser ; ils servent au panneau de simulations et seront repris par les robots complets de G4.
 
 ---
 
@@ -185,7 +186,7 @@ Fin de partie visée : ~1e6 nutriments/s, soit ~1e9 en millièmes par seconde ; 
 
 - `Transport` est une interface : `send_command(cmd)`, signal `tick_received(result)`.
 - `LocalTransport` : la simulation tourne dans le jeu ; les commandes sont transmises directement. Utilisé en solo, dans le tutoriel et dans les tests.
-- `SteamTransport` (jalon G7) :
+- `SteamTransport` (jalon G6) :
   - **Hôte** : fait tourner la simulation, reçoit les commandes des invités par Steam Networking Sockets, envoie les différences et l'empreinte de chaque tick.
   - **Invité** : envoie ses commandes, applique les différences, **rejoue la simulation localement** à partir des commandes et compare l'empreinte ; un écart arrête la partie et la signale.
 - Le reste du jeu (`game/`, `view/`, `ui/`) ne sait pas quel transport est utilisé.
@@ -194,8 +195,8 @@ Fin de partie visée : ~1e6 nutriments/s, soit ~1e9 en millièmes par seconde ; 
 
 ## 8. Session, scènes et singletons
 
-- `Session` (`game/session.gd`) assemble une partie : crée la simulation et le transport, inscrit les robots, cadence les ticks (1 par seconde, ×2 ou ×4 en solo accéléré), met à jour `LocalViewState` et émet des **signaux** (`cell_changed`, `tier_reached`, `filament_launched`, `colony_eliminated`…).
-- **Singletons limités à trois** : `Settings`, `SceneRouter` et, au jalon G7, `SteamService`. L'état de la partie n'est **jamais** dans un singleton : il appartient à la `Session` en cours.
+- `Session` (`game/session.gd`) assemble une partie : crée la simulation et le transport, inscrit les robots, cadence les ticks (1 par seconde, ×2 ou ×4 en Bac à sable), met à jour `LocalViewState` et émet des **signaux** (`cell_changed`, `tier_reached`, `filament_launched`, `colony_eliminated`…).
+- **Singletons limités à trois** : `Settings`, `SceneRouter` et, au jalon G6, `SteamService`. `SteamService` est **facultatif** : les modes locaux (joueur et robots : Bac à sable, Duel et FFA contre robots, tutoriel) sont **isolés des modes en ligne** et fonctionnent sans Steam ni GodotSteam. Aucun code de `sim/`, `ai/`, `game/` ni des écrans des modes locaux ne dépend de `SteamService` ou de `SteamTransport` ; seuls `net/steam_transport.gd` et les écrans du multijoueur (salons, invitations, file d'attente) y touchent. L'état de la partie n'est **jamais** dans un singleton : il appartient à la `Session` en cours.
 - Une scène par écran (`ui/menus/main_menu.tscn`, `ui/hud/hud.tscn`…), une scène par élément réutilisable (bouton de bâtiment, ligne de classement).
 
 ---
@@ -224,7 +225,7 @@ Fin de partie visée : ~1e6 nutriments/s, soit ~1e9 en millièmes par seconde ; 
 | Fichiers | `snake_case` | `economy_system.gd` |
 | Classes (`class_name`) | `PascalCase` | `EconomySystem` |
 | Fonctions, variables | `snake_case` | `compute_production()` |
-| Privé | préfixe `_` | `_transport_loss()` |
+| Privé | préfixe `_` | `_cohesion_bonus()` |
 | Constantes, énumérations | `CONSTANT_CASE` | `MAX_FILAMENTS` |
 | Signaux | `snake_case`, au passé | `cell_captured` |
 | Nœuds dans les scènes | `PascalCase` | `BuildingPalette` |
@@ -246,7 +247,7 @@ Ordre dans un fichier : `class_name`, `extends`, commentaire `##` de la classe, 
 class_name EconomySystem
 extends RefCounted
 ## Calcule la production de chaque colonie à chaque tick :
-## rendement des cases, transport vers le Cœur, humidité, paliers et plafond de stock.
+## rendement des cases reliées au Cœur, paliers et plafond de stock.
 
 const PER_MILLE: int = 1000
 
@@ -275,8 +276,7 @@ func _colony_production(state: GameState, colony: ColonyState) -> int:
 	for cell: int in colony.cells:
 		total += _cell_production(state, cell)
 	# Chaque palier double la production (table précalculée en pour-mille).
-	total = Fixed.mul(total, _defs.tier_multiplier(colony.tier))
-	return Fixed.mul(total, _humidity_factor(colony))
+	return Fixed.mul(total, _defs.tier_multiplier(colony.tier))
 ```
 
 ---
@@ -297,10 +297,12 @@ func _colony_production(state: GameState, colony: ColonyState) -> int:
 | **Données** | Cohérence des `.tres` | Chaque bâtiment a un palier existant ; aucun coût nul ; chaque texte a sa traduction FR et EN |
 
 ### 11.3 Simulations d'équilibrage (`tools/sim_runner.gd`)
+Dès G1, le `sim_runner` est piloté par le **panneau de simulations** (GDD §14.5), une scène de `ui/` chargée seulement quand `OS.has_feature("editor")` est vrai : le panneau n'existe dans aucun export. Les simulations tournent sans affichage, avec une barre de progression ; les résultats (moyenne, min, max, écart type) s'exportent en CSV dans `user://`.
+
 Lance des centaines de parties de robots sans affichage et en temps accéléré, puis écrit un rapport (CSV) : minute d'arrivée dans chaque zone, courbe de production, nombre d'éliminations avant 26:00, parties finies au temps, efficacité des filaments et de « trancher », effet du butin. C'est l'outil qui répond aux questions « À simuler » du GDD.
 
 ### 11.4 Ce qui n'est pas couvert par les tests automatiques
-Le ressenti (rythme, plaisir des gestes, lisibilité), le rendu visuel, les performances sur un vrai PC, l'exécutable Windows et tout ce qui passe par Steam : ces points se vérifient **en jouant** (G6 et G7).
+Le ressenti (rythme, plaisir des gestes, lisibilité), le rendu visuel, les performances sur un vrai PC, l'exécutable Windows et tout ce qui passe par Steam : ces points se vérifient **en jouant** (G5 et G6).
 
 ---
 
@@ -339,10 +341,9 @@ Le ressenti (rythme, plaisir des gestes, lisibilité), le rendu visuel, les perf
 | Jalon | Code concerné |
 |---|---|
 | G0 | Transformation du dépôt, arborescence, autoloads, thèmes, traductions, `hex.gd`, `map_generator.gd` (zones uniquement), rendu de la carte, caméra, menu principal, écran Paramètres, GUT et workflows |
-| G1 | `GameState`, `Simulation`, commandes de colonisation, `GrowthSystem`, `EconomySystem`, `TierSystem`, `fixed.gd`, `sim_rng.gd`, `state_hash.gd`, `LocalTransport`, `Session` |
-| G2 | Bâtiments (`data/buildings/`), chantiers, voisinage, humidité, désactivation |
+| G1 | `GameState`, `Simulation`, commandes de colonisation, `GrowthSystem`, `EconomySystem`, `TierSystem`, `fixed.gd`, `sim_rng.gd`, `state_hash.gd`, `LocalTransport`, `Session` ; positions de départ dans `map_generator.gd` ; écran Bac à sable (réglages, valeurs par défaut, récapitulatif copiable), HUD, effets de palier, section Commandes des Paramètres ; enregistrement des commandes et test de rejeu ; robots d'économie (`ai/`), `tools/sim_runner.gd` et panneau de simulations (éditeur seulement). Livré en trois étapes : `sim/` et tests ; affichage, HUD et Bac à sable ; robots, simulations et panneau |
+| G2 | Bâtiments (`data/buildings/`), chantiers et file de construction, voisinage, Enzymes, plafond de stock, désactivation ; palette et menu rond ; robots composés (profil d'expansion + profil de bâtisseur + pourcentage) dans le panneau de simulations. Trois étapes : `sim/` et tests ; affichage, HUD et Bac à sable ; robots et panneau |
 | G3 | `CombatSystem`, gestes dans `view/input/`, `EventSystem`, `VictorySystem` |
-| G4 | `ai/`, `tools/sim_runner.gd`, menus, résultats |
-| G5 | Salon de partie personnalisée, surcharge des paramètres, préréglages |
-| G6 | Tutoriel, audio, traduction, profil, succès Steam |
-| G7 | `SteamTransport`, salons et invitations, vérification par empreinte, interface d'administration |
+| G4 | `ai/` (robots complets), `tools/sim_runner.gd` étendu, menus, résultats |
+| G5 | Tutoriel, audio, traduction, profil (sans Steam) |
+| G6 | `SteamService` et GodotSteam, `SteamTransport`, salons et invitations, partie personnalisée (salon, surcharge des paramètres, préréglages ; ancien G5), vérification par empreinte, interface d'administration. **Première étape : tests entre amis avec l'App ID 480** (Spacewar) : l'App ID est lu depuis la configuration (jamais écrit en dur), les salons portent une clé de métadonnée propre au jeu et à sa version et la recherche filtre dessus (l'App ID 480 est partagé avec d'autres développeurs), et `steam_appid.txt` est réservé aux builds de test, jamais inclus dans l'export final |
