@@ -484,6 +484,9 @@ Affichage (plein écran, fenêtré, résolution, **thème clair / sombre / syst�
 - **Premier lancement** : fenêtre **maximisée** ; langue **du système** (français si Windows est en français, sinon anglais).
 - **Icône** : un champignon provisoire dans la DA (le Cœur avec ses deux yeux), à remplacer plus tard.
 - **Distribution : Steam** (Steam Direct). Intégration Steamworks via l'extension **GodotSteam** : comptes, amis, invitations, salons, succès.
+- **Tests multijoueur avant la sortie** : GodotSteam est utilisé avec l'**App ID 480 (« Spacewar »)**, l'application de test de Valve, pour tester le jeu en ligne entre amis sans payer le Steam Direct Fee (100 $ par jeu) ni créer de page Steam. Chaque testeur lance Steam puis le `.exe` de la version GitHub ; un fichier `steam_appid.txt` contenant `480` est placé à côté de l'exécutable de test (jamais dans l'export final).
+  - **Limites** : tout le monde apparaît « en train de jouer à Spacewar » ; pas de succès ni de statistiques globales Steam (l'écran de statistiques de l'interface d'administration ne peut donc pas être validé avec 480) ; les salons de l'App ID 480 sont partagés avec d'autres développeurs, donc chaque salon porte une **clé de métadonnée propre au jeu et à sa version**, et la recherche de salons filtre dessus.
+  - **App ID réel** : il remplace 480 dès que la page Steam existe. L'App ID est une **valeur de configuration**, jamais écrite en dur dans le code.
 - Configuration et profil enregistrés dans `user://` (thème, résolution, langue, raccourcis, préréglages de parties).
 
 ### 14.2 Architecture
@@ -524,7 +527,7 @@ Aucune action de modification (pas d'arrêt de partie, pas de ressources, pas de
 | **G4 : Duel et FFA contre robots** | Menus, robots (3 difficultés, profils), pause, accélération, résultats |
 | **G5 : Partie personnalisée (local)** | Salon, emplacements, paramètres de forêt, préréglages |
 | **G6 : Habillage et bêta solo** | **Tutoriel**, audio, profil et statistiques, traduction, page Steam et succès, essais du jeu contre robots avec de vrais joueurs (Steam Playtest) |
-| **G7 : Multijoueur** | Amis, invitations, salons et file d'attente Steam, **hébergement par un joueur** via le relais Steam, vérification par empreinte, FFA entre joueurs, Duel contre un joueur (invitation puis file d'attente, rang éventuel), partie personnalisée avec amis, chat, déconnexion et pilote automatique, **interface d'administration en lecture seule** |
+| **G7 : Multijoueur** | **Étape 1, tests entre amis avec l'App ID 480** (GodotSteam, sans page Steam ni frais, §14.1) : initialisation de Steam, salons et invitations d'amis, relais Steam, hébergement par un joueur, vérification par empreinte, déconnexion et pilote automatique, arrêt de la partie si l'hôte part. **Étape 2, version complète** : file d'attente Steam, FFA entre joueurs, Duel contre un joueur (invitation puis file d'attente, rang éventuel), partie personnalisée avec amis, chat, **interface d'administration en lecture seule** |
 
 Le jeu est donc complet et jouable en solo avant le multijoueur. Pour ne pas avoir à tout réécrire au G7, la simulation est construite dès le G1 pour ne recevoir que des **commandes** (§14.2) : le passage en ligne consiste surtout à faire tourner cette simulation chez l'hôte et à brancher le réseau Steam.
 
@@ -549,6 +552,7 @@ Le jeu est donc complet et jouable en solo avant le multijoueur. Pour ne pas avo
 14. **Tutoriel guidé** de ~10 min, proposé au premier lancement.
 15. **Modèle économique** (gratuit ou payant) : pas encore décidé.
 16. **Départage à 30:00** : production moyenne sur toute la partie, puis nombre de cases.
+17. **Tests multijoueur entre amis avec l'App ID 480** (Spacewar) avant d'avoir un App ID réel, puis passage à l'App ID du jeu une fois la page Steam créée.
 
 ### Questions ouvertes
 - **Triche de l'hôte** : la vérification par empreinte suffit-elle pour un classement du Duel ?

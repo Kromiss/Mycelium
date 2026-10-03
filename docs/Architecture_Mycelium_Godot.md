@@ -345,4 +345,4 @@ Le ressenti (rythme, plaisir des gestes, lisibilité), le rendu visuel, les perf
 | G4 | `ai/`, `tools/sim_runner.gd`, menus, résultats |
 | G5 | Salon de partie personnalisée, surcharge des paramètres, préréglages |
 | G6 | Tutoriel, audio, traduction, profil, succès Steam |
-| G7 | `SteamTransport`, salons et invitations, vérification par empreinte, interface d'administration |
+| G7 | `SteamTransport`, salons et invitations, vérification par empreinte, interface d'administration. **Première étape : tests entre amis avec l'App ID 480** (Spacewar) : l'App ID est lu depuis la configuration (jamais écrit en dur), les salons portent une clé de métadonnée propre au jeu et à sa version et la recherche filtre dessus (l'App ID 480 est partagé avec d'autres développeurs), et `steam_appid.txt` est réservé aux builds de test, jamais inclus dans l'export final |
