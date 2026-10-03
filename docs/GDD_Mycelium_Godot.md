@@ -82,7 +82,7 @@ Permet de créer **tout type de partie** : le type (Duel ou FFA, d'autres plus t
 - Ils servent aussi à compléter les salons, à remplacer un joueur déconnecté (§11.2) et à équilibrer les valeurs par simulation (dès G1, robots d'économie du panneau de simulations, §14.5).
 
 ### 2.6 Règles communes
-- **Modes locaux et modes en ligne isolés** *(décidé le 4 octobre 2026)* : tous les modes locaux, où il n'y a que le joueur et des robots (Bac à sable, Duel et FFA contre robots, tutoriel), fonctionnent **sans Steam ni GodotSteam**. Steam ne sert qu'aux modes multijoueur (Duel et FFA entre joueurs, partie personnalisée avec des amis).
+- **Modes locaux et modes en ligne isolés** *(décidé le 4 octobre 2026)* : tous les modes locaux, où il n'y a que le joueur et des robots (Bac à sable, Duel et FFA contre robots, tutoriel), fonctionnent **sans Steam ni GodotSteam**. Steam ne sert qu'aux modes multijoueur (Duel et FFA entre joueurs, partie personnalisée avec des amis). **Les parties locales ne comptent pas** : elles servent d'entraînement et n'alimentent ni les statistiques ni les succès Steam.
 - **Durée maximale : 30:00**, tous modes, y compris personnalisés.
 - **Pause et vitesse** : uniquement en Bac à sable (§2.1 bis), ni en Duel, ni en FFA, ni en partie personnalisée, y compris en spectateur.
 - **Résultat** : rang de partie = ordre d'élimination ; statistiques de fin (cases conquises, éliminations, durée de survie, pic de production).
@@ -557,8 +557,8 @@ Outil d'équilibrage **séparé** de l'interface d'administration, disponible **
 | **G2 : City builder** | Bâtiments (Nœud de digestion, Grenier, Pépinière, Glande enzymatique, Mycorhize), chantiers, file de construction, voisinage, Enzymes, plafond de stock, déblocages et désactivation par palier ; pose (palette ou menu rond), démolition ; HUD (palette, file et chantiers, Enzymes, stock et plafond) ; pictogrammes validés sur maquettes ; réglages du Bac à sable pour les bâtiments ; robots du panneau de simulations (§14.5) avec profil de bâtisseur. Livré en **trois étapes** (simulation et tests ; affichage, HUD et Bac à sable ; robots et panneau) ; version **0.3.0** |
 | **G3 : Combat et fin de partie** | Filament d'assaut, trancher, actions actives, Sclérote, élimination, **butin et transfert du territoire**, événements, frise de partie |
 | **G4 : Duel et FFA contre robots** | Menus, robots (3 difficultés, profils), robots dans le Bac à sable, résultats (pause et vitesse réservées au Bac à sable depuis le 4 octobre 2026) |
-| **G5 : Habillage et bêta solo** | **Tutoriel**, audio, profil et statistiques, traduction, essais du jeu contre robots avec de vrais joueurs ; **intégration de GodotSteam avec l'App ID 480** (initialisation de Steam, identité, amis), avancée du multijoueur le 4 octobre 2026 |
-| **G6 : Multijoueur** | **Étape 1, tests entre amis avec l'App ID 480** (sans page Steam ni frais, §14.1) : salons et invitations d'amis, relais Steam, hébergement par un joueur, vérification par empreinte, déconnexion et pilote automatique, arrêt de la partie si l'hôte part. **Étape 2, version complète** : file d'attente Steam, FFA entre joueurs, Duel contre un joueur (invitation puis file d'attente, rang éventuel), **partie personnalisée** complète (salon, emplacements, paramètres de forêt, préréglages, invitations d'amis ; l'ancien jalon G5 « Partie personnalisée (local) » y a été fusionné le 4 octobre 2026), chat, **interface d'administration en lecture seule** |
+| **G5 : Habillage et bêta solo** | **Tutoriel**, audio, profil et statistiques, traduction, essais du jeu contre robots avec de vrais joueurs (sans Steam) |
+| **G6 : Multijoueur** | **Étape 1, tests entre amis avec l'App ID 480** (GodotSteam, sans page Steam ni frais, §14.1) : initialisation de Steam, identité, salons et invitations d'amis, relais Steam, hébergement par un joueur, vérification par empreinte, déconnexion et pilote automatique, arrêt de la partie si l'hôte part. **Étape 2, version complète** : file d'attente Steam, FFA entre joueurs, Duel contre un joueur (invitation puis file d'attente, rang éventuel), **partie personnalisée** complète (salon, emplacements, paramètres de forêt, préréglages, invitations d'amis ; l'ancien jalon G5 « Partie personnalisée (local) » y a été fusionné le 4 octobre 2026), chat, **interface d'administration en lecture seule** |
 
 **Hors feuille de route** : la **page Steam**, l'**App ID réel** (Steam Direct, 100 $), les **succès** et **Steam Playtest** se font dès que le propriétaire décide de payer, quel que soit le jalon en cours.
 
@@ -575,7 +575,7 @@ Le jeu est donc complet et jouable en solo avant le multijoueur. Pour ne pas avo
 4. **Déblocages par palier de colonie** (et non par le temps).
 5. **Production et déblocages liés au nombre de cases actuel** : perdre un palier **désactive** les bâtiments concernés (sans les détruire) ; capturer une case donne son bâtiment au capteur, actif ou désactivé selon son propre palier (§7.6).
 6. **Pas de pactes** dans la première version.
-7. **Tout le multijoueur dans le dernier jalon** (G6), FFA et Duel entre joueurs ensemble ; seule l'intégration de base de GodotSteam (App ID 480) est avancée en G5.
+7. **Tout le multijoueur dans le dernier jalon** (G6), FFA et Duel entre joueurs ensemble, avec GodotSteam.
 8. **Plafond de 30 min** y compris en partie personnalisée.
 9. **Aucun rétrécissement de la carte** : c'est la richesse du centre, le butin et la Mort subite qui poussent au conflit.
 10. **Steam** pour la distribution, les comptes, les amis, les invitations et les salons.
@@ -692,12 +692,11 @@ Questions relevées en relisant chaque jalon. Elles seront posées sous forme de
 2. Audio : style de la musique et des bruitages ; qui les produit (banques libres de droits, compositeur, autre) et sous quelle licence ?
 3. Profil et statistiques : enregistrés sur le PC (`user://`), liés au compte Steam ? Sauvegarde Steam Cloud ?
 4. Récompenses cosmétiques (§11.5 : titres, couleurs de réseau, effets de particules) : quel jalon, lesquelles, à quelles conditions ?
-5. GodotSteam avec l'App ID 480 : que fait-on exactement en G5 (pseudo Steam affiché, liste d'amis, autre), sachant que les modes locaux n'utilisent pas Steam (§2.6) ? Faut-il l'avancer en G5 ou le laisser au multijoueur (G6) ?
-6. Quand Steam est disponible, les parties locales alimentent-elles les statistiques et succès Steam, ou seulement le profil local ?
-7. Langues : français et anglais seulement ?
-8. Paramètres audio et accessibilité (taille de l'interface, palette adaptée au daltonisme, §13.5) : quel jalon ?
-9. Icône définitive et logo : qui les fait ?
-10. Numéro de version de la bêta solo.
+5. Les parties locales ne comptent pas pour Steam (§2.6) : le profil local (statistiques, historique) les enregistre-t-il quand même ? Et les récompenses cosmétiques (§11.5) peuvent-elles s'y gagner ?
+6. Langues : français et anglais seulement ?
+7. Paramètres audio et accessibilité (taille de l'interface, palette adaptée au daltonisme, §13.5) : quel jalon ?
+8. Icône définitive et logo : qui les fait ?
+9. Numéro de version de la bêta solo.
 
 ### G6 : Multijoueur
 1. File d'attente : en Duel, au bout de combien de temps proposer un robot s'il n'y a personne ? En FFA, que faire avec moins de 4 joueurs après 2 min ?

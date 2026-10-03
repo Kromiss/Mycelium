@@ -52,7 +52,7 @@ res://
 ├── autoload/                 Singletons (3 maximum)
 │   ├── settings.gd           Paramètres du joueur : les applique (thème, langue, fenêtre) et les enregistre
 │   ├── settings_store.gd     Valeurs des paramètres et lecture/écriture du fichier (testable seul)
-│   ├── steam_service.gd      Accès à GodotSteam (initialisation, identité, amis, salons) — jalon G5 (salons en G6)
+│   ├── steam_service.gd      Accès à GodotSteam (initialisation, identité, amis, salons) — jalon G6
 │   └── scene_router.gd       Changement d'écran (menu, partie, résultats)
 ├── sim/                      Règles du jeu, code pur (RefCounted uniquement)
 │   ├── simulation.gd         Point d'entrée : tick(commandes) -> TickResult
@@ -115,7 +115,7 @@ res://
 │   ├── unit/                 Un fichier de test par système
 │   ├── integration/          Parties complètes, déterminisme, scènes
 │   └── fixtures/             Forêts et situations de test
-└── addons/                   GUT (tests), GodotSteam (G5)
+└── addons/                   GUT (tests), GodotSteam (G6)
 ```
 
 ---
@@ -196,7 +196,7 @@ Fin de partie visée : ~1e6 nutriments/s, soit ~1e9 en millièmes par seconde ; 
 ## 8. Session, scènes et singletons
 
 - `Session` (`game/session.gd`) assemble une partie : crée la simulation et le transport, inscrit les robots, cadence les ticks (1 par seconde, ×2 ou ×4 en Bac à sable), met à jour `LocalViewState` et émet des **signaux** (`cell_changed`, `tier_reached`, `filament_launched`, `colony_eliminated`…).
-- **Singletons limités à trois** : `Settings`, `SceneRouter` et, à partir du jalon G5, `SteamService`. `SteamService` est **facultatif** : les modes locaux (joueur et robots : Bac à sable, Duel et FFA contre robots, tutoriel) sont **isolés des modes en ligne** et fonctionnent sans Steam ni GodotSteam. Aucun code de `sim/`, `ai/`, `game/` ni des écrans des modes locaux ne dépend de `SteamService` ou de `SteamTransport` ; seuls `net/steam_transport.gd` et les écrans du multijoueur (salons, invitations, file d'attente) y touchent. L'état de la partie n'est **jamais** dans un singleton : il appartient à la `Session` en cours.
+- **Singletons limités à trois** : `Settings`, `SceneRouter` et, au jalon G6, `SteamService`. `SteamService` est **facultatif** : les modes locaux (joueur et robots : Bac à sable, Duel et FFA contre robots, tutoriel) sont **isolés des modes en ligne** et fonctionnent sans Steam ni GodotSteam. Aucun code de `sim/`, `ai/`, `game/` ni des écrans des modes locaux ne dépend de `SteamService` ou de `SteamTransport` ; seuls `net/steam_transport.gd` et les écrans du multijoueur (salons, invitations, file d'attente) y touchent. L'état de la partie n'est **jamais** dans un singleton : il appartient à la `Session` en cours.
 - Une scène par écran (`ui/menus/main_menu.tscn`, `ui/hud/hud.tscn`…), une scène par élément réutilisable (bouton de bâtiment, ligne de classement).
 
 ---
@@ -345,5 +345,5 @@ Le ressenti (rythme, plaisir des gestes, lisibilité), le rendu visuel, les perf
 | G2 | Bâtiments (`data/buildings/`), chantiers et file de construction, voisinage, Enzymes, plafond de stock, désactivation ; palette et menu rond ; robots composés (profil d'expansion + profil de bâtisseur + pourcentage) dans le panneau de simulations. Trois étapes : `sim/` et tests ; affichage, HUD et Bac à sable ; robots et panneau |
 | G3 | `CombatSystem`, gestes dans `view/input/`, `EventSystem`, `VictorySystem` |
 | G4 | `ai/` (robots complets), `tools/sim_runner.gd` étendu, menus, résultats |
-| G5 | Tutoriel, audio, traduction, profil ; `SteamService` avec GodotSteam et l'App ID 480 (initialisation, identité, amis) |
-| G6 | `SteamTransport`, salons et invitations, partie personnalisée (salon, surcharge des paramètres, préréglages ; ancien G5), vérification par empreinte, interface d'administration. **Première étape : tests entre amis avec l'App ID 480** (Spacewar) : l'App ID est lu depuis la configuration (jamais écrit en dur), les salons portent une clé de métadonnée propre au jeu et à sa version et la recherche filtre dessus (l'App ID 480 est partagé avec d'autres développeurs), et `steam_appid.txt` est réservé aux builds de test, jamais inclus dans l'export final |
+| G5 | Tutoriel, audio, traduction, profil (sans Steam) |
+| G6 | `SteamService` et GodotSteam, `SteamTransport`, salons et invitations, partie personnalisée (salon, surcharge des paramètres, préréglages ; ancien G5), vérification par empreinte, interface d'administration. **Première étape : tests entre amis avec l'App ID 480** (Spacewar) : l'App ID est lu depuis la configuration (jamais écrit en dur), les salons portent une clé de métadonnée propre au jeu et à sa version et la recherche filtre dessus (l'App ID 480 est partagé avec d'autres développeurs), et `steam_appid.txt` est réservé aux builds de test, jamais inclus dans l'export final |
