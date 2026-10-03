@@ -31,6 +31,7 @@ Les valeurs chiffrées de ce document sont des **points de départ à simuler**,
 
 ### 2.1 bis Bac à sable *(décidé le 4 octobre 2026)*
 - Entrée du menu principal, **visible par tous les joueurs**, **gardée après G4**. Mode distinct de la partie personnalisée : en Bac à sable, il n'y a **que le joueur et des robots** (robots à partir de G4) ; la partie personnalisée sert à jouer avec ses amis. Il sert notamment aux tests d'équilibrage du propriétaire.
+- **Purement local** : le Bac à sable fonctionne **sans Steam ni GodotSteam** (décidé le 4 octobre 2026).
 - **En G1** : il lance la partie d'économie ; le joueur est **seul** sur une forêt de **Duel ou de FFA, au choix**, avec la couleur **Menthe**. Duel et FFA restent grisés jusqu'aux robots (G4).
 - **Pause et vitesse uniquement en Bac à sable** : pause par la touche **P** ou un bouton du HUD ; vitesse par un **bouton du HUD** qui passe de ×1 à ×2 puis ×4 (sans raccourci clavier).
 - **Le plus paramétrable possible** : un écran de réglages avant de lancer, présent **dès G1** et enrichi à chaque jalon de ce qu'il apporte (bâtiments, combat, robots…). En G1 : forêt et graine, stock de départ, chiffres d'économie (U, rendement, durée de pousse, pousses simultanées, paliers…), multiplicateurs des zones, et **le plus de paramètres possibles**. Un bouton **remet les valeurs par défaut**.
@@ -690,12 +691,11 @@ Questions relevées en relisant chaque jalon. Elles seront posées sous forme de
 2. Audio : style de la musique et des bruitages ; qui les produit (banques libres de droits, compositeur, autre) et sous quelle licence ?
 3. Profil et statistiques : enregistrés sur le PC (`user://`), liés au compte Steam ? Sauvegarde Steam Cloud ?
 4. Récompenses cosmétiques (§11.5 : titres, couleurs de réseau, effets de particules) : quel jalon, lesquelles, à quelles conditions ?
-5. GodotSteam avec l'App ID 480 : que fait-on exactement en G5 (pseudo Steam affiché, liste d'amis, autre) ? Le jeu doit-il fonctionner sans Steam lancé ?
+5. GodotSteam avec l'App ID 480 : que fait-on exactement en G5 (pseudo Steam affiché, liste d'amis, autre) ? Le Bac à sable fonctionne sans Steam (décidé) : et les autres modes solo (Duel et FFA contre robots, tutoriel) ?
 6. Langues : français et anglais seulement ?
 7. Paramètres audio et accessibilité (taille de l'interface, palette adaptée au daltonisme, §13.5) : quel jalon ?
 8. Icône définitive et logo : qui les fait ?
-9. Essais avec de vrais joueurs sans Steam Playtest : par la version GitHub ? Comment recueillir leurs retours ?
-10. Numéro de version de la bêta solo.
+9. Numéro de version de la bêta solo.
 
 ### G6 : Multijoueur
 1. File d'attente : en Duel, au bout de combien de temps proposer un robot s'il n'y a personne ? En FFA, que faire avec moins de 4 joueurs après 2 min ?
