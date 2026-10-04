@@ -128,6 +128,20 @@ func upgrade_preview(colony_id: int, upgrade: StringName, count: int) -> PackedI
 	return Upgrades.preview(state, colony, index, count)
 
 
+## Valeur de la statistique d'une amélioration avant et après « levels » niveaux de plus :
+## [avant, après] (unités de ColonyStats.stat_value()), sans rien changer à la partie.
+func upgrade_values(colony_id: int, upgrade: StringName, levels: int) -> PackedInt64Array:
+	var colony: ColonyState = state.colony(colony_id)
+	var index: int = state.defs.upgrade_index(upgrade)
+	if colony == null or index < 0:
+		return PackedInt64Array([0, 0])
+	var stat: int = state.defs.upgrades[index].stat
+	var before: int = ColonyStats.stat_value(state, colony, stat)
+	var copy: ColonyState = colony.stats_copy()
+	copy.upgrade_levels[index] += levels
+	return PackedInt64Array([before, ColonyStats.stat_value(state, copy, stat)])
+
+
 func _place_colony(sector: int) -> void:
 	var defs: SimDefs = state.defs
 	var colony := ColonyState.new()

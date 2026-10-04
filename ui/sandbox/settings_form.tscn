@@ -122,13 +122,14 @@ theme_override_constants/h_separation = 12
 theme_override_constants/v_separation = 6
 columns = 3
 
-[node name="Bottom" type="HBoxContainer" parent="."]
+[node name="Bottom" type="VBoxContainer" parent="."]
 layout_mode = 2
 theme_override_constants/separation = 24
 alignment = 1
 
 [node name="UpgradesCard" type="PanelContainer" parent="Bottom"]
 layout_mode = 2
+size_flags_horizontal = 4
 size_flags_vertical = 0
 theme_type_variation = &"HudPanel"
 
@@ -150,6 +151,7 @@ columns = 2
 
 [node name="AbilitiesCard" type="PanelContainer" parent="Bottom"]
 layout_mode = 2
+size_flags_horizontal = 4
 size_flags_vertical = 0
 theme_type_variation = &"HudPanel"
 

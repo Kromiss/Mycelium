@@ -26,6 +26,13 @@ extends Resource
 @export var zone_center: Color = Color("#E0C7AE")
 ## Trait qui entoure chaque zone.
 @export var zone_line: Color = Color("#2B2430")
+## Fond du panneau de droite de l'écran de partie (maquettes G3).
+@export var panel: Color = Color("#F6EEE2")
+## Fond des petits sélecteurs (×1 / ×10 / Max).
+@export var pill: Color = Color("#F3EADF")
+## Voile posé sur la carte (choix d'une mutation) et texte écrit dessus.
+@export var scrim: Color = Color(0.231, 0.2, 0.251, 0.58)
+@export var scrim_text: Color = Color("#FFFDF8")
 ## Couleur d'alerte.
 @export var warning: Color = Color("#E8892B")
 

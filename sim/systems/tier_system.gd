@@ -35,7 +35,9 @@ static func check_choose(state: GameState, colony: ColonyState, choice: int) -> 
 static func choose(state: GameState, colony: ColonyState, choice: int) -> void:
 	var choices: int = state.defs.mutation_choices
 	colony.mutations.append(colony.pending_offers[choice])
+	colony.mutation_tiers.append(colony.pending_tiers[0])
 	colony.pending_offers = colony.pending_offers.slice(choices)
+	colony.pending_tiers = colony.pending_tiers.slice(1)
 
 
 func _first_reach(state: GameState, colony: ColonyState, tier: int, result: TickResult) -> void:
@@ -44,6 +46,7 @@ func _first_reach(state: GameState, colony: ColonyState, tier: int, result: Tick
 	var offer: PackedInt32Array = _draw_offer(state, colony)
 	if not offer.is_empty():
 		colony.pending_offers.append_array(offer)
+		colony.pending_tiers.append(tier)
 		result.mutation_offers.append(colony.id)
 	result.colony_changed(colony.id)
 

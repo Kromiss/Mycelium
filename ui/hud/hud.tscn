@@ -1,7 +1,16 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=11 format=3]
 
 [ext_resource type="Script" path="res://ui/hud/hud.gd" id="1_hud"]
-[ext_resource type="Script" path="res://ui/hud/production_curve.gd" id="2_curve"]
+[ext_resource type="Script" path="res://ui/hud/timeline_card.gd" id="2_timeline"]
+[ext_resource type="Script" path="res://ui/hud/ranking_card.gd" id="3_ranking"]
+[ext_resource type="Script" path="res://ui/hud/journal_card.gd" id="4_journal"]
+[ext_resource type="Script" path="res://ui/hud/mutation_overlay.gd" id="5_overlay"]
+[ext_resource type="Script" path="res://ui/hud/resources_card.gd" id="6_resources"]
+[ext_resource type="Script" path="res://ui/hud/turret_card.gd" id="7_turret"]
+[ext_resource type="Script" path="res://ui/hud/mutations_card.gd" id="8_mutations"]
+[ext_resource type="Script" path="res://ui/hud/upgrades_card.gd" id="9_upgrades"]
+[ext_resource type="Script" path="res://ui/hud/ability_bar.gd" id="10_abilities"]
+
 [node name="Hud" type="Control"]
 anchors_preset = 15
 anchor_right = 1.0
@@ -12,148 +21,89 @@ layout_mode = 3
 mouse_filter = 2
 script = ExtResource("1_hud")
 
-[node name="SidePanel" type="PanelContainer" parent="."]
+[node name="MapArea" type="Control" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 9
+anchor_right = 0.6172
+anchor_bottom = 1.0
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="TimelineCard" type="PanelContainer" parent="MapArea"]
+unique_name_in_owner = true
 layout_mode = 0
 offset_left = 24.0
-offset_top = 24.0
-offset_right = 424.0
-offset_bottom = 200.0
-theme_type_variation = &"HudPanel"
-mouse_filter = 0
+offset_top = 21.0
+offset_right = 729.0
+offset_bottom = 120.0
+script = ExtResource("2_timeline")
 
-[node name="Side" type="VBoxContainer" parent="SidePanel"]
-layout_mode = 2
-theme_override_constants/separation = 6
+[node name="RankingCard" type="PanelContainer" parent="MapArea"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -339.0
+offset_top = 21.0
+offset_right = -24.0
+offset_bottom = 120.0
+grow_horizontal = 0
+script = ExtResource("3_ranking")
 
-[node name="NutrientsTitle" type="Label" parent="SidePanel/Side"]
-layout_mode = 2
-theme_type_variation = &"SmallHintLabel"
-text = "HUD_NUTRIENTS"
+[node name="JournalCard" type="PanelContainer" parent="MapArea"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = -180.0
+offset_right = 519.0
+offset_bottom = -21.0
+grow_vertical = 0
+script = ExtResource("4_journal")
 
-[node name="NutrientsLabel" type="Label" parent="SidePanel/Side"]
+[node name="HintPanel" type="PanelContainer" parent="MapArea"]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 543.0
+offset_top = -78.0
+offset_right = 600.0
+offset_bottom = -21.0
+grow_vertical = 0
+mouse_filter = 2
+theme_type_variation = &"TipPanel"
+
+[node name="HintLabel" type="Label" parent="MapArea/HintPanel"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_type_variation = &"BigNumberLabel"
-text = "0"
+theme_type_variation = &"BodyHintLabel"
 
-[node name="RateLabel" type="Label" parent="SidePanel/Side"]
+[node name="ToastCenter" type="CenterContainer" parent="MapArea"]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_top = 200.0
+offset_bottom = 260.0
+grow_horizontal = 2
+mouse_filter = 2
+
+[node name="Toast" type="PanelContainer" parent="MapArea/ToastCenter"]
 unique_name_in_owner = true
-layout_mode = 2
-theme_type_variation = &"SmallLabel"
-
-[node name="EnzymesRow" type="HBoxContainer" parent="SidePanel/Side"]
-layout_mode = 2
-
-[node name="EnzymesTitle" type="Label" parent="SidePanel/Side/EnzymesRow"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_type_variation = &"SmallHintLabel"
-text = "HUD_ENZYMES"
-
-[node name="EnzymesLabel" type="Label" parent="SidePanel/Side/EnzymesRow"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_type_variation = &"SmallLabel"
-horizontal_alignment = 2
-
-[node name="BiomassRow" type="HBoxContainer" parent="SidePanel/Side"]
-layout_mode = 2
-
-[node name="BiomassTitle" type="Label" parent="SidePanel/Side/BiomassRow"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_type_variation = &"SmallHintLabel"
-text = "HUD_BIOMASS"
-
-[node name="BiomassLabel" type="Label" parent="SidePanel/Side/BiomassRow"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_type_variation = &"SmallLabel"
-horizontal_alignment = 2
-
-[node name="ProductionTitle" type="Label" parent="SidePanel/Side"]
-layout_mode = 2
-theme_type_variation = &"SmallHintLabel"
-text = "HUD_PRODUCTION"
-
-[node name="Curve" type="Control" parent="SidePanel/Side"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 130)
+visible = false
 layout_mode = 2
 mouse_filter = 2
-script = ExtResource("2_curve")
+theme_type_variation = &"TipPanel"
 
-[node name="TierSpacer" type="Control" parent="SidePanel/Side"]
-custom_minimum_size = Vector2(0, 6)
-layout_mode = 2
-
-[node name="TierLabel" type="Label" parent="SidePanel/Side"]
+[node name="ToastLabel" type="Label" parent="MapArea/ToastCenter/Toast"]
 unique_name_in_owner = true
 layout_mode = 2
 
-[node name="TierBar" type="ProgressBar" parent="SidePanel/Side"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 14)
-layout_mode = 2
-max_value = 1.0
-step = 0.0
-show_percentage = false
-
-[node name="NextTierLabel" type="Label" parent="SidePanel/Side"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_type_variation = &"SmallHintLabel"
-
-[node name="TurretLabel" type="Label" parent="SidePanel/Side"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_type_variation = &"SmallHintLabel"
-
-[node name="TopPanel" type="PanelContainer" parent="."]
-layout_mode = 1
-anchors_preset = 5
-anchor_left = 0.5
-anchor_right = 0.5
-offset_left = -330.0
-offset_top = 24.0
-offset_right = 330.0
-offset_bottom = 90.0
-grow_horizontal = 2
-theme_type_variation = &"HudPanel"
-mouse_filter = 0
-
-[node name="Top" type="HBoxContainer" parent="TopPanel"]
-layout_mode = 2
-theme_override_constants/separation = 14
-alignment = 1
-
-[node name="ClockLabel" type="Label" parent="TopPanel/Top"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(170, 0)
-layout_mode = 2
-horizontal_alignment = 1
-
-[node name="PauseButton" type="Button" parent="TopPanel/Top"]
-unique_name_in_owner = true
-layout_mode = 2
-focus_mode = 0
-theme_type_variation = &"SmallButton"
-text = "HUD_PAUSE"
-
-[node name="SpeedButton" type="Button" parent="TopPanel/Top"]
-unique_name_in_owner = true
-layout_mode = 2
-focus_mode = 0
-theme_type_variation = &"SmallButton"
-
-[node name="RecapButton" type="Button" parent="TopPanel/Top"]
-unique_name_in_owner = true
-layout_mode = 2
-focus_mode = 0
-theme_type_variation = &"SmallButton"
-text = "HUD_RECAP"
-
-[node name="PausedLabel" type="Label" parent="."]
+[node name="PausedLabel" type="Label" parent="MapArea"]
 unique_name_in_owner = true
 visible = false
 layout_mode = 1
@@ -161,15 +111,15 @@ anchors_preset = 5
 anchor_left = 0.5
 anchor_right = 0.5
 offset_left = -200.0
-offset_top = 100.0
+offset_top = 270.0
 offset_right = 200.0
-offset_bottom = 140.0
+offset_bottom = 310.0
 grow_horizontal = 2
 theme_type_variation = &"HintLabel"
 text = "HUD_PAUSED"
 horizontal_alignment = 1
 
-[node name="Banner" type="Label" parent="."]
+[node name="Banner" type="Label" parent="MapArea"]
 unique_name_in_owner = true
 visible = false
 layout_mode = 1
@@ -177,61 +127,66 @@ anchors_preset = 5
 anchor_left = 0.5
 anchor_right = 0.5
 offset_left = -500.0
-offset_top = 150.0
+offset_top = 330.0
 offset_right = 500.0
-offset_bottom = 260.0
+offset_bottom = 440.0
 grow_horizontal = 2
 pivot_offset = Vector2(500, 55)
 mouse_filter = 2
 theme_type_variation = &"BannerLabel"
 horizontal_alignment = 1
 
-[node name="Bottom" type="VBoxContainer" parent="."]
-layout_mode = 1
-anchors_preset = 7
-anchor_left = 0.5
-anchor_top = 1.0
-anchor_right = 0.5
-anchor_bottom = 1.0
-offset_left = -700.0
-offset_top = -300.0
-offset_right = 700.0
-offset_bottom = -16.0
-grow_horizontal = 2
-grow_vertical = 0
-mouse_filter = 2
-alignment = 2
-theme_override_constants/separation = 10
-
-[node name="ToastCenter" type="CenterContainer" parent="Bottom"]
-layout_mode = 2
-mouse_filter = 2
-
-[node name="Toast" type="PanelContainer" parent="Bottom/ToastCenter"]
+[node name="MutationOverlay" type="Control" parent="MapArea"]
 unique_name_in_owner = true
 visible = false
-layout_mode = 2
-mouse_filter = 2
-theme_type_variation = &"TipPanel"
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("5_overlay")
 
-[node name="ToastLabel" type="Label" parent="Bottom/ToastCenter/Toast"]
+[node name="SidePanel" type="PanelContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 11
+anchor_left = 0.6172
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 0
+grow_vertical = 2
+theme_type_variation = &"GamePanel"
+
+[node name="Side" type="VBoxContainer" parent="SidePanel"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="ResourcesCard" type="PanelContainer" parent="SidePanel/Side"]
 unique_name_in_owner = true
 layout_mode = 2
+script = ExtResource("6_resources")
 
-[node name="HintCenter" type="CenterContainer" parent="Bottom"]
-layout_mode = 2
-mouse_filter = 2
-
-[node name="HintPanel" type="PanelContainer" parent="Bottom/HintCenter"]
-layout_mode = 2
-mouse_filter = 2
-theme_type_variation = &"TipPanel"
-
-[node name="HintLabel" type="Label" parent="Bottom/HintCenter/HintPanel"]
+[node name="TurretCard" type="PanelContainer" parent="SidePanel/Side"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_type_variation = &"SmallHintLabel"
-horizontal_alignment = 1
+script = ExtResource("7_turret")
+
+[node name="MutationsCard" type="PanelContainer" parent="SidePanel/Side"]
+unique_name_in_owner = true
+layout_mode = 2
+script = ExtResource("8_mutations")
+
+[node name="UpgradesCard" type="PanelContainer" parent="SidePanel/Side"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+script = ExtResource("9_upgrades")
+
+[node name="AbilityBar" type="PanelContainer" parent="SidePanel/Side"]
+unique_name_in_owner = true
+layout_mode = 2
+script = ExtResource("10_abilities")
 
 [node name="Tooltip" type="PanelContainer" parent="."]
 unique_name_in_owner = true

@@ -3,7 +3,7 @@ extends RefCounted
 ## Un réglage chiffré du Bac à sable (GDD §2.1 bis) : où il se range dans SimDefs, comment
 ## l'afficher et ses bornes. Sert à l'écran de réglages.
 
-enum Group { GENERAL, ZONES, TIERS, UPGRADES, ABILITIES }
+enum Group { GENERAL, ZONES, TIERS, UPGRADES, ABILITIES, MUTATIONS }
 
 ## Réglages généraux : champ de SimDefs, clé du libellé, unités de la simulation par unité
 ## affichée, minimum, maximum et pas.
@@ -61,6 +61,26 @@ const ABILITY_FIELDS: Array[Array] = [
 	["shots", "SANDBOX_ABILITY_SHOTS", 1.0, 0.0, 10_000.0, 1.0],
 ]
 
+## Modificateurs des mutations : champ de SimMutation, clé, unités, min, max, pas. Seuls ceux
+## qu'une mutation change (valeur différente de la valeur neutre) sont proposés pour elle.
+const MUTATION_FIELDS: Array[Array] = [
+	["damage_pm", "SANDBOX_MUT_DAMAGE", 1000.0, 0.0, 100.0, 0.001],
+	["rate_pm", "SANDBOX_MUT_RATE", 1000.0, 0.0, 100.0, 0.001],
+	["range_add", "SANDBOX_MUT_RANGE", 1.0, 0.0, 50.0, 1.0],
+	["cohesion_pm", "SANDBOX_MUT_COHESION", 1000.0, 0.0, 100.0, 0.001],
+	["regen_pm", "SANDBOX_MUT_REGEN", 1000.0, 0.0, 100.0, 0.001],
+	["deep_production_pm", "SANDBOX_MUT_DEEP", 1000.0, 0.0, 100.0, 0.001],
+	["free_damage_pm", "SANDBOX_MUT_FREE_DAMAGE", 1000.0, 0.0, 100.0, 0.001],
+	["enemy_damage_pm", "SANDBOX_MUT_ENEMY_DAMAGE", 1000.0, 0.0, 100.0, 0.001],
+	["heal_pm", "SANDBOX_MUT_HEAL", 1000.0, 0.0, 100.0, 0.001],
+	["spores_add", "SANDBOX_MUT_SPORES", 1.0, 0.0, 20.0, 1.0],
+	["enzymes_pm", "SANDBOX_MUT_ENZYMES", 1000.0, 0.0, 100.0, 0.001],
+	["step_ticks", "SANDBOX_MUT_STEP", 1.0, 0.0, 600.0, 1.0],
+	["turret_hp_pm", "SANDBOX_MUT_TURRET_HP", 1000.0, 0.0, 100.0, 0.001],
+	["toxic_ticks", "SANDBOX_MUT_TOXIC", 1.0, 0.0, 600.0, 1.0],
+	["cost_pm", "SANDBOX_MUT_COST", 1000.0, 0.0, 100.0, 0.001],
+]
+
 ## Identifiant stable (« unit_cost », « zone_free_hp_pm.3 », « damage.effect »).
 var id: String = ""
 var group: Group = Group.GENERAL
@@ -85,11 +105,26 @@ static func all(defs: SimDefs) -> Array[SandboxParam]:
 	list.append_array(_rows(TIER_FIELDS, Group.TIERS, defs.tier_count()))
 	list.append_array(_rows(UPGRADE_FIELDS, Group.UPGRADES, defs.upgrades.size()))
 	list.append_array(_rows(ABILITY_FIELDS, Group.ABILITIES, defs.abilities.size()))
+	list.append_array(_mutation_params(defs))
 	for param: SandboxParam in list:
 		if param.group == Group.UPGRADES:
 			param.id = "%s.%s" % [defs.upgrades[param.index].id, param.property]
 		elif param.group == Group.ABILITIES:
 			param.id = "%s.%s" % [defs.abilities[param.index].id, param.property]
+		elif param.group == Group.MUTATIONS:
+			param.id = "%s.%s" % [defs.mutations[param.index].id, param.property]
+	return list
+
+
+## Modificateurs de chaque mutation qui diffèrent de la valeur neutre (celle de MutationDef).
+static func _mutation_params(defs: SimDefs) -> Array[SandboxParam]:
+	var list: Array[SandboxParam] = []
+	var neutral := SimMutation.new()
+	for row: int in range(defs.mutations.size()):
+		for field: Array in MUTATION_FIELDS:
+			var name: String = field[0]
+			if defs.mutations[row].get(name) != neutral.get(name):
+				list.append(_make(field, Group.MUTATIONS, row))
 	return list
 
 
@@ -140,6 +175,8 @@ func _target(defs: SimDefs) -> Object:
 			return defs.upgrades[index]
 		Group.ABILITIES:
 			return defs.abilities[index]
+		Group.MUTATIONS:
+			return defs.mutations[index]
 	return defs
 
 

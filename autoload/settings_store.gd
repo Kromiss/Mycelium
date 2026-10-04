@@ -25,12 +25,24 @@ const CONTROLS: Dictionary[StringName, int] = {
 	&"toggle_pause": KEY_P,
 	&"back_to_menu": KEY_ESCAPE,
 	&"move_turret": KEY_D,
+	&"ability_1": KEY_Q,
+	&"ability_2": KEY_W,
+	&"ability_3": KEY_E,
+	&"mutation_1": KEY_1,
+	&"mutation_2": KEY_2,
+	&"mutation_3": KEY_3,
 }
 const CONTROL_NAMES: Dictionary[StringName, String] = {
 	&"recenter_camera": "ACTION_RECENTER",
 	&"toggle_pause": "ACTION_PAUSE",
 	&"back_to_menu": "ACTION_MENU",
 	&"move_turret": "ACTION_MOVE_TURRET",
+	&"ability_1": "ACTION_ABILITY_1",
+	&"ability_2": "ACTION_ABILITY_2",
+	&"ability_3": "ACTION_ABILITY_3",
+	&"mutation_1": "ACTION_MUTATION_1",
+	&"mutation_2": "ACTION_MUTATION_2",
+	&"mutation_3": "ACTION_MUTATION_3",
 }
 
 var theme_mode: ThemeMode = ThemeMode.SYSTEM

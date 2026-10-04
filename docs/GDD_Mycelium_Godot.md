@@ -261,7 +261,7 @@ Cible : **~10 nutriments/s au départ → 1e5 à 1e6 nutriments/s en fin de part
 ### 8.5 Retour visuel (le « boum »)
 - La Tourelle **pulse à chaque tir** ; les spores volent jusqu'à leur case ; une case prise **éclot** à la couleur de la colonie.
 - Au franchissement d'un **palier** : message « Palier ×2 ! », la Tourelle grossit un instant, puis la carte des mutations s'ouvre.
-- Les **compteurs défilent** et une **courbe de production** reste affichée.
+- Les **compteurs défilent**. La **courbe de production**, absente des maquettes validées, n'est plus affichée dans le panneau depuis l'étape 2 de G3 (place des améliorations) : elle reviendra sur l'écran de résultats (G4), à confirmer.
 - La Tourelle **change d'aspect** avec ses améliorations (plus grande, plus de chapeaux, plus de spores), pour que sa puissance se lise sur la carte.
 
 ---
@@ -402,13 +402,14 @@ Chiffres décidés le 4 octobre 2026, comme points de départ à simuler.
 Menu principal, **mode Duel**, **mode FFA**, **salon de partie personnalisée**, **partie** (carte à gauche, panneau à droite), spectateur, résultats, profil, **paramètres**, et l'**interface d'administration** cachée (§18.4).
 
 ### 16.2 Écran de partie *(maquettes validées le 4 octobre 2026 : canevas « Mycélium — maquettes de la Tourelle (G3) »)*
-- **Carte (à gauche, ~62 % de la largeur)** : la forêt, le cercle de portée de ma Tourelle (pointillé), les spores en vol, la cible en cours ; en haut à gauche, la **frise** (horloge, prochains événements) ; en haut à droite, le **mini-classement** (colonies en vie, cases, éliminations, production moyenne) ; en bas à gauche, le **journal et les alertes**, avec un rappel des gestes (clic : viser, D : déplacer).
+- **Carte (à gauche, ~62 % de la largeur)** : la forêt, le cercle de portée de ma Tourelle (pointillé), les spores en vol, la cible en cours ; en haut à gauche, la **frise** (horloge, prochains événements ; jusqu'à G4, horloge et fin de la protection de départ seulement, décidé le 4 octobre 2026 ; en Bac à sable, boutons pause, vitesse et récapitulatif) ; en haut à droite, le **mini-classement** (colonies en vie, cases, éliminations, production moyenne) ; en bas à gauche, le **journal et les alertes**, avec un rappel des gestes (clic : viser, D : déplacer).
 - **Panneau (à droite, ~38 %)**, de haut en bas :
   1. **Ressources** : nutriments (qui défilent) et production, Enzymes, Biomasse, barre du prochain palier ;
   2. **Tourelle** : PV, dégâts, cadence, portée, spores par tir, et les 4 boutons de **priorité de tir** ;
   3. **Améliorations**, en onglets *Attaque*, *Défense*, *Économie*, avec le niveau, l'effet (avant → après), le coût et le choix ×1 / ×10 / Max ; une amélioration verrouillée indique le palier requis ;
   4. **Capacités** : boutons ronds avec recharge, coût et touche.
-- **Mutation** : au palier, trois cartes s'affichent sur la carte assombrie (touches 1 à 3) ; la partie **ne s'arrête pas** pendant le choix ; les mutations prises sont listées dans le panneau.
+- **Mutation** : au palier, trois cartes s'affichent sur la carte assombrie (touches 1 à 3) ; la partie **ne s'arrête pas** pendant le choix ; les mutations prises sont listées dans le panneau (une pastille par mutation, palier et effet dans l'info-bulle). Un **bouton avec un œil** cache les cartes pour voir la carte ; un bouton du panneau (« Choisir une mutation ») les rouvre (décidé le 4 octobre 2026).
+- **Gestes des capacités** : la Salve part tout de suite ; le Mur et le Nuage attendent un clic sur une case (touche ou bouton, puis clic), Échap ou clic droit annulent.
 
 ### 16.3 Direction artistique « Pastille ronde »
 - **Thème clair** : fond crème `#FBF6EE`, cartes `#FFFDF8`, texte prune `#3B3340`, texte secondaire `#6E6475`, filets `#EADFD0`. Polices **Fredoka** (titres) et **Nunito** (texte).
@@ -424,7 +425,7 @@ Menu principal, **mode Duel**, **mode FFA**, **salon de partie personnalisée**,
 | Bonbon | `#F691C3` | `#E74E9A` | Framboise | `#E0516C` | `#B62A44` |
 | Citron | `#E7DF39` | `#B0A91E` | Indigo | `#4042D4` | `#2A2B99` |
 - Une colonie se dessine comme **une seule tache arrondie**. *Version simple d'abord* : cases colorées une par une.
-- **La Tourelle** : un champignon avec deux petits yeux, dans la teinte foncée de la colonie, qui grossit et se pare avec ses améliorations (trois stades sur les maquettes : chapeau uni, chapeau tacheté, petits chapeaux au pied).
+- **La Tourelle** : un champignon avec deux petits yeux, dans la teinte foncée de la colonie, qui grossit et se pare en trois stades **selon le palier** (décidé le 4 octobre 2026) : chapeau uni (paliers 0 à 2), chapeau tacheté (paliers 3 et 4), petits chapeaux au pied (paliers 5 et 6).
 - **États d'une case** (maquettes validées) : libre (couleur de la zone) ; entamée (se remplit de la couleur de l'attaquant, comme une jauge circulaire) ; visée (contour plein) ; cible désignée (contour pointillé et halo) ; à moi ; blessée (pâlit, contour de la couleur de l'attaquant) ; soignée (halo de ma couleur) ; hors de ma portée (atténuée).
 - **Spores** : petites boules de la couleur de la colonie, en arc de la Tourelle à la case visée.
 
@@ -447,7 +448,7 @@ Les couleurs de colonie sont **éclaircies si besoin** en mode sombre pour garde
 ### 16.5 Caméra et commandes
 - **Déplacement** : clic droit maintenu et souris contre les **bords de l'écran** ; **zoom** à la molette, centré sur la souris.
 - **Clic gauche** : désigne une case comme cible prioritaire (§5.4) ; avec la touche de déplacement, choisit le pas de la Tourelle (§5.5).
-- **Raccourcis par défaut** : **Espace** recentre sur la Tourelle ; **P** pause (Bac à sable) ; **Échap** menu de partie ; **D** déplacer la Tourelle ; **1 à 4** priorités de tir ; **Q, W, E** capacités ; **1 à 3** choisissent une mutation quand les cartes sont affichées. Tous modifiables dans les Paramètres ; une touche ne sert qu'à une action ; un bouton remet les touches par défaut.
+- **Raccourcis par défaut** : **Espace** recentre sur la Tourelle ; **P** pause (Bac à sable) ; **Échap** annule le geste en cours ou ouvre le menu de partie ; **D** déplacer la Tourelle ; **Q, W, E** capacités ; **1 à 3** choisissent une mutation quand les cartes sont affichées. **Pas de touches pour les priorités de tir** (souris seulement, décidé le 4 octobre 2026). Tous modifiables dans les Paramètres ; une touche ne sert qu'à une action ; un bouton remet les touches par défaut.
 
 ### 16.6 Paramètres
 Affichage (plein écran, fenêtré, résolution, **thème clair / sombre / système**), audio, langue (français et anglais), commandes (raccourcis modifiables), accessibilité (taille de l'interface, palette adaptée au daltonisme).
@@ -462,6 +463,9 @@ Deux petits points repris du brouillon sans question dédiée, à signaler si be
 
 ### Décisions de l'étape 1 de G3 (4 octobre 2026, QCM)
 Le code de G1 et G2 qui ne sert plus est supprimé dès l'étape 1, avec un affichage provisoire du Bac à sable jusqu'à l'étape 2 ; cases coupées de la Tourelle : libres (§12) ; case libre prise : pleine vie (§6.1) ; la Tourelle finit sa prise avant de changer de cible (§5.3) ; spores en plus : d'autres cases (§9.2) ; pendant un pas, la Tourelle est visée sur sa case de départ (§5.5) ; choix de mutations empilés (§10) ; PV de la Tourelle : 400 fixes (§7.4).
+
+### Décisions de l'étape 2 de G3 (4 octobre 2026, QCM)
+Pas de touches pour les priorités de tir, 1 à 3 pour les cartes de mutation (§16.5) ; cartes de mutation cachées par un bouton œil et rouvertes depuis le panneau (§16.2) ; frise : horloge et fin de la protection jusqu'à G4 (§16.2) ; stades de la Tourelle liés au palier (§16.3).
 
 ### Choix de l'étape 1 de G3, à confirmer
 Points de règle que l'étape 1 a dû trancher pour écrire le code, sans question dédiée :
@@ -543,7 +547,7 @@ Outil d'équilibrage disponible **uniquement quand le jeu est lancé depuis l'é
 | **G0 : Fondations** *(livré, 0.1.0)* | Dépôt Godot, vérification automatique, versions GitHub ; carte hex (6 zones) en Duel et FFA, rendu, caméra ; menu principal ; Paramètres |
 | **G1 : Solo économie** *(livré, 0.2.0)* | Production, Cohésion, paliers, retours visuels, Bac à sable (réglages, récapitulatif, pause, vitesse), HUD, rejeu, panneau de simulations |
 | **G2** *(livré, 0.3.0)* | Remplacé par G3 |
-| **G3 : Le Sporophore et l'affrontement** *(étape 1 livrée le 4 octobre 2026)* | **Suppression** du code de G1 et G2 qui ne sert plus ; Tourelle (tir automatique, portée, priorités, cible au clic, déplacement pas à pas) ; PV, régénération et soin ; panneau d'améliorations à droite ; paliers avec Enzymes et mutations ; capacités ; Armillaire ; **affrontement entre Tourelles, élimination et Trophée** ; écran carte + panneau ; Bac à sable avec adversaires robots. Maquettes **validées le 4 octobre 2026**. Livré en **trois étapes** : 1) simulation et tests ; 2) affichage, panneau et Bac à sable ; 3) robots Canonnier, Bâtisseur et Conquérant (adversaires du Bac à sable et panneau de simulations à plusieurs robots) ; version **0.4.0** |
+| **G3 : Le Sporophore et l'affrontement** *(étapes 1 et 2 livrées le 4 octobre 2026)* | **Suppression** du code de G1 et G2 qui ne sert plus ; Tourelle (tir automatique, portée, priorités, cible au clic, déplacement pas à pas) ; PV, régénération et soin ; panneau d'améliorations à droite ; paliers avec Enzymes et mutations ; capacités ; Armillaire ; **affrontement entre Tourelles, élimination et Trophée** ; écran carte + panneau ; Bac à sable avec adversaires robots. Maquettes **validées le 4 octobre 2026**. Livré en **trois étapes** : 1) simulation et tests ; 2) affichage, panneau et Bac à sable ; 3) robots Canonnier, Bâtisseur et Conquérant (adversaires du Bac à sable et panneau de simulations à plusieurs robots) ; version **0.4.0** |
 | **G4 : Événements et fin de partie** | Floraison collective et Arbre mourant, frise, journal et alertes complets, écran de résultats, spectateur après élimination ; version **0.5.0** |
 | **G5 : Duel et FFA contre robots** | Menus, robots de jeu (3 difficultés, profils), résultats |
 | **G6 : Habillage et bêta solo** | Tutoriel (8 étapes, §2.7), audio, profil et statistiques, traduction, essais avec de vrais joueurs (sans Steam) |

@@ -120,6 +120,8 @@ static func _row_name(defs: SimDefs, param: SandboxParam) -> String:
 			return tr_key(defs.upgrades[param.index].name_key)
 		SandboxParam.Group.ABILITIES:
 			return tr_key(defs.abilities[param.index].name_key)
+		SandboxParam.Group.MUTATIONS:
+			return tr_key(defs.mutations[param.index].name_key)
 	return ""
 
 

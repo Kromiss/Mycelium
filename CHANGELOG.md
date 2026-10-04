@@ -20,12 +20,18 @@ G3 — Le Sporophore et l'affrontement.
   (dernière colonie en vie ou 30:00) et classement. Six commandes, nouveaux refus, données
   `upgrades.tres`, `mutations.tres` et `abilities.tres` ; tests.
 - Bac à sable : tous les nouveaux chiffres sont réglables et dans le récapitulatif.
+- G3, étape 2 — Écran de partie des maquettes : carte à gauche (frise avec la protection,
+  mini-classement, journal, rappel des gestes) et panneau à droite (ressources, Sporophore et
+  priorité de tir, mutations prises, améliorations en onglets avec ×1 / ×10 / Max et effet
+  avant → après, capacités avec anneau de recharge). Cartes de mutation sur la carte assombrie
+  (touches 1 à 3), cachables avec un bouton œil. Sporophore dessiné en trois stades selon le
+  palier ; états des cases des maquettes (entamée, visée, cible désignée, blessée, soignée, hors
+  de portée). Mur et Nuage : touche ou bouton puis clic sur une case. Touches Q, W, E et 1 à 3
+  modifiables. Réglages des mutations dans le Bac à sable.
 
 ### Modifié
-- Affichage provisoire de la partie (en attendant l'écran des maquettes à l'étape 2) : cases
-  colorées qui pâlissent quand elles sont blessées, jauge des cases libres entamées, Tourelle,
-  cercle de portée, cibles et spores ; clic pour viser, D puis clic pour déplacer la Tourelle ;
-  HUD avec les chiffres de la Tourelle.
+- Partie : clic pour viser, D puis clic pour déplacer la Tourelle. La courbe de production
+  n'est plus affichée pendant la partie (absente des maquettes).
 
 ### Supprimé
 - Colonisation au clic et file d'expansion, bâtiments et city builder, robots de G1 et G2,

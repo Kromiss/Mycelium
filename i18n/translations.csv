@@ -66,7 +66,7 @@ HUD_COPIED,Summary copied to the clipboard,Récapitulatif copié dans le presse-
 HUD_PAUSED,Paused,En pause
 HUD_PAUSED_NO_ORDERS,Paused: orders are blocked,En pause : les ordres sont bloqués
 HUD_TIER_BANNER,Tier %s!,Palier %s !
-HUD_HINT,Click: target · %s then click: move the Sporophore · %s: centre on it · %s: menu,Clic : viser · %s puis clic : déplacer le Sporophore · %s : recentrer · %s : menu
+HUD_HINT,Click: target this cell · %s: move the Sporophore,Clic : viser cette case · %s : déplacer le Sporophore
 TIP_ZONE,Zone %d,Zone %d
 TIP_FREE,Free cell,Case libre
 TIP_OWNED,Your colony,Ta colonie
@@ -151,7 +151,6 @@ SANDBOX_ABILITY_DURATION,Duration (s),Durée (s)
 SANDBOX_ABILITY_RATE,Rate ×,Cadence ×
 SANDBOX_ABILITY_RADIUS,Radius,Rayon
 SANDBOX_ABILITY_SHOTS,Shots of damage,Tirs de dégâts
-HUD_TURRET,Sporophore: HP %s / %s · damage %s · %s shots/s · range %d · spores %d,Sporophore : PV %s / %s · dégâts %s · %s tirs/s · portée %d · spores %d
 HUD_ELIMINATED,Your Sporophore has fallen,Ton Sporophore est tombé
 TIP_TURRET,Sporophore,Sporophore
 TIP_ENEMY,Enemy colony,Colonie adverse
@@ -228,3 +227,91 @@ REFUSAL_UNKNOWN_MUTATION,Unknown mutation,Mutation inconnue
 REFUSAL_UNKNOWN_ABILITY,Unknown ability,Capacité inconnue
 REFUSAL_COOLDOWN,This ability is recharging,Cette capacité se recharge
 REFUSAL_NOT_ENOUGH_ENZYMES,Not enough Enzymes,Pas assez d'Enzymes
+HUD_PROTECTION,Protection: %s,Protection : %s
+HUD_RANKING,Ranking · average production,Classement · prod. moyenne
+HUD_YOU,You,Toi
+HUD_KILLS,%d kills,%d élim.
+HUD_RATE_VALUE,%s/s,%s/s
+HUD_JOURNAL,Log,Journal
+HUD_JOURNAL_EMPTY,Nothing yet,Rien pour l'instant
+HUD_HINT_MOVE,Click one of your cells next to the Sporophore · %s: cancel,Clic sur une de tes cases voisines du Sporophore · %s : annuler
+HUD_HINT_ABILITY,%s: click a cell · %s: cancel,%s : clique sur une case · %s : annuler
+HUD_ENZYMES_AMOUNT,Enzymes %s,Enzymes %s
+HUD_BIOMASS_AMOUNT,Biomass %s,Biomasse %s
+HUD_TIER_PROGRESS,Tier %d (%s) · %d / %d cells to tier %d,Palier %d (%s) · %d / %d cases vers le palier %d
+HUD_TURRET_TITLE,Sporophore,Sporophore
+HUD_TURRET_HP,HP %s / %s,PV %s / %s
+HUD_STAT_DAMAGE,Damage,Dégâts
+HUD_STAT_RATE,Fire rate,Cadence
+HUD_STAT_RANGE,Range,Portée
+HUD_STAT_SPORES,Spores,Spores
+HUD_SPORES_VALUE,×%d,×%d
+HUD_PRIORITY,Firing priority,Priorité de tir
+PRIORITY_CLOSEST,Closest,Plus proche
+PRIORITY_RICHEST,Richest,Plus riche
+PRIORITY_HEAL_FIRST,Heal,Soigner
+PRIORITY_ENEMIES_FIRST,Enemies,Ennemis
+HUD_MUTATIONS,My mutations,Mes mutations
+HUD_NO_MUTATION,None yet: one per tier reached,Aucune pour l'instant : une par palier atteint
+HUD_CHOOSE_MUTATION,Choose a mutation (%d),Choisir une mutation (%d)
+HUD_MUTATION_ENTRY,Tier %d · %s: %s,Palier %d · %s : %s
+TAB_ATTACK,Attack,Attaque
+TAB_DEFENSE,Defence,Défense
+TAB_ECONOMY,Economy,Économie
+BUY_ONE,×1,×1
+BUY_TEN,×10,×10
+BUY_MAX,Max,Max
+UPGRADE_LOCKED,Tier %d required · %d cells,Palier %d requis · %d cases
+UPGRADE_MAXED,Maximum level reached,Niveau maximal atteint
+UPGRADE_BUY_COUNT,+%d · %s,+%d · %s
+EFFECT_DAMAGE,+%s %% per level · %s → %s,+%s %% par niveau · %s → %s
+EFFECT_RATE,+%s %% per level · %s → %s shots/s,+%s %% par niveau · %s → %s tirs/s
+EFFECT_RANGE,+%s cell · %s → %s,+%s case · %s → %s
+EFFECT_YIELD,+%s %% per level · %s → %s /s,+%s %% par niveau · %s → %s /s
+EFFECT_REGEN,+%s %% of max HP per s · %s → %s %%,+%s %% des PV max par s · %s → %s %%
+EFFECT_HEAL,+%s %% healing · %s → %s per spore,+%s %% de soin · %s → %s par spore
+EFFECT_SPORES,+%s target per shot · %s → %s,+%s cible par tir · %s → %s
+EFFECT_CELL_HP,+%s %% cell HP · %s → %s,+%s %% de PV des cases · %s → %s
+EFFECT_SPLASH,+%s %% on neighbours · %s → %s %%,+%s %% sur les voisines · %s → %s %%
+EFFECT_CRIT,+%s %% chance of ×3 · %s → %s %%,+%s %% de chance de ×3 · %s → %s %%
+EFFECT_TURRET_HP,+%s %% Sporophore HP · %s → %s,+%s %% de PV du Sporophore · %s → %s
+EFFECT_BOUNCE,+%s cell hit when a cell falls · %s → %s,+%s case touchée à chaque prise · %s → %s
+ABILITY_READY,Ready · %d Enz. · %s,Prête · %d Enz. · %s
+ABILITY_COOLDOWN,Recharging %s · %s,Recharge %s · %s
+ABILITY_LOCKED,Tier %d · %s,Palier %d · %s
+ABILITY_PROTECTED,Starting protection · %s,Protection de départ · %s
+ABILITY_NO_ENZYMES,%d Enz. needed · %s,%d Enz. requis · %s
+MUTATION_BANNER,Tier %d · production %s · +%s Enzymes,Palier %d · production %s · +%s Enzymes
+MUTATION_TITLE,Choose a mutation,Choisis une mutation
+MUTATION_SUBTITLE,The game goes on while you choose.,La partie continue pendant le choix.
+MUTATION_KEY,Key %s,Touche %s
+MUTATION_HIDE,Hide the cards to see the map,Cacher les cartes pour voir la carte
+MAP_STEP,"Step: %d s, not firing","Pas : %d s, sans tirer"
+JOURNAL_PROTECTION,Starting protection over: enemy cells can be targeted,Fin de la protection : les cases adverses peuvent être visées
+JOURNAL_ATTACK,%s is attacking your cells,%s vise tes cases
+JOURNAL_LOST,%s took %d of your cells,%s a pris %d de tes cases
+JOURNAL_TIER,Tier %d reached: +%s Enzymes,Palier %d atteint : +%s Enzymes
+JOURNAL_MUTATION,Mutation chosen: %s,Mutation choisie : %s
+JOURNAL_ELIMINATED,%s took down %s,%s a abattu %s
+ACTION_ABILITY_1,Ability 1 (Salvo),Capacité 1 (Salve)
+ACTION_ABILITY_2,Ability 2 (Mycelium wall),Capacité 2 (Mur de mycélium)
+ACTION_ABILITY_3,Ability 3 (Toxic cloud),Capacité 3 (Nuage toxique)
+ACTION_MUTATION_1,Mutation card 1,Carte de mutation 1
+ACTION_MUTATION_2,Mutation card 2,Carte de mutation 2
+ACTION_MUTATION_3,Mutation card 3,Carte de mutation 3
+SANDBOX_MUTATIONS,Mutations,Mutations
+SANDBOX_MUT_DAMAGE,Damage ×,Dégâts ×
+SANDBOX_MUT_RATE,Fire rate ×,Cadence ×
+SANDBOX_MUT_RANGE,Range +,Portée +
+SANDBOX_MUT_COHESION,Cohesion ×,Cohésion ×
+SANDBOX_MUT_REGEN,Regeneration ×,Régénération ×
+SANDBOX_MUT_DEEP,Production of central zones ×,Production des zones centrales ×
+SANDBOX_MUT_FREE_DAMAGE,Damage to free cells ×,Dégâts aux cases libres ×
+SANDBOX_MUT_ENEMY_DAMAGE,Damage to enemy cells ×,Dégâts aux cases adverses ×
+SANDBOX_MUT_HEAL,Healing ×,Soin ×
+SANDBOX_MUT_SPORES,Spores per shot +,Spores par tir +
+SANDBOX_MUT_ENZYMES,Tier Enzymes ×,Enzymes des paliers ×
+SANDBOX_MUT_STEP,Step duration (s),Durée d'un pas (s)
+SANDBOX_MUT_TURRET_HP,Sporophore HP ×,PV du Sporophore ×
+SANDBOX_MUT_TOXIC,No regeneration (s),Sans régénération (s)
+SANDBOX_MUT_COST,Upgrade cost ×,Coût des améliorations ×

@@ -54,11 +54,14 @@ var move_left: int = 0
 # --- Améliorations, mutations, capacités ---
 ## Niveau de chaque amélioration (rang dans SimDefs.upgrades).
 var upgrade_levels: PackedInt32Array = PackedInt32Array()
-## Mutations prises, dans l'ordre (rangs dans SimDefs.mutations).
+## Mutations prises, dans l'ordre (rangs dans SimDefs.mutations), et palier de chacune.
 var mutations: PackedInt32Array = PackedInt32Array()
+var mutation_tiers: PackedInt32Array = PackedInt32Array()
 ## Choix de mutations en attente, à la suite (blocs de SimDefs.mutation_choices rangs,
 ## complétés par −1 s'il reste moins de mutations que de choix). Le premier bloc est affiché.
 var pending_offers: PackedInt32Array = PackedInt32Array()
+## Palier qui a donné chaque choix en attente (un par bloc).
+var pending_tiers: PackedInt32Array = PackedInt32Array()
 ## Tick à partir duquel chaque capacité peut à nouveau être lancée.
 var ability_ready: PackedInt32Array = PackedInt32Array()
 ## Salve : tick jusqu'auquel (exclu) la cadence est multipliée, et le multiplicateur.
@@ -88,6 +91,22 @@ func has_mutation(index: int) -> bool:
 func pending_choice_count(choices: int) -> int:
 	@warning_ignore("integer_division")
 	return pending_offers.size() / maxi(1, choices)
+
+
+## Copie de ce dont dépendent les chiffres de la colonie (ColonyStats) : améliorations,
+## mutations, palier, Trophées, Salve. Sert à prévoir l'effet d'un achat sans toucher à l'état.
+func stats_copy() -> ColonyState:
+	var copy := ColonyState.new()
+	copy.id = id
+	copy.alive = alive
+	copy.tier = tier
+	copy.trophies = trophies
+	copy.turret = turret
+	copy.salvo_until = salvo_until
+	copy.salvo_rate_pm = salvo_rate_pm
+	copy.upgrade_levels = upgrade_levels.duplicate()
+	copy.mutations = mutations.duplicate()
+	return copy
 
 
 ## Vrai si la Tourelle est en train de faire un pas.
@@ -128,7 +147,15 @@ func hash_values() -> PackedInt64Array:
 		]
 	)
 	for array: PackedInt32Array in [
-		tier_ticks, zone_ticks, targets, upgrade_levels, mutations, pending_offers, ability_ready
+		tier_ticks,
+		zone_ticks,
+		targets,
+		upgrade_levels,
+		mutations,
+		mutation_tiers,
+		pending_offers,
+		pending_tiers,
+		ability_ready,
 	]:
 		values.append(array.size())
 		for value: int in array:

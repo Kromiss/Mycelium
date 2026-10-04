@@ -3,8 +3,9 @@ extends SceneTree
 ## Utilisation (avec un affichage, réel ou virtuel) :
 ##   godot --path . -s tools/capture.gd -- <écran> <thème> <fichier.png> [mode] [secondes]
 ## <écran> : menu, settings, sandbox (réglages ; sandbox-bottom : bas de l'écran),
-## game (partie de Bac à sable), game-menu (partie avec le menu Échap ouvert) ou game-end
-## (partie terminée après [secondes]) ; <thème> : light ou dark ; [mode] : duel ou ffa ;
+## game (partie de Bac à sable), game-menu (partie avec le menu Échap ouvert), game-end
+## (partie terminée après [secondes]) ou game-mutation (cartes de mutation à l'écran) ;
+## <thème> : light ou dark ; [mode] : duel ou ffa (pour sandbox-bottom : défilement en pixels) ;
 ## [secondes] : durée de jeu simulée avant la capture (la colonie achète l'amélioration la
 ## moins chère et prend la première mutation proposée).
 
@@ -16,6 +17,7 @@ const SCREENS: Dictionary[String, String] = {
 	"game": "res://game/sandbox_screen.tscn",
 	"game-menu": "res://game/sandbox_screen.tscn",
 	"game-end": "res://game/sandbox_screen.tscn",
+	"game-mutation": "res://game/sandbox_screen.tscn",
 }
 const FRAMES_BEFORE_CAPTURE: int = 10
 
@@ -45,11 +47,11 @@ func _initialize() -> void:
 		return
 	await process_frame
 	if args.size() > 4 and args[0].begins_with("game"):
-		_play(args[4].to_int())
+		_play(args[4].to_int(), args[0] != "game-mutation")
 	if args[0] == "sandbox-bottom":
 		await process_frame
 		var scroll: ScrollContainer = current_scene.get_node("Scroll")
-		scroll.scroll_vertical = 100_000
+		scroll.scroll_vertical = 100_000 if args.size() < 4 else args[3].to_int()
 	if args[0] == "game-menu":
 		current_scene.get_node("%Hud").call("open_game_menu")
 	for _frame: int in range(FRAMES_BEFORE_CAPTURE):
@@ -61,13 +63,13 @@ func _initialize() -> void:
 
 
 ## Joue « seconds » secondes de partie : à chaque seconde, la colonie achète l'amélioration
-## la moins chère qu'elle peut payer et prend la première mutation proposée.
-func _play(seconds: int) -> void:
+## la moins chère qu'elle peut payer et, si « choose », prend la première mutation proposée.
+func _play(seconds: int, choose: bool) -> void:
 	var session: Session = current_scene.get_node("%Session")
 	for _second: int in range(seconds):
 		var state: GameState = session.simulation.state
 		var colony: ColonyState = session.colony()
-		if not colony.pending_offers.is_empty():
+		if choose and not colony.pending_offers.is_empty():
 			session.send_command(ChooseMutationCommand.new(0))
 		var best: int = -1
 		var best_cost: int = 0

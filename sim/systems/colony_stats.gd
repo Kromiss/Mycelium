@@ -128,6 +128,44 @@ static func turret_max_hp(defs: SimDefs, colony: ColonyState) -> int:
 	return Fixed.mul(hp, mutation_product(defs, colony, &"turret_hp_pm"))
 
 
+## Valeur actuelle d'une statistique d'amélioration (UpgradeDef.Stat), pour l'affichage :
+## dégâts (millièmes), tirs par seconde (pour-mille, sans Salve), portée (cases), production
+## (millièmes par seconde), régénération (pour-mille des PV max par seconde), soin (millièmes),
+## spores, multiplicateur des PV des cases (pour-mille), Éclaboussure et critique (pour-mille),
+## PV de la Tourelle (millièmes), Rebond (cases).
+static func stat_value(state: GameState, colony: ColonyState, stat: int) -> int:
+	var defs: SimDefs = state.defs
+	match stat:
+		UpgradeDef.Stat.DAMAGE:
+			return damage(defs, colony)
+		UpgradeDef.Stat.RATE:
+			var rate: int = Fixed.mul(
+				defs.turret_rate_pm, Fixed.ONE + upgrade_bonus(defs, colony, UpgradeDef.Stat.RATE)
+			)
+			return Fixed.mul(rate, mutation_product(defs, colony, &"rate_pm"))
+		UpgradeDef.Stat.RANGE:
+			return turret_range(defs, colony)
+		UpgradeDef.Stat.YIELD:
+			return colony_production(state, colony)
+		UpgradeDef.Stat.REGEN:
+			return regen_pm(defs, colony)
+		UpgradeDef.Stat.HEAL:
+			return heal(defs, colony)
+		UpgradeDef.Stat.SPORES:
+			return spores(defs, colony)
+		UpgradeDef.Stat.CELL_HP:
+			return cell_hp_factor(defs, colony)
+		UpgradeDef.Stat.SPLASH:
+			return splash_pm(defs, colony)
+		UpgradeDef.Stat.CRIT:
+			return crit_pm(defs, colony)
+		UpgradeDef.Stat.TURRET_HP:
+			return turret_max_hp(defs, colony)
+		UpgradeDef.Stat.BOUNCE:
+			return bounce(defs, colony)
+	return 0
+
+
 # --- Cases ---
 
 

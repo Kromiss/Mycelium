@@ -20,6 +20,15 @@ const CARD_RADIUS: int = 28
 const SMALL_SIZE: int = 20
 ## Taille des grands chiffres du HUD (nutriments).
 const BIG_NUMBER_SIZE: int = 44
+## Écran de partie (maquettes G3, ×1,5 depuis 1280×760) : très petits textes, textes des
+## lignes, titres des cartes, horloge, et graisse des textes appuyés.
+const TINY_SIZE: int = 18
+const BODY_SIZE: int = 21
+const CARD_TITLE_SIZE: int = 30
+const CLOCK_SIZE: int = 32
+const BOLD_WEIGHT: int = 800
+## Arrondi et marges des cartes de l'écran de partie.
+const GAME_CARD_RADIUS: int = 30
 
 
 ## Thème complet pour une palette.
@@ -34,6 +43,7 @@ static func build(palette: Palette) -> Theme:
 	_add_panel(theme, palette)
 	_add_inputs(theme, palette)
 	_add_hud(theme, palette)
+	_add_game_screen(theme, palette)
 	_add_tabs(theme, palette)
 	return theme
 
@@ -41,6 +51,11 @@ static func build(palette: Palette) -> Theme:
 ## Police des titres (Fredoka, graisse des titres), pour les textes dessinés sur la carte.
 static func title_font() -> FontVariation:
 	return _font(FREDOKA, TITLE_WEIGHT)
+
+
+## Police des textes appuyés (Nunito, graisse forte).
+static func bold_font() -> FontVariation:
+	return _font(NUNITO, BOLD_WEIGHT)
 
 
 static func _font(file: FontFile, weight: int) -> FontVariation:
@@ -172,6 +187,49 @@ static func _add_hud(theme: Theme, palette: Palette) -> void:
 	theme.set_type_variation(&"BannerLabel", &"Label")
 	theme.set_font(&"font", &"BannerLabel", _font(FREDOKA, TITLE_WEIGHT))
 	theme.set_font_size(&"font_size", &"BannerLabel", TITLE_SIZE)
+
+
+## Écran de partie (maquettes G3) : panneau de droite, cartes sans bordure, textes.
+static func _add_game_screen(theme: Theme, palette: Palette) -> void:
+	theme.set_type_variation(&"GameCard", &"PanelContainer")
+	var card := StyleBoxFlat.new()
+	card.bg_color = palette.card
+	card.set_corner_radius_all(GAME_CARD_RADIUS)
+	card.content_margin_left = 24
+	card.content_margin_right = 24
+	card.content_margin_top = 15
+	card.content_margin_bottom = 15
+	theme.set_stylebox(&"panel", &"GameCard", card)
+	theme.set_type_variation(&"GamePanel", &"PanelContainer")
+	var panel := StyleBoxFlat.new()
+	panel.bg_color = palette.panel
+	panel.border_color = palette.line
+	panel.border_width_left = 3
+	panel.content_margin_left = 24
+	panel.content_margin_right = 24
+	panel.content_margin_top = 18
+	panel.content_margin_bottom = 18
+	theme.set_stylebox(&"panel", &"GamePanel", panel)
+	var labels: Array[Array] = [
+		[&"TinyHintLabel", NUNITO, TEXT_WEIGHT, TINY_SIZE, palette.text_secondary],
+		[&"TinyBoldHintLabel", NUNITO, BOLD_WEIGHT, TINY_SIZE, palette.text_secondary],
+		[&"BodyLabel", NUNITO, TEXT_WEIGHT, BODY_SIZE, palette.text],
+		[&"BodyHintLabel", NUNITO, TEXT_WEIGHT, BODY_SIZE, palette.text_secondary],
+		[&"BoldLabel", NUNITO, BOLD_WEIGHT, BODY_SIZE, palette.text],
+		[&"StatLabel", NUNITO, BOLD_WEIGHT, TEXT_SIZE, palette.text],
+		[&"CardTitleLabel", FREDOKA, TITLE_WEIGHT, CARD_TITLE_SIZE, palette.text],
+		[&"ClockLabel", FREDOKA, TITLE_WEIGHT, CLOCK_SIZE, palette.text],
+	]
+	for entry: Array in labels:
+		var type: StringName = entry[0]
+		var file: FontFile = entry[1]
+		var weight: int = entry[2]
+		var size: int = entry[3]
+		var color: Color = entry[4]
+		theme.set_type_variation(type, &"Label")
+		theme.set_font(&"font", type, _font(file, weight))
+		theme.set_font_size(&"font_size", type, size)
+		theme.set_color(&"font_color", type, color)
 
 
 static func _add_tabs(theme: Theme, palette: Palette) -> void:

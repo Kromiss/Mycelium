@@ -1,9 +1,17 @@
 class_name Hud
 extends Control
-## HUD provisoire d'une partie de Bac à sable (G3, étape 1 ; le panneau des maquettes arrive à
-## l'étape 2) : nutriments qui défilent, production, Enzymes, Biomasse, courbe de production,
-## barre du prochain palier, chiffres de la Tourelle, horloge, pause, vitesse et récapitulatif ;
-## messages, info-bulle, menu de partie (Échap) et panneau de fin.
+## Interface de l'écran de partie (maquettes G3 validées le 4 octobre 2026, GDD §16.2) :
+## - sur la carte, à gauche : frise (horloge, protection ; pause, vitesse et récapitulatif en
+##   Bac à sable), mini-classement, journal, rappel des gestes, messages, annonce des paliers,
+##   cartes de mutation ;
+## - panneau de droite : ressources, Tourelle et priorité de tir, mutations prises,
+##   améliorations, capacités ;
+## - info-bulle d'une case, menu de partie (Échap) et panneau de fin.
+## Les ordres passent par la Session, après avoir demandé à la simulation s'ils seraient
+## acceptés : les règles restent dans sim/.
+
+## Le joueur a cliqué sur une capacité (le geste continue sur la carte pour le Mur et le Nuage).
+signal ability_requested(index: int)
 
 ## Durée d'affichage d'un message, en secondes.
 const TOAST_TIME: float = 2.6
@@ -11,29 +19,36 @@ const TOAST_TIME: float = 2.6
 const BANNER_TIME: float = 1.6
 ## Décalage de l'info-bulle par rapport à la souris, en pixels.
 const TOOLTIP_OFFSET := Vector2(22.0, 22.0)
+## Délai minimal entre deux alertes d'attaque d'une même colonie dans le journal, en secondes.
+const ATTACK_ALERT_TICKS: int = 20
 
 var _session: Session
 var _config: SandboxConfig
-var _color: Color = Color.WHITE
-var _dark: Color = Color.BLACK
+var _main: Array[Color] = []
+var _dark: Array[Color] = []
 var _toast_left: float = 0.0
 var _tooltip_cell: int = -1
 ## Vrai si le menu de partie a lui-même mis le jeu en pause (il le relance en se fermant).
 var _menu_paused: bool = false
+## Vrai si le joueur a caché les cartes de mutation (bouton œil).
+var _offer_hidden: bool = false
+## Nombre de mutations prises au dernier tick (pour noter les choix dans le journal).
+var _mutation_count: int = 0
+## Dernière alerte d'attaque de chaque colonie (tick).
+var _last_alert: Dictionary[int, int] = {}
+var _hint_mode: MapInput.Mode = MapInput.Mode.TARGET
+var _hint_ability: int = -1
 
-@onready var _nutrients_label: Label = %NutrientsLabel
-@onready var _rate_label: Label = %RateLabel
-@onready var _biomass_label: Label = %BiomassLabel
-@onready var _enzymes_label: Label = %EnzymesLabel
-@onready var _curve: ProductionCurve = %Curve
-@onready var _tier_label: Label = %TierLabel
-@onready var _tier_bar: ProgressBar = %TierBar
-@onready var _next_tier_label: Label = %NextTierLabel
-@onready var _turret_label: Label = %TurretLabel
-@onready var _clock_label: Label = %ClockLabel
-@onready var _pause_button: Button = %PauseButton
-@onready var _speed_button: Button = %SpeedButton
-@onready var _recap_button: Button = %RecapButton
+@onready var _map_area: Control = %MapArea
+@onready var _timeline: TimelineCard = %TimelineCard
+@onready var _ranking: RankingCard = %RankingCard
+@onready var _journal: JournalCard = %JournalCard
+@onready var _overlay: MutationOverlay = %MutationOverlay
+@onready var _resources: ResourcesCard = %ResourcesCard
+@onready var _turret: TurretCard = %TurretCard
+@onready var _mutations: MutationsCard = %MutationsCard
+@onready var _upgrades: UpgradesCard = %UpgradesCard
+@onready var _abilities: AbilityBar = %AbilityBar
 @onready var _paused_label: Label = %PausedLabel
 @onready var _banner: Label = %Banner
 @onready var _toast: PanelContainer = %Toast
@@ -56,9 +71,9 @@ var _menu_paused: bool = false
 
 
 func _ready() -> void:
-	_pause_button.pressed.connect(_on_pause_pressed)
-	_speed_button.pressed.connect(_on_speed_pressed)
-	_recap_button.pressed.connect(copy_recap)
+	_timeline.pause_button.pressed.connect(_on_pause_pressed)
+	_timeline.speed_button.pressed.connect(_on_speed_pressed)
+	_timeline.recap_button.pressed.connect(copy_recap)
 	_resume_button.pressed.connect(close_game_menu)
 	_menu_recap_button.pressed.connect(copy_recap)
 	_restart_button.pressed.connect(_restart)
@@ -66,24 +81,45 @@ func _ready() -> void:
 	_end_recap_button.pressed.connect(copy_recap)
 	_replay_button.pressed.connect(_restart)
 	_end_menu_button.pressed.connect(_quit)
+	_turret.priority_chosen.connect(_on_priority_chosen)
+	_upgrades.buy_requested.connect(_on_buy_requested)
+	_abilities.ability_pressed.connect(func(index: int) -> void: ability_requested.emit(index))
+	_overlay.chosen.connect(choose_mutation)
+	_overlay.hide_requested.connect(hide_offer)
+	_mutations.reopen_requested.connect(show_offer)
 	Settings.palette_changed.connect(_apply_palette)
-	_apply_palette(Settings.palette())
 
 
-## Branche le HUD sur une partie, avec les couleurs de la colonie (principale et foncée).
-func setup(session: Session, config: SandboxConfig, color: Color, dark: Color) -> void:
+## Branche l'interface sur une partie, avec les couleurs de chaque colonie (principale et
+## foncée, par numéro de colonie).
+func setup(session: Session, config: SandboxConfig, main: Array[Color], dark: Array[Color]) -> void:
 	_session = session
 	_config = config
-	_color = color
+	_main = main
 	_dark = dark
+	var local: int = session.local_colony
+	_timeline.setup(session, main[local])
+	_ranking.setup(session, main)
+	_resources.setup(session, main[local], dark[local])
+	_turret.setup(session, dark[local])
+	_mutations.setup(session, main[local], dark[local])
+	_upgrades.setup(session, main[local], dark[local])
+	_abilities.setup(session, dark[local])
+	_overlay.setup(session, main[local], dark[local])
+	_mutation_count = session.colony().mutations.size()
 	_session.ticked.connect(_on_ticked)
 	_session.paused_changed.connect(_on_paused_changed)
 	_session.speed_changed.connect(_on_speed_changed)
 	_session.game_finished.connect(_on_game_finished)
 	_on_speed_changed(_session.speed)
-	_paint_tier_bar()
+	_apply_palette(Settings.palette())
 	_update_hint()
 	_update_state()
+
+
+## Partie de l'écran occupée par la carte, en pixels d'écran (pour la caméra).
+func map_rect() -> Rect2:
+	return _map_area.get_global_rect()
 
 
 ## Montre un message au joueur pendant quelques secondes (texte déjà traduit).
@@ -113,6 +149,13 @@ func announce_tier(tier: int) -> void:
 func set_tooltip_cell(cell: int) -> void:
 	_tooltip_cell = cell
 	_update_tooltip()
+
+
+## Geste en cours sur la carte (rappel des gestes en bas de la carte).
+func set_input_mode(mode: MapInput.Mode, ability: int) -> void:
+	_hint_mode = mode
+	_hint_ability = ability
+	_update_hint()
 
 
 ## Copie le récapitulatif dans le presse-papiers.
@@ -147,10 +190,60 @@ func is_game_menu_open() -> bool:
 	return _game_menu.visible
 
 
+## Vrai si les cartes de mutation sont à l'écran.
+func is_offer_visible() -> bool:
+	return _overlay.visible
+
+
+## Montre les cartes du premier choix de mutation en attente (s'il y en a un).
+func show_offer() -> void:
+	_offer_hidden = false
+	_overlay.show_offer()
+	_mutations.refresh(false)
+
+
+## Cache les cartes de mutation (bouton œil) ; le panneau permet de les rouvrir.
+func hide_offer() -> void:
+	_offer_hidden = true
+	_overlay.visible = false
+	_mutations.refresh(true)
+
+
+## Choisit la carte « choice » (0 à 2) du premier choix en attente.
+func choose_mutation(choice: int) -> void:
+	if not _overlay.visible:
+		return
+	_send(ChooseMutationCommand.new(choice))
+
+
+## Les journal, classement et cartes du panneau (pour les tests).
+func journal() -> JournalCard:
+	return _journal
+
+
+func turret_card() -> TurretCard:
+	return _turret
+
+
+func upgrades_card() -> UpgradesCard:
+	return _upgrades
+
+
+func ability_bar() -> AbilityBar:
+	return _abilities
+
+
+func mutation_overlay() -> MutationOverlay:
+	return _overlay
+
+
+func mutations_card() -> MutationsCard:
+	return _mutations
+
+
 func _process(delta: float) -> void:
 	if _session == null:
 		return
-	_update_nutrients()
 	if _toast.visible:
 		_toast_left -= delta
 		if _toast_left <= 0.0:
@@ -166,96 +259,94 @@ func _notification(what: int) -> void:
 		_on_speed_changed(_session.speed)
 
 
+# --- Ordres ---
+
+
+## Envoie un ordre de la colonie du joueur, ou montre pourquoi il serait refusé.
+func _send(command: Command) -> void:
+	if not _session.accepts_commands():
+		var paused: bool = _session.is_running()
+		show_message(
+			tr("HUD_PAUSED_NO_ORDERS") if paused else MapInput.refusal_text(Refusal.Code.GAME_OVER)
+		)
+		return
+	command.colony_id = _session.local_colony
+	var code: Refusal.Code = _session.simulation.check(command)
+	if code != Refusal.Code.OK:
+		show_message(MapInput.refusal_text(code))
+		return
+	_session.send_command(command)
+
+
+func _on_priority_chosen(priority: int) -> void:
+	_send(SetPriorityCommand.new(priority))
+
+
+func _on_buy_requested(upgrade: StringName, count: int) -> void:
+	_send(BuyUpgradeCommand.new(upgrade, count))
+
+
 # --- Mise à jour ---
 
 
 func _on_ticked(result: TickResult) -> void:
 	var colony_id: int = _session.local_colony
 	for i: int in range(0, result.tier_changes.size(), 3):
-		var changed: int = result.tier_changes[i]
 		var new_tier: int = result.tier_changes[i + 2]
-		if changed == colony_id and new_tier > result.tier_changes[i + 1]:
+		if result.tier_changes[i] == colony_id and new_tier > result.tier_changes[i + 1]:
 			announce_tier(new_tier)
 	for i: int in range(result.refused.size()):
 		if result.refused[i].colony_id == colony_id:
 			show_message(MapInput.refusal_text(result.refused_codes[i] as Refusal.Code))
+	HudJournal.record(_journal, result, _session, _last_alert, ATTACK_ALERT_TICKS)
+	_note_mutation_choice(result.tick)
+	_update_offer(result)
 	_update_state()
+
+
+## Note dans le journal les mutations choisies depuis le dernier tick.
+func _note_mutation_choice(tick: int) -> void:
+	var colony: ColonyState = _session.colony()
+	var defs: SimDefs = _session.simulation.state.defs
+	while _mutation_count < colony.mutations.size():
+		var mutation: SimMutation = defs.mutations[colony.mutations[_mutation_count]]
+		_journal.add_entry(tick, tr("JOURNAL_MUTATION") % tr(mutation.name_key))
+		_mutation_count += 1
+
+
+## Cartes de mutation : un nouveau choix les montre ; après un choix, le suivant s'affiche
+## (choix empilés) ou elles se ferment.
+func _update_offer(result: TickResult) -> void:
+	var colony: ColonyState = _session.colony()
+	if colony.pending_offers.is_empty():
+		_overlay.visible = false
+		_offer_hidden = false
+	elif result.mutation_offers.has(colony.id) or (_overlay.visible and not _offer_hidden):
+		show_offer()
 
 
 ## Tout ce qui ne change qu'à chaque tick.
 func _update_state() -> void:
-	var state: GameState = _session.simulation.state
-	var colony: ColonyState = _session.colony()
-	var defs: SimDefs = state.defs
-	_clock_label.text = (
-		tr("HUD_CLOCK") % [NumberFormat.clock(state.tick), NumberFormat.clock(defs.match_ticks)]
-	)
-	_rate_label.text = tr("HUD_PER_SECOND") % NumberFormat.rate(colony.production)
-	_biomass_label.text = NumberFormat.amount(colony.biomass)
-	_curve.set_data(_session.production_history, defs.match_ticks, _color)
-	_update_tier(defs, colony)
-	_update_turret(defs, colony)
-	_enzymes_label.text = NumberFormat.amount(colony.enzymes)
-	_update_nutrients()
+	_timeline.refresh()
+	_ranking.refresh()
+	_resources.refresh()
+	_turret.refresh()
+	_mutations.refresh(_offer_hidden)
+	_upgrades.refresh()
+	_abilities.refresh()
 	_update_tooltip()
 
 
-## Chiffres de la Tourelle : PV, dégâts, cadence, portée, spores par tir.
-func _update_turret(defs: SimDefs, colony: ColonyState) -> void:
-	if not colony.alive:
-		_turret_label.text = tr("HUD_ELIMINATED")
-		return
-	var state: GameState = _session.simulation.state
-	_turret_label.text = (
-		tr("HUD_TURRET")
-		% [
-			NumberFormat.amount(colony.turret_hp),
-			NumberFormat.amount(ColonyStats.turret_max_hp(defs, colony)),
-			NumberFormat.amount(ColonyStats.damage(defs, colony)),
-			NumberFormat.multiplier(ColonyStats.rate_pm(state, colony)).trim_prefix("×"),
-			ColonyStats.turret_range(defs, colony),
-			ColonyStats.spores(defs, colony),
-		]
-	)
-
-
-func _update_tier(defs: SimDefs, colony: ColonyState) -> void:
-	var tier: int = colony.tier
-	if tier == 0:
-		_tier_label.text = tr("HUD_TIER_START")
-	else:
-		var current: String = NumberFormat.multiplier(ColonyStats.tier_production_pm(defs, tier))
-		_tier_label.text = tr("HUD_TIER") % [tier, current]
-	if tier >= defs.tier_cells.size():
-		_tier_bar.value = 1.0
-		_next_tier_label.text = tr("HUD_LAST_TIER") % colony.cell_count
-		return
-	var start: int = MapGenerator.START_CELLS if tier == 0 else defs.tier_cells[tier - 1]
-	var goal: int = defs.tier_cells[tier]
-	var span: float = maxf(1.0, float(goal - start))
-	_tier_bar.value = clampf(float(colony.cell_count - start) / span, 0.0, 1.0)
-	var next: String = NumberFormat.multiplier(ColonyStats.tier_production_pm(defs, tier + 1))
-	_next_tier_label.text = tr("HUD_NEXT_TIER") % [colony.cell_count, goal, next]
-
-
-## Les nutriments défilent : entre deux ticks, on ajoute la production déjà « en route ».
-func _update_nutrients() -> void:
-	var colony: ColonyState = _session.colony()
-	var shown: int = colony.nutrients
-	if _session.is_running() and not _session.paused:
-		shown += roundi(colony.production * _session.tick_fraction())
-	_nutrients_label.text = NumberFormat.amount(shown)
-
-
 func _update_hint() -> void:
-	_hint_label.text = (
-		tr("HUD_HINT")
-		% [
-			ControlsText.action_key("move_turret"),
-			ControlsText.action_key("recenter_camera"),
-			ControlsText.action_key("back_to_menu"),
-		]
-	)
+	var cancel: String = ControlsText.action_key("back_to_menu")
+	match _hint_mode:
+		MapInput.Mode.MOVE:
+			_hint_label.text = tr("HUD_HINT_MOVE") % cancel
+		MapInput.Mode.ABILITY:
+			var ability: SimAbility = _session.simulation.state.defs.abilities[_hint_ability]
+			_hint_label.text = tr("HUD_HINT_ABILITY") % [tr(ability.name_key), cancel]
+		_:
+			_hint_label.text = tr("HUD_HINT") % ControlsText.action_key("move_turret")
 
 
 func _update_tooltip() -> void:
@@ -270,19 +361,11 @@ func _update_tooltip() -> void:
 
 func _place_tooltip() -> void:
 	var mouse: Vector2 = get_viewport().get_mouse_position()
-	var area: Vector2 = get_viewport_rect().size
+	var area: Rect2 = map_rect()
 	var pos: Vector2 = mouse + TOOLTIP_OFFSET
-	pos.x = minf(pos.x, area.x - _tooltip.size.x - 8.0)
-	pos.y = minf(pos.y, area.y - _tooltip.size.y - 8.0)
+	pos.x = minf(pos.x, area.end.x - _tooltip.size.x - 8.0)
+	pos.y = minf(pos.y, area.end.y - _tooltip.size.y - 8.0)
 	_tooltip.position = pos
-
-
-## La barre du prochain palier prend la couleur de la colonie.
-func _paint_tier_bar() -> void:
-	var fill := StyleBoxFlat.new()
-	fill.bg_color = _color
-	fill.set_corner_radius_all(ThemeFactory.PILL_RADIUS)
-	_tier_bar.add_theme_stylebox_override(&"fill", fill)
 
 
 func _apply_palette(palette: Palette) -> void:
@@ -290,7 +373,9 @@ func _apply_palette(palette: Palette) -> void:
 	dim.a = 0.7
 	_menu_dim.color = dim
 	_end_dim.color = dim
-	_curve.queue_redraw()
+	if _session != null:
+		_overlay.apply_palette(palette)
+		_update_state()
 
 
 # --- Temps ---
@@ -305,20 +390,21 @@ func _on_speed_pressed() -> void:
 
 
 func _on_paused_changed(paused: bool) -> void:
-	_pause_button.text = tr("HUD_RESUME") if paused else tr("HUD_PAUSE")
+	_timeline.pause_button.text = tr("HUD_RESUME") if paused else tr("HUD_PAUSE")
 	_paused_label.visible = paused and not _game_menu.visible
 
 
 func _on_speed_changed(speed: int) -> void:
-	_speed_button.text = tr("HUD_SPEED") % speed
-	_pause_button.text = tr("HUD_RESUME") if _session.paused else tr("HUD_PAUSE")
+	_timeline.speed_button.text = tr("HUD_SPEED") % speed
+	_timeline.pause_button.text = tr("HUD_RESUME") if _session.paused else tr("HUD_PAUSE")
 
 
 func _on_game_finished() -> void:
 	_game_menu.visible = false
+	_overlay.visible = false
 	_paused_label.visible = false
-	_pause_button.disabled = true
-	_speed_button.disabled = true
+	_timeline.pause_button.disabled = true
+	_timeline.speed_button.disabled = true
 	var state: GameState = _session.simulation.state
 	var colony: ColonyState = _session.colony()
 	var defs: SimDefs = state.defs

@@ -137,10 +137,16 @@ func _build_fields() -> void:
 		_add_headers(grids[group], keys)
 	var last_row: int = -1
 	var last_group: int = -1
+	var mutations_grid: GridContainer = _add_mutations_card()
 	for param: SandboxParam in SandboxParam.all(defs):
 		if param.group == SandboxParam.Group.GENERAL:
 			_add_row_label(_general_grid, param.label_key)
 			_general_grid.add_child(_field(param))
+			continue
+		if param.group == SandboxParam.Group.MUTATIONS:
+			var name: String = tr(defs.mutations[param.index].name_key)
+			_add_row_label(mutations_grid, "%s · %s" % [name, tr(param.label_key)])
+			mutations_grid.add_child(_field(param))
 			continue
 		var grid: GridContainer = grids[param.group]
 		if param.index != last_row or param.group != last_group:
@@ -154,6 +160,27 @@ func _build_fields() -> void:
 		):
 			spin.custom_minimum_size = Vector2(TABLE_FIELD_WIDTH, 0.0)
 		grid.add_child(spin)
+
+
+## Carte des mutations (sous les autres) : une ligne par modificateur de chaque mutation.
+func _add_mutations_card() -> GridContainer:
+	var card := PanelContainer.new()
+	card.theme_type_variation = &"HudPanel"
+	card.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	add_child(card)
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override(&"separation", 12)
+	card.add_child(column)
+	var title := Label.new()
+	title.theme_type_variation = &"HeaderLabel"
+	title.text = "SANDBOX_MUTATIONS"
+	column.add_child(title)
+	var grid := GridContainer.new()
+	grid.columns = 4
+	grid.add_theme_constant_override(&"h_separation", 16)
+	grid.add_theme_constant_override(&"v_separation", 6)
+	column.add_child(grid)
+	return grid
 
 
 ## Nom d'une ligne de tableau : numéro de la zone ou du palier, nom de l'amélioration ou de
