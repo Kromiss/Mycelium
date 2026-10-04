@@ -3,7 +3,15 @@ extends Control
 ## HUD d'une partie de Bac à sable (GDD §6.5, §13.6, §15 ligne G1) : nutriments qui défilent,
 ## production, Biomasse, courbe de production, barre du prochain palier, file d'expansion,
 ## horloge (écoulé / total), pause, vitesse et récapitulatif ; messages, info-bulle, menu de
-## partie (Échap) et panneau de fin à 30:00.
+## partie (Échap) et panneau de fin à 30:00. G2 (§13.6) : plafond du stock, Enzymes, file de
+## construction et chantiers, palette des bâtiments, menu rond et panneau d'un bâtiment.
+
+## Un bâtiment a été choisi (ou rechoisi) dans la palette.
+signal placing_selected(building: StringName)
+## Un bâtiment a été choisi dans le menu rond d'une case.
+signal build_chosen(cell: int, building: StringName)
+## Le joueur demande de démolir (ou d'annuler) le bâtiment d'une case.
+signal demolish_requested(cell: int)
 
 ## Durée d'affichage d'un message, en secondes.
 const TOAST_TIME: float = 2.6
@@ -15,6 +23,11 @@ const TOOLTIP_OFFSET := Vector2(22.0, 22.0)
 var _session: Session
 var _config: SandboxConfig
 var _color: Color = Color.WHITE
+var _dark: Color = Color.BLACK
+## Bâtiment choisi dans la palette (vide : aucun).
+var _placing: StringName = &""
+## Position à l'écran d'une case (fournie par l'écran de jeu, qui connaît la caméra).
+var _cell_to_screen: Callable = func(_cell: int) -> Vector2: return Vector2.ZERO
 var _toast_left: float = 0.0
 var _tooltip_cell: int = -1
 ## Vrai si le menu de partie a lui-même mis le jeu en pause (il le relance en se fermant).
@@ -24,6 +37,14 @@ var _replay_title: String = ""
 @onready var _nutrients_label: Label = %NutrientsLabel
 @onready var _rate_label: Label = %RateLabel
 @onready var _biomass_label: Label = %BiomassLabel
+@onready var _stock_label: Label = %StockLabel
+@onready var _stock_bar: ProgressBar = %StockBar
+@onready var _enzymes_label: Label = %EnzymesLabel
+@onready var _build_queue: BuildQueueView = %BuildQueue
+@onready var _palette: BuildingPalette = %Palette
+@onready var _palette_panel: PanelContainer = %PalettePanel
+@onready var _radial: RadialMenu = %RadialMenu
+@onready var _building_panel: BuildingPanel = %BuildingPanel
 @onready var _curve: ProductionCurve = %Curve
 @onready var _tier_label: Label = %TierLabel
 @onready var _tier_bar: ProgressBar = %TierBar
@@ -65,17 +86,28 @@ func _ready() -> void:
 	_end_recap_button.pressed.connect(copy_recap)
 	_replay_button.pressed.connect(_restart)
 	_end_menu_button.pressed.connect(_quit)
+	_palette.selected.connect(func(building: StringName) -> void: placing_selected.emit(building))
+	_radial.chosen.connect(_on_build_chosen)
+	_building_panel.demolish_requested.connect(
+		func(cell: int) -> void: demolish_requested.emit(cell)
+	)
+	_build_queue.cancel_requested.connect(func(cell: int) -> void: demolish_requested.emit(cell))
 	Settings.palette_changed.connect(_apply_palette)
 	_apply_palette(Settings.palette())
 
 
-## Branche le HUD sur une partie. « replay_title » : titre d'un rejeu (vide sinon).
+## Branche le HUD sur une partie, avec les couleurs de la colonie (principale et foncée).
+## « replay_title » : titre d'un rejeu (vide sinon).
 func setup(
-	session: Session, config: SandboxConfig, color: Color, replay_title: String = ""
+	session: Session, config: SandboxConfig, color: Color, dark: Color, replay_title: String = ""
 ) -> void:
 	_session = session
 	_config = config
 	_color = color
+	_dark = dark
+	_palette.setup(session, dark)
+	_palette_panel.visible = not session.is_replay()
+	_build_queue.setup(session, color, dark)
 	_replay_title = replay_title
 	_session.ticked.connect(_on_ticked)
 	_session.paused_changed.connect(_on_paused_changed)
@@ -116,6 +148,43 @@ func set_tooltip_cell(cell: int) -> void:
 	_update_tooltip()
 
 
+## Bâtiment choisi dans la palette (vide : aucun).
+func set_placing(building: StringName) -> void:
+	_placing = building
+	_palette.set_placing(building)
+	_update_tooltip()
+
+
+## Donne au HUD le moyen de placer le menu rond sur sa case.
+func set_cell_to_screen(converter: Callable) -> void:
+	_cell_to_screen = converter
+
+
+## Ouvre le menu rond d'une case libre de la colonie.
+func open_build_menu(cell: int) -> void:
+	_building_panel.close()
+	_radial.open(_session, cell, _dark)
+	var point: Vector2 = _cell_to_screen.call(cell)
+	_radial.set_center(point)
+
+
+## Ouvre le panneau du bâtiment d'une case.
+func open_building_panel(cell: int) -> void:
+	_radial.close()
+	_building_panel.open(_session, cell)
+
+
+## Ferme le menu rond et le panneau d'un bâtiment.
+func close_menus() -> void:
+	_radial.close()
+	_building_panel.close()
+
+
+## Vrai si le menu rond ou le panneau d'un bâtiment est ouvert.
+func is_menu_open() -> bool:
+	return _radial.is_open() or _building_panel.is_open()
+
+
 ## Copie le récapitulatif dans le presse-papiers.
 func copy_recap() -> void:
 	var state: GameState = _session.simulation.state
@@ -152,6 +221,9 @@ func _process(delta: float) -> void:
 	if _session == null:
 		return
 	_update_nutrients()
+	if _radial.is_open():
+		var point: Vector2 = _cell_to_screen.call(_radial.cell())
+		_radial.set_center(point)
 	if _toast.visible:
 		_toast_left -= delta
 		if _toast_left <= 0.0:
@@ -196,8 +268,32 @@ func _update_state() -> void:
 	_curve.set_data(_session.production_history, defs.match_ticks, _color)
 	_update_tier(defs, colony)
 	_queue_label.text = tr("HUD_QUEUE") % [colony.queue_load(), defs.expansion_queue_size]
+	_update_stock(colony)
+	_enzymes_label.text = (
+		tr("HUD_ENZYMES_VALUE")
+		% [NumberFormat.amount(colony.enzymes), NumberFormat.amount(colony.enzyme_production * 60)]
+	)
+	_build_queue.refresh()
+	_palette.refresh()
+	_radial.refresh()
+	_building_panel.refresh()
 	_update_nutrients()
 	_update_tooltip()
+
+
+## Plafond du stock : chiffre et barre, qui passe en couleur d'alerte quand le stock est plein.
+func _update_stock(colony: ColonyState) -> void:
+	_stock_label.text = NumberFormat.amount(colony.stock_cap)
+	var full: bool = colony.stock_cap > 0 and colony.nutrients >= colony.stock_cap
+	_stock_bar.value = (
+		clampf(float(colony.nutrients) / float(colony.stock_cap), 0.0, 1.0)
+		if colony.stock_cap > 0
+		else 0.0
+	)
+	var fill := StyleBoxFlat.new()
+	fill.bg_color = Settings.palette().warning if full else _color
+	fill.set_corner_radius_all(ThemeFactory.PILL_RADIUS)
+	_stock_bar.add_theme_stylebox_override(&"fill", fill)
 
 
 func _update_tier(defs: SimDefs, colony: ColonyState) -> void:
@@ -225,6 +321,8 @@ func _update_nutrients() -> void:
 	var shown: int = colony.nutrients
 	if _session.is_running() and not _session.paused:
 		shown += roundi(colony.production * _session.tick_fraction())
+		if colony.stock_cap > 0:
+			shown = mini(shown, maxi(colony.stock_cap, colony.nutrients))
 	_nutrients_label.text = NumberFormat.amount(shown)
 
 
@@ -240,13 +338,16 @@ func _update_hint() -> void:
 			ControlsText.action_key("back_to_menu"),
 		]
 	)
+	if not _palette_panel.visible:
+		return
+	_hint_label.text += "\n" + tr("HUD_HINT_BUILD") % ControlsText.action_key("back_to_menu")
 
 
 func _update_tooltip() -> void:
 	if _session == null or _tooltip_cell < 0:
 		_tooltip.visible = false
 		return
-	_tooltip_label.text = "\n".join(CellTooltip.lines(_session, _tooltip_cell))
+	_tooltip_label.text = "\n".join(CellTooltip.lines(_session, _tooltip_cell, _placing))
 	_tooltip.visible = true
 	_tooltip.reset_size()
 	_place_tooltip()
@@ -298,7 +399,14 @@ func _on_speed_changed(speed: int) -> void:
 	_pause_button.text = tr("HUD_RESUME") if _session.paused else tr("HUD_PAUSE")
 
 
+func _on_build_chosen(cell: int, building: StringName) -> void:
+	_radial.close()
+	build_chosen.emit(cell, building)
+
+
 func _on_game_finished() -> void:
+	close_menus()
+	_palette_panel.visible = false
 	_game_menu.visible = false
 	_paused_label.visible = false
 	_pause_button.disabled = true

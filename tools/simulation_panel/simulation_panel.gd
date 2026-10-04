@@ -261,7 +261,7 @@ func _spin(low: float, high: float, step: float, value: float) -> SpinBox:
 
 func _fill_sweep_params() -> void:
 	var defs: SimDefs = _form.config().defs
-	_params = SandboxParam.all(defs.zone_count(), defs.tier_cells.size())
+	_params = SandboxParam.all(defs.zone_count(), defs.tier_cells.size(), defs.buildings)
 	_sweep_option.clear()
 	for param: SandboxParam in _params:
 		_sweep_option.add_item(param.label())

@@ -1,6 +1,6 @@
 extends GutTest
-## City builder (GDD §7) : pose, file de construction, chantiers, démolition, désactivation et
-## effets des bâtiments de G2.
+## City builder (GDD §7) : pose, file de construction, chantiers, démolition et désactivation
+## des bâtiments de G2. Leurs effets sont testés dans test_building_effects.gd.
 
 const DUEL: ModeDef = preload("res://data/modes/duel.tres")
 ## Cases de la colonie 0 en Duel (rayon 11).
@@ -85,14 +85,6 @@ func test_build_pays_queues_then_builds_in_three_seconds() -> void:
 	assert_eq(_sim.state.building_state[_index(INNER)], GameState.BuildState.BUILT)
 	assert_eq(result.buildings_completed, PackedInt32Array([0, _index(INNER)]))
 	assert_eq(_sim.state.building_active[_index(INNER)], 1)
-
-
-func test_digestion_node_adds_half_of_the_cell_yield() -> void:
-	var cell: int = _index(INNER)
-	# Rendement 3,333 ×1,5, puis Cohésion de 2 voisines (+10 %).
-	_set_building(INNER, &"digestion_node")
-	var expected: int = Fixed.mul(Fixed.mul(3_333, 1_500), 1_100)
-	assert_eq(EconomySystem.cell_production(_sim.state, 0, cell), expected)
 
 
 func test_build_refusals() -> void:
@@ -223,81 +215,6 @@ func test_a_locked_queued_building_waits_without_blocking_the_next() -> void:
 	assert_eq(_sim.state.building_state[_index(ABOVE)], GameState.BuildState.QUEUED)
 
 
-func test_neighbouring_nodes_and_rosace_multiply_the_bonus() -> void:
-	_own(AROUND_INNER)
-	var cell: int = _index(INNER)
-	var plain: int = Buildings.production_factor(_sim.state, 0, cell)
-	assert_eq(plain, Fixed.ONE)
-	_set_building(INNER, &"digestion_node")
-	# INNER est une Rosace (6 voisines possédées) : ×1,5 × 1,1.
-	assert_eq(Buildings.production_factor(_sim.state, 0, cell), 1650)
-	for neighbor: Vector2i in [ABOVE, BELOW, WEST, SOUTH_WEST]:
-		_set_building(neighbor, &"digestion_node")
-	# 4 Nœuds voisins : +40 %, plafonné à +30 % → ×1,5 × 1,3 × 1,1.
-	assert_eq(Buildings.production_factor(_sim.state, 0, cell), Fixed.mul(1950, 1100))
-	# Un Nœud voisin désactivé ne compte pas.
-	_sim.state.building_active[_index(ABOVE)] = 0
-	_sim.state.building_active[_index(BELOW)] = 0
-	_sim.state.building_active[_index(WEST)] = 0
-	assert_eq(Buildings.production_factor(_sim.state, 0, cell), Fixed.mul(1650, 1100))
-
-
-func test_enzyme_gland_makes_twenty_enzymes_a_minute() -> void:
-	var more: Array[Vector2i] = [
-		EDGE_UP, Vector2i(9, 2), Vector2i(8, 1), Vector2i(8, 2), Vector2i(8, 0)
-	]
-	_own(AROUND_INNER + more)
-	assert_eq(_colony().tier, 2)
-	_set_building(EDGE_UP, &"enzyme_gland")
-	_sim.tick()
-	assert_eq(_colony().enzyme_production, 333)
-	assert_eq(_colony().enzymes, 333)
-	_set_building(EDGE, &"enzyme_gland")
-	_sim.tick()
-	# Deux Glandes voisines : chacune +10 %.
-	assert_eq(_colony().enzyme_production, 2 * Fixed.div_round(22_000, 60))
-
-
-func test_stock_is_capped_at_three_minutes_of_production() -> void:
-	_colony().nutrients = 50_000_000
-	_sim.tick()
-	assert_eq(_colony().stock_cap, _colony().production * 180)
-	assert_eq(_colony().nutrients, _colony().stock_cap)
-	# La Biomasse compte toute la production, plafond ou pas.
-	assert_eq(_colony().biomass, _colony().production)
-
-
-func test_nursery_speeds_up_growth_nearby_and_is_recomputed_each_tick() -> void:
-	_own(AROUND_INNER)
-	_set_building(INNER, &"nursery")
-	assert_eq(Buildings.growth_speed(_sim.state, _colony(), _index(EDGE_UP)), 1429)
-	_sim.tick([ColonizeCommand.new(EDGE_UP)])
-	_sim.tick()
-	# 4 s ×0,7 : 3 ticks au lieu de 4.
-	_sim.tick()
-	assert_eq(_sim.state.cell_state[_index(EDGE_UP)], GameState.CellState.OWNED)
-	# Démolie pendant une pousse : la pousse ralentit tout de suite.
-	_sim.tick([ColonizeCommand.new(Vector2i(11, -3))])
-	var left: int = _sim.state.growth_left[_index(Vector2i(11, -3))]
-	_sim.tick([DemolishCommand.new(INNER)])
-	assert_eq(_sim.state.growth_left[_index(Vector2i(11, -3))], left - 1000)
-
-
-func test_nursery_adds_a_site_and_mycorrhiza_a_growth() -> void:
-	_own(AROUND_INNER)
-	_set_building(INNER, &"nursery")
-	assert_eq(Buildings.sites(_sim.state, _colony()), 3)
-	_set_building(EDGE, &"nursery")
-	_set_building(ABOVE, &"nursery")
-	assert_eq(Buildings.sites(_sim.state, _colony()), 4)
-	assert_eq(Buildings.max_growths(_sim.state, _colony()), 1)
-	_colony().tier = 3
-	_set_building(BELOW, &"mycorrhiza")
-	_set_building(WEST, &"mycorrhiza")
-	_set_building(SOUTH_WEST, &"mycorrhiza")
-	assert_eq(Buildings.max_growths(_sim.state, _colony()), 3)
-
-
 func test_build_commands_survive_a_round_trip() -> void:
 	var command := BuildCommand.new(Vector2i(2, -3), &"granary", 1)
 	command.tick = 5
@@ -331,3 +248,16 @@ func test_defs_round_trip_keeps_the_buildings() -> void:
 	assert_eq(copy.to_dict(), defs.to_dict())
 	assert_eq(copy.validate(), PackedStringArray())
 	assert_eq(copy.building_index(&"mycorrhiza"), 4)
+
+
+func test_refund_is_full_in_the_queue_and_half_afterwards() -> void:
+	_own(AROUND_INNER)
+	_colony().nutrients = 900_000
+	var commands: Array[Command] = [
+		BuildCommand.new(INNER, &"digestion_node"),
+		BuildCommand.new(EDGE, &"digestion_node"),
+		BuildCommand.new(ABOVE, &"digestion_node"),
+	]
+	_sim.tick(commands)
+	assert_eq(Buildings.refund(_sim.state, _index(ABOVE)), _sim.state.building_paid[_index(ABOVE)])
+	assert_eq(Buildings.refund(_sim.state, _index(INNER)), 30_000)

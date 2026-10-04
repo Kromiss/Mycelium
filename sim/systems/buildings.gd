@@ -104,17 +104,25 @@ static func check_demolish(state: GameState, colony: ColonyState, cell: int) -> 
 	return Refusal.Code.OK
 
 
+## Nutriments rendus si l'on démolit maintenant le bâtiment de la case : tout le prix payé s'il
+## est encore en file, le remboursement de démolition (50 %) sinon.
+static func refund(state: GameState, cell: int) -> int:
+	if state.building_state[cell] == GameState.BuildState.QUEUED:
+		return state.building_paid[cell]
+	return Fixed.mul(state.building_paid[cell], state.defs.demolish_refund_pm)
+
+
 ## Démolit tout de suite : un bâtiment en file est remboursé en entier, un chantier lancé ou
 ## un bâtiment construit à hauteur du remboursement de démolition (50 %).
 static func demolish(state: GameState, colony: ColonyState, cell: int, result: TickResult) -> void:
 	var refund_pm: int = state.defs.demolish_refund_pm
+	colony.nutrients += refund(state, cell)
 	match state.building_state[cell]:
 		GameState.BuildState.QUEUED:
 			refund_pm = Fixed.ONE
 			colony.build_queue.remove_at(colony.build_queue.find(cell))
 		GameState.BuildState.CONSTRUCTING:
 			colony.constructing.remove_at(colony.constructing.find(cell))
-	colony.nutrients += Fixed.mul(state.building_paid[cell], refund_pm)
 	colony.enzymes += Fixed.mul(state.building_paid_enzymes[cell], refund_pm)
 	clear(state, cell)
 	result.cell_changed(cell)

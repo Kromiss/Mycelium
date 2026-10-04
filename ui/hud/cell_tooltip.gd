@@ -1,11 +1,13 @@
 class_name CellTooltip
 extends RefCounted
-## Contenu de l'info-bulle d'une case (GDD §15 ligne G1) : zone, et selon l'état de la case
-## son coût, sa durée de pousse et sa production. Les chiffres viennent de la simulation.
+## Contenu de l'info-bulle d'une case (GDD §15 lignes G1 et G2) : zone, et selon l'état de la
+## case son coût, sa durée de pousse et sa production ; son bâtiment (nom, état, effet) ; en
+## mode palette, le coût de la pose ou la raison du refus. Les chiffres viennent de la simulation.
 
 
-## Lignes de l'info-bulle de la case « cell » (numéro de case), déjà traduites.
-static func lines(session: Session, cell: int) -> PackedStringArray:
+## Lignes de l'info-bulle de la case « cell » (numéro de case), déjà traduites. « placing » :
+## bâtiment choisi dans la palette (vide sinon).
+static func lines(session: Session, cell: int, placing: StringName = &"") -> PackedStringArray:
 	var simulation: Simulation = session.simulation
 	var state: GameState = simulation.state
 	var colony: ColonyState = session.colony()
@@ -32,7 +34,27 @@ static func lines(session: Session, cell: int) -> PackedStringArray:
 		)
 		result.append(_t("TIP_GROWTH") % simulation.growth_ticks(coords))
 		result.append(_t("TIP_PRODUCTION_ONCE") % production)
+	if state.building[cell] >= 0 and state.owner[cell] == colony.id:
+		result.append("")
+		result.append_array(BuildingText.lines(session, cell))
+	if placing != &"":
+		result.append("")
+		result.append(_placing_line(session, coords, placing))
 	return result
+
+
+## Ligne du mode palette : coût de la pose, ou raison du refus.
+static func _placing_line(session: Session, coords: Vector2i, placing: StringName) -> String:
+	var simulation: Simulation = session.simulation
+	var code: Refusal.Code = simulation.check_build(session.local_colony, coords, placing)
+	if code != Refusal.Code.OK:
+		return MapInput.refusal_text(code)
+	var type: int = simulation.state.defs.building_index(placing)
+	var building: SimBuilding = simulation.state.defs.buildings[type]
+	return (
+		_t("TIP_BUILD_HERE")
+		% [BuildingText.name_of(building), BuildingText.cost_text(session, building)]
+	)
 
 
 static func _t(key: String) -> String:

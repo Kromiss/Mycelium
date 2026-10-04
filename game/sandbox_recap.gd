@@ -57,6 +57,9 @@ static func build(config: SandboxConfig, state: GameState, colony: ColonyState) 
 	)
 	lines.append("- " + tr_key("RECAP_ZONES") % _zones_text(defs))
 	lines.append("- " + tr_key("RECAP_TIERS") % _tiers_text(defs))
+	lines.append("- " + _construction_text(defs))
+	for building: SimBuilding in defs.buildings:
+		lines.append("- " + _building_text(building))
 	lines.append("")
 	lines.append(tr_key("RECAP_RESULTS") % NumberFormat.clock(state.tick))
 	(
@@ -92,6 +95,23 @@ static func build(config: SandboxConfig, state: GameState, colony: ColonyState) 
 			)
 		)
 	)
+	(
+		lines
+		. append(
+			(
+				"- "
+				+ (
+					tr_key("RECAP_ENZYMES")
+					% [
+						NumberFormat.amount(colony.enzymes),
+						NumberFormat.amount(colony.enzyme_production * 60),
+						NumberFormat.amount(colony.stock_cap),
+					]
+				)
+			)
+		)
+	)
+	lines.append("- " + tr_key("RECAP_BUILDINGS_BUILT") % _built_text(state, colony))
 	lines.append("- " + tr_key("RECAP_TIER_TIMES") % _times_text(colony.tier_ticks, false))
 	lines.append("- " + tr_key("RECAP_ZONE_TIMES") % _times_text(colony.zone_ticks, true))
 	return "\n".join(lines)
@@ -132,6 +152,63 @@ static func _tiers_text(defs: SimDefs) -> String:
 			)
 		)
 	return " ; ".join(parts)
+
+
+## Réglages généraux des bâtiments.
+static func _construction_text(defs: SimDefs) -> String:
+	var times := PackedStringArray()
+	for ticks: int in defs.build_ticks_by_tier:
+		times.append(str(ticks))
+	return (
+		tr_key("RECAP_CONSTRUCTION")
+		% [
+			defs.stock_cap_seconds,
+			defs.max_growths_cap,
+			defs.base_build_sites,
+			defs.max_build_sites,
+			defs.build_queue_size,
+			NumberFormat.multiplier(defs.building_cost_growth_pm),
+			_percent(defs.demolish_refund_pm),
+			" / ".join(times),
+		]
+	)
+
+
+## Réglages d'un bâtiment : coût, palier, limite et effets.
+static func _building_text(building: SimBuilding) -> String:
+	var parts := PackedStringArray([tr_key("RECAP_BUILDING_COST") % building.cost_units])
+	if building.cost_enzymes > 0:
+		parts.append(tr_key("BUILDING_COST_ENZYMES") % building.cost_enzymes)
+	parts.append(tr_key("RECAP_BUILDING_TIER") % building.unlock_tier)
+	if building.max_count > 0:
+		parts.append(tr_key("RECAP_BUILDING_MAX") % building.max_count)
+	parts.append_array(BuildingText.effects(building))
+	return tr_key("RECAP_BUILDING") % [tr_key(building.name_key), ", ".join(parts)]
+
+
+## Bâtiments construits par type (et combien sont désactivés).
+static func _built_text(state: GameState, colony: ColonyState) -> String:
+	var parts := PackedStringArray()
+	for type: int in range(state.defs.buildings.size()):
+		var built: int = 0
+		var off: int = 0
+		for cell: int in range(state.cell_count()):
+			if state.building[cell] != type or state.owner[cell] != colony.id:
+				continue
+			if state.building_state[cell] != GameState.BuildState.BUILT:
+				continue
+			built += 1
+			if state.building_active[cell] == 0:
+				off += 1
+		if built == 0:
+			continue
+		var text: String = "%s ×%d" % [tr_key(state.defs.buildings[type].name_key), built]
+		if off > 0:
+			text += " " + tr_key("RECAP_BUILDINGS_OFF") % off
+		parts.append(text)
+	if parts.is_empty():
+		return tr_key("RECAP_NONE")
+	return ", ".join(parts)
 
 
 ## « 1 à 00:42, 2 à 01:30 » ; « skip_start » ignore les entrées atteintes dès le départ.

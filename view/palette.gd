@@ -26,6 +26,13 @@ extends Resource
 @export var zone_center: Color = Color("#E0C7AE")
 ## Trait qui entoure chaque zone.
 @export var zone_line: Color = Color("#2B2430")
+## Disque d'un bâtiment actif ou en construction (GDD §13.2, maquettes du 4 octobre 2026).
+@export var building_disc: Color = Color("#FFFDF8")
+## Disque et pictogramme d'un bâtiment désactivé (gris neutre, affiché à 45 % d'opacité).
+@export var building_off: Color = Color("#D9D7D4")
+@export var building_off_ink: Color = Color("#7E7B78")
+## Couleur d'alerte (stock plein, pose impossible).
+@export var warning: Color = Color("#E8892B")
 
 
 ## Fond d'une zone : les teintes sont réparties régulièrement entre le bord et le centre.

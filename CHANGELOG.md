@@ -15,6 +15,13 @@ L'historique de l'ancienne version web est dans la branche `archive/web`.
   par Grenier) ; Pépinière (pousse −30 %, +1 chantier) et Mycorhize (+1 pousse, 3 au plus) ;
   désactivation des bâtiments sous leur palier ; tests.
 - Traductions des bâtiments et des nouveaux refus (EN et FR).
+- G2, étape 2 — Bâtiments à l'écran : pictogrammes (spirale, jarre, pousse, goutte, racines) et
+  leurs états sur la carte (en file avec numéro, chantier avec jauge, actif, désactivé gris avec
+  cadenas) ; palette en bas de l'écran (touches 1 à 5 modifiables) avec fantôme et case barrée ;
+  menu rond des bâtiments débloqués ; panneau d'un bâtiment avec Démolir ou Annuler ; portée de la
+  Pépinière ; HUD : plafond du stock (barre qui passe en alerte), Enzymes, file de construction
+  cliquable ; info-bulle des bâtiments ; tous les réglages des bâtiments dans le Bac à sable et le
+  récapitulatif.
 
 ## [0.2.0] - 2026-10-04
 

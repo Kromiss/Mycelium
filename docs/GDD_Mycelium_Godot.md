@@ -44,6 +44,7 @@ Les valeurs chiffrées de ce document sont des **points de départ à simuler**,
   - l'**horloge** affiche le temps écoulé sur le total (« 12:34 / 30:00 ») ;
   - la **courbe de production** couvre toute la partie, en **échelle logarithmique** ;
   - réglages proposés en G1 : forêt (Duel ou FFA) et graine ; U, rendement d'une case de zone 1, durée de pousse en zone 1, stock de départ (en U), hausse du coût par case, Cohésion par voisine, pousses simultanées, taille de la file ; richesse, coût et pousse de chaque zone ; seuil et multiplicateur de chaque palier. La durée (30 min) n'est pas réglable.
+  - réglages ajoutés en G2 (décidé le 4 octobre 2026 : **tous**) : plafond du stock, maximum de pousses simultanées, chantiers au départ et au maximum, taille de la file de construction, hausse du coût par bâtiment du même type, remboursement à la démolition, durée d'un chantier selon le palier de déblocage ; et pour **chaque bâtiment** : coût (U et Enzymes), palier de déblocage, nombre maximal, bonus de rendement, Enzymes par minute, bonus de voisinage et son maximum, bonus de Rosace, minutes de plafond, réduction de la pousse, portée, chantiers et pousses en plus. La règle de pose n'est pas réglable (partout en G2). Le récapitulatif reprend ces réglages, les Enzymes, le plafond et les bâtiments construits.
 
 ### 2.2 Duel (1 contre 1)
 - **Contre un robot** : disponible dès le départ. Choix de la difficulté (Facile, Normal, Difficile).
@@ -296,6 +297,12 @@ Les déblocages suivent les **paliers de colonie** (§6.1). Un bâtiment dont le
 - **Démolir** : un bouton « Démolir » sur la case sélectionnée.
 - **Case frontière** (règle de pose) : une case qui **touche au moins une case non possédée** (libre ou ennemie). Ce que devient un bâtiment de frontière dont la case cesse d'être au bord se tranche en G3.
 - *L'équilibre d'humidité a été retiré le 4 octobre 2026.*
+- *Décidé le 4 octobre 2026 (G2, étape 2)* :
+  - **palette** en barre en bas de l'écran : un bouton par bâtiment avec son coût (en couleur d'alerte s'il est trop cher), un cadenas s'il n'est pas débloqué (info-bulle : effets, « palier N requis, X cases ») et sa touche ; touches **1 à 5**, modifiables dans les Paramètres ; choisir un bâtiment non débloqué est refusé (message) ; rechoisir le bâtiment choisi quitte le mode palette ;
+  - en **mode palette**, la case survolée montre le **fantôme** du bâtiment et son coût si la pose est possible, sinon elle est **barrée** et l'info-bulle donne la raison ; chaque clic pose le bâtiment ; Échap ou un clic droit court quitte le mode ;
+  - le **menu rond** d'une case libre de la colonie ne propose que les bâtiments **débloqués** ; ceux trop chers sont grisés ;
+  - un clic sur une case qui a un bâtiment ouvre le **panneau du bâtiment** (nom, état, effet, bouton **Démolir** avec le montant rendu, ou **Annuler** s'il est en file ou en chantier) ; un clic ailleurs sur la carte ou Échap ferme le menu rond et le panneau ; un clic sur le Cœur n'ouvre rien ;
+  - la **portée de la Pépinière** (rayon 3) est montrée quand on la place et au survol d'une Pépinière posée.
 
 ### 7.5 Le Cœur
 - Unique, non démolissable. Il collecte les nutriments ; le réseau se mesure à partir de lui.
@@ -461,7 +468,7 @@ Menu principal, **mode Duel**, **mode FFA**, **salon de partie personnalisée**,
 | Bonbon | `#F691C3` | `#E74E9A` | Framboise | `#E0516C` | `#B62A44` |
 | Citron | `#E7DF39` | `#B0A91E` | Indigo | `#4042D4` | `#2A2B99` |
 - Une colonie se dessine comme **une seule tache arrondie** ; le **Cœur** est un champignon avec deux petits yeux. *G1 : version simple d'abord* : cases colorées une par une, Cœur dans la teinte foncée de la colonie, case en pousse avec une jauge qui se remplit ; la tache arrondie vient plus tard.
-- **Bâtiments** : un pictogramme rond et simple au centre de la case. *Maquettes validées le 4 octobre 2026* : spirale (Nœud de digestion), jarre (Grenier), pousse (Pépinière), goutte (Glande enzymatique), racines (Mycorhize), dans un disque crème cerclé d'une teinte foncée de la colonie. **États** : bâtiment désactivé = disque et pictogramme gris neutre à **45 % d'opacité**, avec un petit cadenas **opaque** (info-bulle : « palier N requis, X cases ») ; bâtiment capturé = pictogramme à la couleur du capteur ; pousse = cercle pointillé ; **en construction** = pictogramme pointillé avec jauge ; prise en cours = anneau de la couleur de l'attaquant ; coupée = barre blanche.
+- **Bâtiments** : un pictogramme rond et simple au centre de la case ; un bâtiment **en file** (payé, chantier pas commencé) est en pointillé, sans jauge, avec son **numéro** dans la file de construction (décidé le 4 octobre 2026). *Maquettes validées le 4 octobre 2026* : spirale (Nœud de digestion), jarre (Grenier), pousse (Pépinière), goutte (Glande enzymatique), racines (Mycorhize), dans un disque crème cerclé d'une teinte foncée de la colonie. **États** : bâtiment désactivé = disque et pictogramme gris neutre à **45 % d'opacité**, avec un petit cadenas **opaque** (info-bulle : « palier N requis, X cases ») ; bâtiment capturé = pictogramme à la couleur du capteur ; pousse = cercle pointillé ; **en construction** = pictogramme pointillé avec jauge ; prise en cours = anneau de la couleur de l'attaquant ; coupée = barre blanche.
 - **Front** : le tronçon est bordé de la couleur de l'attaquant et porte une **jauge de pression** (attaque contre défense) ; les cases qui basculent se teintent peu à peu (visuel à valider sur maquettes en G3).
 
 ### 13.3 Mode sombre
@@ -491,10 +498,11 @@ Les couleurs de colonie sont **éclaircies si besoin** en mode sombre pour garde
 ### 13.5 Paramètres
 Affichage (plein écran, fenêtré, résolution, **thème clair / sombre / système**), audio, langue (français et anglais), commandes (raccourcis modifiables, **dès G1**), accessibilité (taille de l'interface, palette adaptée au daltonisme).
 
-Raccourcis par défaut : **Espace** recentre la caméra sur le Cœur ; **P** met en pause (Bac à sable seulement) ; **Échap** ouvre le menu de partie (ou revient en arrière dans les menus) ; **Maj** est la touche de la file d'expansion. En G1, ces **quatre touches** sont modifiables (décidé le 4 octobre 2026) ; la souris de la caméra ne l'est pas. Une touche ne peut servir qu'à une action ; un bouton remet les touches par défaut.
+Raccourcis par défaut : **Espace** recentre la caméra sur le Cœur ; **P** met en pause (Bac à sable seulement) ; **Échap** ouvre le menu de partie (ou revient en arrière dans les menus ; en partie, il ferme d'abord le menu rond ou le panneau d'un bâtiment, puis quitte le mode palette) ; **Maj** est la touche de la file d'expansion ; **1 à 5** choisissent un bâtiment de la palette (G2, modifiables). En G1, ces **quatre touches** sont modifiables (décidé le 4 octobre 2026) ; la souris de la caméra ne l'est pas. Une touche ne peut servir qu'à une action ; un bouton remet les touches par défaut.
 
 ### 13.6 HUD de partie
-- **Panneau latéral** : ressources, **courbe de production**, stock et son plafond, Enzymes (dès la première Glande), file de construction et chantiers, cooldowns.
+- **Panneau latéral** : ressources, **courbe de production**, stock et son plafond, Enzymes, file de construction et chantiers, cooldowns.
+- *Décidé le 4 octobre 2026 (G2, étape 2)* : le **plafond du stock** s'affiche en chiffre avec une barre fine qui se remplit et passe en **couleur d'alerte** quand le stock est plein ; les **Enzymes** (stock et production par minute) sont **toujours visibles**, dès le début de la partie ; la **file de construction** montre « Chantiers N / M · File N / 5 » puis une rangée de pictogrammes (chantiers avec leur jauge, puis bâtiments en file avec leur numéro) : un clic sur l'un d'eux l'**annule** ; l'**info-bulle** d'une case qui a un bâtiment ajoute son nom, son état (en file n° N, en construction encore X s, actif, désactivé : palier N requis, X cases) et son effet actuel (multiplicateur réel de production, Enzymes réellement produites).
 - **Palette de bâtiments** (débloqués et coût) et **barre des paliers** (prochain seuil).
 - **Mini-classement** : colonies encore en vie, leur taille et leur production moyenne depuis le début (critère de départage à 30:00).
 - **Frise de la partie** : prochains événements, temps restant.
@@ -609,7 +617,6 @@ Le jeu est donc complet et jouable en solo avant le multijoueur. Pour ne pas avo
 ### Questions ouvertes
 - **Triche de l'hôte** : la vérification par empreinte suffit-elle pour un classement du Duel ?
 - **Coût et distance au Cœur** : garder ou non le terme `0,05 × distance` du coût de colonisation (à trancher avec la migration du Cœur).
-- **Nœud de digestion** : quel voisin remplace l'ancien +10 % au contact d'un Réservoir ?
 - **Bâtiments de frontière** : actifs ou désactivés quand leur case cesse d'être au bord (G3) ?
 - **Statistiques d'administration** : les statistiques globales Steam suffisent-elles, ou faut-il un petit service de collecte ?
 

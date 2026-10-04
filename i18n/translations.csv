@@ -40,7 +40,7 @@ SANDBOX_GROWTH,Growth time in zone 1 (s),Durée de pousse en zone 1 (s)
 SANDBOX_START_STOCK,Starting stock (in U),Stock de départ (en U)
 SANDBOX_COST_GROWTH,Cost increase per grown cell (×),Hausse du coût par case poussée (×)
 SANDBOX_COHESION,Cohesion per owned neighbour (%),Cohésion par voisine possédée (%)
-SANDBOX_MAX_GROWTHS,Simultaneous growths,Pousses simultanées
+SANDBOX_MAX_GROWTHS,Simultaneous growths at start,Pousses simultanées au départ
 SANDBOX_QUEUE,Expansion queue size (growths included),Taille de la file d'expansion (pousses comprises)
 SANDBOX_ZONES,Zones,Zones
 SANDBOX_ZONE,Zone,Zone
@@ -55,6 +55,30 @@ SANDBOX_DEFAULTS,Default values,Valeurs par défaut
 SANDBOX_LAUNCH,Start,Lancer
 SANDBOX_BACK,Back,Retour
 SANDBOX_INVALID,Invalid settings: %s,Réglages invalides : %s
+SANDBOX_CONSTRUCTION,Buildings: general,Bâtiments : général
+SANDBOX_BUILDINGS,Buildings,Bâtiments
+SANDBOX_STOCK_CAP,Stock cap (seconds of production),Plafond du stock (secondes de production)
+SANDBOX_MAX_GROWTHS_CAP,"Simultaneous growths, maximum","Pousses simultanées, maximum"
+SANDBOX_BASE_SITES,Construction sites at start,Chantiers simultanés au départ
+SANDBOX_MAX_SITES,"Construction sites, maximum","Chantiers simultanés, maximum"
+SANDBOX_BUILD_QUEUE,Build queue size (sites included),Taille de la file de construction (chantiers compris)
+SANDBOX_BUILDING_COST_GROWTH,Cost increase per building of the same type (×),Hausse du coût par bâtiment du même type (×)
+SANDBOX_DEMOLISH_REFUND,Refund when demolishing (%),Remboursement à la démolition (%)
+SANDBOX_BUILD_TIME,"Build time, unlocked at tier %d (s)","Durée d'un chantier, débloqué au palier %d (s)"
+SANDBOX_BUILDING_COST,Cost (U),Coût (U)
+SANDBOX_BUILDING_COST_ENZYMES,Cost (Enzymes),Coût (Enzymes)
+SANDBOX_BUILDING_TIER,Unlocked at tier,Débloqué au palier
+SANDBOX_BUILDING_MAX,Maximum number (0: no limit),Nombre maximal (0 : sans limite)
+SANDBOX_BUILDING_YIELD,Cell yield bonus (%),Bonus de rendement de la case (%)
+SANDBOX_BUILDING_ENZYMES,Enzymes per minute,Enzymes par minute
+SANDBOX_BUILDING_NEIGHBOR,Bonus per adjacent one of the same type (%),Bonus par voisin du même type (%)
+SANDBOX_BUILDING_NEIGHBOR_MAX,"Neighbour bonus, maximum (%)","Bonus de voisinage, maximum (%)"
+SANDBOX_BUILDING_ROSACE,Rosette bonus (%),Bonus de Rosace (%)
+SANDBOX_BUILDING_STOCK,Stock cap (+ minutes),Plafond du stock (+ minutes)
+SANDBOX_BUILDING_GROWTH,Growth time reduction (%),Réduction de la durée de pousse (%)
+SANDBOX_BUILDING_RADIUS,Effect radius (cells),Portée de l'effet (cases)
+SANDBOX_BUILDING_SITES,Extra construction sites,Chantiers simultanés en plus
+SANDBOX_BUILDING_GROWTHS,Extra simultaneous growths,Pousses simultanées en plus
 HUD_NUTRIENTS,Nutrients,Nutriments
 HUD_PER_SECOND,+%s /s,+%s /s
 HUD_BIOMASS,Biomass,Biomasse
@@ -132,6 +156,14 @@ RECAP_TIER_TIMES,Tiers reached: %s,Paliers atteints : %s
 RECAP_ZONE_TIMES,Zones reached: %s,Zones atteintes : %s
 RECAP_AT,%d at %s,%d à %s
 RECAP_NONE,none,aucun
+RECAP_CONSTRUCTION,Buildings: stock cap %d s · growths max %d · sites %d → %d · build queue %d · cost %s per building of the same type · refund %s %% · build times by tier (s) %s,Bâtiments : plafond du stock %d s · pousses max %d · chantiers %d → %d · file de construction %d · coût %s par bâtiment du même type · remboursement %s %% · durées par palier (s) %s
+RECAP_BUILDING,%s: %s,%s : %s
+RECAP_BUILDING_COST,%d U,%d U
+RECAP_BUILDING_TIER,tier %d,palier %d
+RECAP_BUILDING_MAX,%d at most,%d au plus
+RECAP_ENZYMES,Enzymes: %s (+%s/min) · stock cap: %s,Enzymes : %s (+%s/min) · plafond du stock : %s
+RECAP_BUILDINGS_BUILT,Buildings: %s,Bâtiments : %s
+RECAP_BUILDINGS_OFF,(%d disabled),(%d désactivés)
 SETTINGS_CONTROLS,Controls,Commandes
 ACTION_RECENTER,Centre on the Heart,Recentrer sur le Cœur
 ACTION_PAUSE,Pause (sandbox),Pause (Bac à sable)
@@ -217,3 +249,29 @@ SIM_STAT_COUNT,games,parties
 SIM_CELL_STATS,"%s (%s – %s, σ %s)","%s (%s – %s, σ %s)"
 SIM_NEVER,—,—
 REPLAY_TITLE,"Replay: %s, game %d","Rejeu : %s, partie %d"
+HUD_STOCK_CAP,Stock cap,Plafond du stock
+HUD_ENZYMES,Enzymes,Enzymes
+HUD_ENZYMES_VALUE,%s · +%s /min,%s · +%s /min
+HUD_BUILDS,Sites: %d / %d · Build queue: %d / %d,Chantiers : %d / %d · File de construction : %d / %d
+HUD_DEMOLISH,Demolish (+%s),Démolir (+%s)
+HUD_CANCEL_BUILD,Cancel (+%s),Annuler (+%s)
+HUD_HINT_BUILD,Click your colony: build · Palette or 1–5: place several · %s or short right-click: stop,Clic sur ta colonie : bâtir · Palette ou 1 à 5 : poser plusieurs · %s ou clic droit court : arrêter
+BUILDING_STATE_QUEUED,In the build queue (#%d),Dans la file de construction (n° %d)
+BUILDING_STATE_CONSTRUCTING,Under construction: %d s left,En construction : encore %d s
+BUILDING_STATE_ACTIVE,Active,Actif
+BUILDING_STATE_LOCKED,Disabled: tier %d required (%d cells),Désactivé : palier %d requis (%d cases)
+BUILDING_EFFECT_YIELD,+%s %% cell yield,+%s %% de rendement de la case
+BUILDING_EFFECT_FACTOR,Production of the cell %s,Production de la case %s
+BUILDING_EFFECT_ENZYMES,+%s Enzymes/min,+%s Enzymes/min
+BUILDING_EFFECT_NEIGHBORS,+%s %% per adjacent one of the same type (max +%s %%),+%s %% par voisin du même type (max +%s %%)
+BUILDING_EFFECT_STOCK,+%d min of stock cap,+%d min de plafond de stock
+BUILDING_EFFECT_GROWTH,Growth −%s %% within %d cells,Pousse −%s %% dans un rayon de %d
+BUILDING_EFFECT_SITES,+%d construction site,+%d chantier simultané
+BUILDING_EFFECT_GROWTHS,+%d simultaneous growth,+%d pousse simultanée
+BUILDING_COST_ENZYMES,%d Enzymes,%d Enzymes
+TIP_BUILD_HERE,Build %s here: %s,Poser %s ici : %s
+ACTION_BUILD_1,Palette building 1,Bâtiment 1 de la palette
+ACTION_BUILD_2,Palette building 2,Bâtiment 2 de la palette
+ACTION_BUILD_3,Palette building 3,Bâtiment 3 de la palette
+ACTION_BUILD_4,Palette building 4,Bâtiment 4 de la palette
+ACTION_BUILD_5,Palette building 5,Bâtiment 5 de la palette

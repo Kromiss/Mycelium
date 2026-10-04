@@ -1,7 +1,11 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://ui/hud/hud.gd" id="1_hud"]
 [ext_resource type="Script" path="res://ui/hud/production_curve.gd" id="2_curve"]
+[ext_resource type="Script" path="res://ui/hud/building_palette.gd" id="3_palette"]
+[ext_resource type="Script" path="res://ui/hud/radial_menu.gd" id="4_radial"]
+[ext_resource type="Script" path="res://ui/hud/building_panel.gd" id="5_panel"]
+[ext_resource type="Script" path="res://ui/hud/build_queue_view.gd" id="6_builds"]
 
 [node name="Hud" type="Control"]
 anchors_preset = 15
@@ -41,6 +45,44 @@ text = "0"
 unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"SmallLabel"
+
+[node name="StockRow" type="HBoxContainer" parent="SidePanel/Side"]
+layout_mode = 2
+
+[node name="StockTitle" type="Label" parent="SidePanel/Side/StockRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"SmallHintLabel"
+text = "HUD_STOCK_CAP"
+
+[node name="StockLabel" type="Label" parent="SidePanel/Side/StockRow"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"SmallLabel"
+horizontal_alignment = 2
+
+[node name="StockBar" type="ProgressBar" parent="SidePanel/Side"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 8)
+layout_mode = 2
+max_value = 1.0
+step = 0.0
+show_percentage = false
+
+[node name="EnzymesRow" type="HBoxContainer" parent="SidePanel/Side"]
+layout_mode = 2
+
+[node name="EnzymesTitle" type="Label" parent="SidePanel/Side/EnzymesRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"SmallHintLabel"
+text = "HUD_ENZYMES"
+
+[node name="EnzymesLabel" type="Label" parent="SidePanel/Side/EnzymesRow"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"SmallLabel"
+horizontal_alignment = 2
 
 [node name="BiomassRow" type="HBoxContainer" parent="SidePanel/Side"]
 layout_mode = 2
@@ -94,6 +136,11 @@ theme_type_variation = &"SmallHintLabel"
 unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"SmallHintLabel"
+
+[node name="BuildQueue" type="VBoxContainer" parent="SidePanel/Side"]
+unique_name_in_owner = true
+layout_mode = 2
+script = ExtResource("6_builds")
 
 [node name="TopPanel" type="PanelContainer" parent="."]
 layout_mode = 1
@@ -180,7 +227,7 @@ anchor_top = 1.0
 anchor_right = 0.5
 anchor_bottom = 1.0
 offset_left = -700.0
-offset_top = -140.0
+offset_top = -300.0
 offset_right = 700.0
 offset_bottom = -16.0
 grow_horizontal = 2
@@ -218,6 +265,45 @@ unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"SmallHintLabel"
 horizontal_alignment = 1
+
+[node name="PaletteCenter" type="CenterContainer" parent="Bottom"]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="PalettePanel" type="PanelContainer" parent="Bottom/PaletteCenter"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"HudPanel"
+
+[node name="Palette" type="HBoxContainer" parent="Bottom/PaletteCenter/PalettePanel"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 8
+script = ExtResource("3_palette")
+
+[node name="RadialMenu" type="Control" parent="."]
+unique_name_in_owner = true
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+layout_mode = 1
+mouse_filter = 2
+script = ExtResource("4_radial")
+
+[node name="BuildingPanel" type="PanelContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -364.0
+offset_top = 24.0
+offset_right = -24.0
+offset_bottom = 120.0
+grow_horizontal = 0
+script = ExtResource("5_panel")
 
 [node name="Tooltip" type="PanelContainer" parent="."]
 unique_name_in_owner = true

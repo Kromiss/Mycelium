@@ -100,13 +100,14 @@ res://
 │   └── tutorial_director.gd  Étapes du tutoriel
 ├── view/                     Affichage de la partie (lecture seule)
 │   ├── map/                  Cases-bulles (MultiMeshInstance2D), zones (shader)
-│   ├── colony/               Colonie (G1 : cases colorées, Cœur, pousse, colonisables, file, onde) ; plus tard taches arrondies et pictogrammes
+│   ├── colony/               Colonie (G1 : cases colorées, Cœur, pousse, colonisables, file, onde) ; bâtiments (G2 : building_layer.gd, building_icons.gd) ; plus tard taches arrondies
 │   ├── fronts/               Fronts et jauges de pression (Line2D + shader)
 │   ├── effects/              Ondes de palier, particules, Floraison
 │   ├── camera/               Caméra 2D (déplacement, zoom)
 │   └── input/                Gestes : clic, glisser, balayer -> commandes
 ├── ui/                       Écrans et HUD (nœuds Control)
 │   ├── menus/  hud/  sandbox/  lobby/  settings/  results/  tutorial/  admin/
+│   │                         (hud/ en G2 : palette, menu rond, panneau d'un bâtiment, file de construction, textes des bâtiments)
 │   ├── number_format.gd      Grands nombres (K, M, B, T), multiplicateurs, horloge
 │   ├── controls_text.gd      Nom des touches liées aux actions
 │   └── theme_factory.gd      Construit le thème de l'interface à partir d'une palette
@@ -120,7 +121,7 @@ res://
 │   ├── modes/                Duel, FFA, valeurs par défaut des parties personnalisées
 │   ├── palettes/             light.tres et dark.tres : couleurs de l'interface et de la carte
 │   └── colors.tres           Les 12 couleurs de colonie (principale et foncée) — jalon G1
-├── assets/                   fonts/, icons/, audio/, shaders/
+├── assets/                   fonts/, icons/ (dont icons/buildings/ : pictogrammes SVG en trait blanc, teintés à l'affichage), audio/, shaders/
 ├── i18n/
 │   └── translations.csv      Textes FR et EN
 ├── tools/
@@ -368,7 +369,7 @@ Le ressenti (rythme, plaisir des gestes, lisibilité), le rendu visuel, les perf
 |---|---|
 | G0 | Transformation du dépôt, arborescence, autoloads, thèmes, traductions, `hex.gd`, `map_generator.gd` (zones uniquement), rendu de la carte, caméra, menu principal, écran Paramètres, GUT et workflows |
 | G1 | `GameState`, `Simulation`, commandes de colonisation, `GrowthSystem`, `EconomySystem`, `TierSystem`, `fixed.gd`, `sim_rng.gd`, `state_hash.gd`, `LocalTransport`, `Session` ; positions de départ dans `map_generator.gd` ; écran Bac à sable (réglages, valeurs par défaut, récapitulatif copiable), HUD, effets de palier, section Commandes des Paramètres ; enregistrement des commandes et test de rejeu ; robots d'économie (`ai/`), `tools/sim_runner.gd` et panneau de simulations (éditeur seulement). Livré en trois étapes : `sim/` et tests (**étape 1 livrée le 4 octobre 2026**) ; affichage, HUD et Bac à sable (**étape 2 livrée le 4 octobre 2026**) ; robots, simulations et panneau (**étape 3 livrée le 4 octobre 2026**, version 0.2.0) |
-| G2 | Bâtiments (`data/buildings/`), chantiers et file de construction, voisinage, Enzymes, plafond de stock, désactivation ; palette et menu rond ; robots composés (profil d'expansion + profil de bâtisseur + pourcentage) dans le panneau de simulations. Trois étapes : `sim/` et tests (**étape 1 livrée le 4 octobre 2026** : `Buildings`, `BuildCommand`, `DemolishCommand`, `data/buildings/`) ; affichage, HUD et Bac à sable ; robots et panneau |
+| G2 | Bâtiments (`data/buildings/`), chantiers et file de construction, voisinage, Enzymes, plafond de stock, désactivation ; palette et menu rond ; robots composés (profil d'expansion + profil de bâtisseur + pourcentage) dans le panneau de simulations. Trois étapes : `sim/` et tests (**étape 1 livrée le 4 octobre 2026** : `Buildings`, `BuildCommand`, `DemolishCommand`, `data/buildings/`) ; affichage, HUD et Bac à sable (**étape 2 livrée le 4 octobre 2026** : `BuildingLayer`, `BuildingIcons`, `BuildingPalette`, `RadialMenu`, `BuildingPanel`, `BuildQueueView`, réglages des bâtiments dans `SandboxParam`) ; robots et panneau |
 | G3 | `CombatSystem`, gestes dans `view/input/`, `EventSystem`, `VictorySystem` |
 | G4 | `ai/` (robots complets), `tools/sim_runner.gd` étendu, menus, résultats |
 | G5 | Tutoriel, audio, traduction, profil (sans Steam) |
