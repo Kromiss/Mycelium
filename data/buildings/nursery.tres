@@ -8,6 +8,6 @@ id = &"nursery"
 name_key = "BUILDING_NURSERY"
 unlock_tier = 1
 cost_units = 4
+cost_seconds = 60
 growth_reduction_pm = 300
 effect_radius = 3
-extra_sites = 1

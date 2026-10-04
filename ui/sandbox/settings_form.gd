@@ -25,7 +25,7 @@ const PROBLEM_KEYS: Dictionary[String, String] = {
 	"sites": "SANDBOX_CONSTRUCTION",
 	"buildings": "SANDBOX_BUILDINGS",
 	"build_ticks": "SANDBOX_CONSTRUCTION",
-	"building_cost_growth_pm": "SANDBOX_BUILDING_COST_GROWTH",
+	"building_slots": "SANDBOX_BUILDING_SLOTS",
 	"demolish_refund_pm": "SANDBOX_DEMOLISH_REFUND",
 }
 

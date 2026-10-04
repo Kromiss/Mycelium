@@ -40,6 +40,8 @@ func refresh() -> void:
 	_label.text = (
 		tr("HUD_BUILDS")
 		% [
+			Buildings.placed_count(state, colony),
+			Buildings.slots(state, colony),
 			colony.constructing.size(),
 			Buildings.sites(state, colony),
 			colony.build_load(),

@@ -115,7 +115,9 @@ func test_demolish_from_the_panel_refunds_and_closes_it() -> void:
 	var button: Button = panel.get_child(0).get_child(2)
 	assert_eq(button.text, "Demolish (+30)")
 	var info: Label = panel.get_child(0).get_child(1)
-	assert_eq(info.text, "Active\nProduction of the cell ×1.5")
+	assert_eq(
+		info.text, "Active\n+30 % production for your cells within 2 cells\nCovers 3 of your cells"
+	)
 	button.pressed.emit()
 	session.step()
 	assert_eq(state.building[_index(session, INNER)], -1)
@@ -136,7 +138,7 @@ func test_hud_shows_stock_cap_enzymes_and_build_queue() -> void:
 	session.step()
 	var queue: BuildQueueView = hud.get_node("%BuildQueue")
 	var label: Label = queue.get_child(0)
-	assert_eq(label.text, "Sites: 2 / 2 · Build queue: 2 / 5")
+	assert_eq(label.text, "Buildings: 2 / 2 · Sites: 2 / 2 · Build queue: 2 / 5")
 	var enzymes: Label = hud.get_node("%EnzymesLabel")
 	assert_eq(enzymes.text, "0 · +0 /min")
 	var stock: Label = hud.get_node("%StockLabel")
@@ -167,10 +169,12 @@ func test_tooltip_shows_the_building_and_the_placing_cost() -> void:
 	hud.set_tooltip_cell(_index(session, INNER))
 	var label: Label = hud.get_node("%TooltipLabel")
 	assert_string_contains(label.text, "Digestion Node\nUnder construction: 2 s left")
-	assert_string_contains(label.text, "+50 % cell yield")
+	assert_string_contains(label.text, "+30 % production for your cells within 2 cells")
 	input.set_placing(&"digestion_node")
+	session.colony().nutrients = 5_000_000
 	hud.set_tooltip_cell(_index(session, EDGE))
-	assert_string_contains(label.text, "Build Digestion Node here: 67")
+	var cost: String = NumberFormat.amount(session.simulation.building_cost(0, &"digestion_node"))
+	assert_string_contains(label.text, "Build Digestion Node here: " + cost)
 	hud.set_tooltip_cell(_index(session, INNER))
 	assert_string_contains(label.text, "This cell already has a building")
 
@@ -228,7 +232,7 @@ func test_setup_has_every_building_setting() -> void:
 	assert_eq(cost.read(config.defs), 4.0)
 	cost.write(config.defs, 9.0)
 	assert_eq(config.defs.buildings[2].cost_units, 9)
-	assert_eq(cost.label(), "Nursery · Cost (U)")
+	assert_eq(cost.label(), "Nursery · Minimum cost (U)")
 	assert_eq(refund.read(config.defs), 50.0)
 	refund.write(config.defs, 25.0)
 	assert_eq(config.defs.demolish_refund_pm, 250)
@@ -242,8 +246,8 @@ func test_recap_lists_building_settings_and_results() -> void:
 		simulation.tick()
 	var text: String = SandboxRecap.build(config, simulation.state, simulation.state.colonies[0])
 	for expected: String in [
-		"Buildings: stock cap 180 s · growths max 3 · sites 2 → 4 · build queue 5",
-		"Nursery: 4 U, tier 1, Growth −30 % within 3 cells, +1 construction site",
+		"Buildings: 2 places + 1 per tier · stock cap 180 s · growths max 3 · sites 2 → 4",
+		"Nursery: 60 s of production (at least 4 U), tier 1, Growth −30 % within 3 cells",
 		"Enzymes: 0 (+0/min)",
 		"Buildings: Digestion Node ×1",
 	]:

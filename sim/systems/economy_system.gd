@@ -29,29 +29,30 @@ func run(state: GameState, result: TickResult) -> void:
 ## somme des cases reliées au Cœur × multiplicateur du palier.
 static func colony_production(state: GameState, colony: ColonyState) -> int:
 	var total: int = 0
+	var sources: Array[PackedInt32Array] = Buildings.yield_sources(state, colony.id)
 	for cell: int in range(state.cell_count()):
 		if state.connected[cell] == 1 and state.owner[cell] == colony.id:
-			total += cell_production(state, colony.id, cell)
+			var factor: int = Buildings.factor_from(state, cell, sources)
+			total += cell_production(state, colony.id, cell, factor)
 	return Fixed.mul(total, TierSystem.production_pm(state.defs, colony.tier))
 
 
 ## Production d'une case avant le multiplicateur du palier : rendement × richesse de la zone
-## × bâtiment (rendement, voisinage, Rosace) × (1 + Cohésion × voisines poussées de la colonie).
-static func cell_production(state: GameState, colony_id: int, cell: int) -> int:
+## × bonus des bâtiments qui la couvrent × (1 + Cohésion × voisines poussées de la colonie).
+## « factor » : bonus des bâtiments déjà calculé (−1 : le calculer).
+static func cell_production(state: GameState, colony_id: int, cell: int, factor: int = -1) -> int:
 	var defs: SimDefs = state.defs
 	var base: int = Fixed.mul(defs.cell_yield, defs.zone_richness_pm[state.map.zones[cell] - 1])
-	base = Fixed.mul(base, Buildings.production_factor(state, colony_id, cell))
+	if factor < 0:
+		factor = Buildings.production_factor(state, colony_id, cell)
+	base = Fixed.mul(base, factor)
 	var neighbors: int = state.owned_neighbors(cell, colony_id)
 	return Fixed.mul(base, Fixed.ONE + defs.cohesion_per_neighbor_pm * neighbors)
 
 
-## Enzymes produites par une colonie en un tick (millièmes) : ses Glandes reliées au Cœur.
+## Enzymes produites par une colonie en un tick (millièmes) : les cases couvertes par ses Glandes.
 static func colony_enzymes(state: GameState, colony: ColonyState) -> int:
-	var total: int = 0
-	for cell: int in range(state.cell_count()):
-		if state.connected[cell] == 1 and state.owner[cell] == colony.id:
-			total += Buildings.enzyme_production(state, colony.id, cell)
-	return total
+	return Buildings.colony_enzymes(state, colony.id)
 
 
 ## Production ajoutée par une case libre si elle poussait maintenant pour la colonie (GDD §14.5,

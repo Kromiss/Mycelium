@@ -51,16 +51,17 @@ static func locked_line(defs: SimDefs, tier: int) -> String:
 static func effects(building: SimBuilding) -> PackedStringArray:
 	var result := PackedStringArray()
 	if building.yield_bonus_pm != 0:
-		result.append(_t("BUILDING_EFFECT_YIELD") % _percent(building.yield_bonus_pm))
-	if building.enzymes_per_minute != 0:
-		result.append(
-			_t("BUILDING_EFFECT_ENZYMES") % NumberFormat.amount(building.enzymes_per_minute * 1000)
-		)
-	if building.neighbor_bonus_pm != 0:
 		result.append(
 			(
-				_t("BUILDING_EFFECT_NEIGHBORS")
-				% [_percent(building.neighbor_bonus_pm), _percent(building.neighbor_bonus_max_pm)]
+				_t("BUILDING_EFFECT_YIELD")
+				% [_percent(building.yield_bonus_pm), building.effect_radius]
+			)
+		)
+	if building.enzymes_per_cell_minute != 0:
+		result.append(
+			(
+				_t("BUILDING_EFFECT_ENZYMES_ZONE")
+				% [building.enzymes_per_cell_minute, building.effect_radius]
 			)
 		)
 	if building.stock_minutes != 0:
@@ -79,19 +80,21 @@ static func effects(building: SimBuilding) -> PackedStringArray:
 	return result
 
 
-## Effets actuels d'un bâtiment actif : multiplicateur réel de production (voisinage et Rosace
-## compris) et Enzymes réellement produites ; les autres effets sont ceux du type.
+## Effets actuels d'un bâtiment actif : effet de zone et nombre de cases de la colonie qu'il
+## couvre ; les autres effets sont ceux du type.
 static func current_effects(session: Session, cell: int) -> PackedStringArray:
 	var state: GameState = session.simulation.state
 	var building: SimBuilding = state.defs.buildings[state.building[cell]]
 	var colony_id: int = session.local_colony
 	var result := PackedStringArray()
-	if building.yield_bonus_pm != 0:
-		var factor: int = Buildings.production_factor(state, colony_id, cell)
-		result.append(_t("BUILDING_EFFECT_FACTOR") % NumberFormat.multiplier(factor))
-	if building.enzymes_per_minute != 0:
-		var per_minute: int = Buildings.enzyme_production(state, colony_id, cell) * 60
-		result.append(_t("BUILDING_EFFECT_ENZYMES") % NumberFormat.amount(per_minute))
+	if building.yield_bonus_pm != 0 or building.enzymes_per_cell_minute != 0:
+		var single := SimBuilding.new()
+		single.yield_bonus_pm = building.yield_bonus_pm
+		single.enzymes_per_cell_minute = building.enzymes_per_cell_minute
+		single.effect_radius = building.effect_radius
+		result.append_array(effects(single))
+		var covered: int = Buildings.covered_cells(state, colony_id, cell)
+		result.append(_t("BUILDING_EFFECT_COVERED") % covered)
 	if building.stock_minutes != 0:
 		result.append(_t("BUILDING_EFFECT_STOCK") % building.stock_minutes)
 	if building.growth_reduction_pm != 0:

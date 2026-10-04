@@ -98,7 +98,7 @@ func test_purses_shrink_together_when_the_stock_cap_cuts_production() -> void:
 	assert_eq(robot.build_purse, 50_000)
 
 
-func test_producer_builds_nodes_then_a_gland_for_three_nodes_and_a_granary_when_full() -> void:
+func test_producer_builds_nodes_one_gland_and_a_granary_when_full() -> void:
 	var builder: BuilderRobot = _builder(BuilderRobot.Profile.PRODUCER)
 	var node: int = _sim.state.defs.building_index(&"digestion_node")
 	var gland: int = _sim.state.defs.building_index(&"enzyme_gland")
@@ -107,22 +107,25 @@ func test_producer_builds_nodes_then_a_gland_for_three_nodes_and_a_granary_when_
 	var more: Array[Vector2i] = [Vector2i(9, 2), Vector2i(8, 1), Vector2i(8, 2), Vector2i(8, 0)]
 	_own(AROUND + more)
 	assert_eq(_colony().tier, 2)
-	assert_eq(builder.wanted_type(_sim.state, _colony(), 0), node)
-	for cell: Vector2i in [INNER, EDGE, AROUND[0]]:
-		_set_building(cell, &"digestion_node")
+	# Palier 2 : une seule Glande, puis des Nœuds.
 	assert_eq(builder.wanted_type(_sim.state, _colony(), 0), gland)
+	_set_building(EDGE, &"enzyme_gland")
+	assert_eq(builder.wanted_type(_sim.state, _colony(), 0), node)
 	_colony().stock_cap = 1_000_000
 	_colony().nutrients = 800_000
 	assert_eq(builder.wanted_type(_sim.state, _colony(), 0), granary)
+	# Places pleines (4 au palier 2) : plus rien.
+	for cell: Vector2i in [INNER, AROUND[0], AROUND[1]]:
+		_set_building(cell, &"digestion_node")
+	assert_eq(builder.wanted_type(_sim.state, _colony(), 0), -1)
 
 
-func test_accelerator_wants_nurseries_then_mycorrhizas_then_nodes() -> void:
+func test_accelerator_wants_one_nursery_then_mycorrhizas_then_nodes() -> void:
 	var builder: BuilderRobot = _builder(BuilderRobot.Profile.ACCELERATOR)
 	var defs: SimDefs = _sim.state.defs
 	_own(AROUND)
 	assert_eq(builder.wanted_type(_sim.state, _colony(), 0), defs.building_index(&"nursery"))
 	_set_building(INNER, &"nursery")
-	_set_building(EDGE, &"nursery")
 	assert_eq(builder.wanted_type(_sim.state, _colony(), 0), defs.building_index(&"digestion_node"))
 	_colony().tier = 3
 	assert_eq(builder.wanted_type(_sim.state, _colony(), 0), defs.building_index(&"mycorrhiza"))
@@ -150,9 +153,11 @@ func test_node_goes_where_it_adds_the_most_production() -> void:
 	_own(AROUND)
 	var node: int = _sim.state.defs.building_index(&"digestion_node")
 	var alone: float = BuilderRobot.node_gain(_sim.state, _colony(), _index(EDGE), node)
+	assert_gt(alone, 0.0)
 	_set_building(INNER, &"digestion_node")
+	# Les zones ne se cumulent pas : à côté d'un Nœud, un second rapporte moins.
 	var next_to: float = BuilderRobot.node_gain(_sim.state, _colony(), _index(EDGE), node)
-	assert_gt(next_to, alone)
+	assert_lt(next_to, alone)
 	var builder: BuilderRobot = _builder(BuilderRobot.Profile.PRODUCER)
 	var best: int = builder.best_cell(_sim.state, _colony(), node)
 	for cell: int in range(_sim.state.cell_count()):
@@ -194,12 +199,11 @@ func test_nursery_covers_the_most_free_cells_and_granary_takes_the_least_useful_
 
 func test_a_producer_robot_builds_during_a_game() -> void:
 	var robot: ColonyRobot = _robot(BuilderRobot.Profile.PRODUCER, 70)
-	for i: int in range(240):
+	for i: int in range(600):
 		_sim.tick(robot.decide(_sim))
 		assert_gte(robot.build_purse, 0)
 		assert_gte(robot.expansion_purse, 0)
-	var node: int = _sim.state.defs.building_index(&"digestion_node")
-	assert_gt(Buildings.count_of(_sim.state, _colony(), node), 0)
+	assert_gt(Buildings.placed_count(_sim.state, _colony()), 0)
 
 
 func test_spec_label_and_round_trip() -> void:

@@ -58,22 +58,21 @@ SANDBOX_INVALID,Invalid settings: %s,Réglages invalides : %s
 SANDBOX_CONSTRUCTION,Buildings: general,Bâtiments : général
 SANDBOX_BUILDINGS,Buildings,Bâtiments
 SANDBOX_STOCK_CAP,Stock cap (seconds of production),Plafond du stock (secondes de production)
+SANDBOX_BUILDING_SLOTS,Building places at start,Places de bâtiment au départ
+SANDBOX_BUILDING_SLOTS_TIER,Building places per tier,Places de bâtiment par palier
 SANDBOX_MAX_GROWTHS_CAP,"Simultaneous growths, maximum","Pousses simultanées, maximum"
 SANDBOX_BASE_SITES,Construction sites at start,Chantiers simultanés au départ
 SANDBOX_MAX_SITES,"Construction sites, maximum","Chantiers simultanés, maximum"
 SANDBOX_BUILD_QUEUE,Build queue size (sites included),Taille de la file de construction (chantiers compris)
-SANDBOX_BUILDING_COST_GROWTH,Cost increase per building of the same type (×),Hausse du coût par bâtiment du même type (×)
 SANDBOX_DEMOLISH_REFUND,Refund when demolishing (%),Remboursement à la démolition (%)
 SANDBOX_BUILD_TIME,"Build time, unlocked at tier %d (s)","Durée d'un chantier, débloqué au palier %d (s)"
-SANDBOX_BUILDING_COST,Cost (U),Coût (U)
+SANDBOX_BUILDING_COST,Minimum cost (U),Coût minimal (U)
+SANDBOX_BUILDING_COST_SECONDS,Cost (seconds of production),Coût (secondes de production)
 SANDBOX_BUILDING_COST_ENZYMES,Cost (Enzymes),Coût (Enzymes)
 SANDBOX_BUILDING_TIER,Unlocked at tier,Débloqué au palier
 SANDBOX_BUILDING_MAX,Maximum number (0: no limit),Nombre maximal (0 : sans limite)
-SANDBOX_BUILDING_YIELD,Cell yield bonus (%),Bonus de rendement de la case (%)
-SANDBOX_BUILDING_ENZYMES,Enzymes per minute,Enzymes par minute
-SANDBOX_BUILDING_NEIGHBOR,Bonus per adjacent one of the same type (%),Bonus par voisin du même type (%)
-SANDBOX_BUILDING_NEIGHBOR_MAX,"Neighbour bonus, maximum (%)","Bonus de voisinage, maximum (%)"
-SANDBOX_BUILDING_ROSACE,Rosette bonus (%),Bonus de Rosace (%)
+SANDBOX_BUILDING_YIELD,Production bonus of covered cells (%),Bonus de production des cases couvertes (%)
+SANDBOX_BUILDING_ENZYMES,Enzymes per minute per covered cell,Enzymes par minute par case couverte
 SANDBOX_BUILDING_STOCK,Stock cap (+ minutes),Plafond du stock (+ minutes)
 SANDBOX_BUILDING_GROWTH,Growth time reduction (%),Réduction de la durée de pousse (%)
 SANDBOX_BUILDING_RADIUS,Effect radius (cells),Portée de l'effet (cases)
@@ -130,6 +129,7 @@ REFUSAL_NOT_ENOUGH_ENZYMES,Not enough Enzymes,Pas assez d'Enzymes
 REFUSAL_NO_BUILDING,There is no building of yours here,Il n'y a pas de bâtiment à toi ici
 REFUSAL_BAD_PLACEMENT,This building cannot go on this cell,Ce bâtiment ne peut pas aller sur cette case
 REFUSAL_BUILDING_LIMIT,You already have as many of this building as allowed,Tu as déjà le nombre maximal de ce bâtiment
+REFUSAL_NO_BUILDING_SLOT,All your building places are taken,Toutes tes places de bâtiment sont prises
 BUILDING_DIGESTION_NODE,Digestion Node,Nœud de digestion
 BUILDING_GRANARY,Granary,Grenier
 BUILDING_NURSERY,Nursery,Pépinière
@@ -156,9 +156,9 @@ RECAP_TIER_TIMES,Tiers reached: %s,Paliers atteints : %s
 RECAP_ZONE_TIMES,Zones reached: %s,Zones atteintes : %s
 RECAP_AT,%d at %s,%d à %s
 RECAP_NONE,none,aucun
-RECAP_CONSTRUCTION,Buildings: stock cap %d s · growths max %d · sites %d → %d · build queue %d · cost %s per building of the same type · refund %s %% · build times by tier (s) %s,Bâtiments : plafond du stock %d s · pousses max %d · chantiers %d → %d · file de construction %d · coût %s par bâtiment du même type · remboursement %s %% · durées par palier (s) %s
+RECAP_CONSTRUCTION,Buildings: %d places + %d per tier · stock cap %d s · growths max %d · sites %d → %d · build queue %d · refund %s %% · build times by tier (s) %s,Bâtiments : %d places + %d par palier · plafond du stock %d s · pousses max %d · chantiers %d → %d · file de construction %d · remboursement %s %% · durées par palier (s) %s
 RECAP_BUILDING,%s: %s,%s : %s
-RECAP_BUILDING_COST,%d U,%d U
+RECAP_BUILDING_COST,%d s of production (at least %d U),%d s de production (au moins %d U)
 RECAP_BUILDING_TIER,tier %d,palier %d
 RECAP_BUILDING_MAX,%d at most,%d au plus
 RECAP_ENZYMES,Enzymes: %s (+%s/min) · stock cap: %s,Enzymes : %s (+%s/min) · plafond du stock : %s
@@ -265,7 +265,7 @@ REPLAY_TITLE,"Replay: %s, game %d","Rejeu : %s, partie %d"
 HUD_STOCK_CAP,Stock cap,Plafond du stock
 HUD_ENZYMES,Enzymes,Enzymes
 HUD_ENZYMES_VALUE,%s · +%s /min,%s · +%s /min
-HUD_BUILDS,Sites: %d / %d · Build queue: %d / %d,Chantiers : %d / %d · File de construction : %d / %d
+HUD_BUILDS,Buildings: %d / %d · Sites: %d / %d · Build queue: %d / %d,Bâtiments : %d / %d · Chantiers : %d / %d · File : %d / %d
 HUD_DEMOLISH,Demolish (+%s),Démolir (+%s)
 HUD_CANCEL_BUILD,Cancel (+%s),Annuler (+%s)
 HUD_HINT_BUILD,Click your colony: build · Palette or 1–5: place several · %s or short right-click: stop,Clic sur ta colonie : bâtir · Palette ou 1 à 5 : poser plusieurs · %s ou clic droit court : arrêter
@@ -273,10 +273,9 @@ BUILDING_STATE_QUEUED,In the build queue (#%d),Dans la file de construction (n°
 BUILDING_STATE_CONSTRUCTING,Under construction: %d s left,En construction : encore %d s
 BUILDING_STATE_ACTIVE,Active,Actif
 BUILDING_STATE_LOCKED,Disabled: tier %d required (%d cells),Désactivé : palier %d requis (%d cases)
-BUILDING_EFFECT_YIELD,+%s %% cell yield,+%s %% de rendement de la case
-BUILDING_EFFECT_FACTOR,Production of the cell %s,Production de la case %s
-BUILDING_EFFECT_ENZYMES,+%s Enzymes/min,+%s Enzymes/min
-BUILDING_EFFECT_NEIGHBORS,+%s %% per adjacent one of the same type (max +%s %%),+%s %% par voisin du même type (max +%s %%)
+BUILDING_EFFECT_YIELD,+%s %% production for your cells within %d cells,+%s %% de production pour tes cases à %d cases ou moins
+BUILDING_EFFECT_ENZYMES_ZONE,+%d Enzymes/min per your cell within %d cells,+%d Enzymes/min par case à toi à %d cases ou moins
+BUILDING_EFFECT_COVERED,Covers %d of your cells,Couvre %d de tes cases
 BUILDING_EFFECT_STOCK,+%d min of stock cap,+%d min de plafond de stock
 BUILDING_EFFECT_GROWTH,Growth −%s %% within %d cells,Pousse −%s %% dans un rayon de %d
 BUILDING_EFFECT_SITES,+%d construction site,+%d chantier simultané

@@ -1,16 +1,17 @@
 class_name BuilderRobot
 extends RefCounted
 ## Profil de bâtisseur d'un robot (GDD §14.5, décidé le 4 octobre 2026) : quel bâtiment poser
-## ensuite et sur quelle case. Il lit l'état sans le modifier.
-## - Producteur : Nœuds de digestion sur les cases où ils rapportent le plus (voisinage et Rosace
-##   compris) ; dès que les Glandes sont débloquées, une Glande (collée aux autres) pour trois
-##   Nœuds ;
-## - Accélérateur : d'abord les Pépinières qui donnent tous les chantiers possibles, puis les
-##   Mycorhizes qui donnent toutes les pousses possibles, ensuite comme le Producteur ;
+## ensuite et sur quelle case. Il lit l'état sans le modifier. Les places de bâtiment sont
+## limitées : places pleines, il ne construit plus (pas de remplacement).
+## - Producteur : des Nœuds de digestion là où leur zone ajoute le plus de production (zones
+##   écartées), et une seule Glande dès qu'elle est débloquée ;
+## - Accélérateur : une Pépinière, puis les Mycorhizes qui donnent toutes les pousses possibles,
+##   ensuite comme le Producteur ;
 ## - Hasardeux : un type débloqué qu'il peut payer, tiré au hasard, posé sur la meilleure case ;
 ## - Producteur et Accélérateur posent d'abord un Grenier quand le stock dépasse 80 % du plafond.
 ## Une Pépinière va sur la case qui couvre le plus de cases colonisables pas encore couvertes ;
-## un Grenier ou une Mycorhize, sur la case où un Nœud rapporterait le moins.
+## une Glande, sur celle qui couvre le plus de cases de la colonie pas encore couvertes ; un
+## Grenier ou une Mycorhize, sur la case où un Nœud rapporterait le moins.
 
 enum Profile { NONE, PRODUCER, ACCELERATOR, RANDOM }
 
@@ -26,8 +27,9 @@ const GLAND: StringName = &"enzyme_gland"
 const MYCORRHIZA: StringName = &"mycorrhiza"
 ## Stock (pour-mille du plafond) à partir duquel le prochain bâtiment est un Grenier.
 const GRANARY_STOCK_PM: int = 800
-## Nombre de Nœuds par Glande pour le Producteur.
-const NODES_PER_GLAND: int = 3
+## Glandes du Producteur, et Pépinières de l'Accélérateur.
+const PRODUCER_GLANDS: int = 1
+const ACCELERATOR_NURSERIES: int = 1
 
 var profile: Profile = Profile.NONE
 var _rng: SimRng
@@ -41,6 +43,8 @@ func _init(builder_profile: Profile, rng: SimRng) -> void:
 ## Type du prochain bâtiment voulu (−1 : aucun). « budget » : ce que le robot peut dépenser
 ## (le profil Hasardeux ne tire que parmi les types qu'il peut payer).
 func wanted_type(state: GameState, colony: ColonyState, budget: int) -> int:
+	if Buildings.placed_count(state, colony) >= Buildings.slots(state, colony):
+		return -1
 	match profile:
 		Profile.PRODUCER:
 			return _producer_type(state, colony, true)
@@ -61,7 +65,7 @@ func best_cell(state: GameState, colony: ColonyState, type: int) -> int:
 		return _best(
 			candidates, func(cell: int) -> float: return node_gain(state, colony, cell, type)
 		)
-	if building.enzymes_per_minute > 0:
+	if building.enzymes_per_cell_minute > 0:
 		return _best(
 			candidates, func(cell: int) -> float: return gland_gain(state, colony, cell, type)
 		)
@@ -77,37 +81,53 @@ func best_cell(state: GameState, colony: ColonyState, type: int) -> int:
 
 
 ## Production ajoutée (millièmes par seconde, avant palier) si un bâtiment de rendement de ce type
-## était posé sur la case : la case elle-même, plus le voisinage gagné par les bâtiments actifs du
-## même type autour d'elle.
+## était posé sur la case : chaque case reliée de la colonie dans son rayon gagne la différence
+## entre son bonus et celui qu'elle a déjà (les bonus ne se cumulent pas).
 static func node_gain(state: GameState, colony: ColonyState, cell: int, type: int) -> float:
 	var building: SimBuilding = state.defs.buildings[type]
+	var target: int = Fixed.ONE + building.yield_bonus_pm
+	var sources: Array[PackedInt32Array] = Buildings.yield_sources(state, colony.id)
+	var origin: Vector2i = state.map.cells[cell]
 	var gain: float = 0.0
-	if state.connected[cell] == 1:
-		var base: float = float(EconomySystem.cell_production(state, colony.id, cell))
-		var synergy: int = Buildings.synergy_with(state, colony.id, cell, type, 0)
-		var factor: float = (Fixed.ONE + building.yield_bonus_pm) * synergy / 1_000_000.0
-		gain += base * (factor - 1.0)
-	for other: int in _same_neighbors(state, colony, cell, type):
-		var before: int = Buildings.synergy_with(state, colony.id, other, type, 0)
-		var after: int = Buildings.synergy_with(state, colony.id, other, type, 1)
-		var production: float = float(EconomySystem.cell_production(state, colony.id, other))
-		gain += production * (float(after) / float(maxi(1, before)) - 1.0)
-	return gain
-
-
-## Enzymes par minute ajoutées si une Glande de ce type était posée sur la case.
-static func gland_gain(state: GameState, colony: ColonyState, cell: int, type: int) -> float:
-	var per_minute: float = float(state.defs.buildings[type].enzymes_per_minute)
-	var gain: float = 0.0
-	if state.connected[cell] == 1:
-		gain += per_minute * Buildings.synergy_with(state, colony.id, cell, type, 0) / Fixed.ONE
-	for other: int in _same_neighbors(state, colony, cell, type):
-		if state.connected[other] == 0:
+	for other: int in range(state.cell_count()):
+		if state.connected[other] == 0 or state.owner[other] != colony.id:
 			continue
-		var before: int = Buildings.synergy_with(state, colony.id, other, type, 0)
-		var after: int = Buildings.synergy_with(state, colony.id, other, type, 1)
-		gain += per_minute * (after - before) / Fixed.ONE
+		if Hex.distance(origin, state.map.cells[other]) > building.effect_radius:
+			continue
+		var factor: int = Buildings.factor_from(state, other, sources)
+		if factor >= target:
+			continue
+		var production: float = float(
+			EconomySystem.cell_production(state, colony.id, other, factor)
+		)
+		gain += production * float(target - factor) / float(factor)
 	return gain
+
+
+## Enzymes par minute ajoutées si une Glande de ce type était posée sur la case : les cases reliées
+## de la colonie dans son rayon qu'aucune Glande ne couvre encore.
+static func gland_gain(state: GameState, colony: ColonyState, cell: int, type: int) -> float:
+	var building: SimBuilding = state.defs.buildings[type]
+	var origin: Vector2i = state.map.cells[cell]
+	var glands := PackedInt32Array()
+	for other: int in range(state.cell_count()):
+		if state.building[other] == type and state.owner[other] == colony.id:
+			glands.append(other)
+	var count: int = 0
+	for other: int in range(state.cell_count()):
+		if state.connected[other] == 0 or state.owner[other] != colony.id:
+			continue
+		var coords: Vector2i = state.map.cells[other]
+		if Hex.distance(origin, coords) > building.effect_radius:
+			continue
+		var covered: bool = false
+		for gland: int in glands:
+			if Hex.distance(state.map.cells[gland], coords) <= building.effect_radius:
+				covered = true
+				break
+		if not covered:
+			count += 1
+	return float(count * building.enzymes_per_cell_minute)
 
 
 ## Cases libres à portée de la case que ne couvre encore aucune Pépinière de la colonie.
@@ -150,10 +170,7 @@ func _producer_type(state: GameState, colony: ColonyState, granary_first: bool) 
 		if granary >= 0:
 			return granary
 	var gland: int = _unlocked(state, colony, GLAND)
-	if (
-		gland >= 0
-		and count_of(state, colony, GLAND) * NODES_PER_GLAND < count_of(state, colony, NODE)
-	):
+	if gland >= 0 and count_of(state, colony, GLAND) < PRODUCER_GLANDS:
 		return gland
 	return _unlocked(state, colony, NODE)
 
@@ -164,12 +181,8 @@ func _accelerator_type(state: GameState, colony: ColonyState) -> int:
 		return granary
 	var defs: SimDefs = state.defs
 	var nursery: int = _unlocked(state, colony, NURSERY)
-	if nursery >= 0:
-		var wanted: int = _needed(
-			defs.max_build_sites - defs.base_build_sites, defs.buildings[nursery].extra_sites
-		)
-		if count_of(state, colony, NURSERY) < wanted:
-			return nursery
+	if nursery >= 0 and count_of(state, colony, NURSERY) < ACCELERATOR_NURSERIES:
+		return nursery
 	var mycorrhiza: int = _unlocked(state, colony, MYCORRHIZA)
 	if mycorrhiza >= 0:
 		var wanted: int = _needed(
@@ -234,18 +247,6 @@ static func _candidates(state: GameState, colony: ColonyState, type: int) -> Pac
 			continue
 		if Buildings.placement_ok(state, colony, cell, type):
 			result.append(cell)
-	return result
-
-
-## Voisines de la colonie qui portent un bâtiment actif de ce type.
-static func _same_neighbors(
-	state: GameState, colony: ColonyState, cell: int, type: int
-) -> PackedInt32Array:
-	var result := PackedInt32Array()
-	for direction: int in range(6):
-		var other: int = state.map.neighbor_index(cell, direction)
-		if other >= 0 and state.owner[other] == colony.id and state.active_building(other) == type:
-			result.append(other)
 	return result
 
 

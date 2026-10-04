@@ -76,10 +76,12 @@ func refresh() -> void:
 		return
 	var state: GameState = _session.simulation.state
 	var colony: ColonyState = _session.colony()
+	var full: bool = Buildings.placed_count(state, colony) >= Buildings.slots(state, colony)
 	for button: BuildingButton in _buttons:
 		var type: int = state.defs.building_index(button.building.id)
 		var affordable: bool = (
-			Buildings.cost(state, colony, type) <= colony.nutrients
+			not full
+			and Buildings.cost(state, colony, type) <= colony.nutrients
 			and Buildings.enzyme_cost(state, type) <= colony.enzymes
 		)
 		button.disabled = not affordable

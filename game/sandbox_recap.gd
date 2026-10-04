@@ -162,12 +162,13 @@ static func _construction_text(defs: SimDefs) -> String:
 	return (
 		tr_key("RECAP_CONSTRUCTION")
 		% [
+			defs.building_slots_base,
+			defs.building_slots_per_tier,
 			defs.stock_cap_seconds,
 			defs.max_growths_cap,
 			defs.base_build_sites,
 			defs.max_build_sites,
 			defs.build_queue_size,
-			NumberFormat.multiplier(defs.building_cost_growth_pm),
 			_percent(defs.demolish_refund_pm),
 			" / ".join(times),
 		]
@@ -176,7 +177,9 @@ static func _construction_text(defs: SimDefs) -> String:
 
 ## Réglages d'un bâtiment : coût, palier, limite et effets.
 static func _building_text(building: SimBuilding) -> String:
-	var parts := PackedStringArray([tr_key("RECAP_BUILDING_COST") % building.cost_units])
+	var parts := PackedStringArray(
+		[tr_key("RECAP_BUILDING_COST") % [building.cost_seconds, building.cost_units]]
+	)
 	if building.cost_enzymes > 0:
 		parts.append(tr_key("BUILDING_COST_ENZYMES") % building.cost_enzymes)
 	parts.append(tr_key("RECAP_BUILDING_TIER") % building.unlock_tier)

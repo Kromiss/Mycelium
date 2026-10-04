@@ -8,4 +8,5 @@ id = &"mycorrhiza"
 name_key = "BUILDING_MYCORRHIZA"
 unlock_tier = 3
 cost_units = 6
+cost_seconds = 90
 extra_growths = 1

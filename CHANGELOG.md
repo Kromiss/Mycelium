@@ -36,6 +36,12 @@ G2 — City builder.
 ### Modifié
 - Les 4 profils de robot de G1 suivent aussi la règle des bourses : une case n'entre dans la file
   d'expansion que si la bourse d'expansion la paie.
+- City builder revu après essai : un bâtiment compte par sa présence, pas par son nombre. Places
+  de bâtiment (2 au départ, +1 par palier) ; Nœud de digestion (+30 % de production des cases à
+  2 cases ou moins) et Glande enzymatique (+1 Enzyme/min par case à 2 cases ou moins) agissent
+  sur une zone, sans cumul ; plus de voisinage ni de Rosace ; coût en secondes de production
+  (60, 45, 60, 90 et 90 s, au moins le coût en U) ; la Pépinière ne donne plus de chantier ;
+  robots Producteur (une seule Glande) et Accélérateur (une Pépinière) revus.
 
 ## [0.2.0] - 2026-10-04
 

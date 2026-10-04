@@ -117,17 +117,42 @@ func test_not_enough_nutrients() -> void:
 	assert_eq(result.refused_codes, PackedInt32Array([Refusal.Code.NOT_ENOUGH_NUTRIENTS]))
 
 
-func test_cost_grows_twelve_percent_per_building_of_the_same_type() -> void:
+func test_cost_is_seconds_of_production_and_at_least_its_units() -> void:
+	# Avant le premier tick, la production est nulle : le minimum (2 U) s'applique.
 	assert_eq(_sim.building_cost(0, &"digestion_node"), 60_000)
-	_build(INNER, &"digestion_node")
-	assert_eq(_sim.building_cost(0, &"digestion_node"), 67_200)
-	# Démolir fait baisser le prix suivant.
-	_sim.tick([DemolishCommand.new(INNER)])
-	assert_eq(_sim.building_cost(0, &"digestion_node"), 60_000)
+	_colony().production = 10_000
+	assert_eq(_sim.building_cost(0, &"digestion_node"), 600_000)
+	assert_eq(_sim.building_cost(0, &"granary"), 450_000)
+	_colony().production = 100
+	assert_eq(_sim.building_cost(0, &"granary"), 90_000)
+
+
+func test_places_grow_with_tiers_and_every_building_takes_one() -> void:
+	assert_eq(Buildings.slots(_sim.state, _colony()), 2)
+	_colony().nutrients = 900_000
+	var commands: Array[Command] = [
+		BuildCommand.new(INNER, &"digestion_node"), BuildCommand.new(EDGE, &"digestion_node")
+	]
+	_sim.tick(commands)
+	_own(AROUND_INNER)
+	_colony().nutrients = 900_000
+	_colony().production = 0
+	assert_eq(Buildings.slots(_sim.state, _colony()), 3)
+	var more: Array[Command] = [
+		BuildCommand.new(ABOVE, &"digestion_node"), BuildCommand.new(BELOW, &"digestion_node")
+	]
+	var result: TickResult = _sim.tick(more)
+	assert_eq(result.refused_codes, PackedInt32Array([Refusal.Code.NO_BUILDING_SLOT]))
+	assert_eq(Buildings.placed_count(_sim.state, _colony()), 3)
+	# Démolir libère une place.
+	_sim.tick([DemolishCommand.new(ABOVE)])
+	_colony().nutrients = 50_000_000
+	assert_eq(_sim.check_build(0, BELOW, &"digestion_node"), Refusal.Code.OK)
 
 
 func test_build_queue_holds_five_and_two_sites_work_at_once() -> void:
 	_own(AROUND_INNER)
+	_sim.state.defs.building_slots_base = 20
 	_colony().nutrients = 900_000
 	var cells: Array[Vector2i] = [INNER, EDGE, ABOVE, BELOW, WEST, SOUTH_WEST]
 	var commands: Array[Command] = []
@@ -196,6 +221,7 @@ func test_starting_buildings_never_deactivate() -> void:
 
 func test_a_locked_queued_building_waits_without_blocking_the_next() -> void:
 	_own(AROUND_INNER)
+	_sim.state.defs.building_slots_base = 20
 	_colony().nutrients = 900_000
 	# Deux chantiers occupés, puis un Grenier et un Nœud en file.
 	var commands: Array[Command] = [

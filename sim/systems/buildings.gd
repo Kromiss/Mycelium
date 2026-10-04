@@ -1,22 +1,36 @@
 class_name Buildings
 extends RefCounted
 ## Règles du city builder (GDD §7) : pose et démolition, file de construction et chantiers,
-## activation selon le palier, et effets des bâtiments (rendement, voisinage, Rosace, Enzymes,
-## plafond de stock, pousse, chantiers et pousses simultanés). Partagées par les systèmes de la
-## simulation et par les requêtes de l'interface.
+## activation selon le palier, places de bâtiment, et effets des bâtiments (rendement et Enzymes
+## sur une zone, plafond de stock, pousse, chantiers et pousses simultanés). Partagées par les
+## systèmes de la simulation et par les requêtes de l'interface.
+## Décidé le 4 octobre 2026 : un bâtiment doit compter par sa présence, pas par son nombre ;
+## places limitées par palier, effets de zone qui ne se cumulent pas, plus de voisinage ni de
+## Rosace, coût en secondes de production.
 
-## Nombre de voisines d'une case : une Rosace a ses 6 voisines possédées (GDD §7.3).
-const ROSACE_NEIGHBORS: int = 6
 const SECONDS_PER_MINUTE: int = 60
 
 
-## Coût d'un nouveau bâtiment de ce type, en millièmes de nutriment :
-## U × coût du bâtiment × 1,12 ^ (bâtiments du même type, construits, en chantier ou en file).
+## Coût d'un nouveau bâtiment de ce type, en millièmes de nutriment : ses secondes de production
+## actuelle de la colonie, et au moins U × son coût en U.
 static func cost(state: GameState, colony: ColonyState, type: int) -> int:
-	var defs: SimDefs = state.defs
-	var count: int = clampi(count_of(state, colony, type), 0, defs.building_pow_table.size() - 1)
-	var base: int = defs.unit_cost * defs.buildings[type].cost_units
-	return Fixed.mul(base, defs.building_pow_table[count])
+	var building: SimBuilding = state.defs.buildings[type]
+	var minimum: int = state.defs.unit_cost * building.cost_units
+	return maxi(minimum, colony.production * building.cost_seconds)
+
+
+## Places de bâtiment de la colonie : 2 au départ, +1 par palier atteint.
+static func slots(state: GameState, colony: ColonyState) -> int:
+	return state.defs.building_slots_base + state.defs.building_slots_per_tier * colony.tier
+
+
+## Bâtiments que possède la colonie, tous types et tous états (chacun prend une place).
+static func placed_count(state: GameState, colony: ColonyState) -> int:
+	var total: int = 0
+	for cell: int in range(state.cell_count()):
+		if state.building[cell] >= 0 and state.owner[cell] == colony.id:
+			total += 1
+	return total
 
 
 ## Coût en Enzymes (millièmes) d'un nouveau bâtiment de ce type.
@@ -69,6 +83,8 @@ static func check_build(
 		return Refusal.Code.BAD_PLACEMENT
 	if def.max_count > 0 and count_of(state, colony, type) >= def.max_count:
 		return Refusal.Code.BUILDING_LIMIT
+	if placed_count(state, colony) >= slots(state, colony):
+		return Refusal.Code.NO_BUILDING_SLOT
 	if colony.build_load() >= state.defs.build_queue_size:
 		return Refusal.Code.BUILD_QUEUE_FULL
 	if colony.nutrients < cost(state, colony, type):
@@ -142,7 +158,7 @@ static func clear(state: GameState, cell: int) -> void:
 # --- File de construction et chantiers ---
 
 
-## Chantiers simultanés de la colonie : 2 + Pépinières actives, 4 au plus (GDD §7.1).
+## Chantiers simultanés de la colonie : 2 + bâtiments actifs qui en ajoutent, au plus le maximum.
 static func sites(state: GameState, colony: ColonyState) -> int:
 	var extra: int = 0
 	for cell: int in _active_cells(state, colony):
@@ -223,30 +239,80 @@ static func growth_speed(state: GameState, colony: ColonyState, cell: int) -> in
 	return Fixed.div_round(Fixed.ONE * Fixed.ONE, remaining)
 
 
-## Multiplicateur (pour-mille) du bâtiment sur la production de sa case : bonus de rendement,
-## voisinage des bâtiments du même type et Rosace, qui se multiplient (GDD §7.3).
+## Multiplicateur (pour-mille) des bâtiments sur la production d'une case : le plus fort bonus
+## de rendement parmi les bâtiments actifs et reliés de la colonie qui la couvrent (ne se cumule
+## pas, décidé le 4 octobre 2026).
 static func production_factor(state: GameState, colony_id: int, cell: int) -> int:
-	var type: int = state.active_building(cell)
-	if type < 0:
-		return Fixed.ONE
-	var def: SimBuilding = state.defs.buildings[type]
-	if def.yield_bonus_pm == 0:
-		return Fixed.ONE
-	return Fixed.mul(Fixed.ONE + def.yield_bonus_pm, _synergy(state, colony_id, cell, def, type))
+	return factor_from(state, cell, yield_sources(state, colony_id))
 
 
-## Enzymes produites par une case en un tick (millièmes), voisinage et Rosace compris.
-static func enzyme_production(state: GameState, colony_id: int, cell: int) -> int:
-	var type: int = state.active_building(cell)
+## Bâtiments de rendement actifs et reliés au Cœur d'une colonie : [case, bonus, rayon]…
+static func yield_sources(state: GameState, colony_id: int) -> Array[PackedInt32Array]:
+	var sources: Array[PackedInt32Array] = []
+	for cell: int in range(state.cell_count()):
+		var type: int = state.active_building(cell)
+		if type < 0 or state.owner[cell] != colony_id or state.connected[cell] == 0:
+			continue
+		var building: SimBuilding = state.defs.buildings[type]
+		if building.yield_bonus_pm > 0:
+			sources.append(
+				PackedInt32Array([cell, building.yield_bonus_pm, building.effect_radius])
+			)
+	return sources
+
+
+## Multiplicateur d'une case d'après une liste de sources (voir yield_sources()).
+static func factor_from(state: GameState, cell: int, sources: Array[PackedInt32Array]) -> int:
+	var best: int = 0
+	var here: Vector2i = state.map.cells[cell]
+	for source: PackedInt32Array in sources:
+		if source[1] > best and Hex.distance(here, state.map.cells[source[0]]) <= source[2]:
+			best = source[1]
+	return Fixed.ONE + best
+
+
+## Enzymes produites par une colonie en un tick (millièmes) : chaque case reliée de la colonie
+## couverte par une Glande active et reliée rapporte ses Enzymes par minute (la plus forte, sans
+## cumul).
+static func colony_enzymes(state: GameState, colony_id: int) -> int:
+	var glands: Array[PackedInt32Array] = []
+	for cell: int in range(state.cell_count()):
+		var type: int = state.active_building(cell)
+		if type < 0 or state.owner[cell] != colony_id or state.connected[cell] == 0:
+			continue
+		var building: SimBuilding = state.defs.buildings[type]
+		if building.enzymes_per_cell_minute > 0:
+			glands.append(
+				PackedInt32Array([cell, building.enzymes_per_cell_minute, building.effect_radius])
+			)
+	if glands.is_empty():
+		return 0
+	var per_minute: int = 0
+	for cell: int in range(state.cell_count()):
+		if state.connected[cell] == 0 or state.owner[cell] != colony_id:
+			continue
+		var best: int = 0
+		var here: Vector2i = state.map.cells[cell]
+		for gland: PackedInt32Array in glands:
+			if gland[1] > best and Hex.distance(here, state.map.cells[gland[0]]) <= gland[2]:
+				best = gland[1]
+		per_minute += best
+	return Fixed.div_round(Fixed.from_units(per_minute), SECONDS_PER_MINUTE)
+
+
+## Cases reliées de la colonie dans le rayon du bâtiment d'une case (sa case comprise).
+static func covered_cells(state: GameState, colony_id: int, cell: int) -> int:
+	var type: int = state.building[cell]
 	if type < 0:
 		return 0
-	var def: SimBuilding = state.defs.buildings[type]
-	if def.enzymes_per_minute == 0:
-		return 0
-	var per_minute: int = Fixed.mul(
-		Fixed.from_units(def.enzymes_per_minute), _synergy(state, colony_id, cell, def, type)
-	)
-	return Fixed.div_round(per_minute, SECONDS_PER_MINUTE)
+	var reach: int = state.defs.buildings[type].effect_radius
+	var origin: Vector2i = state.map.cells[cell]
+	var total: int = 0
+	for other: int in range(state.cell_count()):
+		if state.connected[other] == 1 and state.owner[other] == colony_id:
+			if Hex.distance(origin, state.map.cells[other]) <= reach:
+				total += 1
+	return total
 
 
 ## Secondes de production du plafond de stock : 3 min + 2 min par Grenier actif (GDD §5).
@@ -257,32 +323,9 @@ static func stock_seconds(state: GameState, colony: ColonyState) -> int:
 	return seconds
 
 
-## Multiplicateur de voisinage et de Rosace (pour-mille) qu'aurait un bâtiment de ce type sur
-## la case avec « extra » voisins actifs du même type en plus (pour les robots, qui estiment
-## ce qu'une pose rapporterait).
-static func synergy_with(state: GameState, colony_id: int, cell: int, type: int, extra: int) -> int:
-	return _synergy(state, colony_id, cell, state.defs.buildings[type], type, extra)
-
-
 ## Vrai si la règle de pose du bâtiment accepte la case (GDD §7.4).
 static func placement_ok(state: GameState, colony: ColonyState, cell: int, type: int) -> bool:
 	return _placement_ok(state, colony, cell, state.defs.buildings[type])
-
-
-## Voisinage (+X % par bâtiment actif du même type adjacent, plafonné) × Rosace.
-static func _synergy(
-	state: GameState, colony_id: int, cell: int, def: SimBuilding, type: int, extra: int = 0
-) -> int:
-	var same: int = extra
-	for direction: int in range(6):
-		var other: int = state.map.neighbor_index(cell, direction)
-		if other >= 0 and state.owner[other] == colony_id and state.active_building(other) == type:
-			same += 1
-	var neighbors: int = mini(def.neighbor_bonus_max_pm, def.neighbor_bonus_pm * same)
-	var factor: int = Fixed.ONE + neighbors
-	if state.owned_neighbors(cell, colony_id) >= ROSACE_NEIGHBORS:
-		factor = Fixed.mul(factor, Fixed.ONE + def.rosace_bonus_pm)
-	return factor
 
 
 ## Cases de la colonie qui portent un bâtiment actif.

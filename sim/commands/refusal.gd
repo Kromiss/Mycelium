@@ -49,4 +49,6 @@ enum Code {
 	BAD_PLACEMENT,
 	## Nombre maximal de ce bâtiment atteint.
 	BUILDING_LIMIT,
+	## Toutes les places de bâtiment de la colonie sont prises.
+	NO_BUILDING_SLOT,
 }

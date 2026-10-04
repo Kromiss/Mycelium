@@ -44,10 +44,11 @@ var max_growths_cap: int = 0
 var stock_cap_seconds: int = 0
 ## Durée de construction selon le palier de déblocage (index 0 = départ), en secondes.
 var build_ticks_by_tier: PackedInt32Array = PackedInt32Array()
+var building_slots_base: int = 0
+var building_slots_per_tier: int = 0
 var base_build_sites: int = 0
 var max_build_sites: int = 0
 var build_queue_size: int = 0
-var building_cost_growth_pm: int = 0
 var demolish_refund_pm: int = 0
 ## Bâtiments, dans l'ordre de la palette ; un bâtiment est désigné par son rang ici.
 var buildings: Array[SimBuilding] = []
@@ -57,8 +58,6 @@ var buildings: Array[SimBuilding] = []
 var growth_ticks_by_zone: PackedInt32Array = PackedInt32Array()
 ## Puissances du facteur de coût de colonisation, en pour-mille.
 var cost_pow_table: PackedInt64Array = PackedInt64Array()
-## Puissances du facteur de coût des bâtiments, en pour-mille.
-var building_pow_table: PackedInt64Array = PackedInt64Array()
 
 
 ## Définitions par défaut d'un mode, lues dans data/.
@@ -101,10 +100,11 @@ static func from_resources(
 	defs.max_growths_cap = balance.max_growths_cap
 	defs.stock_cap_seconds = balance.stock_cap_seconds
 	defs.build_ticks_by_tier = PackedInt32Array(balance.build_ticks_by_tier)
+	defs.building_slots_base = balance.building_slots_base
+	defs.building_slots_per_tier = balance.building_slots_per_tier
 	defs.base_build_sites = balance.base_build_sites
 	defs.max_build_sites = balance.max_build_sites
 	defs.build_queue_size = balance.build_queue_size
-	defs.building_cost_growth_pm = balance.building_cost_growth_pm
 	defs.demolish_refund_pm = balance.demolish_refund_pm
 	return defs
 
@@ -131,7 +131,6 @@ func prepare(max_cells: int) -> void:
 		var ticks: int = Fixed.div_round(base_growth_ticks * growth_pm, Fixed.ONE)
 		growth_ticks_by_zone.append(maxi(1, ticks))
 	cost_pow_table = Fixed.pow_table(colonize_cost_growth_pm, max_cells + 1)
-	building_pow_table = Fixed.pow_table(building_cost_growth_pm, max_cells + 1)
 
 
 ## Liste des problèmes de cohérence (vide si tout va bien), pour refuser des réglages absurdes.
@@ -169,8 +168,8 @@ func validate() -> PackedStringArray:
 	for ticks: int in build_ticks_by_tier:
 		if ticks < 1:
 			problems.append("build_ticks")
-	if building_cost_growth_pm < Fixed.ONE or building_cost_growth_pm > 5 * Fixed.ONE:
-		problems.append("building_cost_growth_pm")
+	if building_slots_base < 0 or building_slots_per_tier < 0:
+		problems.append("building_slots")
 	if demolish_refund_pm < 0 or demolish_refund_pm > Fixed.ONE:
 		problems.append("demolish_refund_pm")
 	for building: SimBuilding in buildings:
@@ -210,10 +209,11 @@ func to_dict() -> Dictionary:
 		"max_growths_cap": max_growths_cap,
 		"stock_cap_seconds": stock_cap_seconds,
 		"build_ticks_by_tier": Array(build_ticks_by_tier),
+		"building_slots_base": building_slots_base,
+		"building_slots_per_tier": building_slots_per_tier,
 		"base_build_sites": base_build_sites,
 		"max_build_sites": max_build_sites,
 		"build_queue_size": build_queue_size,
-		"building_cost_growth_pm": building_cost_growth_pm,
 		"demolish_refund_pm": demolish_refund_pm,
 		"buildings": buildings.map(func(b: SimBuilding) -> Dictionary: return b.to_dict()),
 	}
@@ -243,10 +243,11 @@ static func from_dict(data: Dictionary) -> SimDefs:
 	defs.max_growths_cap = DictRead.get_int(data, "max_growths_cap")
 	defs.stock_cap_seconds = DictRead.get_int(data, "stock_cap_seconds")
 	defs.build_ticks_by_tier = DictRead.get_ints(data, "build_ticks_by_tier")
+	defs.building_slots_base = DictRead.get_int(data, "building_slots_base")
+	defs.building_slots_per_tier = DictRead.get_int(data, "building_slots_per_tier")
 	defs.base_build_sites = DictRead.get_int(data, "base_build_sites")
 	defs.max_build_sites = DictRead.get_int(data, "max_build_sites")
 	defs.build_queue_size = DictRead.get_int(data, "build_queue_size")
-	defs.building_cost_growth_pm = DictRead.get_int(data, "building_cost_growth_pm")
 	defs.demolish_refund_pm = DictRead.get_int(data, "demolish_refund_pm")
 	var raw: Variant = data.get("buildings", [])
 	if raw is Array:

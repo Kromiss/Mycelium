@@ -51,6 +51,7 @@ func refresh() -> void:
 		return
 	var state: GameState = _session.simulation.state
 	var colony: ColonyState = _session.colony()
+	var full: bool = Buildings.placed_count(state, colony) >= Buildings.slots(state, colony)
 	for index: int in range(_buttons.size()):
 		var button: BuildingButton = _buttons[index]
 		var building: SimBuilding = button.building
@@ -58,7 +59,9 @@ func refresh() -> void:
 		var locked: bool = not Buildings.is_unlocked(state, colony, type)
 		var cost: int = Buildings.cost(state, colony, type)
 		var affordable: bool = (
-			cost <= colony.nutrients and Buildings.enzyme_cost(state, type) <= colony.enzymes
+			not full
+			and cost <= colony.nutrients
+			and Buildings.enzyme_cost(state, type) <= colony.enzymes
 		)
 		button.key_text = (
 			ControlsText.action_key(shortcut_action(index)) if index < SHORTCUTS else ""
@@ -68,13 +71,15 @@ func refresh() -> void:
 			BuildingText.cost_text(_session, building),
 			locked,
 			affordable,
-			_tooltip(building, locked)
+			_tooltip(building, locked, full)
 		)
 
 
-func _tooltip(building: SimBuilding, locked: bool) -> String:
+func _tooltip(building: SimBuilding, locked: bool, full: bool) -> String:
 	var lines := PackedStringArray([BuildingText.name_of(building)])
 	lines.append_array(BuildingText.effects(building))
 	if locked:
 		lines.append(BuildingText.locked_line(_session.simulation.state.defs, building.unlock_tier))
+	elif full:
+		lines.append(MapInput.refusal_text(Refusal.Code.NO_BUILDING_SLOT))
 	return "\n".join(lines)

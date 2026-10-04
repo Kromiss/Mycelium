@@ -7,14 +7,12 @@ extends RefCounted
 const INT_FIELDS: Array[String] = [
 	"unlock_tier",
 	"cost_units",
+	"cost_seconds",
 	"cost_enzymes",
 	"placement",
 	"max_count",
 	"yield_bonus_pm",
-	"enzymes_per_minute",
-	"neighbor_bonus_pm",
-	"neighbor_bonus_max_pm",
-	"rosace_bonus_pm",
+	"enzymes_per_cell_minute",
 	"stock_minutes",
 	"growth_reduction_pm",
 	"effect_radius",
@@ -26,14 +24,12 @@ var id: StringName = &""
 var name_key: String = ""
 var unlock_tier: int = 0
 var cost_units: int = 1
+var cost_seconds: int = 0
 var cost_enzymes: int = 0
 var placement: int = BuildingDef.Placement.ANYWHERE
 var max_count: int = 0
 var yield_bonus_pm: int = 0
-var enzymes_per_minute: int = 0
-var neighbor_bonus_pm: int = 0
-var neighbor_bonus_max_pm: int = 0
-var rosace_bonus_pm: int = 0
+var enzymes_per_cell_minute: int = 0
 var stock_minutes: int = 0
 var growth_reduction_pm: int = 0
 var effect_radius: int = 0

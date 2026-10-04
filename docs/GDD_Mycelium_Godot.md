@@ -44,7 +44,7 @@ Les valeurs chiffrées de ce document sont des **points de départ à simuler**,
   - l'**horloge** affiche le temps écoulé sur le total (« 12:34 / 30:00 ») ;
   - la **courbe de production** couvre toute la partie, en **échelle logarithmique** ;
   - réglages proposés en G1 : forêt (Duel ou FFA) et graine ; U, rendement d'une case de zone 1, durée de pousse en zone 1, stock de départ (en U), hausse du coût par case, Cohésion par voisine, pousses simultanées, taille de la file ; richesse, coût et pousse de chaque zone ; seuil et multiplicateur de chaque palier. La durée (30 min) n'est pas réglable.
-  - réglages ajoutés en G2 (décidé le 4 octobre 2026 : **tous**) : plafond du stock, maximum de pousses simultanées, chantiers au départ et au maximum, taille de la file de construction, hausse du coût par bâtiment du même type, remboursement à la démolition, durée d'un chantier selon le palier de déblocage ; et pour **chaque bâtiment** : coût (U et Enzymes), palier de déblocage, nombre maximal, bonus de rendement, Enzymes par minute, bonus de voisinage et son maximum, bonus de Rosace, minutes de plafond, réduction de la pousse, portée, chantiers et pousses en plus. La règle de pose n'est pas réglable (partout en G2). Le récapitulatif reprend ces réglages, les Enzymes, le plafond et les bâtiments construits.
+  - réglages ajoutés en G2 (décidé le 4 octobre 2026 : **tous**) : places de bâtiment au départ et par palier, plafond du stock, maximum de pousses simultanées, chantiers au départ et au maximum, taille de la file de construction, remboursement à la démolition, durée d'un chantier selon le palier de déblocage ; et pour **chaque bâtiment** : coût minimal (U), coût en secondes de production, coût en Enzymes, palier de déblocage, nombre maximal, bonus de production des cases couvertes, Enzymes par minute par case couverte, minutes de plafond, réduction de la pousse, rayon, chantiers et pousses en plus. La règle de pose n'est pas réglable (partout en G2). Le récapitulatif reprend ces réglages, les Enzymes, le plafond et les bâtiments construits.
 
 ### 2.2 Duel (1 contre 1)
 - **Contre un robot** : disponible dès le départ. Choix de la difficulté (Facile, Normal, Difficile).
@@ -250,12 +250,14 @@ Cible : **~10 nutriments/s pour la colonie au départ → 1e5 à 1e6 nutriments/
 
 Chaque case possédée peut accueillir **un bâtiment**, posé, déplacé ou démoli par le joueur. Pas de niveaux : on construit, on place, on combine.
 
+**Un bâtiment compte par sa présence, pas par son nombre** *(décidé le 4 octobre 2026, après essai de la 0.3.0 où l'on en construisait des dizaines)* : peu de places, des effets de zone qui ne se cumulent pas, et un coût qui reste une vraie décision à toute heure de la partie.
+
 ### 7.1 Principes
 1. **Un bâtiment par case**, sur une case possédée (pas en cours de pousse).
-2. **Construction non instantanée** : **3 à 20 s**, selon le palier de déblocage du bâtiment (départ 3 s, palier 1 : 5 s, palier 2 : 8 s, palier 3 : 11 s, palier 4 : 15 s, palier 5 : 20 s). **Chantiers simultanés limités** : 2 au départ, +1 par Pépinière, **4 au plus**.
-3. **Règles de pose** : certains bâtiments exigent une case frontière ou un voisinage précis.
-4. **Voisinage** : des bâtiments adjacents se renforcent (§7.3).
-5. **Coût croissant** : `base × 1,12 ^ nb_du_même_type`, où l'on compte les bâtiments **terminés, en chantier et en file** de ce type (démolir fait donc baisser le prix suivant).
+2. **Construction non instantanée** : **3 à 20 s**, selon le palier de déblocage du bâtiment (départ 3 s, palier 1 : 5 s, palier 2 : 8 s, palier 3 : 11 s, palier 4 : 15 s, palier 5 : 20 s). **Chantiers simultanés limités** : 2 (la Pépinière n'en ajoute plus depuis le 4 octobre 2026).
+3. **Règles de pose** : certains bâtiments exigent une case frontière ou une case intérieure.
+4. **Places de bâtiment** : **2 au départ, +1 à chaque palier** (8 au palier 6). Tout bâtiment posé prend une place, qu'il soit en file, en chantier, construit ou désactivé, bâtiments de combat et Sclérote compris ; démolir la libère. Si la colonie perd un palier et a plus de bâtiments que de places, **rien n'est détruit** : elle ne peut simplement plus en poser.
+5. **Coût** : **N secondes de la production actuelle** de la colonie, et au moins le coût en U du bâtiment (plus de hausse ×1,12 par bâtiment du même type).
 6. **Démolir** est **instantané** et rembourse **50 % du prix payé** ; **déplacer** = démolir + reposer (pas de geste dédié).
 7. **Le Cœur est un bâtiment** : il occupe sa case (aucun autre bâtiment ne s'y pose) et n'apporte aucun bonus ; sa case produit comme les autres. S'il tombe sans Sclérote, la colonie est éliminée.
 8. **Capture** : le bâtiment passe à l'attaquant avec la case (§7.6). L'Incendie et le Sanglier, eux, détruisent tout.
@@ -270,25 +272,23 @@ Les déblocages suivent les **paliers de colonie** (§6.1). Un bâtiment dont le
 
 | Bâtiment | Débloqué | Coût | Règle de pose | Effet |
 |---|---|---|---|---|
-| **Nœud de digestion** | Départ | 2 U | Partout | +50 % de rendement de la case |
-| **Grenier** | Palier 1 | 3 U | Partout | +2 min de plafond de stock |
-| **Pépinière** | Palier 1 | 4 U | Partout | Pousse −30 % dans un rayon de 3 (plusieurs Pépinières ne se cumulent pas ; la vitesse d'une pousse est **recalculée à chaque seconde** : une Pépinière qui apparaît ou disparaît en cours de pousse change tout de suite sa vitesse, décidé le 4 octobre 2026) ; +1 chantier simultané (4 au plus) |
-| **Glande enzymatique** | Palier 2 | 5 U | Partout | +20 Enzymes/min |
+| **Nœud de digestion** | Départ | 60 s de production (au moins 2 U) | Partout | **+30 % de production pour les cases de la colonie à 2 cases ou moins** (19 au plus, la sienne comprise) |
+| **Grenier** | Palier 1 | 45 s (au moins 3 U) | Partout | +2 min de plafond de stock |
+| **Pépinière** | Palier 1 | 60 s (au moins 4 U) | Partout | Pousse −30 % dans un rayon de 3 (la vitesse d'une pousse est **recalculée à chaque seconde** : une Pépinière qui apparaît ou disparaît en cours de pousse change tout de suite sa vitesse, décidé le 4 octobre 2026) |
+| **Glande enzymatique** | Palier 2 | 90 s (au moins 5 U) | Partout | **+1 Enzyme par minute pour chaque case de la colonie à 2 cases ou moins** (19 / min au plus) |
 | **Sclérote** | Palier 2 | 15 U + 50 Enzymes | Case non frontière, **1 seul** | Recueille le Cœur s'il tombe (§9.5) |
-| **Mycorhize** | Palier 3 | 6 U | Partout | +1 pousse simultanée (3 au plus en tout) |
+| **Mycorhize** | Palier 3 | 90 s (au moins 6 U) | Partout | +1 pousse simultanée (3 au plus en tout) |
 | **Écorce** | Palier 3 | 4 U + 10 Enzymes | Partout | Temps de prise ×2 sur sa case, +20 % sur ses voisines |
 | **Toxinière** | Palier 3 | 6 U + 20 Enzymes | Case frontière | Ralentit les fronts ennemis sur ses voisines (effet à adapter aux fronts en G3) ; **débloque Toxine** |
 | **Poste d'assaut** | Palier 4 | 8 U + 40 Enzymes | Case frontière | +1 front simultané (à confirmer en G3) ; **débloque Assaut et Coupure** |
 | **Haustorium** | Palier 4 | 8 U + 30 Enzymes | Case frontière | **Débloque Siphon** |
 | **Carpophore** | Palier 5 | 10 U | Partout | Portée des actions +2 ; révèle **où sont les Sclérotes ennemis** et les **débits** des fronts et renforts des autres colonies (cachés sinon, décidé le 4 octobre 2026) ; **visible et ciblé par tous** |
 
-### 7.3 Voisinage (synergies)
-- **Nœud de digestion** : +10 % par Nœud adjacent (max +30 %). Le Nœud ne se renforce **qu'avec d'autres Nœuds** : l'ancien bonus au contact d'un Réservoir n'est pas remplacé *(décidé le 4 octobre 2026)*.
-- **Glande enzymatique** : +10 % par Glande adjacente (max +30 %).
-- Ces bonus **se multiplient** avec l'effet du bâtiment : un Nœud entouré de 3 Nœuds donne ×1,5 × 1,3 = ×1,95.
-- **Écorce** : +10 % de temps de prise par Écorce voisine (un mur).
-- **Rosace** : une case entourée de ses 6 voisines possédées compte **+10 %** sur l'effet de son bâtiment, **pour les bâtiments qui produisent** (Nœud de digestion, Glande enzymatique). Ce ×1,1 **multiplie tout l'effet**, voisinage compris : un Nœud en Rosace entouré de 3 Nœuds donne ×1,5 × 1,3 × 1,1 *(décidé le 4 octobre 2026)*.
-- Seuls les bâtiments **actifs** (construits et palier atteint) comptent comme voisins.
+### 7.3 Zones d'effet *(décidé le 4 octobre 2026)*
+- Le Nœud de digestion, la Glande enzymatique et la Pépinière agissent sur une **zone** autour d'eux : le placement est la décision.
+- Les zones **ne se cumulent pas** : une case couverte par deux bâtiments du même effet ne compte que le plus fort ; on écarte donc ses bâtiments pour couvrir plus de cases.
+- Seuls les bâtiments **actifs** et **reliés au Cœur** agissent (un bâtiment coupé du Cœur ne produit rien) ; seules les cases de la colonie en profitent.
+- **Plus de voisinage entre bâtiments du même type ni de Rosace** : la Cohésion entre cases reste la seule règle de voisinage. *L'Écorce (« +10 % par Écorce voisine », un mur) est à revoir en G3 avec cette règle.*
 - Un **quartier compact** est fort mais plus facile à raser d'un coup (Incendie, Sanglier, attaque) : choisir sa densité est une décision.
 
 ### 7.4 Poser et démolir *(décidé le 4 octobre 2026, jalon G2)*
@@ -312,7 +312,7 @@ Les déblocages suivent les **paliers de colonie** (§6.1). Un bâtiment dont le
 ### 7.6 Désactivation et capture
 
 **Désactivation (perte de palier).** Chaque bâtiment est lié à son palier de déblocage (§7.2). Si le nombre de cases de la colonie repasse **sous** ce seuil, le bâtiment **n'est pas détruit : il est désactivé**. Il reste sur sa case, mais :
-- il n'a **aucun effet** : ni production, ni synergie de voisinage (§7.3), ni bonus de Rosace, ni action débloquée, ni front ou chantier supplémentaire ;
+- il n'a **aucun effet** : ni zone d'effet (§7.3), ni action débloquée, ni front ou chantier supplémentaire (il garde sa place, §7.1) ;
 - on ne peut plus en construire de nouveaux du même type, mais on peut le démolir (remboursement 50 %) ;
 - il se **réactive tout seul** dès que la colonie repasse au-dessus du seuil.
 
@@ -451,7 +451,7 @@ Cosmétiques gagnés en jouant (titres, couleurs de réseau, effets de particule
 ## 12. Formules de base (à équilibrer)
 
 ```
-production_case    = rendement × richesse_zone × (1 + bonus_bâtiment) × (1 + voisinage)
+production_case    = rendement × richesse_zone × (1 + meilleur bonus de zone qui la couvre)
                      × (1 + 0,05 × voisines) × modif_événement
 production_totale  = Σ production_case (cases reliées au Cœur)
                      × 2 ^ paliers_atteints × bonus_souche(t)
@@ -459,7 +459,8 @@ paliers_atteints   = nombre de seuils (5, 10, 20, 40, 80, 160 cases) ≤ nb_case
 bonus_souche(t)    = 1,00 + 0,25 × t / 30 min
 coût_colonisation  = base × (1 + 0,05 × dist_cœur) × difficulté_zone × 1,02 ^ (nb_cases − 3)
                      (base = U = 30 ; terme dist_cœur à décider, absent en G1 ; nb_cases = cases poussées)
-coût_bâtiment      = base_bâtiment × 1,12 ^ nb_du_même_type   (terminés, en chantier et en file)
+coût_bâtiment      = max(base_bâtiment en U, production_actuelle × secondes_du_bâtiment)
+places_bâtiments   = 2 + 1 × palier
 durée_chantier     = 3 / 5 / 8 / 11 / 15 / 20 s selon le palier de déblocage (départ → palier 5)
 stock_max          = production_totale × (3 min + 2 min × nb_greniers)
 résistance_case    = base_résistance × prise_zone × (1 + 0,15 × voisines_défenseur) × facteur_écorce × facteur_cœur
@@ -590,8 +591,9 @@ Outil d'équilibrage **séparé** de l'interface d'administration, disponible **
   - le **rejeu** sur la carte se fait aux vitesses **×1, ×4, ×16 et ×64**, avec pause ; on y voit la partie telle qu'elle a été jouée, sans pouvoir donner d'ordres.
 - *Décidé le 4 octobre 2026 (G2, étape 3)* :
   - **deux bourses** : à chaque seconde, ce que la colonie a gagné est partagé, X % dans la bourse d'expansion et le reste dans la bourse de construction ; le stock de départ va à l'expansion ; si le plafond du stock coupe la production, les deux bourses baissent en proportion. Une case n'entre dans la file d'expansion que si la bourse d'expansion couvre son coût (débité à l'ajout) ; un bâtiment n'est posé que si la bourse de construction le paie. **Tous les robots** suivent cette règle, y compris les 4 profils de G1 (sans bâtisseur, à 100 %) : la règle « file gardée pleine » de G1 est remplacée ;
-  - **Producteur** : Nœuds de digestion sur la case où ils ajoutent le plus de production (voisinage et Rosace compris) ; dès que les Glandes sont débloquées (palier 2), **une Glande pour trois Nœuds**, collée aux autres Glandes ;
-  - **Accélérateur** : d'abord les Pépinières qui donnent tous les chantiers possibles (2 pour atteindre 4 chantiers), puis dès le palier 3 les Mycorhizes qui donnent toutes les pousses possibles (2 pour atteindre 3 pousses) ; ensuite il construit comme le Producteur ;
+  - **Producteur** *(revu le 4 octobre 2026 avec les places)* : des Nœuds de digestion là où leur zone ajoute le plus de production (zones écartées), et **une seule Glande** dès le palier 2 (sur la case qui couvre le plus de cases pas encore couvertes) ;
+  - **Accélérateur** *(revu le 4 octobre 2026)* : **une Pépinière**, puis dès le palier 3 les Mycorhizes qui donnent toutes les pousses possibles (2 pour atteindre 3 pousses) ; ensuite il construit comme le Producteur ;
+  - **places pleines** : le robot ne construit plus (pas de remplacement d'un bâtiment par un meilleur) et sa part de construction s'accumule ;
   - **Hasardeux** : tire au hasard un type débloqué qu'il peut payer, puis le pose sur la meilleure case pour ce type ;
   - le Producteur et l'Accélérateur posent un **Grenier** quand leur stock dépasse **80 %** du plafond ;
   - une **Pépinière** va sur la case qui a le plus de cases colonisables (libres) dans son rayon, hors de la portée des Pépinières déjà posées ; un **Grenier** ou une **Mycorhize** va sur la case où un Nœud rapporterait le moins ;

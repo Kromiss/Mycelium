@@ -1,6 +1,6 @@
 extends GutTest
-## Effets des bâtiments de G2 (GDD §7.2, §7.3) : rendement, voisinage et Rosace, Enzymes,
-## plafond de stock, Pépinière et Mycorhize.
+## Effets des bâtiments de G2 (GDD §7.2, revus le 4 octobre 2026) : rendement et Enzymes sur une
+## zone sans cumul, plafond de stock, Pépinière et Mycorhize.
 
 const DUEL: ModeDef = preload("res://data/modes/duel.tres")
 ## Cases de la colonie 0 en Duel (rayon 11).
@@ -12,7 +12,7 @@ const BELOW := Vector2i(10, 1)
 const WEST := Vector2i(9, 0)
 const SOUTH_WEST := Vector2i(9, 1)
 const EDGE_UP := Vector2i(11, -2)
-## Toutes les voisines de INNER, Cœur et cases de départ comprises : INNER devient une Rosace.
+## Toutes les voisines de INNER, Cœur et cases de départ comprises.
 const AROUND_INNER: Array[Vector2i] = [ABOVE, BELOW, WEST, SOUTH_WEST]
 
 var _sim: Simulation
@@ -66,34 +66,31 @@ func _set_building(cell: Vector2i, id: StringName) -> void:
 	Buildings.refresh_activity(_sim.state)
 
 
-func test_digestion_node_adds_half_of_the_cell_yield() -> void:
-	var cell: int = _index(INNER)
-	# Rendement 3,333 ×1,5, puis Cohésion de 2 voisines (+10 %).
+func test_digestion_node_boosts_colony_cells_within_two() -> void:
+	var far := Vector2i(7, 0)
+	_own([WEST, Vector2i(8, 0), far])
 	_set_building(INNER, &"digestion_node")
-	var expected: int = Fixed.mul(Fixed.mul(3_333, 1_500), 1_100)
-	assert_eq(EconomySystem.cell_production(_sim.state, 0, cell), expected)
+	for cell: Vector2i in [HEART, EDGE, INNER, WEST, Vector2i(8, 0)]:
+		assert_eq(Buildings.production_factor(_sim.state, 0, _index(cell)), 1300)
+	assert_eq(Buildings.production_factor(_sim.state, 0, _index(far)), Fixed.ONE)
+	# Rendement 3,333 ×1,3, puis Cohésion de 3 voisines (+15 %).
+	var expected: int = Fixed.mul(Fixed.mul(3_333, 1_300), 1_150)
+	assert_eq(EconomySystem.cell_production(_sim.state, 0, _index(INNER)), expected)
 
 
-func test_neighbouring_nodes_and_rosace_multiply_the_bonus() -> void:
+func test_overlapping_nodes_do_not_add_up_and_a_cut_node_does_nothing() -> void:
 	_own(AROUND_INNER)
-	var cell: int = _index(INNER)
-	var plain: int = Buildings.production_factor(_sim.state, 0, cell)
-	assert_eq(plain, Fixed.ONE)
 	_set_building(INNER, &"digestion_node")
-	# INNER est une Rosace (6 voisines possédées) : ×1,5 × 1,1.
-	assert_eq(Buildings.production_factor(_sim.state, 0, cell), 1650)
-	for neighbor: Vector2i in [ABOVE, BELOW, WEST, SOUTH_WEST]:
-		_set_building(neighbor, &"digestion_node")
-	# 4 Nœuds voisins : +40 %, plafonné à +30 % → ×1,5 × 1,3 × 1,1.
-	assert_eq(Buildings.production_factor(_sim.state, 0, cell), Fixed.mul(1950, 1100))
-	# Un Nœud voisin désactivé ne compte pas.
-	_sim.state.building_active[_index(ABOVE)] = 0
-	_sim.state.building_active[_index(BELOW)] = 0
-	_sim.state.building_active[_index(WEST)] = 0
-	assert_eq(Buildings.production_factor(_sim.state, 0, cell), Fixed.mul(1650, 1100))
+	_set_building(EDGE, &"digestion_node")
+	assert_eq(Buildings.production_factor(_sim.state, 0, _index(INNER)), 1300)
+	assert_eq(Buildings.covered_cells(_sim.state, 0, _index(INNER)), 7)
+	# Plus de voisinage ni de Rosace : INNER, entourée de 6 cases, reste à ×1,3.
+	Buildings.clear(_sim.state, _index(EDGE))
+	_sim.state.connected[_index(INNER)] = 0
+	assert_eq(Buildings.production_factor(_sim.state, 0, _index(HEART)), Fixed.ONE)
 
 
-func test_enzyme_gland_makes_twenty_enzymes_a_minute() -> void:
+func test_enzyme_gland_gives_one_enzyme_a_minute_per_covered_cell() -> void:
 	var more: Array[Vector2i] = [
 		EDGE_UP, Vector2i(9, 2), Vector2i(8, 1), Vector2i(8, 2), Vector2i(8, 0)
 	]
@@ -101,12 +98,28 @@ func test_enzyme_gland_makes_twenty_enzymes_a_minute() -> void:
 	assert_eq(_colony().tier, 2)
 	_set_building(EDGE_UP, &"enzyme_gland")
 	_sim.tick()
-	assert_eq(_colony().enzyme_production, 333)
-	assert_eq(_colony().enzymes, 333)
-	_set_building(EDGE, &"enzyme_gland")
+	var covered: int = _covered([EDGE_UP])
+	assert_eq(_colony().enzyme_production, Fixed.div_round(covered * Fixed.ONE, 60))
+	assert_eq(_colony().enzymes, _colony().enzyme_production)
+	# Une seconde Glande : les cases couvertes deux fois ne comptent qu'une fois.
+	_set_building(Vector2i(8, 2), &"enzyme_gland")
 	_sim.tick()
-	# Deux Glandes voisines : chacune +10 %.
-	assert_eq(_colony().enzyme_production, 2 * Fixed.div_round(22_000, 60))
+	var both: int = _covered([EDGE_UP, Vector2i(8, 2)])
+	assert_lt(both, covered + _covered([Vector2i(8, 2)]))
+	assert_eq(_colony().enzyme_production, Fixed.div_round(both * Fixed.ONE, 60))
+
+
+## Cases reliées de la colonie à 2 cases ou moins d'au moins une des cases données.
+func _covered(glands: Array[Vector2i]) -> int:
+	var total: int = 0
+	for cell: int in range(_sim.state.cell_count()):
+		if _sim.state.connected[cell] == 0 or _sim.state.owner[cell] != 0:
+			continue
+		for gland: Vector2i in glands:
+			if Hex.distance(gland, _sim.state.map.cells[cell]) <= 2:
+				total += 1
+				break
+	return total
 
 
 func test_stock_is_capped_at_three_minutes_of_production() -> void:
@@ -134,13 +147,10 @@ func test_nursery_speeds_up_growth_nearby_and_is_recomputed_each_tick() -> void:
 	assert_eq(_sim.state.growth_left[_index(Vector2i(11, -3))], left - 1000)
 
 
-func test_nursery_adds_a_site_and_mycorrhiza_a_growth() -> void:
+func test_nursery_adds_no_site_and_mycorrhiza_adds_a_growth() -> void:
 	_own(AROUND_INNER)
 	_set_building(INNER, &"nursery")
-	assert_eq(Buildings.sites(_sim.state, _colony()), 3)
-	_set_building(EDGE, &"nursery")
-	_set_building(ABOVE, &"nursery")
-	assert_eq(Buildings.sites(_sim.state, _colony()), 4)
+	assert_eq(Buildings.sites(_sim.state, _colony()), 2)
 	assert_eq(Buildings.max_growths(_sim.state, _colony()), 1)
 	_colony().tier = 3
 	_set_building(BELOW, &"mycorrhiza")

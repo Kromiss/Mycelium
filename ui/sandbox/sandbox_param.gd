@@ -9,14 +9,12 @@ enum Group { ECONOMY, ZONES, TIERS, CONSTRUCTION, BUILD_TIMES, BUILDINGS, ROBOT_
 ## affichée, minimum et maximum. La règle de pose n'est pas réglable (partout en G2).
 const BUILDING_FIELDS: Array[Array] = [
 	["cost_units", "SANDBOX_BUILDING_COST", 1.0, 0.0, 10_000.0],
+	["cost_seconds", "SANDBOX_BUILDING_COST_SECONDS", 1.0, 0.0, 10_000.0],
 	["cost_enzymes", "SANDBOX_BUILDING_COST_ENZYMES", 1.0, 0.0, 10_000.0],
 	["unlock_tier", "SANDBOX_BUILDING_TIER", 1.0, 0.0, 6.0],
 	["max_count", "SANDBOX_BUILDING_MAX", 1.0, 0.0, 1_000.0],
 	["yield_bonus_pm", "SANDBOX_BUILDING_YIELD", 10.0, 0.0, 10_000.0],
-	["enzymes_per_minute", "SANDBOX_BUILDING_ENZYMES", 1.0, 0.0, 100_000.0],
-	["neighbor_bonus_pm", "SANDBOX_BUILDING_NEIGHBOR", 10.0, 0.0, 1_000.0],
-	["neighbor_bonus_max_pm", "SANDBOX_BUILDING_NEIGHBOR_MAX", 10.0, 0.0, 1_000.0],
-	["rosace_bonus_pm", "SANDBOX_BUILDING_ROSACE", 10.0, 0.0, 1_000.0],
+	["enzymes_per_cell_minute", "SANDBOX_BUILDING_ENZYMES", 1.0, 0.0, 10_000.0],
 	["stock_minutes", "SANDBOX_BUILDING_STOCK", 1.0, 0.0, 1_000.0],
 	["growth_reduction_pm", "SANDBOX_BUILDING_GROWTH", 10.0, 0.0, 99.0],
 	["effect_radius", "SANDBOX_BUILDING_RADIUS", 1.0, 0.0, 50.0],
@@ -100,10 +98,11 @@ static func _construction_params() -> Array[SandboxParam]:
 	var list: Array[SandboxParam] = [
 		_make("SANDBOX_STOCK_CAP", &"stock_cap_seconds", 1.0, 0.0, 100_000.0, 1.0),
 		_make("SANDBOX_MAX_GROWTHS_CAP", &"max_growths_cap", 1.0, 1.0, 20.0, 1.0),
+		_make("SANDBOX_BUILDING_SLOTS", &"building_slots_base", 1.0, 0.0, 100.0, 1.0),
+		_make("SANDBOX_BUILDING_SLOTS_TIER", &"building_slots_per_tier", 1.0, 0.0, 100.0, 1.0),
 		_make("SANDBOX_BASE_SITES", &"base_build_sites", 1.0, 1.0, 20.0, 1.0),
 		_make("SANDBOX_MAX_SITES", &"max_build_sites", 1.0, 1.0, 20.0, 1.0),
 		_make("SANDBOX_BUILD_QUEUE", &"build_queue_size", 1.0, 1.0, 50.0, 1.0),
-		_make("SANDBOX_BUILDING_COST_GROWTH", &"building_cost_growth_pm", 1000.0, 1.0, 5.0, 0.001),
 		_make("SANDBOX_DEMOLISH_REFUND", &"demolish_refund_pm", 10.0, 0.0, 100.0, 0.1),
 	]
 	for param: SandboxParam in list:
