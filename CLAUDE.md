@@ -6,9 +6,11 @@ Lis ce fichier en entier avant d'agir, puis le document de `docs/` qui correspon
 
 ## Le projet
 
-**Mycelium : Last Colony** est un city builder incrémental compétitif, en parties de 30 minutes
-maximum : chaque joueur fait grandir une colonie de champignons sur une carte d'hexagones, et le but
-est d'être la dernière colonie vivante. Modes Duel, FFA (jusqu'à 6) et Partie personnalisée, contre
+**Mycelium : Last Colony** est un jeu incrémental compétitif, en parties de 30 minutes maximum :
+chaque colonie de champignons a pour cœur une tourelle, le Sporophore, qui lance des spores et prend
+les cases d'une carte d'hexagones ; la production des cases paie les améliorations de la tourelle, et
+le but est d'être la dernière colonie vivante (refonte du 4 octobre 2026 : plus de colonisation au
+clic ni de bâtiments). Modes Duel, FFA (jusqu'à 6) et Partie personnalisée, contre
 des robots puis en ligne. Cible : un exécutable Windows, distribué sur Steam.
 
 Les détails de game design se décident avec le propriétaire (Kromiss) : **ne jamais inventer de règle
