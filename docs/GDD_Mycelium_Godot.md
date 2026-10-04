@@ -280,7 +280,7 @@ Les déblocages suivent les **paliers de colonie** (§6.1). Un bâtiment dont le
 | **Toxinière** | Palier 3 | 6 U + 20 Enzymes | Case frontière | Ralentit les fronts ennemis sur ses voisines (effet à adapter aux fronts en G3) ; **débloque Toxine** |
 | **Poste d'assaut** | Palier 4 | 8 U + 40 Enzymes | Case frontière | +1 front simultané (à confirmer en G3) ; **débloque Assaut et Coupure** |
 | **Haustorium** | Palier 4 | 8 U + 30 Enzymes | Case frontière | **Débloque Siphon** |
-| **Carpophore** | Palier 5 | 10 U | Partout | Portée des actions +2 ; montre l'état des Cœurs ennemis ; **visible et ciblé par tous** |
+| **Carpophore** | Palier 5 | 10 U | Partout | Portée des actions +2 ; révèle **où sont les Sclérotes ennemis** et les **débits** des fronts et renforts des autres colonies (cachés sinon, décidé le 4 octobre 2026) ; **visible et ciblé par tous** |
 
 ### 7.3 Voisinage (synergies)
 - **Nœud de digestion** : +10 % par Nœud adjacent (max +30 %). Le Nœud ne se renforce **qu'avec d'autres Nœuds** : l'ancien bonus au contact d'un Réservoir n'est pas remplacé *(décidé le 4 octobre 2026)*.
@@ -382,7 +382,7 @@ Elles coûtent des Enzymes, rechargent et **exigent le bâtiment correspondant**
 | **Coupure** | Poste d'assaut | Clic sur une case ennemie (pas le Cœur) | 40 Enzymes | 3 min | Pendant 45 s, la case ne relie plus rien : les cases qui ne touchent plus le Cœur ne produisent plus (îlots) |
 | **Siphon** | Haustorium | Clic sur une case ennemie | 25 Enzymes | 90 s | Je reçois 20 % de la production des cases ennemies à **2 cases ou moins de la case visée** (elles la perdent) pendant 60 s |
 
-**Portée** des actions (le Carpophore donne +2) : **pas encore décidée**.
+**Portée** des actions Toxine, Coupure et Siphon *(décidé le 4 octobre 2026)* : la case visée doit être à **2 cases au plus** d'une de mes cases (**4** avec le Carpophore). **Geste** : clic sur le bouton de l'action dans le HUD (ou sa touche, modifiable) ; les cases à portée sont marquées ; un clic sur l'une lance l'action ; Échap ou un clic droit court annule.
 
 ### 9.5 Cœur, Sclérote, élimination
 - Le Cœur perdu **renaît sur le Sclérote** (60 s de protection **du nouveau Cœur seul** : le reste de la colonie peut être attaqué, décidé le 4 octobre 2026), **une seule fois** : le Sclérote est consommé.
@@ -685,7 +685,8 @@ Les réponses sont reportées dans les sections concernées (§3, §9, §10, §1
 - **Bâtiments sur une case coupée du Cœur** : comme en G2, ils ne produisent rien mais gardent leurs autres effets (défense comprise).
 - **Bâtiments de frontière** (et Sclérote) : la règle de pose ne compte qu'à la pose ; ensuite le bâtiment reste actif.
 - **Colonisation de la même case au même tick par deux colonies** : l'ordre des colonies est tiré au sort à chaque tick (graine) ; la seconde est refusée sans rien payer.
-- **Encore ouvert** : **portée des actions actives** (le Carpophore donne +2) ; gestes précis des actions (mode « viser une case » depuis les boutons du HUD) à voir sur les maquettes.
+- **Parts par défaut des robots** (expansion / construction / attaque) : **60 / 25 / 15 %** pour les robots avec bâtisseur (ajoutés à la main ou dans la liste par défaut) ; les 4 profils de G1 restent à 100 / 0 / 0.
+- **Sclérotes** : leur emplacement est **caché aux autres colonies**, sauf pour celle qui a un Carpophore actif.
 
 ### G4 : Duel et FFA contre robots
 1. Profils des robots : le §2.5 parle de bâtisseur, expansionniste et agressif, alors que les robots du panneau combinent un profil d'expansion, un profil de bâtisseur et un pourcentage. Les robots de jeu reprennent-ils cette composition, avec un profil de combat en plus ?
