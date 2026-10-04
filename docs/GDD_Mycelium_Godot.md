@@ -2,9 +2,7 @@
 
 > Jeu incrémental compétitif en parties de **30 minutes maximum**. Chaque joueur incarne une colonie de champignons dont le **cœur est une tourelle** : elle lance des spores qui colorent les cases d'une carte d'hexagones. Plus la colonie a de cases, plus elle produit ; ce qu'elle produit sert à **améliorer sa tourelle** (dégâts, cadence, portée…), qui prend alors encore plus de cases. Le centre de la forêt est le plus riche et le plus disputé : **le but est d'être la dernière colonie vivante.** Trois façons de jouer : **Duel**, **FFA** (jusqu'à 6 colonies) et **Partie personnalisée**. Cible : un **projet Godot exporté en .exe (Windows), distribué sur Steam**.
 
-**Refonte du 4 octobre 2026.** La colonisation au clic, la file d'expansion, le city builder (bâtiments, chantiers, palette) et le combat par fronts sont **abandonnés** : la tourelle les remplace. L'ancien texte (v0.2) reste dans l'historique git. Les jalons G0 à G2 restent livrés ; ce qu'ils ont construit pour le clic et les bâtiments sera remplacé (§19).
-
-**Vocabulaire.** Dans le jeu, la tourelle s'appelle **le Sporophore** ; ce document dit « la Tourelle ». Les valeurs chiffrées sont des **points de départ à simuler**. Toutes les décisions de la refonte ont été prises avec le propriétaire le 4 octobre 2026 (questions en QCM, maquettes validées).
+**Vocabulaire.** Dans le jeu, la tourelle s'appelle **le Sporophore** ; ce document dit « la Tourelle ». Les valeurs chiffrées sont des **points de départ à simuler**. Les décisions ont été prises avec le propriétaire le 4 octobre 2026 (questions en QCM, maquettes validées).
 
 ---
 
@@ -99,7 +97,7 @@ Une **courte partie scénarisée (~10 min)** contre un robot passif, sur une pet
 ## 3. Déroulé d'une partie
 
 ### 3.1 Départ
-- Chaque colonie démarre avec **3 cases, Tourelle comprise** : la Tourelle sur un **coin de la forêt** (le milieu exact de son secteur, zone 1, là où était le Cœur), la case collée à elle **vers le centre**, et une case collée à elle **sur le bord**. Les départs des autres colonies s'en déduisent par rotation, donc tous identiques.
+- Chaque colonie démarre avec **3 cases, Tourelle comprise** : la Tourelle sur un **coin de la forêt** (le milieu exact de son secteur, zone 1), la case collée à elle **vers le centre**, et une case collée à elle **sur le bord**. Les départs des autres colonies s'en déduisent par rotation, donc tous identiques.
 - **Stock de départ** : 0 (la Tourelle commence à tirer tout de suite ; les premières améliorations se paient avec la production).
 - **Protection de départ : 2:00.** Pendant la protection, **aucune case adverse ne peut être visée et aucune capacité ne peut être lancée** (décision du 4 octobre 2026 pour les actions, reprise ici).
 
@@ -153,14 +151,14 @@ Six anneaux concentriques de **même épaisseur** : **2 anneaux d'hexagones par 
 | 5 | ×3,3 | ×3,8 | ×2,1 |
 | 6 (Clairière) | ×4,0 | ×5,0 | ×2,5 |
 
-Les deux colonnes de droite reprennent les anciens multiplicateurs de coût de colonisation et de temps de prise. Cible : une colonie moyenne atteint la zone N vers la minute 3,5 × N.
+Cible : une colonie moyenne atteint la zone N vers la minute 3,5 × N.
 
 ---
 
 ## 5. La Tourelle *(décidé le 4 octobre 2026)*
 
 ### 5.1 Principe
-- **La Tourelle remplace le Cœur**, au même endroit. C'est un champignon qui lance des spores, appelé **le Sporophore** dans le jeu.
+- La Tourelle est le **cœur de la colonie** : elle occupe sa case de départ (§3.1). C'est un champignon qui lance des spores, appelé **le Sporophore** dans le jeu.
 - Elle **tire toute seule**, en continu. Chaque spore inflige des **dégâts** à la case visée (§6).
 - Elle a ses propres **PV** : si elle tombe, la colonie est éliminée (§3.3).
 - Il y a **une seule Tourelle** par colonie.
@@ -235,11 +233,11 @@ PV de la Tourelle = 10 × les PV max d'une case de zone 1 ; elle se régénère 
 | **Enzymes** | Capacités actives (§11) | **Paliers de colonie** (un lot à chaque palier atteint, décidé le 4 octobre 2026) |
 | **Biomasse** | Total des nutriments produits : départage à 30:00 et statistiques | Production |
 
-- **Pas de plafond de stock** (le Grenier disparaît) : tout se dépense en améliorations.
+- **Pas de plafond de stock** : tout se dépense en améliorations.
 - Lots d'Enzymes : 20 au palier 1, puis 40, 60, 80, 100 et 120. Un palier perdu puis retrouvé ne redonne pas son lot.
 
 ### 8.2 Production
-Comme avant, sans bâtiments : une case de zone 1 rapporte **≈ 3,33 nutriments/s**, multipliée par la **richesse de sa zone**, la **Cohésion** (+5 % par voisine possédée, +30 % au plus), les **paliers**, l'**Armillaire** (×1,00 → ×1,25 sur 30 min) et les événements. Les multiplicateurs se **multiplient** entre eux.
+Une case de zone 1 rapporte **≈ 3,33 nutriments/s**, multipliée par la **richesse de sa zone**, la **Cohésion** (+5 % par voisine possédée, +30 % au plus), les **paliers**, l'**Armillaire** (×1,00 → ×1,25 sur 30 min) et les événements. Les multiplicateurs se **multiplient** entre eux.
 
 ### 8.3 Paliers de colonie
 Quand le **nombre de cases** franchit un seuil, **la production de la colonie double**, la colonie reçoit son **lot d'Enzymes** et le joueur **choisit une mutation** (§10) :
@@ -271,7 +269,7 @@ Cible : **~10 nutriments/s au départ → 1e5 à 1e6 nutriments/s en fin de part
 ## 9. Le panneau d'améliorations *(décidé le 4 octobre 2026)*
 
 ### 9.1 Principe
-- Les bâtiments disparaissent. Le côté incrémental est un **panneau à droite de l'écran** ; la **carte est à gauche**.
+- Le côté incrémental est un **panneau à droite de l'écran** ; la **carte est à gauche**.
 - On y achète des **améliorations à niveaux** avec les nutriments : dégâts de la tourelle, vitesse d'attaque, etc.
 - Coût d'un niveau = coût de base × **1,15 ^ niveau** ; chaque niveau ajoute le même effet (pas de jalons tous les 25 niveaux, idée non retenue). Bouton **×1 / ×10 / Max** pour acheter plusieurs niveaux d'un coup.
 
@@ -342,7 +340,7 @@ Boutons à **recharge**, payés en **Enzymes**, débloqués par les paliers (§8
   - une ligne dans les statistiques et le profil.
 - **Départage à 30:00** : les éliminations comptent **avant** la production moyenne (§3.3).
 - La colonie qui abat la Tourelle est celle dont le tir la fait tomber à 0 PV.
-- **Pas de Sclérote ni de seconde vie** : une Tourelle abattue élimine la colonie.
+- **Pas de seconde vie** : une Tourelle abattue élimine la colonie.
 - Pas de plancher de cases ni de protection contre un joueur plus petit.
 
 ---
@@ -455,7 +453,7 @@ Affichage (plein écran, fenêtré, résolution, **thème clair / sombre / syst�
 
 ---
 
-## 17. Décisions de la refonte *(4 octobre 2026)*
+## 17. Décisions du 4 octobre 2026
 
 Toutes les propositions du brouillon ont été tranchées en QCM avec le propriétaire le 4 octobre 2026 et sont écrites plus haut. En résumé, ce qui diffère des propositions : à l'**élimination**, les cases de l'éliminé **redeviennent libres** (pas de transfert du territoire, pas de butin ni d'îlots) et le tueur reçoit un **Trophée** (+25 % de production cumulable, +100 Enzymes) ; à 30:00, **les éliminations départagent avant la production moyenne** ; seuls les **événements scriptés** restent (Floraison, Arbre mourant) ; l'**affrontement** arrive **dès G3**.
 
@@ -516,7 +514,7 @@ Autres terrains et souches, pactes, mode par équipes, forêts thématiques, cla
 Aucune action de modification (pas d'arrêt de partie, pas de ressources, pas de sauts de temps). Pour **équilibrer** le jeu, les simulations accélérées passent par le **panneau de simulations** (§18.5), pas par cette interface.
 
 ### 18.5 Panneau de simulations (développement)
-Outil d'équilibrage disponible **uniquement quand le jeu est lancé depuis l'éditeur Godot** : il n'existe dans aucun `.exe` livré. Il lance des lots de parties de robots sans affichage, en temps accéléré (lancement simple ou **balayage** d'une valeur), avec les **réglages du Bac à sable**, et mesure : minute d'arrivée dans chaque zone et à chaque palier, cases par minute, production par minute, niveaux d'amélioration atteints, éliminations et minute de la première, parties finies au temps. Résultats en tableaux et courbes, export **CSV**, et **rejeu** d'une simulation sur la carte (×1, ×4, ×16, ×64, pause). Les robots du panneau (expansion + bâtisseur, livrés en G1 et G2) sont remplacés en G3 par les robots **Canonnier**, **Bâtisseur** et **Conquérant** (§2.5), qui servent aussi d'adversaires dans le Bac à sable ; le panneau joue des parties à **plusieurs robots** sur la même forêt.
+Outil d'équilibrage disponible **uniquement quand le jeu est lancé depuis l'éditeur Godot** : il n'existe dans aucun `.exe` livré. Il lance des lots de parties de robots sans affichage, en temps accéléré (lancement simple ou **balayage** d'une valeur), avec les **réglages du Bac à sable**, et mesure : minute d'arrivée dans chaque zone et à chaque palier, cases par minute, production par minute, niveaux d'amélioration atteints, éliminations et minute de la première, parties finies au temps. Résultats en tableaux et courbes, export **CSV**, et **rejeu** d'une simulation sur la carte (×1, ×4, ×16, ×64, pause). Ses robots sont **Canonnier**, **Bâtisseur** et **Conquérant** (§2.5), qui servent aussi d'adversaires dans le Bac à sable ; le panneau joue des parties à **plusieurs robots** sur la même forêt.
 
 ---
 
@@ -525,9 +523,9 @@ Outil d'équilibrage disponible **uniquement quand le jeu est lancé depuis l'é
 | Jalon | Contenu |
 |---|---|
 | **G0 : Fondations** *(livré, 0.1.0)* | Dépôt Godot, vérification automatique, versions GitHub ; carte hex (6 zones) en Duel et FFA, rendu, caméra ; menu principal ; Paramètres |
-| **G1 : Solo économie** *(livré, 0.2.0)* | Production, Cohésion, paliers, retours visuels, Bac à sable (réglages, récapitulatif, pause, vitesse), HUD, rejeu, panneau de simulations. La colonisation au clic et la file d'expansion seront retirées en G3 |
-| **G2 : City builder** *(livré, 0.3.0)* | Bâtiments, chantiers, Enzymes, palette. **Abandonné** : retiré en G3 |
-| **G3 : Le Sporophore et l'affrontement** | **Suppression** du code du clic, de la file d'expansion, des bâtiments et des robots d'expansion et bâtisseurs ; Tourelle (tir automatique, portée, priorités, cible au clic, déplacement pas à pas) ; PV, régénération et soin ; panneau d'améliorations à droite ; paliers avec Enzymes et mutations ; capacités ; Armillaire ; **affrontement entre Tourelles, élimination et Trophée** ; écran carte + panneau ; Bac à sable avec adversaires robots. Maquettes **validées le 4 octobre 2026**. Livré en **trois étapes** : 1) simulation et tests ; 2) affichage, panneau et Bac à sable ; 3) robots Canonnier, Bâtisseur et Conquérant (adversaires du Bac à sable et panneau de simulations à plusieurs robots) ; version **0.4.0** |
+| **G1 : Solo économie** *(livré, 0.2.0)* | Production, Cohésion, paliers, retours visuels, Bac à sable (réglages, récapitulatif, pause, vitesse), HUD, rejeu, panneau de simulations |
+| **G2** *(livré, 0.3.0)* | Remplacé par G3 |
+| **G3 : Le Sporophore et l'affrontement** | **Suppression** du code de G1 et G2 qui ne sert plus ; Tourelle (tir automatique, portée, priorités, cible au clic, déplacement pas à pas) ; PV, régénération et soin ; panneau d'améliorations à droite ; paliers avec Enzymes et mutations ; capacités ; Armillaire ; **affrontement entre Tourelles, élimination et Trophée** ; écran carte + panneau ; Bac à sable avec adversaires robots. Maquettes **validées le 4 octobre 2026**. Livré en **trois étapes** : 1) simulation et tests ; 2) affichage, panneau et Bac à sable ; 3) robots Canonnier, Bâtisseur et Conquérant (adversaires du Bac à sable et panneau de simulations à plusieurs robots) ; version **0.4.0** |
 | **G4 : Événements et fin de partie** | Floraison collective et Arbre mourant, frise, journal et alertes complets, écran de résultats, spectateur après élimination ; version **0.5.0** |
 | **G5 : Duel et FFA contre robots** | Menus, robots de jeu (3 difficultés, profils), résultats |
 | **G6 : Habillage et bêta solo** | Tutoriel (8 étapes, §2.7), audio, profil et statistiques, traduction, essais avec de vrais joueurs (sans Steam) |
@@ -539,12 +537,12 @@ La simulation ne reçoit que des **commandes** depuis G1 : le passage en ligne c
 
 ---
 
-## 20. Questions en attente des jalons suivants *(relevées le 4 octobre 2026, avant la refonte)*
+## 20. Questions en attente des jalons suivants
 
-Reprises telles quelles de la v0.2 (numéros de jalon décalés d'un cran) ; elles seront posées sous forme de QCM au début du jalon concerné.
+Elles seront posées sous forme de QCM au début du jalon concerné.
 
-### G5 : Duel et FFA contre robots (ancien G4)
-1. Profils des robots : le §2.5 propose Canonnier, Bâtisseur et Conquérant, et les robots du panneau combinent un profil d'achat et une priorité de tir (§18.5). Les robots de jeu reprennent-ils cette composition ?
+### G5 : Duel et FFA contre robots
+1. Profils des robots : les robots de jeu reprennent-ils les profils Canonnier, Bâtisseur et Conquérant du panneau de simulations (§2.5, §18.5) ?
 2. Valeurs des difficultés Facile, Normal, Difficile (délai de réaction, part d'erreurs, profondeur d'évaluation, qualité du choix des améliorations, des priorités et des cibles).
 3. « Mêmes limites qu'un joueur » : nombre maximal de commandes par seconde pour un robot ?
 4. FFA contre robots : une difficulté pour tous ou une par robot (« mélange ») ? Profils choisis ou tirés au hasard ?
@@ -553,11 +551,11 @@ Reprises telles quelles de la v0.2 (numéros de jalon décalés d'un cran) ; ell
 7. Éliminé en FFA contre robots, sans accélération possible : on attend la fin en spectateur ou on quitte avec son rang ?
 8. Écran de résultats : contenu exact (rang, statistiques, courbe de production, graine publiée) et boutons (rejouer, menu, revoir la partie).
 9. Replay en timelapse (§14.4) : dans quel jalon ?
-10. Robots dans le Bac à sable : choisis comme dans le panneau (paire de profils et pourcentage), avec une difficulté ?
+10. Robots dans le Bac à sable : leur ajoute-t-on une difficulté ?
 11. Panneau de simulations : ajoute-t-on les mesures de combat (éliminations avant 26:00, parties finies au temps, cases prises par minute, effet des Trophées) ?
 
-### G6 : Habillage et bêta solo (ancien G5)
-1. Tutoriel : quelle forêt (« petite forêt de Duel » : rayon 5 ?) ? Faut-il ajouter des étapes pour la file d'expansion, la Mycorhize ou les Enzymes ?
+### G6 : Habillage et bêta solo
+1. Tutoriel : quelle forêt (« petite forêt de Duel » : rayon 5 ?) ? Faut-il d'autres étapes que les 8 du §2.7 ?
 2. Audio : style de la musique et des bruitages ; qui les produit (banques libres de droits, compositeur, autre) et sous quelle licence ?
 3. Profil et statistiques : enregistrés sur le PC (`user://`), liés au compte Steam ? Sauvegarde Steam Cloud ?
 4. Langues : français et anglais seulement ?
@@ -565,7 +563,7 @@ Reprises telles quelles de la v0.2 (numéros de jalon décalés d'un cran) ; ell
 6. Icône définitive et logo : qui les fait ?
 7. Numéro de version de la bêta solo.
 
-### G7 : Multijoueur (ancien G6)
+### G7 : Multijoueur
 1. File d'attente : en Duel, au bout de combien de temps proposer un robot s'il n'y a personne ? En FFA, que faire avec moins de 4 joueurs après 2 min ?
 2. Classement du Duel (rang, classements Steam) : le fait-on ? Il dépend de la question sur la triche de l'hôte (§17).
 3. Hôte en file d'attente : le propriétaire du salon Steam, ou le joueur qui a la meilleure connexion ?
@@ -579,7 +577,7 @@ Reprises telles quelles de la v0.2 (numéros de jalon décalés d'un cran) ; ell
 11. Numéro de version des étapes 1 et 2.
 11 bis. Récompenses cosmétiques (§14.5 : titres, couleurs de réseau, effets de particules) : seules les parties en ligne en donnent (§2.6). Lesquelles, à quelles conditions, et dans ce jalon ou plus tard ?
 
-**Partie personnalisée** (ancien jalon G5)
+**Partie personnalisée**
 12. Réglages : la partie personnalisée garde-t-elle la liste courte du §2.4, ou reprend-elle les réglages complets du Bac à sable ?
 13. Partie à 3 colonies : quel rayon par défaut ?
 14. Rayons 5, 11, 17, 23 « à confirmer » ; peut-on combiner n'importe quel nombre de colonies avec n'importe quel rayon (6 colonies sur un rayon 5) ?
@@ -596,4 +594,4 @@ Reprises telles quelles de la v0.2 (numéros de jalon décalés d'un cran) ; ell
 ### Questions communes à plusieurs jalons
 1. Peut-on quitter une partie solo et la reprendre plus tard (sauvegarde de partie en cours) ?
 2. Les robots de jeu et ceux du panneau de simulations sont-ils les mêmes (même code, mêmes profils) ?
-3. Le panneau de simulations doit-il pouvoir comparer des robots de difficultés différentes à partir de G4 ?
+3. Le panneau de simulations doit-il pouvoir comparer des robots de difficultés différentes à partir de G5 ?
