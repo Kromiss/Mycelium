@@ -1,7 +1,7 @@
 class_name ColonyColors
 extends Resource
 ## Les 12 couleurs de colonie (GDD §13.2) : une teinte principale (cases) et une teinte
-## foncée (Cœur, contours) par couleur, dans l'ordre du tableau du GDD.
+## foncée (Tourelle, contours) par couleur, dans l'ordre du tableau du GDD.
 
 ## Clés de traduction des noms de couleur.
 @export var names: Array[String] = []

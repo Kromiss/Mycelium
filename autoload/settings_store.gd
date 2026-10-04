@@ -24,23 +24,13 @@ const CONTROLS: Dictionary[StringName, int] = {
 	&"recenter_camera": KEY_SPACE,
 	&"toggle_pause": KEY_P,
 	&"back_to_menu": KEY_ESCAPE,
-	&"queue_modifier": KEY_SHIFT,
-	&"build_1": KEY_1,
-	&"build_2": KEY_2,
-	&"build_3": KEY_3,
-	&"build_4": KEY_4,
-	&"build_5": KEY_5,
+	&"move_turret": KEY_D,
 }
 const CONTROL_NAMES: Dictionary[StringName, String] = {
 	&"recenter_camera": "ACTION_RECENTER",
 	&"toggle_pause": "ACTION_PAUSE",
 	&"back_to_menu": "ACTION_MENU",
-	&"queue_modifier": "ACTION_QUEUE",
-	&"build_1": "ACTION_BUILD_1",
-	&"build_2": "ACTION_BUILD_2",
-	&"build_3": "ACTION_BUILD_3",
-	&"build_4": "ACTION_BUILD_4",
-	&"build_5": "ACTION_BUILD_5",
+	&"move_turret": "ACTION_MOVE_TURRET",
 }
 
 var theme_mode: ThemeMode = ThemeMode.SYSTEM

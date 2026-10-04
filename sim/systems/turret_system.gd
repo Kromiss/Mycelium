@@ -1,0 +1,125 @@
+class_name TurretSystem
+extends RefCounted
+## Étape 2 du tick : les Tourelles font leurs pas, puis tirent (GDD §5, §6, §7.3). Les colonies
+## jouent l'une après l'autre ; la première change à chaque tick (tick modulo nombre de
+## colonies) pour qu'aucune ne soit toujours avantagée sur une case disputée.
+
+
+func run(state: GameState, result: TickResult) -> void:
+	var count: int = state.colonies.size()
+	for offset: int in range(count):
+		var colony: ColonyState = state.colonies[(state.tick + offset) % count]
+		if not colony.alive:
+			continue
+		if colony.is_moving():
+			_advance_step(state, colony, result)
+		else:
+			_fire(state, colony, result)
+
+
+## Raison pour laquelle un pas vers la case serait refusé (OK s'il serait accepté) : une de
+## mes cases voisines de la Tourelle, sans pas déjà en cours.
+static func check_move(state: GameState, colony: ColonyState, cell: int) -> Refusal.Code:
+	if cell < 0:
+		return Refusal.Code.OUT_OF_MAP
+	if colony.is_moving():
+		return Refusal.Code.ALREADY_MOVING
+	if state.owner[cell] != colony.id or cell == colony.turret:
+		return Refusal.Code.NOT_OWNED
+	if state.distance(cell, colony.turret) != 1:
+		return Refusal.Code.NOT_ADJACENT
+	return Refusal.Code.OK
+
+
+## Commence un pas : la Tourelle reste sur sa case et ne tire plus jusqu'à l'arrivée.
+static func start_move(state: GameState, colony: ColonyState, cell: int) -> void:
+	colony.move_to = cell
+	colony.move_left = ColonyStats.step_ticks(state.defs, colony)
+
+
+## Un pas dure N secondes : commencé au tick t, il se termine à la fin du tick t + N − 1.
+## Si la case d'arrivée n'est plus à la colonie, le pas est annulé. À l'arrivée, la case de
+## départ redevient une case normale, à pleine vie.
+func _advance_step(state: GameState, colony: ColonyState, result: TickResult) -> void:
+	colony.move_left -= 1
+	result.colony_changed(colony.id)
+	if colony.move_left > 0:
+		return
+	var origin: int = colony.turret
+	var destination: int = colony.move_to
+	colony.move_to = -1
+	colony.move_left = 0
+	if state.owner[destination] != colony.id:
+		return
+	colony.turret = destination
+	state.hp[origin] = ColonyStats.cell_max_hp(state, origin)
+	state.last_hitter[origin] = -1
+	colony.targets = PackedInt32Array()
+	result.moves.append_array(PackedInt32Array([colony.id, origin, destination]))
+	result.cell_changed(origin)
+	result.cell_changed(destination)
+
+
+## Tirs du tick : chaque tir envoie une spore par cible (cible désignée d'abord, puis cibles
+## gardées) ; s'il y a moins de cibles que de spores, les spores en trop vont sur la première.
+func _fire(state: GameState, colony: ColonyState, result: TickResult) -> void:
+	colony.shot_progress += ColonyStats.rate_pm(state, colony)
+	@warning_ignore("integer_division")
+	var shots: int = colony.shot_progress / Fixed.ONE
+	colony.shot_progress -= shots * Fixed.ONE
+	var spores: int = ColonyStats.spores(state.defs, colony)
+	var reach: int = ColonyStats.turret_range(state.defs, colony)
+	var stats: ShotStats = ShotStats.of(state.defs, colony) if shots > 0 else null
+	for shot: int in range(shots):
+		Targeting.refresh(state, colony, reach)
+		var cells: PackedInt32Array = Targeting.shot_targets(colony)
+		if cells.is_empty():
+			return
+		for spore: int in range(spores):
+			var cell: int = cells[spore] if spore < cells.size() else cells[0]
+			if Targeting.is_target(state, colony, cell, reach):
+				_hit(state, colony, stats, cell, result)
+	if shots > 0:
+		result.colony_changed(colony.id)
+
+
+## Une spore touche une case : soin si elle est à moi, dégâts sinon (critique, Éclaboussure
+## sur les voisines, Rebond du reste des dégâts si la case est prise).
+func _hit(
+	state: GameState, colony: ColonyState, stats: ShotStats, cell: int, result: TickResult
+) -> void:
+	result.shots.append_array(PackedInt32Array([colony.id, cell]))
+	if state.owner[cell] == colony.id:
+		Combat.heal(state, cell, stats.heal, result)
+		return
+	var amount: int = stats.damage_on(state, cell)
+	if stats.crit_pm > 0 and state.rng.range_int(Fixed.ONE) < stats.crit_pm:
+		amount = Fixed.mul(amount, stats.crit_damage_pm)
+	var toxic: int = stats.toxic_ticks
+	var remainder: int = Combat.deal(state, colony, cell, amount, result, toxic)
+	if stats.splash_pm > 0:
+		var splash: int = Fixed.mul(amount, stats.splash_pm)
+		for direction: int in range(6):
+			var other: int = state.map.neighbor_index(cell, direction)
+			if other >= 0 and state.owner[other] != colony.id:
+				Combat.deal(state, colony, other, splash, result, toxic)
+	if remainder > 0 and stats.bounce > 0:
+		for other: int in _bounce_cells(state, colony, cell, stats.bounce):
+			Combat.deal(state, colony, other, remainder, result, toxic)
+
+
+## Voisines de la case prise que le Rebond touche : celles qui ne sont pas à la colonie,
+## dans l'ordre tiré de la graine.
+static func _bounce_cells(
+	state: GameState, colony: ColonyState, cell: int, count: int
+) -> PackedInt32Array:
+	var ranked: Array[Vector2i] = []
+	for direction: int in range(6):
+		var other: int = state.map.neighbor_index(cell, direction)
+		if other >= 0 and state.owner[other] != colony.id:
+			ranked.append(Vector2i(state.cell_rank[other], other))
+	ranked.sort()
+	var cells := PackedInt32Array()
+	for i: int in range(mini(count, ranked.size())):
+		cells.append(ranked[i].y)
+	return cells

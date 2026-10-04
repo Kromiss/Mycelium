@@ -6,6 +6,31 @@ L'historique de l'ancienne version web est dans la branche `archive/web`.
 
 ## [Unreleased]
 
+G3 — Le Sporophore et l'affrontement.
+
+### Ajouté
+- G3, étape 1 — Simulation du Sporophore : une Tourelle par colonie qui tire toute seule
+  (cadence, dégâts, portée, spores par tir), priorités de tir (Plus proche, Plus riche, Soigner
+  d'abord, Ennemis d'abord), cible désignée au clic, cibles gardées jusqu'à leur prise ; PV des
+  cases (zone, Cohésion, améliorations), régénération, soin ; prise des cases libres (pleine vie)
+  et adverses (25 %), cases coupées de la Tourelle rendues libres ; déplacement pas à pas (10 s,
+  sans tirer) ; 12 améliorations (coût ×1,15, achat ×1, ×10 ou Max) ; paliers avec lots
+  d'Enzymes et choix de mutations empilés (15 mutations) ; capacités Salve, Mur de mycélium et
+  Nuage toxique ; Armillaire ; protection de départ ; élimination et Trophée ; fin de partie
+  (dernière colonie en vie ou 30:00) et classement. Six commandes, nouveaux refus, données
+  `upgrades.tres`, `mutations.tres` et `abilities.tres` ; tests.
+- Bac à sable : tous les nouveaux chiffres sont réglables et dans le récapitulatif.
+
+### Modifié
+- Affichage provisoire de la partie (en attendant l'écran des maquettes à l'étape 2) : cases
+  colorées qui pâlissent quand elles sont blessées, jauge des cases libres entamées, Tourelle,
+  cercle de portée, cibles et spores ; clic pour viser, D puis clic pour déplacer la Tourelle ;
+  HUD avec les chiffres de la Tourelle.
+
+### Supprimé
+- Colonisation au clic et file d'expansion, bâtiments et city builder, robots de G1 et G2,
+  panneau de simulations (recréé à l'étape 3).
+
 ## [0.3.0] - 2026-10-04
 
 G2 — City builder.

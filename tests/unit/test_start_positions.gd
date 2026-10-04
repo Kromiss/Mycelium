@@ -6,11 +6,11 @@ const DUEL: ModeDef = preload("res://data/modes/duel.tres")
 const FFA: ModeDef = preload("res://data/modes/ffa.tres")
 
 
-func test_heart_is_on_a_corner_of_the_outer_ring() -> void:
+func test_turret_is_on_a_corner_of_the_outer_ring() -> void:
 	for radius: int in [11, 17]:
 		var cells: Array[Vector2i] = MapGenerator.start_cells(radius, 0, 6)
 		assert_eq(cells.size(), MapGenerator.START_CELLS)
-		assert_eq(cells[MapGenerator.START_HEART], Vector2i(radius, 0))
+		assert_eq(cells[MapGenerator.START_TURRET], Vector2i(radius, 0))
 		assert_eq(Hex.length(cells[0]), radius)
 
 

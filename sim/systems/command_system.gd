@@ -13,39 +13,68 @@ func run(state: GameState, commands: Array[Command], result: TickResult) -> void
 			result.refuse(command, code)
 
 
-func _apply(state: GameState, command: Command, result: TickResult) -> Refusal.Code:
+## Raison pour laquelle la commande serait refusée maintenant (OK si elle serait acceptée).
+static func check(state: GameState, command: Command) -> Refusal.Code:
 	var colony: ColonyState = state.colony(command.colony_id)
 	if colony == null or not colony.alive:
 		return Refusal.Code.UNKNOWN_COLONY
-	if not command is CellCommand:
-		return Refusal.Code.UNKNOWN_COMMAND
-	var cell: int = state.map.index_of((command as CellCommand).cell)
-	var code: Refusal.Code = Refusal.Code.UNKNOWN_COMMAND
+	if state.finished:
+		return Refusal.Code.GAME_OVER
 	match command.type:
-		Command.Type.COLONIZE:
-			code = Expansion.check_colonize(state, colony, cell)
-			if code == Refusal.Code.OK:
-				Expansion.start_growth(state, colony, cell, result)
-		Command.Type.ENQUEUE:
-			code = Expansion.check_enqueue(state, colony, cell)
-			if code == Refusal.Code.OK:
-				colony.queue.append(cell)
-				result.colony_changed(colony.id)
-		Command.Type.DEQUEUE:
-			code = Expansion.check_dequeue(colony, cell)
-			if code == Refusal.Code.OK:
-				Expansion.dequeue(state, colony, cell)
-				result.colony_changed(colony.id)
-		Command.Type.BUILD:
-			var type: int = state.defs.building_index((command as BuildCommand).building)
-			code = Buildings.check_build(state, colony, cell, type)
-			if code == Refusal.Code.OK:
-				Buildings.build(state, colony, cell, type, result)
-		Command.Type.DEMOLISH:
-			code = Buildings.check_demolish(state, colony, cell)
-			if code == Refusal.Code.OK:
-				Buildings.demolish(state, colony, cell, result)
-	return code
+		Command.Type.TARGET:
+			return Targeting.check_target(state, colony, _cell(state, command))
+		Command.Type.SET_PRIORITY:
+			var priority: int = (command as SetPriorityCommand).priority
+			if not ColonyState.Priority.values().has(priority):
+				return Refusal.Code.UNKNOWN_PRIORITY
+			return Refusal.Code.OK
+		Command.Type.MOVE_TURRET:
+			return TurretSystem.check_move(state, colony, _cell(state, command))
+		Command.Type.BUY_UPGRADE:
+			var id: StringName = (command as BuyUpgradeCommand).upgrade
+			return Upgrades.check_buy(state, colony, state.defs.upgrade_index(id))
+		Command.Type.CHOOSE_MUTATION:
+			var choice: int = (command as ChooseMutationCommand).choice
+			return TierSystem.check_choose(state, colony, choice)
+		Command.Type.USE_ABILITY:
+			var ability: int = state.defs.ability_index((command as UseAbilityCommand).ability)
+			return Abilities.check_use(state, colony, ability, _cell(state, command))
+	return Refusal.Code.UNKNOWN_COMMAND
+
+
+func _apply(state: GameState, command: Command, result: TickResult) -> Refusal.Code:
+	var code: Refusal.Code = check(state, command)
+	if code != Refusal.Code.OK:
+		return code
+	var colony: ColonyState = state.colony(command.colony_id)
+	match command.type:
+		Command.Type.TARGET:
+			colony.designated = _cell(state, command)
+			colony.targets.erase(colony.designated)
+		Command.Type.SET_PRIORITY:
+			# Nouvelle priorité : les cibles gardées sont lâchées, la cible désignée reste.
+			colony.priority = (command as SetPriorityCommand).priority
+			colony.targets = PackedInt32Array()
+		Command.Type.MOVE_TURRET:
+			TurretSystem.start_move(state, colony, _cell(state, command))
+		Command.Type.BUY_UPGRADE:
+			var buy := command as BuyUpgradeCommand
+			Upgrades.buy(state, colony, state.defs.upgrade_index(buy.upgrade), buy.count)
+		Command.Type.CHOOSE_MUTATION:
+			TierSystem.choose(state, colony, (command as ChooseMutationCommand).choice)
+		Command.Type.USE_ABILITY:
+			var use := command as UseAbilityCommand
+			var ability: int = state.defs.ability_index(use.ability)
+			Abilities.use(state, colony, ability, _cell(state, command), result)
+	result.colony_changed(colony.id)
+	return Refusal.Code.OK
+
+
+## Case visée par une commande (−1 hors de la forêt, ou si la commande ne vise pas de case).
+static func _cell(state: GameState, command: Command) -> int:
+	if not command is CellCommand:
+		return -1
+	return state.map.index_of((command as CellCommand).cell)
 
 
 ## Tri stable : par colonie, puis dans l'ordre d'arrivée.

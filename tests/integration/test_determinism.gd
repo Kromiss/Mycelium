@@ -8,8 +8,9 @@ const FFA: ModeDef = preload("res://data/modes/ffa.tres")
 const SAFE_LIMIT: int = 1_000_000_000_000_000
 
 
-## Joue une partie où chaque colonie colonise au hasard (aléatoire de la partie, dérivé par
-## colonie), en mélangeant clics directs, ajouts et retraits de file. Renvoie les empreintes.
+## Joue une partie où chaque colonie donne des ordres au hasard (aléatoire du script, dérivé
+## par colonie) : améliorations, priorités, cibles, pas, mutations et capacités. Renvoie les
+## empreintes de chaque tick.
 func _play(transport: LocalTransport, ticks: int, script_seed: int) -> PackedInt64Array:
 	var simulation: Simulation = transport.simulation
 	var rngs: Array[SimRng] = []
@@ -21,8 +22,7 @@ func _play(transport: LocalTransport, ticks: int, script_seed: int) -> PackedInt
 	transport.tick_received.connect(on_tick)
 	for tick: int in range(ticks):
 		for colony: ColonyState in simulation.state.colonies:
-			var command: Command = _random_command(simulation, colony, rngs[colony.id])
-			if command != null:
+			for command: Command in _random_commands(simulation, colony, rngs[colony.id]):
 				transport.send_command(command)
 		transport.advance()
 		hashes.append(results[results.size() - 1].state_hash)
@@ -30,42 +30,40 @@ func _play(transport: LocalTransport, ticks: int, script_seed: int) -> PackedInt
 	return hashes
 
 
-func _random_command(simulation: Simulation, colony: ColonyState, rng: SimRng) -> Command:
+func _random_commands(simulation: Simulation, colony: ColonyState, rng: SimRng) -> Array[Command]:
 	var state: GameState = simulation.state
-	var roll: int = rng.range_int(10)
-	if roll >= 6:
-		return null
-	var cell: Vector2i = state.map.cells[_random_frontier(state, colony, rng)]
-	var command: Command
-	if roll == 0 and not colony.queue.is_empty():
-		var queued: int = colony.queue[rng.range_int(colony.queue.size())]
-		command = DequeueCommand.new(state.map.cells[queued])
-	elif roll <= 2:
-		command = ColonizeCommand.new(cell)
-	else:
-		command = EnqueueCommand.new(cell)
-	command.colony_id = colony.id
-	return command
+	var commands: Array[Command] = []
+	if not colony.alive:
+		return commands
+	var upgrades: Array[SimUpgrade] = state.defs.upgrades
+	commands.append(BuyUpgradeCommand.new(upgrades[rng.range_int(upgrades.size())].id, 1))
+	match rng.range_int(12):
+		0:
+			commands.append(SetPriorityCommand.new(rng.range_int(4)))
+		1:
+			commands.append(TargetCommand.new(_random_cell_near(state, colony, rng)))
+		2:
+			commands.append(MoveTurretCommand.new(_random_cell_near(state, colony, rng)))
+		3:
+			commands.append(ChooseMutationCommand.new(rng.range_int(3)))
+		4:
+			var abilities: Array[SimAbility] = state.defs.abilities
+			var ability: StringName = abilities[rng.range_int(abilities.size())].id
+			commands.append(UseAbilityCommand.new(ability, _random_cell_near(state, colony, rng)))
+	for command: Command in commands:
+		command.colony_id = colony.id
+	return commands
 
 
-## Une case au hasard parmi celles qui touchent une case de la colonie (poussée ou en pousse).
-func _random_frontier(state: GameState, colony: ColonyState, rng: SimRng) -> int:
-	var candidates := PackedInt32Array()
-	for cell: int in range(state.cell_count()):
-		if state.cell_state[cell] != GameState.CellState.FREE:
-			continue
-		for direction: int in range(6):
-			var other: int = state.map.neighbor_index(cell, direction)
-			if other >= 0 and state.owner[other] == colony.id:
-				candidates.append(cell)
-				break
-	if candidates.is_empty():
-		return colony.heart
-	return candidates[rng.range_int(candidates.size())]
+## Une case au hasard à 4 cases ou moins de la Tourelle.
+func _random_cell_near(state: GameState, colony: ColonyState, rng: SimRng) -> Vector2i:
+	var cells: PackedInt32Array = state.map.disk(colony.turret, 4)
+	return state.map.cells[cells[rng.range_int(cells.size())]]
 
 
 func _transport(mode: ModeDef, game_seed: int, colonies: int = -1) -> LocalTransport:
 	var defs: SimDefs = SimDefs.from_mode(mode)
+	defs.protection_ticks = 20
 	var count: int = defs.sectors if colonies < 0 else colonies
 	return LocalTransport.new(
 		Simulation.new(defs, game_seed, count), Replay.new(defs, game_seed, count)
@@ -105,36 +103,59 @@ func test_replay_rejects_unknown_format() -> void:
 
 func test_commands_survive_a_round_trip() -> void:
 	for command: Command in [
-		ColonizeCommand.new(Vector2i(3, -4), 2),
-		EnqueueCommand.new(Vector2i(-1, 5), 1),
-		DequeueCommand.new(Vector2i(0, 0), 5)
+		TargetCommand.new(Vector2i(3, -4), 2),
+		MoveTurretCommand.new(Vector2i(-1, 5), 1),
+		SetPriorityCommand.new(ColonyState.Priority.ENEMIES_FIRST, 3),
+		BuyUpgradeCommand.new(&"damage", 10, 4),
+		ChooseMutationCommand.new(2, 5),
+		UseAbilityCommand.new(&"cloud", Vector2i(2, 2), 1),
 	]:
 		command.tick = 42
 		var data: Dictionary = JSON.parse_string(JSON.stringify(command.to_dict()))
 		var copy: Command = Command.from_dict(data)
 		assert_eq(copy.to_dict(), command.to_dict())
 		assert_eq(copy.type, command.type)
-		assert_true(copy is CellCommand)
 	assert_null(Command.from_dict({"type": 99}))
 
 
-func test_long_solo_game_keeps_numbers_safe_and_climbs_tiers() -> void:
-	# Une colonie seule sur la forêt de FFA, qui colonise sans arrêt pendant 30 minutes.
-	var simulation := Simulation.new(SimDefs.from_mode(FFA), 3, 1)
-	var colony: ColonyState = simulation.state.colonies[0]
-	var rng := SimRng.new(1)
-	for tick: int in range(1800):
+func test_long_duel_keeps_numbers_safe_and_ends_by_thirty_minutes() -> void:
+	# Deux colonies qui achètent sans arrêt l'amélioration la moins chère pendant 30 minutes.
+	var simulation := Simulation.new(SimDefs.from_mode(DUEL), 3, 2)
+	var state: GameState = simulation.state
+	var finished: bool = false
+	while not finished:
 		var commands: Array[Command] = []
-		if colony.queue_load() < simulation.state.defs.expansion_queue_size:
-			var cell: int = _random_frontier(simulation.state, colony, rng)
-			commands.append(EnqueueCommand.new(simulation.state.map.cells[cell]))
-		simulation.tick(commands)
-	assert_gte(colony.tier, 3)
-	assert_lt(colony.biomass, SAFE_LIMIT)
-	assert_lt(colony.nutrients, SAFE_LIMIT)
+		for colony: ColonyState in state.colonies:
+			var cheapest: StringName = _cheapest(simulation, colony)
+			if cheapest != &"":
+				commands.append(BuyUpgradeCommand.new(cheapest, 1, colony.id))
+			if not colony.pending_offers.is_empty():
+				commands.append(ChooseMutationCommand.new(0, colony.id))
+		finished = simulation.tick(commands).finished
+	assert_lte(state.tick, state.defs.match_ticks)
+	assert_eq(state.ranking.size(), 2)
+	for colony: ColonyState in state.colonies:
+		assert_lt(colony.biomass, SAFE_LIMIT)
+		assert_lt(colony.nutrients, SAFE_LIMIT)
+	var best: ColonyState = state.colonies[state.ranking[0]]
+	assert_gte(best.tier, 3)
 	gut.p(
 		(
-			"30 min : %d cases, palier %d, production %d/s"
-			% [colony.cell_count, colony.tier, colony.production / Fixed.ONE]
+			"Fin à %d s : %d cases, palier %d, production %d/s"
+			% [state.tick, best.cell_count, best.tier, best.production / Fixed.ONE]
 		)
 	)
+
+
+func _cheapest(simulation: Simulation, colony: ColonyState) -> StringName:
+	var best: StringName = &""
+	var best_cost: int = 0
+	for upgrade: SimUpgrade in simulation.state.defs.upgrades:
+		var command := BuyUpgradeCommand.new(upgrade.id, 1, colony.id)
+		if simulation.check(command) != Refusal.Code.OK:
+			continue
+		var cost: int = simulation.upgrade_cost(colony.id, upgrade.id)
+		if best == &"" or cost < best_cost:
+			best = upgrade.id
+			best_cost = cost
+	return best

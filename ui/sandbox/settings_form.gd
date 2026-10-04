@@ -1,13 +1,12 @@
 class_name SettingsForm
 extends VBoxContainer
-## Formulaire des réglages du Bac à sable (GDD §2.1 bis) : forêt, graine, économie, zones,
-## paliers et, depuis G2, réglages généraux des bâtiments et réglages de chaque bâtiment.
-## Partagé par l'écran de réglages et par le panneau de simulations.
+## Formulaire des réglages du Bac à sable (GDD §2.1 bis) : forêt, graine, réglages généraux
+## (économie, cases, Tourelle, partie), zones, paliers, améliorations et capacités.
 
 const FOREST_MODES: Array[StringName] = [&"duel", &"ffa"]
 const FIELD_WIDTH: float = 140.0
-## Largeur des champs de la grille des bâtiments (une colonne par bâtiment).
-const BUILDING_FIELD_WIDTH: float = 118.0
+## Largeur des champs des tableaux (améliorations, capacités).
+const TABLE_FIELD_WIDTH: float = 118.0
 ## Taille du texte des champs (plus petite que celle des menus, pour tout faire tenir).
 const FIELD_FONT_SIZE: int = 20
 ## Libellé à montrer pour chaque problème signalé par SimDefs.validate().
@@ -15,18 +14,18 @@ const PROBLEM_KEYS: Dictionary[String, String] = {
 	"sectors": "SANDBOX_FOREST",
 	"rings_per_zone": "SANDBOX_FOREST",
 	"zones": "SANDBOX_ZONES",
+	"zone_hp": "SANDBOX_ZONES",
 	"tiers": "SANDBOX_TIERS",
 	"tier_cells": "SANDBOX_TIER_CELLS",
-	"economy": "SANDBOX_ECONOMY",
-	"base_growth_ticks": "SANDBOX_GROWTH",
-	"colonize_cost_growth_pm": "SANDBOX_COST_GROWTH",
-	"queue": "SANDBOX_QUEUE",
-	"match_ticks": "SIM_DURATION",
-	"sites": "SANDBOX_CONSTRUCTION",
-	"buildings": "SANDBOX_BUILDINGS",
-	"build_ticks": "SANDBOX_CONSTRUCTION",
-	"building_slots": "SANDBOX_BUILDING_SLOTS",
-	"demolish_refund_pm": "SANDBOX_DEMOLISH_REFUND",
+	"economy": "SANDBOX_GENERAL",
+	"hp": "SANDBOX_GENERAL",
+	"turret": "SANDBOX_GENERAL",
+	"step_ticks": "SANDBOX_STEP",
+	"upgrade_cost_growth_pm": "SANDBOX_COST_GROWTH",
+	"match_ticks": "SANDBOX_PROTECTION",
+	"mutation_choices": "SANDBOX_GENERAL",
+	"upgrades": "SANDBOX_UPGRADES",
+	"abilities": "SANDBOX_ABILITIES",
 }
 
 var _config: SandboxConfig
@@ -37,11 +36,11 @@ var _built: bool = false
 @onready var _forest_option: OptionButton = %ForestOption
 @onready var _seed_edit: LineEdit = %SeedEdit
 @onready var _seed_button: Button = %SeedButton
-@onready var _economy_grid: GridContainer = %EconomyGrid
+@onready var _general_grid: GridContainer = %GeneralGrid
 @onready var _zones_grid: GridContainer = %ZonesGrid
 @onready var _tiers_grid: GridContainer = %TiersGrid
-@onready var _construction_grid: GridContainer = %ConstructionGrid
-@onready var _buildings_grid: GridContainer = %BuildingsGrid
+@onready var _upgrades_grid: GridContainer = %UpgradesGrid
+@onready var _abilities_grid: GridContainer = %AbilitiesGrid
 
 
 func _ready() -> void:
@@ -119,53 +118,53 @@ func _fill_forests() -> void:
 
 func _build_fields() -> void:
 	var defs: SimDefs = _config.defs
-	var params: Array[SandboxParam] = SandboxParam.all(
-		defs.zone_count(), defs.tier_cells.size(), defs.buildings
-	)
-	_buildings_grid.columns = defs.buildings.size() + 1
-	_buildings_grid.add_child(Control.new())
-	for building: SimBuilding in defs.buildings:
-		var header := Label.new()
-		header.text = building.name_key
-		header.theme_type_variation = &"SmallHintLabel"
-		header.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		header.custom_minimum_size = Vector2(BUILDING_FIELD_WIDTH, 0.0)
-		header.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		_buildings_grid.add_child(header)
-	_add_headers(
-		_zones_grid,
-		["SANDBOX_ZONE", "SANDBOX_RICHNESS", "SANDBOX_ZONE_COST", "SANDBOX_ZONE_GROWTH"]
-	)
-	_add_headers(_tiers_grid, ["SANDBOX_TIER", "SANDBOX_TIER_CELLS", "SANDBOX_TIER_PRODUCTION"])
+	var grids: Dictionary[SandboxParam.Group, GridContainer] = {
+		SandboxParam.Group.ZONES: _zones_grid,
+		SandboxParam.Group.TIERS: _tiers_grid,
+		SandboxParam.Group.UPGRADES: _upgrades_grid,
+		SandboxParam.Group.ABILITIES: _abilities_grid,
+	}
+	var first_column: Dictionary[SandboxParam.Group, String] = {
+		SandboxParam.Group.ZONES: "SANDBOX_ZONE",
+		SandboxParam.Group.TIERS: "SANDBOX_TIER",
+		SandboxParam.Group.UPGRADES: "SANDBOX_UPGRADE",
+		SandboxParam.Group.ABILITIES: "SANDBOX_ABILITY",
+	}
+	for group: SandboxParam.Group in grids:
+		var keys: Array[String] = [first_column[group]]
+		keys.append_array(SandboxParam.columns(group))
+		grids[group].columns = keys.size()
+		_add_headers(grids[group], keys)
 	var last_row: int = -1
-	for param: SandboxParam in params:
-		match param.group:
-			SandboxParam.Group.ECONOMY:
-				var label := Label.new()
-				label.text = param.label_key
-				label.theme_type_variation = &"SmallLabel"
-				label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-				_economy_grid.add_child(label)
-				_economy_grid.add_child(_field(param))
-			SandboxParam.Group.ZONES:
-				if param.index != last_row:
-					last_row = param.index
-					_add_index_label(_zones_grid, param.index + 1)
-				_zones_grid.add_child(_field(param))
-			SandboxParam.Group.TIERS:
-				if param.index != last_row:
-					last_row = param.index
-					_add_index_label(_tiers_grid, param.index + 1)
-				_tiers_grid.add_child(_field(param))
-			SandboxParam.Group.CONSTRUCTION, SandboxParam.Group.BUILD_TIMES:
-				_add_row_label(_construction_grid, param.label())
-				_construction_grid.add_child(_field(param))
-			SandboxParam.Group.BUILDINGS:
-				if param.index == 0:
-					_add_row_label(_buildings_grid, param.label_key)
-				var spin: SpinBox = _field(param)
-				spin.custom_minimum_size = Vector2(BUILDING_FIELD_WIDTH, 0.0)
-				_buildings_grid.add_child(spin)
+	var last_group: int = -1
+	for param: SandboxParam in SandboxParam.all(defs):
+		if param.group == SandboxParam.Group.GENERAL:
+			_add_row_label(_general_grid, param.label_key)
+			_general_grid.add_child(_field(param))
+			continue
+		var grid: GridContainer = grids[param.group]
+		if param.index != last_row or param.group != last_group:
+			last_row = param.index
+			last_group = param.group
+			_add_row_label(grid, _row_name(defs, param))
+		var spin: SpinBox = _field(param)
+		if (
+			param.group == SandboxParam.Group.UPGRADES
+			or param.group == SandboxParam.Group.ABILITIES
+		):
+			spin.custom_minimum_size = Vector2(TABLE_FIELD_WIDTH, 0.0)
+		grid.add_child(spin)
+
+
+## Nom d'une ligne de tableau : numéro de la zone ou du palier, nom de l'amélioration ou de
+## la capacité (clé de traduction).
+func _row_name(defs: SimDefs, param: SandboxParam) -> String:
+	match param.group:
+		SandboxParam.Group.UPGRADES:
+			return defs.upgrades[param.index].name_key
+		SandboxParam.Group.ABILITIES:
+			return defs.abilities[param.index].name_key
+	return str(param.index + 1)
 
 
 ## Champ d'un réglage : il modifie les réglages quand le joueur change sa valeur, et suit les
@@ -199,14 +198,6 @@ func _add_headers(grid: GridContainer, keys: Array[String]) -> void:
 		header.theme_type_variation = &"SmallHintLabel"
 		header.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		grid.add_child(header)
-
-
-func _add_index_label(grid: GridContainer, number: int) -> void:
-	var label := Label.new()
-	label.text = str(number)
-	label.theme_type_variation = &"SmallLabel"
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	grid.add_child(label)
 
 
 # --- Actions ---

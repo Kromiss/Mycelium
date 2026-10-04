@@ -1,44 +1,50 @@
 [gd_resource type="Resource" script_class="TierTable" load_steps=9 format=3]
 
-[ext_resource type="Script" path="res://sim/defs/tier_def.gd" id="1_tier"]
+[ext_resource type="Script" path="res://sim/defs/tier_def.gd" id="1_item"]
 [ext_resource type="Script" path="res://sim/defs/tier_table.gd" id="2_table"]
 
 [sub_resource type="Resource" id="tier_1"]
-script = ExtResource("1_tier")
+script = ExtResource("1_item")
 tier = 1
 cells = 5
 production_pm = 2000
+enzymes = 20
 
 [sub_resource type="Resource" id="tier_2"]
-script = ExtResource("1_tier")
+script = ExtResource("1_item")
 tier = 2
 cells = 10
 production_pm = 4000
+enzymes = 40
 
 [sub_resource type="Resource" id="tier_3"]
-script = ExtResource("1_tier")
+script = ExtResource("1_item")
 tier = 3
 cells = 20
 production_pm = 8000
+enzymes = 60
 
 [sub_resource type="Resource" id="tier_4"]
-script = ExtResource("1_tier")
+script = ExtResource("1_item")
 tier = 4
 cells = 40
 production_pm = 16000
+enzymes = 80
 
 [sub_resource type="Resource" id="tier_5"]
-script = ExtResource("1_tier")
+script = ExtResource("1_item")
 tier = 5
 cells = 80
 production_pm = 32000
+enzymes = 100
 
 [sub_resource type="Resource" id="tier_6"]
-script = ExtResource("1_tier")
+script = ExtResource("1_item")
 tier = 6
 cells = 160
 production_pm = 64000
+enzymes = 120
 
 [resource]
 script = ExtResource("2_table")
-tiers = Array[ExtResource("1_tier")]([SubResource("tier_1"), SubResource("tier_2"), SubResource("tier_3"), SubResource("tier_4"), SubResource("tier_5"), SubResource("tier_6")])
+tiers = Array[ExtResource("1_item")]([SubResource("tier_1"), SubResource("tier_2"), SubResource("tier_3"), SubResource("tier_4"), SubResource("tier_5"), SubResource("tier_6")])

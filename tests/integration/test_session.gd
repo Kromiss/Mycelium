@@ -30,10 +30,11 @@ func test_one_tick_per_second_of_game() -> void:
 func test_commands_are_played_at_the_next_tick_for_the_local_colony() -> void:
 	_session.start_local(SimDefs.from_mode(DUEL), 1, 2)
 	_session.local_colony = 1
-	_session.send_command(ColonizeCommand.new(Vector2i(-10, -1), 0))
+	_session.send_command(TargetCommand.new(Vector2i(-10, -1), 0))
 	_session.step()
 	assert_eq(_ticks[0].refused.size(), 0)
-	assert_eq(_session.simulation.state.colonies[1].growing.size(), 1)
+	var target: int = _session.simulation.cell_index(Vector2i(-10, -1))
+	assert_eq(_session.simulation.state.colonies[1].designated, target)
 	assert_eq(_session.replay.commands.size(), 1)
 
 

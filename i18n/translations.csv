@@ -33,51 +33,22 @@ SANDBOX_INTRO,"Alone on the forest, every number can be changed. Games last 30 m
 SANDBOX_FOREST,Forest,Forêt
 SANDBOX_SEED,Seed,Graine
 SANDBOX_NEW_SEED,New seed,Nouvelle graine
-SANDBOX_ECONOMY,Economy,Économie
-SANDBOX_UNIT_COST,U: cost of a zone 1 cell at start,U : coût d'une case de zone 1 au départ
+SANDBOX_UNIT_COST,U: cost unit of upgrades,U : unité de coût des améliorations
 SANDBOX_CELL_YIELD,Yield of a zone 1 cell (nutrients/s),Rendement d'une case de zone 1 (nutriments/s)
-SANDBOX_GROWTH,Growth time in zone 1 (s),Durée de pousse en zone 1 (s)
 SANDBOX_START_STOCK,Starting stock (in U),Stock de départ (en U)
-SANDBOX_COST_GROWTH,Cost increase per grown cell (×),Hausse du coût par case poussée (×)
-SANDBOX_COHESION,Cohesion per owned neighbour (%),Cohésion par voisine possédée (%)
-SANDBOX_MAX_GROWTHS,Simultaneous growths at start,Pousses simultanées au départ
-SANDBOX_QUEUE,Expansion queue size (growths included),Taille de la file d'expansion (pousses comprises)
+SANDBOX_COST_GROWTH,Upgrade cost increase per level (×),Hausse du coût d'une amélioration par niveau (×)
+SANDBOX_COHESION,Cohesion: production per owned neighbour (%),Cohésion : production par voisine possédée (%)
 SANDBOX_ZONES,Zones,Zones
 SANDBOX_ZONE,Zone,Zone
 SANDBOX_RICHNESS,Richness ×,Richesse ×
-SANDBOX_ZONE_COST,Cost ×,Coût ×
-SANDBOX_ZONE_GROWTH,Growth ×,Pousse ×
 SANDBOX_TIERS,Colony tiers,Paliers de colonie
 SANDBOX_TIER,Tier,Palier
-SANDBOX_TIER_CELLS,Grown cells,Cases poussées
+SANDBOX_TIER_CELLS,Cells,Cases
 SANDBOX_TIER_PRODUCTION,Production ×,Production ×
 SANDBOX_DEFAULTS,Default values,Valeurs par défaut
 SANDBOX_LAUNCH,Start,Lancer
 SANDBOX_BACK,Back,Retour
 SANDBOX_INVALID,Invalid settings: %s,Réglages invalides : %s
-SANDBOX_CONSTRUCTION,Buildings: general,Bâtiments : général
-SANDBOX_BUILDINGS,Buildings,Bâtiments
-SANDBOX_STOCK_CAP,Stock cap (seconds of production),Plafond du stock (secondes de production)
-SANDBOX_BUILDING_SLOTS,Building places at start,Places de bâtiment au départ
-SANDBOX_BUILDING_SLOTS_TIER,Building places per tier,Places de bâtiment par palier
-SANDBOX_MAX_GROWTHS_CAP,"Simultaneous growths, maximum","Pousses simultanées, maximum"
-SANDBOX_BASE_SITES,Construction sites at start,Chantiers simultanés au départ
-SANDBOX_MAX_SITES,"Construction sites, maximum","Chantiers simultanés, maximum"
-SANDBOX_BUILD_QUEUE,Build queue size (sites included),Taille de la file de construction (chantiers compris)
-SANDBOX_DEMOLISH_REFUND,Refund when demolishing (%),Remboursement à la démolition (%)
-SANDBOX_BUILD_TIME,"Build time, unlocked at tier %d (s)","Durée d'un chantier, débloqué au palier %d (s)"
-SANDBOX_BUILDING_COST,Minimum cost (U),Coût minimal (U)
-SANDBOX_BUILDING_COST_SECONDS,Cost (seconds of production),Coût (secondes de production)
-SANDBOX_BUILDING_COST_ENZYMES,Cost (Enzymes),Coût (Enzymes)
-SANDBOX_BUILDING_TIER,Unlocked at tier,Débloqué au palier
-SANDBOX_BUILDING_MAX,Maximum number (0: no limit),Nombre maximal (0 : sans limite)
-SANDBOX_BUILDING_YIELD,Production bonus of covered cells (%),Bonus de production des cases couvertes (%)
-SANDBOX_BUILDING_ENZYMES,Enzymes per minute per covered cell,Enzymes par minute par case couverte
-SANDBOX_BUILDING_STOCK,Stock cap (+ minutes),Plafond du stock (+ minutes)
-SANDBOX_BUILDING_GROWTH,Growth time reduction (%),Réduction de la durée de pousse (%)
-SANDBOX_BUILDING_RADIUS,Effect radius (cells),Portée de l'effet (cases)
-SANDBOX_BUILDING_SITES,Extra construction sites,Chantiers simultanés en plus
-SANDBOX_BUILDING_GROWTHS,Extra simultaneous growths,Pousses simultanées en plus
 HUD_NUTRIENTS,Nutrients,Nutriments
 HUD_PER_SECOND,+%s /s,+%s /s
 HUD_BIOMASS,Biomass,Biomasse
@@ -95,46 +66,11 @@ HUD_COPIED,Summary copied to the clipboard,Récapitulatif copié dans le presse-
 HUD_PAUSED,Paused,En pause
 HUD_PAUSED_NO_ORDERS,Paused: orders are blocked,En pause : les ordres sont bloqués
 HUD_TIER_BANNER,Tier %s!,Palier %s !
-HUD_QUEUE,Queue: %d / %d,File : %d / %d
-HUD_HINT,Click: colonize · %s + click: queue · %s: centre on the Heart · %s: menu,Clic : coloniser · %s + clic : file · %s : recentrer sur le Cœur · %s : menu
+HUD_HINT,Click: target · %s then click: move the Sporophore · %s: centre on it · %s: menu,Clic : viser · %s puis clic : déplacer le Sporophore · %s : recentrer · %s : menu
 TIP_ZONE,Zone %d,Zone %d
 TIP_FREE,Free cell,Case libre
-TIP_HEART,Heart of your colony,Cœur de ta colonie
 TIP_OWNED,Your colony,Ta colonie
-TIP_GROWING,Growing: %d s left,En pousse : encore %d s
-TIP_QUEUED,In the queue (#%d),Dans la file (n° %d)
-TIP_COST,Cost: %s,Coût : %s
-TIP_GROWTH,Growth: %d s,Pousse : %d s
 TIP_PRODUCTION,Production: %s /s,Production : %s /s
-TIP_PRODUCTION_ONCE,Once grown: %s /s,Une fois poussée : %s /s
-REFUSAL_UNKNOWN_COLONY,This colony no longer plays,Cette colonie ne joue plus
-REFUSAL_UNKNOWN_COMMAND,Unknown order,Ordre inconnu
-REFUSAL_OUT_OF_MAP,Outside the forest,Hors de la forêt
-REFUSAL_CELL_TAKEN,This cell is already taken,Cette case est déjà prise
-REFUSAL_NOT_ADJACENT,This cell does not touch your network,Cette case ne touche pas ton réseau
-REFUSAL_NOT_ENOUGH_NUTRIENTS,Not enough nutrients,Pas assez de nutriments
-REFUSAL_NO_GROWTH_SLOT,A cell is already growing: use the queue,Une case pousse déjà : utilise la file
-REFUSAL_QUEUE_FULL,The expansion queue is full,La file d'expansion est pleine
-REFUSAL_ALREADY_QUEUED,This cell is already in the queue,Cette case est déjà dans la file
-REFUSAL_NOT_QUEUED,This cell is not in the queue,Cette case n'est pas dans la file
-REFUSAL_ALREADY_GROWING,This cell is already growing,Cette case pousse déjà
-REFUSAL_GAME_OVER,The game is over,La partie est terminée
-REFUSAL_NOT_OWNED,This cell is not one of your grown cells,Cette case n'est pas une de tes cases poussées
-REFUSAL_HEART_CELL,The Heart takes up this cell,Le Cœur occupe cette case
-REFUSAL_CELL_OCCUPIED,This cell already has a building,Cette case a déjà un bâtiment
-REFUSAL_UNKNOWN_BUILDING,Unknown building,Bâtiment inconnu
-REFUSAL_TIER_LOCKED,Your colony has not reached the tier for this building,Ta colonie n'a pas atteint le palier de ce bâtiment
-REFUSAL_BUILD_QUEUE_FULL,The build queue is full,La file de construction est pleine
-REFUSAL_NOT_ENOUGH_ENZYMES,Not enough Enzymes,Pas assez d'Enzymes
-REFUSAL_NO_BUILDING,There is no building of yours here,Il n'y a pas de bâtiment à toi ici
-REFUSAL_BAD_PLACEMENT,This building cannot go on this cell,Ce bâtiment ne peut pas aller sur cette case
-REFUSAL_BUILDING_LIMIT,You already have as many of this building as allowed,Tu as déjà le nombre maximal de ce bâtiment
-REFUSAL_NO_BUILDING_SLOT,All your building places are taken,Toutes tes places de bâtiment sont prises
-BUILDING_DIGESTION_NODE,Digestion Node,Nœud de digestion
-BUILDING_GRANARY,Granary,Grenier
-BUILDING_NURSERY,Nursery,Pépinière
-BUILDING_ENZYME_GLAND,Enzyme Gland,Glande enzymatique
-BUILDING_MYCORRHIZA,Mycorrhiza,Mycorhize
 GAME_MENU_TITLE,Game menu,Menu de partie
 GAME_MENU_RESUME,Resume,Reprendre
 GAME_MENU_RESTART,Restart,Recommencer
@@ -145,30 +81,17 @@ END_MENU,Main menu,Menu principal
 RECAP_HEADER,%s %s — Sandbox,%s %s — Bac à sable
 RECAP_SETTINGS,Settings,Réglages
 RECAP_FOREST,Forest: %s (radius %d) · seed %d,Forêt : %s (rayon %d) · graine %d
-RECAP_ECONOMY,U: %s · zone 1 yield: %s/s · zone 1 growth: %d s · starting stock: %d U,U : %s · rendement en zone 1 : %s/s · pousse en zone 1 : %d s · stock de départ : %d U
-RECAP_EXPANSION,Cost increase per cell: %s · cohesion: +%s %% per neighbour · simultaneous growths: %d · queue: %d,Hausse du coût par case : %s · Cohésion : +%s %% par voisine · pousses simultanées : %d · file : %d
-RECAP_ZONES,Zones (richness / cost / growth): %s,Zones (richesse / coût / pousse) : %s
-RECAP_TIERS,Tiers (cells → production): %s,Paliers (cases → production) : %s
 RECAP_RESULTS,Results at %s,Résultats à %s
-RECAP_CELLS,Grown cells: %d · tier %d (%s),Cases poussées : %d · palier %d (%s)
+RECAP_CELLS,Cells: %d · tier %d (%s),Cases : %d · palier %d (%s)
 RECAP_PRODUCTION,Production: %s/s (peak %s/s) · biomass: %s · nutrients: %s,Production : %s/s (record %s/s) · biomasse : %s · nutriments : %s
 RECAP_TIER_TIMES,Tiers reached: %s,Paliers atteints : %s
 RECAP_ZONE_TIMES,Zones reached: %s,Zones atteintes : %s
 RECAP_AT,%d at %s,%d à %s
 RECAP_NONE,none,aucun
-RECAP_CONSTRUCTION,Buildings: %d places + %d per tier · stock cap %d s · growths max %d · sites %d → %d · build queue %d · refund %s %% · build times by tier (s) %s,Bâtiments : %d places + %d par palier · plafond du stock %d s · pousses max %d · chantiers %d → %d · file de construction %d · remboursement %s %% · durées par palier (s) %s
-RECAP_BUILDING,%s: %s,%s : %s
-RECAP_BUILDING_COST,%d s of production (at least %d U),%d s de production (au moins %d U)
-RECAP_BUILDING_TIER,tier %d,palier %d
-RECAP_BUILDING_MAX,%d at most,%d au plus
-RECAP_ENZYMES,Enzymes: %s (+%s/min) · stock cap: %s,Enzymes : %s (+%s/min) · plafond du stock : %s
-RECAP_BUILDINGS_BUILT,Buildings: %s,Bâtiments : %s
-RECAP_BUILDINGS_OFF,(%d disabled),(%d désactivés)
 SETTINGS_CONTROLS,Controls,Commandes
-ACTION_RECENTER,Centre on the Heart,Recentrer sur le Cœur
+ACTION_RECENTER,Centre on the Sporophore,Recentrer sur le Sporophore
 ACTION_PAUSE,Pause (sandbox),Pause (Bac à sable)
 ACTION_MENU,Game menu / back,Menu de partie / retour
-ACTION_QUEUE,Expansion queue (hold + click),File d'expansion (maintenir + clic)
 CONTROLS_PRESS_KEY,Press a key…,Appuie sur une touche…
 CONTROLS_RESET,Default controls,Commandes par défaut
 CONTROLS_KEY_TAKEN,Key already used by: %s,Touche déjà utilisée par : %s
@@ -191,99 +114,117 @@ KEY_ENTER,Enter,Entrée
 KEY_BACKSPACE,Backspace,Retour arrière
 KEY_TAB,Tab,Tab
 KEY_CTRL,Ctrl,Ctrl
-MENU_SIMULATIONS,Simulations (development),Simulations (développement)
-PROFILE_RANDOM,Random,Hasardeux
-PROFILE_PROFITABLE,Profitable,Rentable
-PROFILE_FAST,Fast,Rapide
-PROFILE_CENTER,Centre,Centre
-BUILDER_NONE,No building,Aucun bâtiment
-BUILDER_PRODUCER,Producer,Producteur
-BUILDER_ACCELERATOR,Accelerator,Accélérateur
-BUILDER_RANDOM,Random builder,Bâtisseur hasardeux
-SIM_ROBOTS,Robots,Robots
-SIM_ADD_ROBOT,Add a robot,Ajouter un robot
-SIM_REMOVE_ROBOT,Remove,Retirer
-SIM_ROBOT_SHARE,Robots: share of production for expansion (%),Robots : part de la production pour l'expansion (%)
-SIM_M_WAIT_BUILD,Time waiting for a site or a place in the build queue (%),Temps à attendre un chantier ou une place dans la file de construction (%)
-SIM_M_FIRST_BUILDING,First %s finished (min),1er bâtiment « %s » terminé (min)
-SIM_M_BUILDING_COUNT,%s built at the end,Bâtiments « %s » à la fin
-SIM_M_LOST,Nutrients lost at the stock cap,Nutriments perdus au plafond du stock
-SIM_M_LOST_SHARE,Production lost at the stock cap (%),Production perdue au plafond du stock (%)
-SIM_M_ENZYMES,Enzymes produced,Enzymes produites
-SIM_TITLE,Simulations,Simulations
-SIM_TAB_SETTINGS,Settings,Réglages
-SIM_TAB_LAUNCH,Launch,Lancement
-SIM_TAB_RESULTS,Results,Résultats
-SIM_RUNS,Simulations per robot,Simulations par robot
-SIM_DURATION,Simulated duration (min),Durée simulée (min)
-SIM_MODE,Launch,Lancement
-SIM_MODE_SIMPLE,Simple,Simple
-SIM_MODE_SWEEP,Sweep,Balayage
-SIM_SWEEP_VALUE,Swept value,Valeur balayée
-SIM_SWEEP_MIN,Minimum,Minimum
-SIM_SWEEP_MAX,Maximum,Maximum
-SIM_SWEEP_STEP,Step,Pas
-SIM_START,Run the simulations,Lancer les simulations
-SIM_RUNNING,%d / %d games,%d / %d parties
-SIM_NO_PROFILE,Add at least one robot,Ajoute au moins un robot
-SIM_DONE,Done: %d games in %s s,Terminé : %d parties en %s s
-SIM_EXPORT,Export CSV,Exporter en CSV
-SIM_EXPORTED,Saved: %s,Enregistré : %s
-SIM_OPEN_FOLDER,Open the folder,Ouvrir le dossier
-SIM_REPLAY,Replay on the map,Rejouer sur la carte
-SIM_REPLAY_SERIES,Series,Série
-SIM_REPLAY_RUN,Game,Partie
-SIM_NO_RESULTS,No results yet: run simulations from the Launch tab.,Pas encore de résultats : lance des simulations depuis l'onglet Lancement.
-SIM_CURVES,"Production per minute (average, log scale)","Production par minute (moyenne, échelle log)"
-SIM_BACK,Back,Retour
-SIM_M_ZONE,Arrival in zone %d (min),Arrivée en zone %d (min)
-SIM_M_TIER,Tier %d reached (min),Palier %d atteint (min)
-SIM_THIRD_START,start,début
-SIM_THIRD_MIDDLE,middle,milieu
-SIM_THIRD_END,end,fin
-SIM_M_PAYBACK,"Cell payback, %s (s)","Remboursement d'une case, %s (s)"
-SIM_M_UNPAID,"Cells not paid back, %s","Cases non remboursées, %s"
-SIM_M_WAIT_GROWTH,Time waiting for growth (%),Temps à attendre la pousse (%)
-SIM_M_WAIT_NUTRIENTS,Time waiting for nutrients (%),Temps à attendre les nutriments (%)
-SIM_M_WAIT_NOTHING,Time with nothing to colonize (%),Temps sans rien à coloniser (%)
-SIM_M_CELLS,Grown cells at the end,Cases poussées à la fin
-SIM_M_FINAL_TIER,Tier at the end,Palier à la fin
-SIM_M_PRODUCTION,Production at the end (/s),Production à la fin (/s)
-SIM_M_PEAK,Peak production (/s),Record de production (/s)
-SIM_M_BIOMASS,Biomass,Biomasse
-SIM_M_MINUTE,Production in minute %d (/s),Production à la minute %d (/s)
-SIM_CSV_MEASURE,Measure,Mesure
-SIM_CSV_STAT,Statistic,Statistique
-SIM_STAT_MEAN,mean,moyenne
-SIM_STAT_MIN,min,min
-SIM_STAT_MAX,max,max
-SIM_STAT_STD,std dev,écart type
-SIM_STAT_COUNT,games,parties
-SIM_CELL_STATS,"%s (%s – %s, σ %s)","%s (%s – %s, σ %s)"
-SIM_NEVER,—,—
-REPLAY_TITLE,"Replay: %s, game %d","Rejeu : %s, partie %d"
-HUD_STOCK_CAP,Stock cap,Plafond du stock
 HUD_ENZYMES,Enzymes,Enzymes
-HUD_ENZYMES_VALUE,%s · +%s /min,%s · +%s /min
-HUD_BUILDS,Buildings: %d / %d · Sites: %d / %d · Build queue: %d / %d,Bâtiments : %d / %d · Chantiers : %d / %d · File : %d / %d
-HUD_DEMOLISH,Demolish (+%s),Démolir (+%s)
-HUD_CANCEL_BUILD,Cancel (+%s),Annuler (+%s)
-HUD_HINT_BUILD,Click your colony: build · Palette or 1–5: place several · %s or short right-click: stop,Clic sur ta colonie : bâtir · Palette ou 1 à 5 : poser plusieurs · %s ou clic droit court : arrêter
-BUILDING_STATE_QUEUED,In the build queue (#%d),Dans la file de construction (n° %d)
-BUILDING_STATE_CONSTRUCTING,Under construction: %d s left,En construction : encore %d s
-BUILDING_STATE_ACTIVE,Active,Actif
-BUILDING_STATE_LOCKED,Disabled: tier %d required (%d cells),Désactivé : palier %d requis (%d cases)
-BUILDING_EFFECT_YIELD,+%s %% production for your cells within %d cells,+%s %% de production pour tes cases à %d cases ou moins
-BUILDING_EFFECT_ENZYMES_ZONE,+%d Enzymes/min per your cell within %d cells,+%d Enzymes/min par case à toi à %d cases ou moins
-BUILDING_EFFECT_COVERED,Covers %d of your cells,Couvre %d de tes cases
-BUILDING_EFFECT_STOCK,+%d min of stock cap,+%d min de plafond de stock
-BUILDING_EFFECT_GROWTH,Growth −%s %% within %d cells,Pousse −%s %% dans un rayon de %d
-BUILDING_EFFECT_SITES,+%d construction site,+%d chantier simultané
-BUILDING_EFFECT_GROWTHS,+%d simultaneous growth,+%d pousse simultanée
-BUILDING_COST_ENZYMES,%d Enzymes,%d Enzymes
-TIP_BUILD_HERE,Build %s here: %s,Poser %s ici : %s
-ACTION_BUILD_1,Palette building 1,Bâtiment 1 de la palette
-ACTION_BUILD_2,Palette building 2,Bâtiment 2 de la palette
-ACTION_BUILD_3,Palette building 3,Bâtiment 3 de la palette
-ACTION_BUILD_4,Palette building 4,Bâtiment 4 de la palette
-ACTION_BUILD_5,Palette building 5,Bâtiment 5 de la palette
+SANDBOX_GENERAL,General,Général
+SANDBOX_COHESION_CAP,Cohesion: production cap (%),Cohésion : plafond de production (%)
+SANDBOX_STRAIN,Armillaria: production bonus at 30:00 (%),Armillaire : bonus de production à 30:00 (%)
+SANDBOX_CELL_HP,Base cell HP,PV de base d'une case
+SANDBOX_COHESION_HP,Cohesion: HP per owned neighbour (%),Cohésion : PV par voisine possédée (%)
+SANDBOX_REGEN,Regeneration (% of max HP per second),Régénération (% des PV max par seconde)
+SANDBOX_CAPTURED_HP,HP of a captured enemy cell (% of max),PV d'une case adverse prise (% du max)
+SANDBOX_TURRET_DAMAGE,Sporophore: damage per spore,Sporophore : dégâts par spore
+SANDBOX_TURRET_RATE,Sporophore: shots per second,Sporophore : tirs par seconde
+SANDBOX_TURRET_RANGE,Sporophore: range (cells),Sporophore : portée (cases)
+SANDBOX_TURRET_SPORES,Sporophore: spores per shot,Sporophore : spores par tir
+SANDBOX_TURRET_HP,Sporophore: HP (in base cell HP),Sporophore : PV (en PV de base d'une case)
+SANDBOX_HEAL,Heal per spore (% of damage),Soin par spore (% des dégâts)
+SANDBOX_STEP,Duration of a Sporophore step (s),Durée d'un pas du Sporophore (s)
+SANDBOX_CRIT_DAMAGE,Critical hit damage (×),Dégâts d'un coup critique (×)
+SANDBOX_PROTECTION,Starting protection (s),Protection de départ (s)
+SANDBOX_TROPHY_PRODUCTION,Trophy: production bonus (%),Trophée : bonus de production (%)
+SANDBOX_TROPHY_ENZYMES,Trophy: Enzymes,Trophée : Enzymes
+SANDBOX_ZONE_FREE_HP,Free cell HP ×,PV d'une case libre ×
+SANDBOX_ZONE_DEFENSE,Owned cell HP ×,PV d'une case possédée ×
+SANDBOX_TIER_ENZYMES,Enzymes,Enzymes
+SANDBOX_UPGRADES,Upgrades,Améliorations
+SANDBOX_UPGRADE,Upgrade,Amélioration
+SANDBOX_UPGRADE_EFFECT,Effect per level,Effet par niveau
+SANDBOX_UPGRADE_COST,Base cost (U),Coût de base (U)
+SANDBOX_UPGRADE_GROWTH,Cost × per level (0: general),Coût × par niveau (0 : général)
+SANDBOX_UPGRADE_MAX,Maximum level (0: none),Niveau maximal (0 : aucun)
+SANDBOX_UNLOCK_TIER,Tier,Palier
+SANDBOX_ABILITIES,Abilities,Capacités
+SANDBOX_ABILITY,Ability,Capacité
+SANDBOX_ABILITY_COST,Enzymes,Enzymes
+SANDBOX_ABILITY_COOLDOWN,Cooldown (s),Recharge (s)
+SANDBOX_ABILITY_DURATION,Duration (s),Durée (s)
+SANDBOX_ABILITY_RATE,Rate ×,Cadence ×
+SANDBOX_ABILITY_RADIUS,Radius,Rayon
+SANDBOX_ABILITY_SHOTS,Shots of damage,Tirs de dégâts
+HUD_TURRET,Sporophore: HP %s / %s · damage %s · %s shots/s · range %d · spores %d,Sporophore : PV %s / %s · dégâts %s · %s tirs/s · portée %d · spores %d
+HUD_ELIMINATED,Your Sporophore has fallen,Ton Sporophore est tombé
+TIP_TURRET,Sporophore,Sporophore
+TIP_ENEMY,Enemy colony,Colonie adverse
+TIP_HP,HP: %s / %s,PV : %s / %s
+TIP_TARGETABLE,Click to target,Clic pour viser
+RECAP_PAIR,%s: %s,%s : %s
+RECAP_COMBAT,Enzymes: %s · cells captured: %d · trophies: %d,Enzymes : %s · cases prises : %d · trophées : %d
+RECAP_UPGRADES,Upgrades: %s,Améliorations : %s
+RECAP_MUTATIONS,Mutations: %s,Mutations : %s
+ACTION_MOVE_TURRET,Move the Sporophore (then click),Déplacer le Sporophore (puis clic)
+UPGRADE_DAMAGE,Damage,Dégâts
+UPGRADE_RATE,Fire rate,Cadence
+UPGRADE_RANGE,Range,Portée
+UPGRADE_YIELD,Yield,Rendement
+UPGRADE_REGEN,Regeneration,Régénération
+UPGRADE_HEAL,Healing,Soin
+UPGRADE_SPORES,Spores per shot,Spores par tir
+UPGRADE_CELL_HP,Cell HP,PV des cases
+UPGRADE_SPLASH,Splash,Éclaboussure
+UPGRADE_CRIT,Critical hit,Critique
+UPGRADE_TURRET_HP,Sporophore bark,Écorce du Sporophore
+UPGRADE_BOUNCE,Bounce,Rebond
+MUTATION_HEAVY_SPORES,Heavy spores,Spores lourdes
+MUTATION_HEAVY_SPORES_DESC,"Damage ×1.5, fire rate ×0.8","Dégâts ×1,5, cadence ×0,8"
+MUTATION_LIGHT_SPORES,Light spores,Spores légères
+MUTATION_LIGHT_SPORES_DESC,"Fire rate ×1.4, damage ×0.8","Cadence ×1,4, dégâts ×0,8"
+MUTATION_LONG_HYPHAE,Long hyphae,Hyphes longues
+MUTATION_LONG_HYPHAE_DESC,Range +1,Portée +1
+MUTATION_COHESION,Cohesion,Cohésion
+MUTATION_COHESION_DESC,Cohesion counts double (production and HP),La Cohésion compte double (production et PV)
+MUTATION_TENACIOUS,Tenacious mycelium,Mycélium tenace
+MUTATION_TENACIOUS_DESC,Regeneration ×2,Régénération ×2
+MUTATION_DEEP_ROOTS,Deep roots,Racines profondes
+MUTATION_DEEP_ROOTS_DESC,Production in zones 4 to 6 ×1.3,"Production des zones 4 à 6 ×1,3"
+MUTATION_PIONEER,Pioneer,Pionnier
+MUTATION_PIONEER_DESC,Free cells take ×1.5 damage,"Les cases libres prennent ×1,5 dégâts"
+MUTATION_PREDATOR,Predator,Prédateur
+MUTATION_PREDATOR_DESC,Enemy cells take ×1.3 damage,"Les cases adverses prennent ×1,3 dégâts"
+MUTATION_HEALER,Healer,Guérisseur
+MUTATION_HEALER_DESC,Healing ×2,Soin ×2
+MUTATION_SPORE_BURST,Spore burst,Sporée
+MUTATION_SPORE_BURST_DESC,+1 spore per shot,+1 spore par tir
+MUTATION_GLAND,Gland,Glande
+MUTATION_GLAND_DESC,+50% Enzymes at the next tiers,+50 % d'Enzymes aux prochains paliers
+MUTATION_SWIFT,Swift,Rapide
+MUTATION_SWIFT_DESC,A Sporophore step lasts 5 s,Un pas du Sporophore dure 5 s
+MUTATION_ARMORED,Armoured,Blindé
+MUTATION_ARMORED_DESC,Sporophore HP ×2,PV du Sporophore ×2
+MUTATION_TOXIC,Toxic,Toxique
+MUTATION_TOXIC_DESC,Cells you hit stop regenerating for 5 s,Les cases touchées ne se régénèrent plus pendant 5 s
+MUTATION_MISER,Miser,Avare
+MUTATION_MISER_DESC,Upgrades cost 15% less,Améliorations −15 % de coût
+ABILITY_SALVO,Salvo,Salve
+ABILITY_WALL,Mycelium wall,Mur de mycélium
+ABILITY_CLOUD,Toxic cloud,Nuage toxique
+REFUSAL_UNKNOWN_COLONY,This colony no longer plays,Cette colonie ne joue plus
+REFUSAL_UNKNOWN_COMMAND,Unknown order,Ordre inconnu
+REFUSAL_OUT_OF_MAP,Outside the forest,Hors de la forêt
+REFUSAL_GAME_OVER,The game is over,La partie est terminée
+REFUSAL_OUT_OF_RANGE,Out of your Sporophore's range,Hors de portée de ton Sporophore
+REFUSAL_NOT_ADJACENT,This cell does not touch your colony,Cette case ne touche pas ta colonie
+REFUSAL_PROTECTED,Not during the starting protection,Pas pendant la protection de départ
+REFUSAL_NOT_WOUNDED,This cell is at full health,Cette case est à pleine vie
+REFUSAL_TURRET_CELL,Your Sporophore stands on this cell,Ton Sporophore est sur cette case
+REFUSAL_NOT_OWNED,This cell is not yours,Cette case n'est pas à toi
+REFUSAL_ALREADY_MOVING,Your Sporophore is already moving,Ton Sporophore est déjà en train de se déplacer
+REFUSAL_UNKNOWN_PRIORITY,Unknown priority,Priorité inconnue
+REFUSAL_UNKNOWN_UPGRADE,Unknown upgrade,Amélioration inconnue
+REFUSAL_TIER_LOCKED,Your colony has not reached the required tier,Ta colonie n'a pas atteint le palier requis
+REFUSAL_MAX_LEVEL,Maximum level reached,Niveau maximal atteint
+REFUSAL_NOT_ENOUGH_NUTRIENTS,Not enough nutrients,Pas assez de nutriments
+REFUSAL_NO_MUTATION_OFFER,No mutation to choose,Aucune mutation à choisir
+REFUSAL_UNKNOWN_MUTATION,Unknown mutation,Mutation inconnue
+REFUSAL_UNKNOWN_ABILITY,Unknown ability,Capacité inconnue
+REFUSAL_COOLDOWN,This ability is recharging,Cette capacité se recharge
+REFUSAL_NOT_ENOUGH_ENZYMES,Not enough Enzymes,Pas assez d'Enzymes

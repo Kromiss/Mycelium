@@ -11,44 +11,40 @@ enum Code {
 	UNKNOWN_COMMAND,
 	## La case n'est pas dans la forêt.
 	OUT_OF_MAP,
-	## La case n'est pas libre (poussée ou en pousse).
-	CELL_TAKEN,
-	## La case ne touche pas le réseau de la colonie (ni, pour la file, une case déjà en file).
-	NOT_ADJACENT,
-	## Pas assez de nutriments.
-	NOT_ENOUGH_NUTRIENTS,
-	## Toutes les pousses simultanées sont occupées.
-	NO_GROWTH_SLOT,
-	## La file d'expansion est pleine.
-	QUEUE_FULL,
-	## La case est déjà dans la file.
-	ALREADY_QUEUED,
-	## La case n'est pas dans la file.
-	NOT_QUEUED,
-	## La pousse de la case a déjà démarré : elle va à son terme.
-	ALREADY_GROWING,
 	## La partie est terminée.
 	GAME_OVER,
-	## La case n'est pas une case poussée de la colonie.
+	## La case n'est pas dans le cercle de portée de la Tourelle.
+	OUT_OF_RANGE,
+	## La case ne touche pas le territoire de la colonie (ou n'est pas voisine de la Tourelle).
+	NOT_ADJACENT,
+	## Case adverse ou capacité pendant la protection de départ.
+	PROTECTED,
+	## La case est à la colonie et à pleine vie : rien à soigner.
+	NOT_WOUNDED,
+	## La case est celle de la Tourelle.
+	TURRET_CELL,
+	## La case n'est pas à la colonie.
 	NOT_OWNED,
-	## Le Cœur occupe la case.
-	HEART_CELL,
-	## La case a déjà un bâtiment (construit, en chantier ou en file).
-	CELL_OCCUPIED,
-	## Ce bâtiment n'existe pas.
-	UNKNOWN_BUILDING,
-	## Le palier de colonie qui débloque ce bâtiment n'est pas atteint.
+	## La Tourelle fait déjà un pas.
+	ALREADY_MOVING,
+	## Cette priorité de tir n'existe pas.
+	UNKNOWN_PRIORITY,
+	## Cette amélioration n'existe pas.
+	UNKNOWN_UPGRADE,
+	## Le palier de colonie qui la débloque n'est pas atteint.
 	TIER_LOCKED,
-	## La file de construction est pleine.
-	BUILD_QUEUE_FULL,
+	## Niveau maximal atteint.
+	MAX_LEVEL,
+	## Pas assez de nutriments.
+	NOT_ENOUGH_NUTRIENTS,
+	## Aucun choix de mutation en attente.
+	NO_MUTATION_OFFER,
+	## Ce choix de mutation n'existe pas.
+	UNKNOWN_MUTATION,
+	## Cette capacité n'existe pas.
+	UNKNOWN_ABILITY,
+	## La capacité se recharge.
+	COOLDOWN,
 	## Pas assez d'Enzymes.
 	NOT_ENOUGH_ENZYMES,
-	## Pas de bâtiment à démolir sur la case.
-	NO_BUILDING,
-	## La règle de pose du bâtiment n'est pas respectée (case frontière ou non).
-	BAD_PLACEMENT,
-	## Nombre maximal de ce bâtiment atteint.
-	BUILDING_LIMIT,
-	## Toutes les places de bâtiment de la colonie sont prises.
-	NO_BUILDING_SLOT,
 }

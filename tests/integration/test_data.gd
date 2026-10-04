@@ -1,5 +1,6 @@
 extends GutTest
-## Cohérence des données : zones, modes, palettes et traductions.
+## Cohérence des données : zones, paliers, améliorations, mutations, capacités, modes et
+## traductions.
 
 # Chargées avec load() : un preload() en constante fausse ici la vérification des types.
 const ZONES_PATH: String = "res://data/zones.tres"
@@ -19,6 +20,9 @@ const SOURCES: Array[String] = [
 	"res://ui/hud/hud.tscn",
 	"res://ui/hud/hud.gd",
 	"res://ui/hud/cell_tooltip.gd",
+	"res://ui/sandbox/sandbox_param.gd",
+	"res://ui/sandbox/settings_form.gd",
+	"res://ui/sandbox/settings_form.tscn",
 	"res://game/sandbox_recap.gd",
 	"res://game/sandbox_screen.gd",
 	"res://view/input/map_input.gd",
@@ -42,9 +46,8 @@ func test_zones_get_richer_and_harder_towards_the_center() -> void:
 		var previous: ZoneDef = zones.zones[i - 1]
 		var current: ZoneDef = zones.zones[i]
 		assert_gt(current.richness_pm, previous.richness_pm)
-		assert_gt(current.colonize_cost_pm, previous.colonize_cost_pm)
-		assert_gt(current.growth_time_pm, previous.growth_time_pm)
-		assert_gt(current.capture_time_pm, previous.capture_time_pm)
+		assert_gt(current.free_hp_pm, previous.free_hp_pm)
+		assert_gt(current.defense_pm, previous.defense_pm)
 
 
 func test_modes_have_equitable_colony_counts() -> void:
@@ -64,6 +67,7 @@ func test_tiers_double_production_at_growing_thresholds() -> void:
 		assert_eq(tier.tier, i + 1)
 		assert_gt(tier.cells, cells)
 		assert_gt(tier.production_pm, production)
+		assert_gt(tier.enzymes, 0)
 		cells = tier.cells
 		production = tier.production_pm
 
@@ -76,8 +80,79 @@ func test_balance_values_are_usable() -> void:
 	var balance: BalanceDef = load("res://data/balance.tres")
 	assert_gt(balance.unit_cost, 0)
 	assert_gt(balance.cell_yield, 0)
-	assert_gt(balance.base_growth_ticks, 0)
-	assert_gte(balance.expansion_queue_size, balance.max_growths)
+	assert_gt(balance.turret_damage, 0)
+	assert_gt(balance.cell_hp, 0)
+	assert_lt(balance.protection_ticks, balance.match_ticks)
+
+
+func test_upgrades_match_the_catalogue() -> void:
+	var table: UpgradeTable = load("res://data/upgrades.tres")
+	var ids: Array[StringName] = []
+	for upgrade: UpgradeDef in table.upgrades:
+		assert_false(ids.has(upgrade.id), String(upgrade.id))
+		ids.append(upgrade.id)
+		assert_gt(upgrade.effect, 0, String(upgrade.id))
+		assert_gt(upgrade.base_cost_units, 0, String(upgrade.id))
+		assert_between(upgrade.unlock_tier, 0, 6, String(upgrade.id))
+	assert_eq(
+		ids,
+		[
+			&"damage",
+			&"rate",
+			&"range",
+			&"yield",
+			&"regen",
+			&"heal",
+			&"spores",
+			&"cell_hp",
+			&"splash",
+			&"crit",
+			&"turret_hp",
+			&"bounce",
+		]
+	)
+
+
+func test_every_mutation_changes_something() -> void:
+	var table: MutationTable = load("res://data/mutations.tres")
+	assert_eq(table.mutations.size(), 15)
+	var neutral := MutationDef.new()
+	for mutation: MutationDef in table.mutations:
+		var changes: int = 0
+		for property: Dictionary in mutation.get_property_list():
+			var name: String = property["name"]
+			if property["usage"] & PROPERTY_USAGE_SCRIPT_VARIABLE == 0:
+				continue
+			if name in ["id", "name_key", "desc_key"]:
+				continue
+			if mutation.get(name) != neutral.get(name):
+				changes += 1
+		assert_gt(changes, 0, String(mutation.id))
+
+
+func test_abilities_unlock_at_tiers_one_three_and_five() -> void:
+	var table: AbilityTable = load("res://data/abilities.tres")
+	var tiers: Array[int] = []
+	for ability: AbilityDef in table.abilities:
+		tiers.append(ability.unlock_tier)
+	assert_eq(tiers, [1, 3, 5])
+
+
+func test_content_names_are_translated() -> void:
+	var rows: Dictionary[String, PackedStringArray] = _translation_rows()
+	var defs: SimDefs = SimDefs.from_mode(MODES[0])
+	var keys: Array[String] = []
+	for upgrade: SimUpgrade in defs.upgrades:
+		keys.append(upgrade.name_key)
+	for mutation: SimMutation in defs.mutations:
+		keys.append_array([mutation.name_key, mutation.desc_key])
+	for ability: SimAbility in defs.abilities:
+		keys.append(ability.name_key)
+	for name: String in Refusal.Code.keys():
+		if name != "OK":
+			keys.append("REFUSAL_" + name)
+	for key: String in keys:
+		assert_true(rows.has(key), key)
 
 
 func test_every_translation_has_english_and_french() -> void:

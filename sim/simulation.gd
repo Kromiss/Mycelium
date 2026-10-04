@@ -8,46 +8,47 @@ extends RefCounted
 var state: GameState
 
 var _commands := CommandSystem.new()
-var _growth := GrowthSystem.new()
+var _turrets := TurretSystem.new()
+var _regen := RegenSystem.new()
 var _tiers := TierSystem.new()
 var _economy := EconomySystem.new()
 var _victory := VictorySystem.new()
 
 
 ## Crée une partie : forêt de « defs », « colony_count » colonies (une par secteur, dans
-## l'ordre des secteurs ; moins de colonies que de secteurs en Bac à sable), stock de départ.
+## l'ordre des secteurs ; moins de colonies que de secteurs en Bac à sable), Tourelles sur
+## les coins de la forêt.
 func _init(defs: SimDefs, game_seed: int, colony_count: int = -1) -> void:
 	var problems: PackedStringArray = defs.validate()
 	assert(problems.is_empty(), "Définitions invalides : %s" % ", ".join(problems))
 	var count: int = defs.sectors if colony_count < 0 else colony_count
 	assert(count >= 1 and count <= defs.sectors, "Nombre de colonies hors limites.")
+	defs.prepare()
 	state = GameState.new()
 	state.game_seed = game_seed
 	state.rng = SimRng.new(game_seed)
 	state.map = MapGenerator.generate_shape(defs.rings_per_zone, defs.zone_count())
 	state.defs = defs
-	defs.prepare(state.map.size())
+	state.start_colonies = count
 	var size: int = state.map.size()
 	state.owner.resize(size)
 	state.owner.fill(-1)
-	state.cell_state.resize(size)
-	state.growth_left.resize(size)
-	state.connected.resize(size)
-	state.building.resize(size)
-	state.building.fill(-1)
-	state.building_state.resize(size)
-	state.build_left.resize(size)
-	state.building_paid.resize(size)
-	state.building_paid_enzymes.resize(size)
-	state.building_active.resize(size)
+	state.hp.resize(size)
+	state.last_hitter.resize(size)
+	state.last_hitter.fill(-1)
+	state.no_regen_until.resize(size)
+	state.cell_rank = _shuffled_ranks(size)
+	for cell: int in range(size):
+		state.hp[cell] = ColonyStats.free_max_hp(state, cell)
 	for sector: int in range(count):
 		_place_colony(sector)
-	state.recompute_network()
+	# Les PV des cases de départ dépendent de leurs voisines : calculés une fois tout placé.
 	for colony: ColonyState in state.colonies:
-		colony.tier = TierSystem.tier_for(defs, colony.cell_count)
-		colony.stock_cap = EconomySystem.colony_production(state, colony) * defs.stock_cap_seconds
-		for reached: int in range(colony.tier):
-			colony.tier_ticks[reached] = 0
+		for cell: int in range(size):
+			if state.owner[cell] == colony.id:
+				state.hp[cell] = ColonyStats.cell_max_hp(state, cell)
+		colony.turret_hp = ColonyStats.turret_max_hp(defs, colony)
+		colony.tier = ColonyStats.tier_for(defs, colony.cell_count)
 
 
 ## Joue un tick avec les commandes reçues depuis le précédent. Ordre fixe des systèmes.
@@ -62,7 +63,8 @@ func tick(commands: Array[Command] = []) -> TickResult:
 		result.state_hash = StateHash.compute(state)
 		return result
 	_commands.run(state, commands, result)
-	_growth.run(state, result)
+	_turrets.run(state, result)
+	_regen.run(state, result)
 	_tiers.run(state, result)
 	_economy.run(state, result)
 	_victory.run(state, state.tick + 1, result)
@@ -84,101 +86,82 @@ func cell_index(cell: Vector2i) -> int:
 	return state.map.index_of(cell)
 
 
-## Coût de colonisation d'une case pour une colonie, en millièmes (−1 hors de la forêt).
-func colonize_cost(colony_id: int, cell: Vector2i) -> int:
-	var index: int = cell_index(cell)
+## Raison pour laquelle une commande serait refusée si elle était jouée maintenant
+## (OK si elle serait acceptée). La colonie est celle de la commande.
+func check(command: Command) -> Refusal.Code:
+	return CommandSystem.check(state, command)
+
+
+## PV max d'une case (libre ou possédée), en millièmes.
+func cell_max_hp(cell: int) -> int:
+	return ColonyStats.cell_max_hp(state, cell)
+
+
+## Vrai si la case est dans le cercle de portée de la Tourelle de la colonie.
+func in_range(colony_id: int, cell: int) -> bool:
 	var colony: ColonyState = state.colony(colony_id)
-	if index < 0 or colony == null:
+	return colony != null and colony.alive and Targeting.in_range(state, colony, cell)
+
+
+## Vrai si la colonie peut viser la case (prise ou soin).
+func is_target(colony_id: int, cell: int) -> bool:
+	var colony: ColonyState = state.colony(colony_id)
+	return colony != null and colony.alive and Targeting.is_target(state, colony, cell)
+
+
+## Coût du prochain niveau d'une amélioration pour la colonie, en millièmes
+## (−1 : niveau maximal atteint ou amélioration inconnue).
+func upgrade_cost(colony_id: int, upgrade: StringName) -> int:
+	var colony: ColonyState = state.colony(colony_id)
+	var index: int = state.defs.upgrade_index(upgrade)
+	if colony == null or index < 0:
 		return -1
-	return Expansion.cost(state, colony, index)
+	return ColonyStats.upgrade_cost(state.defs, colony, index)
 
 
-## Durée de pousse d'une case, en secondes (−1 hors de la forêt).
-func growth_ticks(cell: Vector2i) -> int:
-	var index: int = cell_index(cell)
-	return -1 if index < 0 else Expansion.growth_ticks(state, index)
-
-
-## Raison pour laquelle un clic direct serait refusé (OK s'il serait accepté).
-func check_colonize(colony_id: int, cell: Vector2i) -> Refusal.Code:
+## Ce qu'achèterait un achat de « count » niveaux (0 : maximum) : [niveaux, coût total].
+func upgrade_preview(colony_id: int, upgrade: StringName, count: int) -> PackedInt64Array:
 	var colony: ColonyState = state.colony(colony_id)
-	if colony == null or not colony.alive:
-		return Refusal.Code.UNKNOWN_COLONY
-	if state.finished:
-		return Refusal.Code.GAME_OVER
-	return Expansion.check_colonize(state, colony, cell_index(cell))
-
-
-## Raison pour laquelle un ajout à la file serait refusé (OK s'il serait accepté).
-## « pending » : cases dont l'ajout est déjà demandé pour le prochain tick (tracé en cours).
-func check_enqueue(colony_id: int, cell: Vector2i, pending: Array[Vector2i] = []) -> Refusal.Code:
-	var colony: ColonyState = state.colony(colony_id)
-	if colony == null or not colony.alive:
-		return Refusal.Code.UNKNOWN_COLONY
-	if state.finished:
-		return Refusal.Code.GAME_OVER
-	var indices := PackedInt32Array()
-	for other: Vector2i in pending:
-		indices.append(cell_index(other))
-	return Expansion.check_enqueue(state, colony, cell_index(cell), indices)
-
-
-## Production d'une case pour une colonie, en millièmes par seconde, palier compris : ce
-## qu'elle rapporte si elle lui appartient, ou rapporterait une fois poussée sinon.
-func cell_production(colony_id: int, cell: Vector2i) -> int:
-	var index: int = cell_index(cell)
-	var colony: ColonyState = state.colony(colony_id)
-	if index < 0 or colony == null:
-		return -1
-	var base: int = EconomySystem.cell_production(state, colony_id, index)
-	return Fixed.mul(base, TierSystem.production_pm(state.defs, colony.tier))
-
-
-## Raison pour laquelle une pose serait refusée (OK si elle serait acceptée).
-func check_build(colony_id: int, cell: Vector2i, building: StringName) -> Refusal.Code:
-	var colony: ColonyState = state.colony(colony_id)
-	if colony == null or not colony.alive:
-		return Refusal.Code.UNKNOWN_COLONY
-	if state.finished:
-		return Refusal.Code.GAME_OVER
-	var type: int = state.defs.building_index(building)
-	return Buildings.check_build(state, colony, cell_index(cell), type)
-
-
-## Raison pour laquelle une démolition serait refusée (OK si elle serait acceptée).
-func check_demolish(colony_id: int, cell: Vector2i) -> Refusal.Code:
-	var colony: ColonyState = state.colony(colony_id)
-	if colony == null or not colony.alive:
-		return Refusal.Code.UNKNOWN_COLONY
-	if state.finished:
-		return Refusal.Code.GAME_OVER
-	return Buildings.check_demolish(state, colony, cell_index(cell))
-
-
-## Coût d'un nouveau bâtiment pour une colonie, en millièmes de nutriment (−1 s'il n'existe pas).
-func building_cost(colony_id: int, building: StringName) -> int:
-	var colony: ColonyState = state.colony(colony_id)
-	var type: int = state.defs.building_index(building)
-	if colony == null or type < 0:
-		return -1
-	return Buildings.cost(state, colony, type)
+	var index: int = state.defs.upgrade_index(upgrade)
+	if colony == null or index < 0:
+		return PackedInt64Array([0, 0])
+	return Upgrades.preview(state, colony, index, count)
 
 
 func _place_colony(sector: int) -> void:
+	var defs: SimDefs = state.defs
 	var colony := ColonyState.new()
 	colony.id = state.colonies.size()
 	colony.sector = sector
-	colony.nutrients = state.defs.start_stock()
-	colony.tier_ticks.resize(state.defs.tier_cells.size())
+	colony.nutrients = defs.start_stock()
+	colony.tier_ticks.resize(defs.tier_count())
 	colony.tier_ticks.fill(-1)
-	colony.zone_ticks.resize(state.defs.zone_count())
+	colony.zone_ticks.resize(defs.zone_count())
 	colony.zone_ticks.fill(-1)
-	for cell: Vector2i in MapGenerator.start_cells(state.map.radius, sector, state.defs.sectors):
+	colony.upgrade_levels.resize(defs.upgrades.size())
+	colony.ability_ready.resize(defs.abilities.size())
+	for cell: Vector2i in MapGenerator.start_cells(state.map.radius, sector, defs.sectors):
 		var index: int = state.map.index_of(cell)
 		state.owner[index] = colony.id
-		state.cell_state[index] = GameState.CellState.OWNED
 		colony.cell_count += 1
 		colony.zone_ticks[state.map.zones[index] - 1] = 0
-		if colony.heart < 0:
-			colony.heart = index
+		if colony.turret < 0:
+			colony.turret = index
 	state.colonies.append(colony)
+
+
+## Rang de chaque case dans un ordre tiré de la graine (mélange de Fisher-Yates).
+func _shuffled_ranks(size: int) -> PackedInt32Array:
+	var order := PackedInt32Array()
+	for cell: int in range(size):
+		order.append(cell)
+	for i: int in range(size - 1, 0, -1):
+		var j: int = state.rng.range_int(i + 1)
+		var swap: int = order[i]
+		order[i] = order[j]
+		order[j] = swap
+	var ranks := PackedInt32Array()
+	ranks.resize(size)
+	for position: int in range(size):
+		ranks[order[position]] = position
+	return ranks

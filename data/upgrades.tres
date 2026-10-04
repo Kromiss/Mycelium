@@ -1,0 +1,152 @@
+[gd_resource type="Resource" script_class="UpgradeTable" load_steps=15 format=3]
+
+[ext_resource type="Script" path="res://sim/defs/upgrade_def.gd" id="1_item"]
+[ext_resource type="Script" path="res://sim/defs/upgrade_table.gd" id="2_table"]
+
+[sub_resource type="Resource" id="upgrade_1"]
+script = ExtResource("1_item")
+id = &"damage"
+name_key = "UPGRADE_DAMAGE"
+tab = 0
+stat = 0
+effect = 250
+base_cost_units = 1
+cost_growth_pm = 0
+max_level = 0
+unlock_tier = 0
+
+[sub_resource type="Resource" id="upgrade_2"]
+script = ExtResource("1_item")
+id = &"rate"
+name_key = "UPGRADE_RATE"
+tab = 0
+stat = 1
+effect = 100
+base_cost_units = 2
+cost_growth_pm = 0
+max_level = 0
+unlock_tier = 0
+
+[sub_resource type="Resource" id="upgrade_3"]
+script = ExtResource("1_item")
+id = &"range"
+name_key = "UPGRADE_RANGE"
+tab = 0
+stat = 2
+effect = 1
+base_cost_units = 10
+cost_growth_pm = 3000
+max_level = 10
+unlock_tier = 0
+
+[sub_resource type="Resource" id="upgrade_4"]
+script = ExtResource("1_item")
+id = &"yield"
+name_key = "UPGRADE_YIELD"
+tab = 2
+stat = 3
+effect = 100
+base_cost_units = 2
+cost_growth_pm = 0
+max_level = 0
+unlock_tier = 0
+
+[sub_resource type="Resource" id="upgrade_5"]
+script = ExtResource("1_item")
+id = &"regen"
+name_key = "UPGRADE_REGEN"
+tab = 1
+stat = 4
+effect = 10
+base_cost_units = 5
+cost_growth_pm = 0
+max_level = 0
+unlock_tier = 1
+
+[sub_resource type="Resource" id="upgrade_6"]
+script = ExtResource("1_item")
+id = &"heal"
+name_key = "UPGRADE_HEAL"
+tab = 1
+stat = 5
+effect = 250
+base_cost_units = 5
+cost_growth_pm = 0
+max_level = 0
+unlock_tier = 1
+
+[sub_resource type="Resource" id="upgrade_7"]
+script = ExtResource("1_item")
+id = &"spores"
+name_key = "UPGRADE_SPORES"
+tab = 0
+stat = 6
+effect = 1
+base_cost_units = 50
+cost_growth_pm = 4000
+max_level = 5
+unlock_tier = 2
+
+[sub_resource type="Resource" id="upgrade_8"]
+script = ExtResource("1_item")
+id = &"cell_hp"
+name_key = "UPGRADE_CELL_HP"
+tab = 1
+stat = 7
+effect = 200
+base_cost_units = 20
+cost_growth_pm = 0
+max_level = 0
+unlock_tier = 2
+
+[sub_resource type="Resource" id="upgrade_9"]
+script = ExtResource("1_item")
+id = &"splash"
+name_key = "UPGRADE_SPLASH"
+tab = 0
+stat = 8
+effect = 100
+base_cost_units = 100
+cost_growth_pm = 0
+max_level = 0
+unlock_tier = 3
+
+[sub_resource type="Resource" id="upgrade_10"]
+script = ExtResource("1_item")
+id = &"crit"
+name_key = "UPGRADE_CRIT"
+tab = 0
+stat = 9
+effect = 50
+base_cost_units = 300
+cost_growth_pm = 0
+max_level = 10
+unlock_tier = 4
+
+[sub_resource type="Resource" id="upgrade_11"]
+script = ExtResource("1_item")
+id = &"turret_hp"
+name_key = "UPGRADE_TURRET_HP"
+tab = 1
+stat = 10
+effect = 250
+base_cost_units = 300
+cost_growth_pm = 0
+max_level = 0
+unlock_tier = 4
+
+[sub_resource type="Resource" id="upgrade_12"]
+script = ExtResource("1_item")
+id = &"bounce"
+name_key = "UPGRADE_BOUNCE"
+tab = 0
+stat = 11
+effect = 1
+base_cost_units = 1000
+cost_growth_pm = 0
+max_level = 0
+unlock_tier = 5
+
+[resource]
+script = ExtResource("2_table")
+upgrades = Array[ExtResource("1_item")]([SubResource("upgrade_1"), SubResource("upgrade_2"), SubResource("upgrade_3"), SubResource("upgrade_4"), SubResource("upgrade_5"), SubResource("upgrade_6"), SubResource("upgrade_7"), SubResource("upgrade_8"), SubResource("upgrade_9"), SubResource("upgrade_10"), SubResource("upgrade_11"), SubResource("upgrade_12")])

@@ -1,4 +1,4 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://game/sandbox_screen.gd" id="1_screen"]
 [ext_resource type="Script" path="res://game/session.gd" id="2_session"]
@@ -7,7 +7,6 @@
 [ext_resource type="Script" path="res://view/camera/map_camera.gd" id="5_camera"]
 [ext_resource type="Script" path="res://view/input/map_input.gd" id="6_input"]
 [ext_resource type="PackedScene" path="res://ui/hud/hud.tscn" id="7_hud"]
-[ext_resource type="Script" path="res://view/colony/building_layer.gd" id="8_buildings"]
 
 [node name="SandboxScreen" type="Node2D"]
 script = ExtResource("1_screen")
@@ -22,10 +21,6 @@ unique_name_in_owner = true
 [node name="ColonyLayer" type="Node2D" parent="."]
 unique_name_in_owner = true
 script = ExtResource("4_colony")
-
-[node name="BuildingLayer" type="Node2D" parent="."]
-unique_name_in_owner = true
-script = ExtResource("8_buildings")
 
 [node name="MapCamera" type="Camera2D" parent="."]
 unique_name_in_owner = true

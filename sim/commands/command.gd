@@ -3,14 +3,14 @@ extends RefCounted
 ## Commande envoyée à la simulation par un joueur, un robot ou un script (Architecture §4.3).
 ## Seule la simulation modifie l'état ; une commande n'est qu'une demande, qu'elle valide.
 
-enum Type { COLONIZE, ENQUEUE, DEQUEUE, BUILD, DEMOLISH }
+enum Type { TARGET, SET_PRIORITY, MOVE_TURRET, BUY_UPGRADE, CHOOSE_MUTATION, USE_ABILITY }
 
 ## Tick auquel la commande a été appliquée (renseigné par la simulation).
 var tick: int = -1
 ## Colonie qui envoie la commande.
 var colony_id: int = 0
 ## Type de commande.
-var type: Type = Type.COLONIZE
+var type: Type = Type.TARGET
 
 
 ## Conversion en dictionnaire, pour le réseau et les replays.
@@ -22,16 +22,18 @@ func to_dict() -> Dictionary:
 static func from_dict(data: Dictionary) -> Command:
 	var command: Command = null
 	match DictRead.get_int(data, "type", -1):
-		Type.COLONIZE:
-			command = ColonizeCommand.new(Vector2i.ZERO)
-		Type.ENQUEUE:
-			command = EnqueueCommand.new(Vector2i.ZERO)
-		Type.DEQUEUE:
-			command = DequeueCommand.new(Vector2i.ZERO)
-		Type.BUILD:
-			command = BuildCommand.new(Vector2i.ZERO, &"")
-		Type.DEMOLISH:
-			command = DemolishCommand.new(Vector2i.ZERO)
+		Type.TARGET:
+			command = TargetCommand.new(Vector2i.ZERO)
+		Type.SET_PRIORITY:
+			command = SetPriorityCommand.new(0)
+		Type.MOVE_TURRET:
+			command = MoveTurretCommand.new(Vector2i.ZERO)
+		Type.BUY_UPGRADE:
+			command = BuyUpgradeCommand.new(&"")
+		Type.CHOOSE_MUTATION:
+			command = ChooseMutationCommand.new(0)
+		Type.USE_ABILITY:
+			command = UseAbilityCommand.new(&"")
 		_:
 			return null
 	command.tick = DictRead.get_int(data, "tick", -1)

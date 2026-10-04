@@ -1,39 +1,61 @@
 class_name BalanceDef
 extends Resource
-## Constantes générales d'équilibrage (GDD §3.1, §4.4, §6.3). Valeurs de départ à simuler.
-## Les quantités sont en millièmes de nutriment, les multiplicateurs en pour-mille.
+## Constantes générales d'équilibrage (GDD §5 à §12, §15). Valeurs de départ à simuler.
+## Les quantités (nutriments, PV, dégâts) sont en millièmes, les multiplicateurs en pour-mille.
 
-## U : coût de colonisation d'une case de zone 1 au départ, en millièmes (30 nutriments).
+# --- Économie (§8) ---
+## U : unité de coût des améliorations, en millièmes (30 nutriments).
 @export var unit_cost: int = 30_000
-## Rendement d'une case d'Humus de zone 1, en millièmes de nutriment par seconde.
+## Rendement d'une case de zone 1, en millièmes de nutriment par seconde.
 @export var cell_yield: int = 3_333
-## Durée de pousse d'une case de zone 1, en secondes (ticks).
-@export var base_growth_ticks: int = 4
 ## Stock de départ, en multiples de U.
-@export var start_stock_units: int = 6
-## Hausse du coût de colonisation par case poussée au-delà des cases de départ (×1,02).
-@export var colonize_cost_growth_pm: int = 1020
-## Bonus de production de Cohésion par voisine possédée (+5 %).
-@export var cohesion_per_neighbor_pm: int = 50
-## Nombre de pousses simultanées au départ.
-@export var max_growths: int = 1
-## Taille de la file d'expansion, pousses en cours comprises.
-@export var expansion_queue_size: int = 5
-## Durée maximale d'une partie, en secondes (ticks) : 30 min (GDD §2.6).
+@export var start_stock_units: int = 0
+## Cohésion : production en plus par voisine possédée (+5 %) et plafond (+30 %).
+@export var cohesion_production_pm: int = 50
+@export var cohesion_production_cap_pm: int = 300
+## Armillaire : bonus de production qui monte de 0 à cette valeur sur la durée maximale (+25 %).
+@export var strain_bonus_pm: int = 250
+## Facteur de coût par niveau d'amélioration (×1,15).
+@export var upgrade_cost_growth_pm: int = 1150
+## Zone à partir de laquelle une case est « profonde » (mutation Racines profondes).
+@export var deep_zone: int = 4
+
+# --- Cases (§6, §7) ---
+## PV de base d'une case, en millièmes (40 PV).
+@export var cell_hp: int = 40_000
+## Cohésion : PV en plus par voisine possédée (+15 %).
+@export var cohesion_hp_pm: int = 150
+## Régénération : part des PV max regagnée par seconde (2 %).
+@export var regen_pm: int = 20
+## PV d'une case adverse prise, en part de ses PV max (25 %). Une case libre prise arrive à
+## pleine vie (décidé le 4 octobre 2026).
+@export var captured_hp_pm: int = 250
+
+# --- Tourelle (§5, §6.3, §7.3, §7.4) ---
+## Dégâts d'une spore, en millièmes (10).
+@export var turret_damage: int = 10_000
+## Tirs par seconde, en pour-mille (1 tir/s).
+@export var turret_rate_pm: int = 1000
+## Portée de départ, en cases.
+@export var turret_range: int = 3
+## Spores par tir au départ.
+@export var turret_spores: int = 1
+## PV de la Tourelle, en nombre de PV de base d'une case (10 × 40 = 400, décidé le 4 octobre 2026).
+@export var turret_hp_cells: int = 10
+## Soin d'une spore, en part des dégâts (50 %).
+@export var heal_pm: int = 500
+## Durée d'un pas de la Tourelle, en secondes.
+@export var step_ticks: int = 10
+## Multiplicateur des dégâts d'un coup critique (×3).
+@export var crit_damage_pm: int = 3000
+
+# --- Partie (§3, §12) ---
+## Durée maximale d'une partie, en secondes (ticks) : 30 min.
 @export var match_ticks: int = 1800
-## Pousses simultanées au plus, Mycorhizes comprises (GDD §4.4).
-@export var max_growths_cap: int = 3
-## Plafond de stock sans Grenier, en secondes de production (3 min, GDD §5).
-@export var stock_cap_seconds: int = 180
-## Durée de construction selon le palier de déblocage (départ, palier 1, 2…), en secondes.
-@export var build_ticks_by_tier: Array[int] = [3, 5, 8, 11, 15, 20]
-## Places de bâtiment au départ, et places gagnées à chaque palier (décidé le 4 octobre 2026).
-@export var building_slots_base: int = 2
-@export var building_slots_per_tier: int = 1
-## Chantiers simultanés au départ, et au plus.
-@export var base_build_sites: int = 2
-@export var max_build_sites: int = 4
-## Taille de la file de construction, chantiers en cours compris.
-@export var build_queue_size: int = 5
-## Remboursement d'un bâtiment démoli ou d'un chantier annulé (50 %).
-@export var demolish_refund_pm: int = 500
+## Protection de départ, en secondes : aucune case adverse visée, aucune capacité.
+@export var protection_ticks: int = 120
+## Trophée : production en plus par Tourelle abattue (+25 %) et Enzymes reçues (100).
+@export var trophy_production_pm: int = 250
+@export var trophy_enzymes: int = 100
+## Nombre de mutations proposées à chaque palier.
+@export var mutation_choices: int = 3

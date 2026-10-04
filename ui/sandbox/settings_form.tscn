@@ -58,20 +58,20 @@ layout_mode = 2
 theme_type_variation = &"SmallButton"
 text = "SANDBOX_NEW_SEED"
 
-[node name="EconomyCard" type="PanelContainer" parent="Top/Left"]
+[node name="GeneralCard" type="PanelContainer" parent="Top/Left"]
 layout_mode = 2
 theme_type_variation = &"HudPanel"
 
-[node name="EconomyColumn" type="VBoxContainer" parent="Top/Left/EconomyCard"]
+[node name="GeneralColumn" type="VBoxContainer" parent="Top/Left/GeneralCard"]
 layout_mode = 2
 theme_override_constants/separation = 12
 
-[node name="EconomyTitle" type="Label" parent="Top/Left/EconomyCard/EconomyColumn"]
+[node name="GeneralTitle" type="Label" parent="Top/Left/GeneralCard/GeneralColumn"]
 layout_mode = 2
 theme_type_variation = &"HeaderLabel"
-text = "SANDBOX_ECONOMY"
+text = "SANDBOX_GENERAL"
 
-[node name="EconomyGrid" type="GridContainer" parent="Top/Left/EconomyCard/EconomyColumn"]
+[node name="GeneralGrid" type="GridContainer" parent="Top/Left/GeneralCard/GeneralColumn"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_constants/h_separation = 16
@@ -127,42 +127,42 @@ layout_mode = 2
 theme_override_constants/separation = 24
 alignment = 1
 
-[node name="ConstructionCard" type="PanelContainer" parent="Bottom"]
+[node name="UpgradesCard" type="PanelContainer" parent="Bottom"]
 layout_mode = 2
 size_flags_vertical = 0
 theme_type_variation = &"HudPanel"
 
-[node name="ConstructionColumn" type="VBoxContainer" parent="Bottom/ConstructionCard"]
+[node name="UpgradesColumn" type="VBoxContainer" parent="Bottom/UpgradesCard"]
 layout_mode = 2
 theme_override_constants/separation = 12
 
-[node name="ConstructionTitle" type="Label" parent="Bottom/ConstructionCard/ConstructionColumn"]
+[node name="UpgradesTitle" type="Label" parent="Bottom/UpgradesCard/UpgradesColumn"]
 layout_mode = 2
 theme_type_variation = &"HeaderLabel"
-text = "SANDBOX_CONSTRUCTION"
+text = "SANDBOX_UPGRADES"
 
-[node name="ConstructionGrid" type="GridContainer" parent="Bottom/ConstructionCard/ConstructionColumn"]
+[node name="UpgradesGrid" type="GridContainer" parent="Bottom/UpgradesCard/UpgradesColumn"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_constants/h_separation = 16
 theme_override_constants/v_separation = 6
 columns = 2
 
-[node name="BuildingsCard" type="PanelContainer" parent="Bottom"]
+[node name="AbilitiesCard" type="PanelContainer" parent="Bottom"]
 layout_mode = 2
 size_flags_vertical = 0
 theme_type_variation = &"HudPanel"
 
-[node name="BuildingsColumn" type="VBoxContainer" parent="Bottom/BuildingsCard"]
+[node name="AbilitiesColumn" type="VBoxContainer" parent="Bottom/AbilitiesCard"]
 layout_mode = 2
 theme_override_constants/separation = 12
 
-[node name="BuildingsTitle" type="Label" parent="Bottom/BuildingsCard/BuildingsColumn"]
+[node name="AbilitiesTitle" type="Label" parent="Bottom/AbilitiesCard/AbilitiesColumn"]
 layout_mode = 2
 theme_type_variation = &"HeaderLabel"
-text = "SANDBOX_BUILDINGS"
+text = "SANDBOX_ABILITIES"
 
-[node name="BuildingsGrid" type="GridContainer" parent="Bottom/BuildingsCard/BuildingsColumn"]
+[node name="AbilitiesGrid" type="GridContainer" parent="Bottom/AbilitiesCard/AbilitiesColumn"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_constants/h_separation = 10

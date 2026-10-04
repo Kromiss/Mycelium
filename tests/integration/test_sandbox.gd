@@ -1,14 +1,15 @@
 extends GutTest
 ## Bac à sable (GDD §2.1 bis) : écran de réglages, gestes sur la carte, pause, récapitulatif.
+## Affichage provisoire de G3 (étape 1).
 
 const DUEL: ModeDef = preload("res://data/modes/duel.tres")
 const SETUP: PackedScene = preload("res://ui/sandbox/sandbox_setup.tscn")
 const GAME: PackedScene = preload("res://game/sandbox_screen.tscn")
-## Cases de la colonie en Duel (rayon 11) : une case libre collée au réseau de départ, une case
-## qui ne le touche pas, et une case collée seulement à la première.
+## Cases de la colonie en Duel (rayon 11) : une case libre collée au territoire de départ,
+## une case qui ne le touche pas, et la case de départ vers le centre.
 const ABOVE := Vector2i(10, -1)
-const BELOW := Vector2i(10, 1)
-const BEYOND := Vector2i(9, -1)
+const BEYOND := Vector2i(8, 0)
+const INNER := Vector2i(10, 0)
 
 var _locale: String
 
@@ -66,10 +67,10 @@ func test_setup_refuses_invalid_settings() -> void:
 	var setup: Node = SETUP.instantiate()
 	add_child_autofree(setup)
 	var config: SandboxConfig = setup.call("config")
-	config.defs.expansion_queue_size = 0
+	config.defs.turret_range = 0
 	setup.call("_on_launch")
 	var error: Label = setup.get_node("%ErrorLabel")
-	assert_string_contains(error.text, "queue")
+	assert_string_contains(error.text, "General")
 
 
 func test_game_starts_alone_on_the_chosen_forest() -> void:
@@ -80,48 +81,28 @@ func test_game_starts_alone_on_the_chosen_forest() -> void:
 	assert_true(session.has_time_control())
 
 
-func test_click_colonizes_and_refusals_show_a_message() -> void:
+func test_click_targets_a_cell_and_refusals_show_a_message() -> void:
 	var screen: Node = _game()
 	var session: Session = screen.get_node("%Session")
 	var input: MapInput = screen.get_node("%MapInput")
 	var messages: Array[String] = []
 	input.message.connect(func(text: String) -> void: messages.append(text))
 	input.click(_index(session, BEYOND))
-	assert_eq(messages, ["This cell does not touch your network"])
+	assert_eq(messages, ["This cell does not touch your colony"])
 	input.click(_index(session, ABOVE))
 	session.step()
-	assert_eq(session.colony().growing, PackedInt32Array([_index(session, ABOVE)]))
+	assert_eq(session.colony().designated, _index(session, ABOVE))
 
 
-func test_queue_drag_follows_the_path_and_stops_at_the_first_invalid_cell() -> void:
+func test_move_key_then_click_makes_the_sporophore_step() -> void:
 	var screen: Node = _game()
 	var session: Session = screen.get_node("%Session")
 	var input: MapInput = screen.get_node("%MapInput")
-	var messages: Array[String] = []
-	input.message.connect(func(text: String) -> void: messages.append(text))
-	input.queue_click(_index(session, ABOVE))
-	input.drag_over(_index(session, BEYOND))
-	input.drag_over(_index(session, ABOVE))
-	input.drag_over(_index(session, Vector2i(0, 0)))
-	input.drag_over(_index(session, BELOW))
+	input.set_moving(true)
+	input.click(_index(session, INNER))
+	assert_false(input.is_moving())
 	session.step()
-	# ABOVE pousse ; BEYOND attend. Le tracé s'est arrêté au centre : BELOW n'est pas ajoutée.
-	assert_eq(session.colony().growing, PackedInt32Array([_index(session, ABOVE)]))
-	assert_eq(session.colony().queue, PackedInt32Array([_index(session, BEYOND)]))
-	assert_eq(messages, ["This cell does not touch your network"])
-
-
-func test_queue_click_on_a_queued_cell_removes_it() -> void:
-	var screen: Node = _game()
-	var session: Session = screen.get_node("%Session")
-	var input: MapInput = screen.get_node("%MapInput")
-	session.colony().nutrients = 0
-	input.queue_click(_index(session, ABOVE))
-	session.step()
-	assert_eq(session.colony().queue, PackedInt32Array([_index(session, ABOVE)]))
-	input.queue_click(_index(session, ABOVE))
-	session.step()
-	assert_true(session.colony().queue.is_empty())
+	assert_eq(session.colony().move_to, _index(session, INNER))
 
 
 func test_orders_are_blocked_while_paused() -> void:
@@ -133,10 +114,10 @@ func test_orders_are_blocked_while_paused() -> void:
 	session.set_paused(true)
 	input.click(_index(session, ABOVE))
 	assert_eq(messages, ["Paused: orders are blocked"])
-	assert_false(session.send_command(ColonizeCommand.new(ABOVE)))
+	assert_false(session.send_command(TargetCommand.new(ABOVE)))
 	session.set_paused(false)
 	session.step()
-	assert_true(session.colony().growing.is_empty())
+	assert_eq(session.colony().designated, -1)
 
 
 func test_game_menu_pauses_and_resumes() -> void:
@@ -177,26 +158,29 @@ func test_recap_lists_settings_and_results() -> void:
 	for expected: String in [
 		"Sandbox",
 		"Duel forest (radius 11) · seed 42",
-		"U: 30 · zone 1 yield: 3.333/s · zone 1 growth: 4 s · starting stock: 6 U",
-		"cohesion: +5 % per neighbour",
-		"5 → ×2",
-		"2 ×1.5 / ×1.4 / ×1.2",
+		"U: cost unit of upgrades: 30",
+		"Sporophore: damage per spore: 10",
+		"Zone 2 — Richness ×: 1.5, Free cell HP ×: 1.4, Owned cell HP ×: 1.2",
+		"Damage — Effect per level: 250",
+		"Salvo — Enzymes: 20",
 		"Results at 00:05",
-		"Grown cells: 3 · tier 0 (×1)",
+		"Cells: 4 · tier 0 (×1)",
+		"cells captured: 1",
+		"Upgrades: none",
 		"Tiers reached: none",
 	]:
 		assert_string_contains(text, expected)
 
 
-func test_tooltip_shows_zone_cost_growth_and_production() -> void:
+func test_tooltip_shows_owner_health_zone_and_whether_it_can_be_targeted() -> void:
 	var screen: Node = _game()
 	var session: Session = screen.get_node("%Session")
 	var hud: Hud = screen.get_node("%Hud")
 	hud.set_tooltip_cell(_index(session, ABOVE))
 	var label: Label = hud.get_node("%TooltipLabel")
-	assert_eq(label.text, "Free cell\nZone 1\nCost: 30\nGrowth: 4 s\nOnce grown: 3.7 /s")
-	hud.set_tooltip_cell(session.colony().heart)
-	assert_string_contains(label.text, "Heart of your colony")
+	assert_eq(label.text, "Free cell\nHP: 40 / 40\nZone 1\nClick to target")
+	hud.set_tooltip_cell(session.colony().turret)
+	assert_string_contains(label.text, "Sporophore\nHP: 400 / 400")
 	hud.show_message("x")
 	var toast: Label = hud.get_node("%ToastLabel")
 	assert_eq(toast.text, "x")

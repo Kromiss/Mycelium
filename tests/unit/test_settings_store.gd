@@ -56,7 +56,7 @@ func test_invalid_values_are_ignored() -> void:
 func test_controls_have_defaults_and_round_trip() -> void:
 	var store: SettingsStore = SettingsStore.defaults("fr")
 	assert_eq(store.controls[&"toggle_pause"], KEY_P)
-	assert_eq(store.controls[&"queue_modifier"], KEY_SHIFT)
+	assert_eq(store.controls[&"move_turret"], KEY_D)
 	assert_true(store.set_control(&"toggle_pause", KEY_O))
 	assert_eq(store.save_to(PATH), OK)
 	var loaded: SettingsStore = SettingsStore.load_from(PATH, "fr")

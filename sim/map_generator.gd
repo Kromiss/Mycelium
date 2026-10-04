@@ -4,10 +4,10 @@ extends RefCounted
 ## La forêt n'a qu'un terrain (l'Humus) : seules les zones sont calculées.
 ## La graine sera utilisée quand la carte aura des éléments aléatoires.
 
-## Nombre de cases de chaque colonie au départ, Cœur compris (GDD §3.1).
+## Nombre de cases de chaque colonie au départ, Tourelle comprise (GDD §3.1).
 const START_CELLS: int = 3
-## Rang du Cœur dans la liste des cases de départ.
-const START_HEART: int = 0
+## Rang de la Tourelle dans la liste des cases de départ.
+const START_TURRET: int = 0
 
 
 ## Crée la forêt du mode donné, découpée en « zone_count » zones de même épaisseur.
@@ -48,14 +48,14 @@ static func sector_corner_direction(sector: int, sectors: int) -> int:
 	return (sector * (6 / sectors)) % 6
 
 
-## Cases de départ d'un secteur (GDD §3.1, décidé le 4 octobre 2026) : le Cœur sur le coin
+## Cases de départ d'un secteur (GDD §3.1, décidé le 4 octobre 2026) : la Tourelle sur le coin
 ## de la forêt au milieu du secteur, la case collée vers le centre, et la case collée sur le
-## bord à « +2 directions » du coin (au-dessus du Cœur pour le coin est). D'un secteur à
+## bord à « +2 directions » du coin (au-dessus de la Tourelle pour le coin est). D'un secteur à
 ## l'autre, ces trois cases se déduisent par rotation : tous les départs sont identiques.
-## Renvoie les coordonnées, Cœur en premier.
+## Renvoie les coordonnées, Tourelle en premier.
 static func start_cells(radius: int, sector: int, sectors: int) -> Array[Vector2i]:
 	var corner: int = sector_corner_direction(sector, sectors)
-	var heart: Vector2i = Hex.DIRECTIONS[corner] * radius
-	var inner: Vector2i = Hex.neighbor(heart, (corner + 3) % 6)
-	var edge: Vector2i = Hex.neighbor(heart, (corner + 2) % 6)
-	return [heart, inner, edge]
+	var turret: Vector2i = Hex.DIRECTIONS[corner] * radius
+	var inner: Vector2i = Hex.neighbor(turret, (corner + 3) % 6)
+	var edge: Vector2i = Hex.neighbor(turret, (corner + 2) % 6)
+	return [turret, inner, edge]

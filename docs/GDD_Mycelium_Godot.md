@@ -178,7 +178,7 @@ La Tourelle choisit seule sa cible selon une **priorité** que le joueur règle 
 | **Soigner d'abord** | mes cases blessées, puis la case la plus proche |
 | **Ennemis d'abord** | les cases adverses, puis la case la plus proche |
 
-Départage entre cases à égalité : la plus proche de la Tourelle, puis un tirage tiré de la graine. Une cible est **gardée jusqu'à sa prise** (ou jusqu'à ce qu'elle ne soit plus visable) : la Tourelle ne papillonne pas.
+Départage entre cases à égalité : la plus proche de la Tourelle, puis un tirage tiré de la graine. Une cible est **gardée jusqu'à sa prise** (ou jusqu'à ce qu'elle ne soit plus visable) : la Tourelle ne papillonne pas. C'est vrai aussi pour **Soigner d'abord** et **Ennemis d'abord** : si une case qui passe avant apparaît pendant une prise, la Tourelle **finit sa prise d'abord** (décidé le 4 octobre 2026).
 
 ### 5.4 Cible désignée au clic
 Un **clic gauche** sur une case visable en fait la **cible prioritaire** : la Tourelle la vise **jusqu'à ce qu'elle soit prise**, puis reprend la priorité choisie. Un nouveau clic remplace la cible désignée ; un clic sur une de mes cases blessées la désigne pour le soin, jusqu'à ce qu'elle soit à pleine vie.
@@ -186,7 +186,7 @@ Un **clic gauche** sur une case visable en fait la **cible prioritaire** : la To
 ### 5.5 Déplacement
 - La Tourelle peut **se déplacer pas à pas** : une case à la fois, vers **une de mes cases voisines** de la sienne.
 - Chaque pas dure **10 s**, pendant lesquelles elle **ne tire pas**. **Pas de recharge** entre deux pas.
-- Geste : touche de déplacement (**D**, modifiable) puis clic sur une de mes cases voisines ; on peut enchaîner les pas. Pendant un pas, la Tourelle garde ses PV et peut être touchée ; sa case de départ redevient une case normale.
+- Geste : touche de déplacement (**D**, modifiable) puis clic sur une de mes cases voisines ; on peut enchaîner les pas. Pendant un pas, la Tourelle garde ses PV et **reste sur sa case de départ** jusqu'à l'arrivée : c'est là qu'elle peut être visée (décidé le 4 octobre 2026). À l'arrivée, sa case de départ redevient une case normale.
 
 ---
 
@@ -194,7 +194,7 @@ Un **clic gauche** sur une case visable en fait la **cible prioritaire** : la To
 
 ### 6.1 Cases libres
 - Chaque case libre a des **PV** : base **40** × PV de sa zone (§4.3).
-- Chaque spore lui retire les **dégâts** de la Tourelle. À **0 PV**, la case devient mienne.
+- Chaque spore lui retire les **dégâts** de la Tourelle. À **0 PV**, la case devient mienne, **à pleine vie** (décidé le 4 octobre 2026 ; une case adverse prise arrive à 25 %, §6.2).
 - Une case libre entamée puis abandonnée **reprend ses PV** peu à peu (même régénération que les cases possédées).
 
 ### 6.2 Cases adverses
@@ -220,7 +220,7 @@ Chaque case possédée **regagne ses PV** seule : 2 % de ses PV max par seconde,
 Ma Tourelle peut **tirer sur une de mes cases** (à portée) pour la **soigner** : chaque spore lui rend **50 %** de mes dégâts, plus l'amélioration **Soin**. C'est la priorité **Soigner d'abord** ou un clic qui l'y envoie.
 
 ### 7.4 La Tourelle
-PV de la Tourelle = 10 × les PV max d'une case de zone 1 ; elle se régénère comme une case ; amélioration **Écorce du Sporophore**. Une Tourelle ne peut être visée que si elle est **collée au territoire** de l'attaquant et **à sa portée**, comme toute case.
+PV de la Tourelle = **400** (10 × les PV de base d'une case, 40) : seules l'amélioration **Écorce du Sporophore** et la mutation *Blindé* les augmentent (décidé le 4 octobre 2026 : ni la Cohésion ni l'amélioration PV des cases). Elle se régénère comme une case. Une Tourelle ne peut être visée que si elle est **collée au territoire** de l'attaquant et **à sa portée**, comme toute case.
 
 ---
 
@@ -283,7 +283,7 @@ Cible : **~10 nutriments/s au départ → 1e5 à 1e6 nutriments/s en fin de part
 | **Rendement** | +10 % de production de mes cases | 2 U | Départ |
 | **Régénération** | +1 % des PV max par seconde | 5 U | 1 |
 | **Soin** | +25 % de soin par spore | 5 U | 1 |
-| **Spores par tir** | +1 cible visée à chaque tir (5 au plus) | 50 U, ×4 par niveau | 2 |
+| **Spores par tir** | +1 cible visée à chaque tir (5 au plus) : les spores en plus visent **d'autres cases**, dans l'ordre de la priorité, chacune gardée jusqu'à sa prise (décidé le 4 octobre 2026) | 50 U, ×4 par niveau | 2 |
 | **PV des cases** | +20 % des PV max de mes cases | 20 U | 2 |
 | **Éclaboussure** | +10 % des dégâts aussi infligés aux voisines de la case touchée | 100 U | 3 |
 | **Critique** | +5 % de chance de dégâts ×3 (50 % au plus) | 300 U | 4 |
@@ -298,7 +298,7 @@ U = 30 nutriments, comme avant.
 
 À chaque **palier atteint pour la première fois**, le joueur **choisit 1 mutation parmi 3** tirées au hasard (graine). Elles sont permanentes pour la partie.
 
-Liste (15 mutations ; les 3 proposées sont tirées sans remise parmi celles pas encore prises). **La partie continue pendant le choix.**
+Liste (15 mutations ; les 3 proposées sont tirées sans remise parmi celles pas encore prises). **La partie continue pendant le choix**, sans limite de temps. Si un nouveau palier arrive avant le choix, **les choix s'empilent** : on choisit le premier, puis les 3 cartes du suivant s'affichent (décidé le 4 octobre 2026).
 - *Spores lourdes* : dégâts ×1,5, cadence ×0,8.
 - *Spores légères* : cadence ×1,4, dégâts ×0,8.
 - *Hyphes longues* : portée +1.
@@ -332,6 +332,7 @@ Boutons à **recharge**, payés en **Enzymes**, débloqués par les paliers (§8
 ## 12. Conflit
 
 - **Aucune pression automatique** au contact : on prend une case adverse en la visant (priorité ou clic), on la garde en la soignant et grâce à sa défense.
+- **Territoire coupé** : quand une prise adverse coupe mon territoire, mes cases qui ne sont plus reliées à ma Tourelle **redeviennent libres** tout de suite (décidé le 4 octobre 2026). Toutes les cases d'une colonie produisent donc.
 - On ne vise que des cases **collées à son territoire** et **à portée**.
 - Pas d'attaque avant **2:00**.
 - **Élimination** *(décidé le 4 octobre 2026)* : quand une Tourelle tombe, **toutes les cases de la colonie redeviennent libres**. La colonie qui l'a abattue reçoit un **Trophée** :
@@ -459,6 +460,23 @@ Toutes les propositions du brouillon ont été tranchées en QCM avec le propri�
 
 Deux petits points repris du brouillon sans question dédiée, à signaler si besoin : un nouveau clic remplace la cible désignée ; la colonie qui abat une Tourelle est celle dont le tir la fait tomber à 0 PV.
 
+### Décisions de l'étape 1 de G3 (4 octobre 2026, QCM)
+Le code de G1 et G2 qui ne sert plus est supprimé dès l'étape 1, avec un affichage provisoire du Bac à sable jusqu'à l'étape 2 ; cases coupées de la Tourelle : libres (§12) ; case libre prise : pleine vie (§6.1) ; la Tourelle finit sa prise avant de changer de cible (§5.3) ; spores en plus : d'autres cases (§9.2) ; pendant un pas, la Tourelle est visée sur sa case de départ (§5.5) ; choix de mutations empilés (§10) ; PV de la Tourelle : 400 fixes (§7.4).
+
+### Choix de l'étape 1 de G3, à confirmer
+Points de règle que l'étape 1 a dû trancher pour écrire le code, sans question dédiée :
+1. S'il y a moins de cibles visables que de spores, les spores en trop frappent la première cible.
+2. Changer de priorité lâche les cibles gardées (la cible désignée au clic reste).
+3. La Tourelle ne vise jamais sa propre case (pas de soin de la Tourelle par elle-même).
+4. Éclaboussure, Rebond et Nuage toxique abîment aussi les cases qui ne touchent pas mon territoire, mais ne peuvent pas les prendre (elles restent à 1 PV au moins) ; de même, une Tourelle qui ne touche pas mon territoire ne peut pas tomber.
+5. Un pas est annulé si la case d'arrivée n'est plus à moi ; à l'arrivée, la case de départ est à pleine vie.
+6. Les colonies tirent l'une après l'autre ; la première change à chaque tick, pour qu'aucune ne soit avantagée sur une case disputée.
+7. Le Mur de mycélium protège mes cases (Tourelle comprise) autour de n'importe quelle case choisie ; le Nuage toxique vise une case à portée, même sans toucher mon territoire.
+8. ×10 achète jusqu'à 10 niveaux tant qu'ils sont payables (refusé seulement si aucun ne l'est).
+9. La mutation *Cohésion* double le bonus par voisine et son plafond (production +60 % au plus).
+10. Améliorations et capacités suivent le palier actuel (comme les améliorations, §8.3).
+11. Onglets du panneau : Attaque (Dégâts, Cadence, Portée, Spores, Éclaboussure, Critique, Rebond), Défense (Régénération, Soin, PV des cases, Écorce), Économie (Rendement).
+
 ### Questions ouvertes
 - **Triche de l'hôte** : la vérification par empreinte suffit-elle pour un classement du Duel ?
 - **Statistiques d'administration** : statistiques globales Steam, ou petit service de collecte ?
@@ -525,7 +543,7 @@ Outil d'équilibrage disponible **uniquement quand le jeu est lancé depuis l'é
 | **G0 : Fondations** *(livré, 0.1.0)* | Dépôt Godot, vérification automatique, versions GitHub ; carte hex (6 zones) en Duel et FFA, rendu, caméra ; menu principal ; Paramètres |
 | **G1 : Solo économie** *(livré, 0.2.0)* | Production, Cohésion, paliers, retours visuels, Bac à sable (réglages, récapitulatif, pause, vitesse), HUD, rejeu, panneau de simulations |
 | **G2** *(livré, 0.3.0)* | Remplacé par G3 |
-| **G3 : Le Sporophore et l'affrontement** | **Suppression** du code de G1 et G2 qui ne sert plus ; Tourelle (tir automatique, portée, priorités, cible au clic, déplacement pas à pas) ; PV, régénération et soin ; panneau d'améliorations à droite ; paliers avec Enzymes et mutations ; capacités ; Armillaire ; **affrontement entre Tourelles, élimination et Trophée** ; écran carte + panneau ; Bac à sable avec adversaires robots. Maquettes **validées le 4 octobre 2026**. Livré en **trois étapes** : 1) simulation et tests ; 2) affichage, panneau et Bac à sable ; 3) robots Canonnier, Bâtisseur et Conquérant (adversaires du Bac à sable et panneau de simulations à plusieurs robots) ; version **0.4.0** |
+| **G3 : Le Sporophore et l'affrontement** *(étape 1 livrée le 4 octobre 2026)* | **Suppression** du code de G1 et G2 qui ne sert plus ; Tourelle (tir automatique, portée, priorités, cible au clic, déplacement pas à pas) ; PV, régénération et soin ; panneau d'améliorations à droite ; paliers avec Enzymes et mutations ; capacités ; Armillaire ; **affrontement entre Tourelles, élimination et Trophée** ; écran carte + panneau ; Bac à sable avec adversaires robots. Maquettes **validées le 4 octobre 2026**. Livré en **trois étapes** : 1) simulation et tests ; 2) affichage, panneau et Bac à sable ; 3) robots Canonnier, Bâtisseur et Conquérant (adversaires du Bac à sable et panneau de simulations à plusieurs robots) ; version **0.4.0** |
 | **G4 : Événements et fin de partie** | Floraison collective et Arbre mourant, frise, journal et alertes complets, écran de résultats, spectateur après élimination ; version **0.5.0** |
 | **G5 : Duel et FFA contre robots** | Menus, robots de jeu (3 difficultés, profils), résultats |
 | **G6 : Habillage et bêta solo** | Tutoriel (8 étapes, §2.7), audio, profil et statistiques, traduction, essais avec de vrais joueurs (sans Steam) |

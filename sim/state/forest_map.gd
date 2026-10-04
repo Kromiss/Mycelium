@@ -21,6 +21,8 @@ var terrains: PackedInt32Array = PackedInt32Array()
 var neighbor_table: PackedInt32Array = PackedInt32Array()
 
 var _index_by_cell: Dictionary[Vector2i, int] = {}
+## Cases à « rayon » cases ou moins d'une case, gardées par (case, rayon) : calculées une fois.
+var _disks: Dictionary[int, PackedInt32Array] = {}
 
 
 ## Nombre de cases.
@@ -53,6 +55,20 @@ func neighbor_index(index: int, direction: int) -> int:
 ## Numéro d'une case, ou −1 si elle n'est pas dans la forêt.
 func index_of(cell: Vector2i) -> int:
 	return _index_by_cell.get(cell, -1)
+
+
+## Numéros des cases de la forêt à « radius » cases ou moins de la case « center » (elle
+## comprise), dans l'ordre de Hex.cells_in_radius().
+func disk(center: int, radius: int) -> PackedInt32Array:
+	var key: int = center * 4096 + radius
+	if not _disks.has(key):
+		var found := PackedInt32Array()
+		for offset: Vector2i in Hex.cells_in_radius(radius):
+			var index: int = index_of(cells[center] + offset)
+			if index >= 0:
+				found.append(index)
+		_disks[key] = found
+	return _disks[key]
 
 
 ## Vrai si la case fait partie de la forêt.

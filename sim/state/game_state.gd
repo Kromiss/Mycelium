@@ -3,11 +3,6 @@ extends RefCounted
 ## État complet d'une partie à un instant donné (Architecture §4.1).
 ## Uniquement des entiers, rangés dans des tableaux compacts indexés par numéro de case.
 
-## État d'une case (GDD §4.2). Les états de construction et de prise arrivent avec G2 et G3.
-enum CellState { FREE, GROWING, OWNED }
-## État du bâtiment d'une case (GDD §7.1) : aucun, en file de construction, en chantier, construit.
-enum BuildState { NONE, QUEUED, CONSTRUCTING, BUILT }
-
 ## Numéro du prochain tick à jouer (= secondes de jeu écoulées).
 var tick: int = 0
 ## Vrai quand la partie est terminée : plus aucun tick ne change l'état.
@@ -18,27 +13,20 @@ var game_seed: int = 0
 var defs: SimDefs
 ## Forêt.
 var map: ForestMap
-## Colonie propriétaire de chaque case (−1 = libre). Une case en pousse appartient déjà
-## à la colonie qui la fait pousser.
+## Colonie propriétaire de chaque case (−1 = libre).
 var owner: PackedInt32Array = PackedInt32Array()
-## État de chaque case (CellState).
-var cell_state: PackedInt32Array = PackedInt32Array()
-## Pousse restante, en millièmes de seconde (0 si la case ne pousse pas). Une Pépinière
-## proche fait avancer la pousse plus vite (GDD §7.2).
-var growth_left: PackedInt32Array = PackedInt32Array()
-## Bâtiment de chaque case : rang dans SimDefs.buildings, −1 sans bâtiment.
-var building: PackedInt32Array = PackedInt32Array()
-## État du bâtiment de chaque case (BuildState).
-var building_state: PackedInt32Array = PackedInt32Array()
-## Secondes de chantier restantes.
-var build_left: PackedInt32Array = PackedInt32Array()
-## Prix payé pour le bâtiment (millièmes de nutriment, et d'Enzymes), pour les remboursements.
-var building_paid: PackedInt64Array = PackedInt64Array()
-var building_paid_enzymes: PackedInt64Array = PackedInt64Array()
-## 1 si le bâtiment est construit et actif (palier atteint, GDD §7.6).
-var building_active: PackedByteArray = PackedByteArray()
-## 1 si la case est poussée et reliée au Cœur de sa colonie par ses cases poussées.
-var connected: PackedByteArray = PackedByteArray()
+## PV de chaque case, en millièmes (pour la case d'une Tourelle, voir ColonyState.turret_hp).
+var hp: PackedInt64Array = PackedInt64Array()
+## Dernière colonie qui a entamé la case, tant qu'elle n'est pas revenue à pleine vie (−1 : aucune).
+var last_hitter: PackedInt32Array = PackedInt32Array()
+## Tick jusqu'auquel (exclu) la case ne se régénère pas (Toxique, Nuage toxique).
+var no_regen_until: PackedInt32Array = PackedInt32Array()
+## Rang de chaque case dans un ordre tiré de la graine, pour départager les cases à égalité.
+var cell_rank: PackedInt32Array = PackedInt32Array()
+## Nombre de colonies au départ.
+var start_colonies: int = 0
+## Classement final (numéros de colonie, la meilleure en premier), rempli à la fin de la partie.
+var ranking: PackedInt32Array = PackedInt32Array()
 ## Colonies, par numéro.
 var colonies: Array[ColonyState] = []
 ## Aléatoire de la partie.
@@ -57,69 +45,55 @@ func colony(colony_id: int) -> ColonyState:
 	return colonies[colony_id]
 
 
-## Vrai si la case est poussée et appartient à la colonie.
+## Colonie propriétaire d'une case, ou null si la case est libre.
+func owner_of(cell: int) -> ColonyState:
+	return colony(owner[cell])
+
+
+## Vrai si la case appartient à la colonie.
 func is_owned_by(cell: int, colony_id: int) -> bool:
-	return owner[cell] == colony_id and cell_state[cell] == CellState.OWNED
+	return owner[cell] == colony_id
 
 
-## Nombre de voisines poussées de la case qui appartiennent à la colonie (0 à 6).
+## Vrai si une Tourelle (vivante) occupe la case.
+func is_turret_cell(cell: int) -> bool:
+	var holder: ColonyState = owner_of(cell)
+	return holder != null and holder.turret == cell
+
+
+## Nombre de voisines de la case qui appartiennent à la colonie (0 à 6).
 func owned_neighbors(cell: int, colony_id: int) -> int:
 	var total: int = 0
 	for direction: int in range(6):
 		var other: int = map.neighbor_index(cell, direction)
-		if other >= 0 and is_owned_by(other, colony_id):
+		if other >= 0 and owner[other] == colony_id:
 			total += 1
 	return total
 
 
-## Vrai si une voisine de la case fait partie du réseau de la colonie (poussée et reliée).
-func touches_network(cell: int, colony_id: int) -> bool:
+## Vrai si une voisine de la case appartient à la colonie.
+func touches_colony(cell: int, colony_id: int) -> bool:
 	for direction: int in range(6):
 		var other: int = map.neighbor_index(cell, direction)
-		if other >= 0 and connected[other] == 1 and owner[other] == colony_id:
+		if other >= 0 and owner[other] == colony_id:
 			return true
 	return false
 
 
-## Vrai si une voisine de la case figure dans la liste donnée.
-func touches_any(cell: int, cells: PackedInt32Array) -> bool:
-	for direction: int in range(6):
-		var other: int = map.neighbor_index(cell, direction)
-		if other >= 0 and cells.has(other):
-			return true
-	return false
+## Distance (en cases) entre deux cases.
+func distance(a: int, b: int) -> int:
+	return Hex.distance(map.cells[a], map.cells[b])
 
 
-## Vrai si la case touche au moins une case non possédée par la colonie (case frontière, §7.4).
-func is_frontier(cell: int, colony_id: int) -> bool:
-	for direction: int in range(6):
-		var other: int = map.neighbor_index(cell, direction)
-		if other >= 0 and not is_owned_by(other, colony_id):
-			return true
-	return false
+## Vrai si la protection de départ est terminée (cases adverses et capacités permises).
+func protection_over() -> bool:
+	return tick >= defs.protection_ticks
 
 
-## Bâtiment actif d'un type donné sur la case (−1 : pas de bâtiment actif).
-func active_building(cell: int) -> int:
-	return building[cell] if building_active[cell] == 1 else -1
-
-
-## Recalcule les cases reliées au Cœur de chaque colonie (parcours en largeur).
-func recompute_network() -> void:
-	connected.fill(0)
+## Nombre de colonies encore en vie.
+func alive_count() -> int:
+	var total: int = 0
 	for colony_state: ColonyState in colonies:
-		if not colony_state.alive or colony_state.heart < 0:
-			continue
-		if not is_owned_by(colony_state.heart, colony_state.id):
-			continue
-		var frontier := PackedInt32Array([colony_state.heart])
-		connected[colony_state.heart] = 1
-		var next: int = 0
-		while next < frontier.size():
-			var cell: int = frontier[next]
-			next += 1
-			for direction: int in range(6):
-				var other: int = map.neighbor_index(cell, direction)
-				if other >= 0 and connected[other] == 0 and is_owned_by(other, colony_state.id):
-					connected[other] = 1
-					frontier.append(other)
+		if colony_state.alive:
+			total += 1
+	return total
