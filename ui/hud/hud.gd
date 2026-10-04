@@ -19,6 +19,7 @@ var _toast_left: float = 0.0
 var _tooltip_cell: int = -1
 ## Vrai si le menu de partie a lui-même mis le jeu en pause (il le relance en se fermant).
 var _menu_paused: bool = false
+var _replay_title: String = ""
 
 @onready var _nutrients_label: Label = %NutrientsLabel
 @onready var _rate_label: Label = %RateLabel
@@ -60,19 +61,22 @@ func _ready() -> void:
 	_resume_button.pressed.connect(close_game_menu)
 	_menu_recap_button.pressed.connect(copy_recap)
 	_restart_button.pressed.connect(_restart)
-	_quit_button.pressed.connect(SceneRouter.goto_main_menu)
+	_quit_button.pressed.connect(_quit)
 	_end_recap_button.pressed.connect(copy_recap)
 	_replay_button.pressed.connect(_restart)
-	_end_menu_button.pressed.connect(SceneRouter.goto_main_menu)
+	_end_menu_button.pressed.connect(_quit)
 	Settings.palette_changed.connect(_apply_palette)
 	_apply_palette(Settings.palette())
 
 
-## Branche le HUD sur une partie.
-func setup(session: Session, config: SandboxConfig, color: Color) -> void:
+## Branche le HUD sur une partie. « replay_title » : titre d'un rejeu (vide sinon).
+func setup(
+	session: Session, config: SandboxConfig, color: Color, replay_title: String = ""
+) -> void:
 	_session = session
 	_config = config
 	_color = color
+	_replay_title = replay_title
 	_session.ticked.connect(_on_ticked)
 	_session.paused_changed.connect(_on_paused_changed)
 	_session.speed_changed.connect(_on_speed_changed)
@@ -225,6 +229,9 @@ func _update_nutrients() -> void:
 
 
 func _update_hint() -> void:
+	if _session.is_replay():
+		_hint_label.text = _replay_title
+		return
 	_hint_label.text = (
 		tr("HUD_HINT")
 		% [
@@ -328,4 +335,15 @@ func _on_game_finished() -> void:
 
 
 func _restart() -> void:
-	SceneRouter.start_sandbox(_config.duplicate_config())
+	if _session.is_replay():
+		SceneRouter.start_replay(_session.replay, _replay_title)
+	else:
+		SceneRouter.start_sandbox(_config.duplicate_config())
+
+
+## Quitte la partie : vers le menu principal, ou vers le panneau de simulations après un rejeu.
+func _quit() -> void:
+	if _session.is_replay():
+		SceneRouter.goto_simulation_panel()
+	else:
+		SceneRouter.goto_main_menu()

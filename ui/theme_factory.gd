@@ -34,6 +34,7 @@ static func build(palette: Palette) -> Theme:
 	_add_panel(theme, palette)
 	_add_inputs(theme, palette)
 	_add_hud(theme, palette)
+	_add_tabs(theme, palette)
 	return theme
 
 
@@ -171,6 +172,29 @@ static func _add_hud(theme: Theme, palette: Palette) -> void:
 	theme.set_type_variation(&"BannerLabel", &"Label")
 	theme.set_font(&"font", &"BannerLabel", _font(FREDOKA, TITLE_WEIGHT))
 	theme.set_font_size(&"font_size", &"BannerLabel", TITLE_SIZE)
+
+
+static func _add_tabs(theme: Theme, palette: Palette) -> void:
+	theme.set_stylebox(&"panel", &"TabContainer", _card(palette, 20))
+	var selected: StyleBoxFlat = _pill(palette.card, palette.text_secondary)
+	var unselected: StyleBoxFlat = _pill(palette.background, palette.line)
+	var hovered: StyleBoxFlat = _pill(palette.card_hover(), palette.line)
+	for box: StyleBoxFlat in [selected, unselected, hovered]:
+		box.content_margin_top = 8
+		box.content_margin_bottom = 8
+	theme.set_stylebox(&"tab_selected", &"TabContainer", selected)
+	theme.set_stylebox(&"tab_unselected", &"TabContainer", unselected)
+	theme.set_stylebox(&"tab_hovered", &"TabContainer", hovered)
+	theme.set_stylebox(&"tab_focus", &"TabContainer", StyleBoxEmpty.new())
+	theme.set_constant(&"side_margin", &"TabContainer", 0)
+	for state: StringName in [&"font_selected_color", &"font_hovered_color"]:
+		theme.set_color(state, &"TabContainer", palette.text)
+	theme.set_color(&"font_unselected_color", &"TabContainer", palette.text_secondary)
+	for state: StringName in [&"font_color", &"font_hover_color", &"font_pressed_color"]:
+		theme.set_color(state, &"CheckBox", palette.text)
+	for state: StringName in [&"normal", &"hover", &"pressed", &"hover_pressed", &"focus"]:
+		theme.set_stylebox(state, &"CheckBox", StyleBoxEmpty.new())
+	theme.set_color(&"font_color", &"TooltipLabel", palette.text)
 
 
 ## Carte arrondie avec une marge intérieure donnée.

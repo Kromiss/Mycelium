@@ -81,12 +81,14 @@ res://
 │   ├── sim_rng.gd            Aléatoire à graine, propre à la simulation
 │   └── state_hash.gd         Empreinte de l'état (vérification de l'hôte, tests)
 ├── ai/                       Robots
+│   ├── economy_robot.gd      G1 : robot d'économie (4 profils d'expansion), repris en G4
 │   ├── robot.gd              Lit l'état, produit des commandes
 │   ├── evaluators/           Évaluation par utilité (coloniser, bâtir, attaquer, défendre)
 │   └── profiles/             Profils et difficultés (.tres)
 ├── net/                      Transport des commandes et des différences
 │   ├── transport.gd          Interface commune
 │   ├── local_transport.gd    Solo, tutoriel, tests
+│   ├── replay_transport.gd   Rejeu d'une partie enregistrée (panneau de simulations, replays)
 │   └── steam_transport.gd    En ligne : hôte ou invité (jalon G6)
 ├── game/
 │   ├── session.gd            Relie simulation, transport, robots et affichage
@@ -121,7 +123,9 @@ res://
 │   └── translations.csv      Textes FR et EN
 ├── tools/
 │   ├── capture.gd            Captures d'écran d'un écran du jeu (menus, Bac à sable, partie jouée N secondes, menu de partie, fin), pour validation visuelle
-│   └── sim_runner.gd         Parties de robots accélérées, sans affichage — jalon G1 (économie), étendu en G4
+│   ├── sim_runner.gd         Lots de parties de robots (simples ou balayages), en parallèle — jalon G1, étendu en G4
+│   ├── simulation/           Une partie mesurée (sim_run), ses mesures, statistiques, tableau et CSV
+│   └── simulation_panel/     Panneau de simulations (éditeur seulement)
 ├── tests/
 │   ├── unit/                 Un fichier de test par système
 │   ├── integration/          Parties complètes, déterminisme, scènes
@@ -191,7 +195,7 @@ Fin de partie visée : ~1e6 nutriments/s, soit ~1e9 en millièmes par seconde ; 
 - Décision par **utilité** : chaque évaluateur note les actions possibles (coloniser telle case, construire tel bâtiment, ouvrir un front et régler son débit, renforcer, migrer le Cœur) ; le robot choisit les meilleures.
 - **Difficulté** = délai de réaction, part d'erreurs, profondeur d'évaluation, qualité du choix des fronts et des débits. **Profil** = poids des évaluateurs (bâtisseur, expansionniste, agressif).
 - Les robots utilisent leur propre `SimRng` dérivé de la graine : une partie de robots est donc **rejouable à l'identique**.
-- **G1** : premiers robots d'économie (profils Hasardeux, Rentable, Rapide, Centre, GDD §14.5), qui ne font que coloniser ; ils servent au panneau de simulations et seront repris par les robots complets de G4.
+- **G1** : premiers robots d'économie (profils Hasardeux, Rentable, Rapide, Centre, GDD §14.5), qui ne font que coloniser ; ils servent au panneau de simulations et seront repris par les robots complets de G4. `EconomyRobot.decide()` renvoie au plus un `EnqueueCommand` par tick (file gardée pleine) ; la « production ajoutée » d'une case vient de `EconomySystem.added_production()`, pour que la règle reste dans `sim/`.
 
 ---
 
@@ -311,7 +315,7 @@ func _colony_production(state: GameState, colony: ColonyState) -> int:
 | **Données** | Cohérence des `.tres` | Chaque bâtiment a un palier existant ; aucun coût nul ; chaque texte a sa traduction FR et EN |
 
 ### 11.3 Simulations d'équilibrage (`tools/sim_runner.gd`)
-Dès G1, le `sim_runner` est piloté par le **panneau de simulations** (GDD §14.5), une scène de `ui/` chargée seulement quand `OS.has_feature("editor")` est vrai : le panneau n'existe dans aucun export. Les simulations tournent sans affichage, avec une barre de progression ; les résultats (moyenne, min, max, écart type) s'exportent en CSV dans `user://`.
+Dès G1, le `sim_runner` est piloté par le **panneau de simulations** (GDD §14.5), une scène de `tools/simulation_panel/` ouverte depuis le menu principal seulement quand `OS.has_feature("editor")` est vrai. Le dossier `tools/` est exclu de l'export (`export_presets.cfg`) : le panneau, le `sim_runner` et ses mesures n'existent dans aucun `.exe`. Rien dans les dossiers exportés ne les nomme comme type : le menu ne connaît que le chemin de la scène, et `SceneRouter` garde l'état du panneau dans une variable non typée. Les parties d'un lot tournent sur les fils de travail de Godot (`WorkerThreadPool`), chacune avec ses propres définitions et sa propre simulation ; une partie de 30 min prend quelques secondes. Chaque partie garde son enregistrement (`Replay`), que `ReplayTransport` rejoue sur la carte. Les simulations tournent sans affichage, avec une barre de progression ; les résultats (moyenne, min, max, écart type) s'exportent en CSV dans `user://`.
 
 Lance des centaines de parties de robots sans affichage et en temps accéléré, puis écrit un rapport (CSV) : minute d'arrivée dans chaque zone, courbe de production, nombre d'éliminations avant 26:00, parties finies au temps, efficacité des fronts, effet du butin. C'est l'outil qui répond aux questions « À simuler » du GDD.
 
@@ -355,7 +359,7 @@ Le ressenti (rythme, plaisir des gestes, lisibilité), le rendu visuel, les perf
 | Jalon | Code concerné |
 |---|---|
 | G0 | Transformation du dépôt, arborescence, autoloads, thèmes, traductions, `hex.gd`, `map_generator.gd` (zones uniquement), rendu de la carte, caméra, menu principal, écran Paramètres, GUT et workflows |
-| G1 | `GameState`, `Simulation`, commandes de colonisation, `GrowthSystem`, `EconomySystem`, `TierSystem`, `fixed.gd`, `sim_rng.gd`, `state_hash.gd`, `LocalTransport`, `Session` ; positions de départ dans `map_generator.gd` ; écran Bac à sable (réglages, valeurs par défaut, récapitulatif copiable), HUD, effets de palier, section Commandes des Paramètres ; enregistrement des commandes et test de rejeu ; robots d'économie (`ai/`), `tools/sim_runner.gd` et panneau de simulations (éditeur seulement). Livré en trois étapes : `sim/` et tests (**étape 1 livrée le 4 octobre 2026**) ; affichage, HUD et Bac à sable (**étape 2 livrée le 4 octobre 2026**) ; robots, simulations et panneau |
+| G1 | `GameState`, `Simulation`, commandes de colonisation, `GrowthSystem`, `EconomySystem`, `TierSystem`, `fixed.gd`, `sim_rng.gd`, `state_hash.gd`, `LocalTransport`, `Session` ; positions de départ dans `map_generator.gd` ; écran Bac à sable (réglages, valeurs par défaut, récapitulatif copiable), HUD, effets de palier, section Commandes des Paramètres ; enregistrement des commandes et test de rejeu ; robots d'économie (`ai/`), `tools/sim_runner.gd` et panneau de simulations (éditeur seulement). Livré en trois étapes : `sim/` et tests (**étape 1 livrée le 4 octobre 2026**) ; affichage, HUD et Bac à sable (**étape 2 livrée le 4 octobre 2026**) ; robots, simulations et panneau (**étape 3 livrée le 4 octobre 2026**, version 0.2.0) |
 | G2 | Bâtiments (`data/buildings/`), chantiers et file de construction, voisinage, Enzymes, plafond de stock, désactivation ; palette et menu rond ; robots composés (profil d'expansion + profil de bâtisseur + pourcentage) dans le panneau de simulations. Trois étapes : `sim/` et tests ; affichage, HUD et Bac à sable ; robots et panneau |
 | G3 | `CombatSystem`, gestes dans `view/input/`, `EventSystem`, `VictorySystem` |
 | G4 | `ai/` (robots complets), `tools/sim_runner.gd` étendu, menus, résultats |

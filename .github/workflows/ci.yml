@@ -28,10 +28,10 @@ jobs:
         run: pip install "gdtoolkit==4.5.0"
 
       - name: Formatage
-        run: gdformat --check autoload game net sim ui view tests tools
+        run: gdformat --check ai autoload game net sim ui view tests tools
 
       - name: Style
-        run: gdlint autoload game net sim ui view tests tools
+        run: gdlint ai autoload game net sim ui view tests tools
 
       - name: Installer Godot
         id: godot

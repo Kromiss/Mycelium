@@ -551,6 +551,13 @@ Outil d'équilibrage **séparé** de l'interface d'administration, disponible **
   - **Centre** : la case la plus riche qu'il peut payer.
 - **Mesures** : minute d'arrivée dans chaque zone et à chaque palier, production par minute, temps de remboursement d'une case (début, milieu, fin) et ce qui freine (part du temps à attendre les nutriments ou la pousse). Pour chacune : **moyenne, minimum, maximum et écart type**.
 - **Résultats** : tableaux (une colonne par profil) et courbes de production par minute (une par profil) ; export en **fichier CSV**. On peut **rejouer une simulation** sur la carte, en accéléré.
+- *Décidé le 4 octobre 2026 (G1, étape 3)* :
+  - un robot d'économie **garde sa file d'expansion pleine** : à chaque tick où il reste une place, il ajoute la case choisie par son profil (parmi celles qui peuvent entrer dans la file), et la file attend les nutriments si besoin ; Centre n'ajoute que la case la plus riche qu'il peut payer tout de suite ;
+  - **production ajoutée** d'une case = sa propre production une fois poussée (zone, Cohésion, palier actuel) + les +5 % de Cohésion qu'elle donne à ses voisines déjà poussées ;
+  - **remboursement d'une case** = temps réel entre le paiement et le moment où la case a produit son coût, pousse comprise ; moyenne des cases payées dans chaque tiers de la partie (début, milieu, fin), avec le nombre de cases non remboursées à la fin ;
+  - **ce qui freine** : chaque seconde compte comme attente de la pousse (toutes les places de pousse prises), attente des nutriments (une place libre mais la file attend, ou Centre ne peut rien payer) ou rien à coloniser ;
+  - toutes les valeurs chiffrées des réglages du Bac à sable peuvent être balayées ; chaque partie d'une série a sa propre graine (graine des réglages + numéro de la partie), la même d'une série à l'autre ;
+  - le **rejeu** sur la carte se fait aux vitesses **×1, ×4, ×16 et ×64**, avec pause ; on y voit la partie telle qu'elle a été jouée, sans pouvoir donner d'ordres.
 
 
 ---

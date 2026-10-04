@@ -6,7 +6,19 @@ L'historique de l'ancienne version web est dans la branche `archive/web`.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-04
+
+G1 — Solo économie.
+
 ### Ajouté
+- G1, étape 3 — Robots d'économie (profils Hasardeux, Rentable, Rapide, Centre) qui gardent leur
+  file d'expansion pleine.
+- Panneau de simulations (seulement quand le jeu est lancé depuis l'éditeur, absent des exports) :
+  réglages du Bac à sable, profils cochés, nombre de parties, durée simulée, lancement simple ou
+  balayage d'une valeur ; parties en parallèle avec barre de progression ; tableau (moyenne,
+  minimum, maximum, écart type) des minutes d'arrivée par zone et par palier, du remboursement des
+  cases par tiers de partie, de ce qui freine et de l'état final ; courbes de production par
+  minute ; export CSV ; rejeu d'une partie sur la carte (×1 à ×64, pause).
 - G1, étape 2 — Bac à sable jouable : entrée du menu principal (Duel et FFA grisés jusqu'aux
   robots), écran de réglages (forêt, graine, économie, zones, paliers, valeurs par défaut), partie
   seul sur la forêt de Duel ou de FFA en Menthe, arrêt à 30:00 avec panneau de fin.
@@ -27,6 +39,12 @@ L'historique de l'ancienne version web est dans la branche `archive/web`.
   rejeu à l'identique ; transport local et session (pause et vitesse réservées au Bac à sable).
 - Données d'équilibrage `data/balance.tres` et `data/tiers.tres`, définitions modifiables par partie
   (`SimDefs`).
+
+## [0.1.0] - 2026-10-03
+
+G0 — Fondations (publiée seulement en version préliminaire).
+
+### Ajouté
 - G0 — Fondations : projet Godot 4.6.3 (rendu Compatibilité), dépôt dédié à la version Godot.
 - Carte d'hexagones pointe en haut en 6 zones de même épaisseur : forêt de Duel (rayon 11, 397 cases)
   et de FFA (rayon 17, 919 cases), un seul terrain (Humus), rendu « Pastille ronde » en thème clair

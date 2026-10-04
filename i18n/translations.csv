@@ -144,3 +144,61 @@ KEY_ENTER,Enter,Entrée
 KEY_BACKSPACE,Backspace,Retour arrière
 KEY_TAB,Tab,Tab
 KEY_CTRL,Ctrl,Ctrl
+MENU_SIMULATIONS,Simulations (development),Simulations (développement)
+PROFILE_RANDOM,Random,Hasardeux
+PROFILE_PROFITABLE,Profitable,Rentable
+PROFILE_FAST,Fast,Rapide
+PROFILE_CENTER,Centre,Centre
+SIM_TITLE,Simulations,Simulations
+SIM_TAB_SETTINGS,Settings,Réglages
+SIM_TAB_LAUNCH,Launch,Lancement
+SIM_TAB_RESULTS,Results,Résultats
+SIM_PROFILES,Expansion profiles,Profils d'expansion
+SIM_RUNS,Simulations per profile,Simulations par profil
+SIM_DURATION,Simulated duration (min),Durée simulée (min)
+SIM_MODE,Launch,Lancement
+SIM_MODE_SIMPLE,Simple,Simple
+SIM_MODE_SWEEP,Sweep,Balayage
+SIM_SWEEP_VALUE,Swept value,Valeur balayée
+SIM_SWEEP_MIN,Minimum,Minimum
+SIM_SWEEP_MAX,Maximum,Maximum
+SIM_SWEEP_STEP,Step,Pas
+SIM_START,Run the simulations,Lancer les simulations
+SIM_RUNNING,%d / %d games,%d / %d parties
+SIM_NO_PROFILE,Tick at least one profile,Coche au moins un profil
+SIM_DONE,Done: %d games in %s s,Terminé : %d parties en %s s
+SIM_EXPORT,Export CSV,Exporter en CSV
+SIM_EXPORTED,Saved: %s,Enregistré : %s
+SIM_OPEN_FOLDER,Open the folder,Ouvrir le dossier
+SIM_REPLAY,Replay on the map,Rejouer sur la carte
+SIM_REPLAY_SERIES,Series,Série
+SIM_REPLAY_RUN,Game,Partie
+SIM_NO_RESULTS,No results yet: run simulations from the Launch tab.,Pas encore de résultats : lance des simulations depuis l'onglet Lancement.
+SIM_CURVES,"Production per minute (average, log scale)","Production par minute (moyenne, échelle log)"
+SIM_BACK,Back,Retour
+SIM_M_ZONE,Arrival in zone %d (min),Arrivée en zone %d (min)
+SIM_M_TIER,Tier %d reached (min),Palier %d atteint (min)
+SIM_THIRD_START,start,début
+SIM_THIRD_MIDDLE,middle,milieu
+SIM_THIRD_END,end,fin
+SIM_M_PAYBACK,"Cell payback, %s (s)","Remboursement d'une case, %s (s)"
+SIM_M_UNPAID,"Cells not paid back, %s","Cases non remboursées, %s"
+SIM_M_WAIT_GROWTH,Time waiting for growth (%),Temps à attendre la pousse (%)
+SIM_M_WAIT_NUTRIENTS,Time waiting for nutrients (%),Temps à attendre les nutriments (%)
+SIM_M_WAIT_NOTHING,Time with nothing to colonize (%),Temps sans rien à coloniser (%)
+SIM_M_CELLS,Grown cells at the end,Cases poussées à la fin
+SIM_M_FINAL_TIER,Tier at the end,Palier à la fin
+SIM_M_PRODUCTION,Production at the end (/s),Production à la fin (/s)
+SIM_M_PEAK,Peak production (/s),Record de production (/s)
+SIM_M_BIOMASS,Biomass,Biomasse
+SIM_M_MINUTE,Production in minute %d (/s),Production à la minute %d (/s)
+SIM_CSV_MEASURE,Measure,Mesure
+SIM_CSV_STAT,Statistic,Statistique
+SIM_STAT_MEAN,mean,moyenne
+SIM_STAT_MIN,min,min
+SIM_STAT_MAX,max,max
+SIM_STAT_STD,std dev,écart type
+SIM_STAT_COUNT,games,parties
+SIM_CELL_STATS,"%s (%s – %s, σ %s)","%s (%s – %s, σ %s)"
+SIM_NEVER,—,—
+REPLAY_TITLE,"Replay: %s, game %d","Rejeu : %s, partie %d"

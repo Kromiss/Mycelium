@@ -35,3 +35,21 @@ static func cell_production(state: GameState, colony_id: int, cell: int) -> int:
 	var base: int = Fixed.mul(defs.cell_yield, defs.zone_richness_pm[state.map.zones[cell] - 1])
 	var neighbors: int = state.owned_neighbors(cell, colony_id)
 	return Fixed.mul(base, Fixed.ONE + defs.cohesion_per_neighbor_pm * neighbors)
+
+
+## Production ajoutée par une case libre si elle poussait maintenant pour la colonie (GDD §14.5,
+## décidé le 4 octobre 2026) : sa propre production, plus le bonus de Cohésion qu'elle donne à
+## ses voisines poussées et reliées de la colonie ; palier actuel compris.
+static func added_production(state: GameState, colony_id: int, cell: int) -> int:
+	var defs: SimDefs = state.defs
+	var colony: ColonyState = state.colony(colony_id)
+	var total: int = cell_production(state, colony_id, cell)
+	for direction: int in range(6):
+		var other: int = state.map.neighbor_index(cell, direction)
+		if other < 0 or state.connected[other] == 0 or state.owner[other] != colony_id:
+			continue
+		var base: int = Fixed.mul(
+			defs.cell_yield, defs.zone_richness_pm[state.map.zones[other] - 1]
+		)
+		total += Fixed.mul(base, defs.cohesion_per_neighbor_pm)
+	return Fixed.mul(total, TierSystem.production_pm(defs, colony.tier))

@@ -73,7 +73,9 @@ static func check_dequeue(colony: ColonyState, cell: int) -> Refusal.Code:
 static func start_growth(
 	state: GameState, colony: ColonyState, cell: int, result: TickResult
 ) -> void:
-	colony.nutrients -= cost(state, colony, cell)
+	var paid: int = cost(state, colony, cell)
+	colony.nutrients -= paid
+	result.growth_costs.append(paid)
 	var queued: int = colony.queue.find(cell)
 	if queued >= 0:
 		colony.queue.remove_at(queued)

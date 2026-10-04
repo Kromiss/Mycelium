@@ -15,6 +15,8 @@ signal game_finished
 
 ## Vitesses permises en Bac à sable, dans l'ordre du bouton.
 const SPEEDS: Array[int] = [1, 2, 4]
+## Vitesses d'un rejeu de simulation (décidé le 4 octobre 2026).
+const REPLAY_SPEEDS: Array[int] = [1, 4, 16, 64]
 ## Nombre maximal de ticks joués en une image, pour ne pas figer le jeu après un ralentissement.
 const MAX_TICKS_PER_FRAME: int = 8
 
@@ -32,6 +34,8 @@ var paused: bool = false
 var production_history: PackedInt64Array = PackedInt64Array()
 
 var _time_control: bool = false
+var _replaying: bool = false
+var _speeds: Array[int] = SPEEDS
 var _accumulator: float = 0.0
 var _running: bool = false
 
@@ -44,8 +48,23 @@ func start_local(
 	replay = Replay.new(defs, game_seed, count)
 	simulation = Simulation.new(defs, game_seed, count)
 	transport = LocalTransport.new(simulation, replay)
+	_begin(time_control, false)
+
+
+## Rejoue une partie enregistrée (panneau de simulations) : pas d'ordres, vitesses ×1 à ×64.
+func start_replay(recording: Replay) -> void:
+	replay = recording
+	var replay_transport := ReplayTransport.new(recording)
+	simulation = replay_transport.simulation
+	transport = replay_transport
+	_begin(true, true)
+
+
+func _begin(time_control: bool, replaying: bool) -> void:
 	transport.tick_received.connect(_on_tick_received)
 	_time_control = time_control
+	_replaying = replaying
+	_speeds = REPLAY_SPEEDS if replaying else SPEEDS
 	_accumulator = 0.0
 	speed = 1
 	paused = false
@@ -63,9 +82,14 @@ func is_running() -> bool:
 	return _running
 
 
-## Vrai si le joueur peut donner des ordres : partie en cours et pas en pause.
+## Vrai si c'est le rejeu d'une partie enregistrée.
+func is_replay() -> bool:
+	return _replaying
+
+
+## Vrai si le joueur peut donner des ordres : partie en cours, pas en pause, pas un rejeu.
 func accepts_commands() -> bool:
-	return _running and not paused
+	return _running and not paused and not _replaying
 
 
 ## Envoie une commande de la colonie locale, jouée au prochain tick. Refusée (faux) pendant la
@@ -91,17 +115,17 @@ func set_paused(value: bool) -> void:
 	paused_changed.emit(paused)
 
 
-## Change la vitesse (Bac à sable seulement ; ×1, ×2 ou ×4).
+## Change la vitesse (Bac à sable : ×1, ×2 ou ×4 ; rejeu : ×1, ×4, ×16 ou ×64).
 func set_speed(value: int) -> void:
-	if not _time_control or not SPEEDS.has(value) or value == speed:
+	if not _time_control or not _speeds.has(value) or value == speed:
 		return
 	speed = value
 	speed_changed.emit(speed)
 
 
-## Passe à la vitesse suivante (×1 → ×2 → ×4 → ×1).
+## Passe à la vitesse suivante (×1 → ×2 → ×4 → ×1 ; en rejeu ×1 → ×4 → ×16 → ×64 → ×1).
 func cycle_speed() -> void:
-	set_speed(SPEEDS[(SPEEDS.find(speed) + 1) % SPEEDS.size()])
+	set_speed(_speeds[(_speeds.find(speed) + 1) % _speeds.size()])
 
 
 ## Avancement vers le prochain tick (0 à 1), pour interpoler l'affichage.

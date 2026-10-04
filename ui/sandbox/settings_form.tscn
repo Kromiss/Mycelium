@@ -1,0 +1,119 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://ui/sandbox/settings_form.gd" id="1_form"]
+
+[node name="SettingsForm" type="HBoxContainer"]
+script = ExtResource("1_form")
+theme_override_constants/separation = 24
+
+[node name="Left" type="VBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 20
+
+[node name="ForestCard" type="PanelContainer" parent="Left"]
+layout_mode = 2
+theme_type_variation = &"HudPanel"
+
+[node name="ForestColumn" type="VBoxContainer" parent="Left/ForestCard"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="ForestGrid" type="GridContainer" parent="Left/ForestCard/ForestColumn"]
+layout_mode = 2
+theme_override_constants/h_separation = 16
+theme_override_constants/v_separation = 10
+columns = 3
+
+[node name="ForestLabel" type="Label" parent="Left/ForestCard/ForestColumn/ForestGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"SmallLabel"
+text = "SANDBOX_FOREST"
+
+[node name="ForestOption" type="OptionButton" parent="Left/ForestCard/ForestColumn/ForestGrid"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(260, 0)
+layout_mode = 2
+
+[node name="ForestSpacer" type="Control" parent="Left/ForestCard/ForestColumn/ForestGrid"]
+layout_mode = 2
+
+[node name="SeedLabel" type="Label" parent="Left/ForestCard/ForestColumn/ForestGrid"]
+layout_mode = 2
+theme_type_variation = &"SmallLabel"
+text = "SANDBOX_SEED"
+
+[node name="SeedEdit" type="LineEdit" parent="Left/ForestCard/ForestColumn/ForestGrid"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="SeedButton" type="Button" parent="Left/ForestCard/ForestColumn/ForestGrid"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"SmallButton"
+text = "SANDBOX_NEW_SEED"
+
+[node name="EconomyCard" type="PanelContainer" parent="Left"]
+layout_mode = 2
+theme_type_variation = &"HudPanel"
+
+[node name="EconomyColumn" type="VBoxContainer" parent="Left/EconomyCard"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="EconomyTitle" type="Label" parent="Left/EconomyCard/EconomyColumn"]
+layout_mode = 2
+theme_type_variation = &"HeaderLabel"
+text = "SANDBOX_ECONOMY"
+
+[node name="EconomyGrid" type="GridContainer" parent="Left/EconomyCard/EconomyColumn"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/h_separation = 16
+theme_override_constants/v_separation = 6
+columns = 2
+
+[node name="Right" type="VBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 20
+
+[node name="ZonesCard" type="PanelContainer" parent="Right"]
+layout_mode = 2
+theme_type_variation = &"HudPanel"
+
+[node name="ZonesColumn" type="VBoxContainer" parent="Right/ZonesCard"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="ZonesTitle" type="Label" parent="Right/ZonesCard/ZonesColumn"]
+layout_mode = 2
+theme_type_variation = &"HeaderLabel"
+text = "SANDBOX_ZONES"
+
+[node name="ZonesGrid" type="GridContainer" parent="Right/ZonesCard/ZonesColumn"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/h_separation = 12
+theme_override_constants/v_separation = 6
+columns = 4
+
+[node name="TiersCard" type="PanelContainer" parent="Right"]
+layout_mode = 2
+theme_type_variation = &"HudPanel"
+
+[node name="TiersColumn" type="VBoxContainer" parent="Right/TiersCard"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="TiersTitle" type="Label" parent="Right/TiersCard/TiersColumn"]
+layout_mode = 2
+theme_type_variation = &"HeaderLabel"
+text = "SANDBOX_TIERS"
+
+[node name="TiersGrid" type="GridContainer" parent="Right/TiersCard/TiersColumn"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/h_separation = 12
+theme_override_constants/v_separation = 6
+columns = 3
+

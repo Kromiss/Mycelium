@@ -13,6 +13,8 @@ var refused: Array[Command] = []
 var refused_codes: PackedInt32Array = PackedInt32Array()
 ## Pousses démarrées : paires (colonie, case).
 var growth_started: PackedInt32Array = PackedInt32Array()
+## Coût payé pour chaque pousse démarrée (millièmes), dans l'ordre de growth_started.
+var growth_costs: PackedInt64Array = PackedInt64Array()
 ## Pousses terminées : paires (colonie, case).
 var growth_completed: PackedInt32Array = PackedInt32Array()
 ## Changements de palier : triplets (colonie, ancien palier, nouveau palier).

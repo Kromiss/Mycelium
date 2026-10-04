@@ -22,10 +22,16 @@ var _config: SandboxConfig
 
 
 func _ready() -> void:
-	_config = SceneRouter.sandbox_config
-	if _config == null:
-		_config = SandboxConfig.defaults(SceneRouter.MODES[&"duel"], 1)
-	_session.start_local(_config.defs.duplicate_defs(), _config.game_seed, 1, true)
+	var recording: Replay = SceneRouter.replay
+	if recording != null:
+		# Rejeu d'une partie du panneau de simulations : mêmes réglages, mêmes commandes.
+		_config = _config_of(recording)
+		_session.start_replay(recording)
+	else:
+		_config = SceneRouter.sandbox_config
+		if _config == null:
+			_config = SandboxConfig.defaults(SceneRouter.MODES[&"duel"], 1)
+		_session.start_local(_config.defs.duplicate_defs(), _config.game_seed, 1, true)
 	var map: ForestMap = _session.simulation.state.map
 	_forest_view.setup(map, Settings.palette())
 	var color: int = COLORS.index_of(PLAYER_COLOR)
@@ -33,12 +39,22 @@ func _ready() -> void:
 	_camera.frame(_forest_view.bounds())
 	_input.setup(_session, _forest_view)
 	_hud.theme = Settings.ui_theme
-	_hud.setup(_session, _config, COLORS.main[color])
+	_hud.setup(_session, _config, COLORS.main[color], SceneRouter.replay_title)
 	_session.ticked.connect(_on_ticked)
 	_input.hovered.connect(_on_hovered)
 	_input.message.connect(_hud.show_message)
 	Settings.palette_changed.connect(_on_palette_changed)
 	recenter()
+
+
+## Réglages d'un rejeu, pour le HUD et le récapitulatif.
+func _config_of(recording: Replay) -> SandboxConfig:
+	var mode: ModeDef = SceneRouter.MODES.get(recording.defs.mode_id, SceneRouter.MODES[&"duel"])
+	var config := SandboxConfig.new()
+	config.mode = mode
+	config.game_seed = recording.game_seed
+	config.defs = recording.defs.duplicate_defs()
+	return config
 
 
 ## Ramène la caméra sur le Cœur de la colonie.

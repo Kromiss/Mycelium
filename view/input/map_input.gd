@@ -119,6 +119,8 @@ func _try_enqueue(target: Vector2i) -> bool:
 func _can_order() -> bool:
 	if _session.accepts_commands():
 		return true
+	if _session.is_replay():
+		return false
 	if _session.is_running():
 		message.emit(TranslationServer.translate("HUD_PAUSED_NO_ORDERS"))
 	else:
