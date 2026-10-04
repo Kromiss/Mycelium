@@ -28,10 +28,9 @@ func test_added_production_counts_the_cell_and_its_neighbours_bonus() -> void:
 func test_every_profile_picks_a_cell_that_can_enter_the_queue() -> void:
 	for profile: int in EconomyRobot.Profile.values():
 		var robot: EconomyRobot = _robot(profile as EconomyRobot.Profile)
-		var commands: Array[Command] = robot.decide(_sim)
-		assert_eq(commands.size(), 1, "profil %d" % profile)
-		var target: Vector2i = (commands[0] as CellCommand).cell
-		assert_eq(_sim.check_enqueue(0, target), Refusal.Code.OK)
+		var cell: int = robot.choose(_sim.state, _colony())
+		assert_gte(cell, 0, "profil %d" % profile)
+		assert_eq(Expansion.check_enqueue(_sim.state, _colony(), cell), Refusal.Code.OK)
 
 
 func test_profitable_takes_the_best_ratio() -> void:
@@ -60,7 +59,9 @@ func test_center_takes_the_richest_cell_it_can_pay() -> void:
 	assert_eq(_sim.state.map.zones[chosen], 2)
 	_colony().nutrients = 0
 	assert_eq(robot.choose(_sim.state, _colony()), -1)
-	assert_eq(robot.decide(_sim).size(), 0)
+	# Avec un budget, il ne regarde que ce que ce budget paie.
+	_colony().nutrients = 180_000
+	assert_eq(robot.choose(_sim.state, _colony(), 0), -1)
 
 
 func test_fast_minimises_growth_plus_payback() -> void:
@@ -91,12 +92,3 @@ func test_random_is_reproducible_and_stays_among_the_best() -> void:
 		second.append(robot.choose(_sim.state, _colony()))
 		assert_eq(again.choose(_sim.state, _colony()), second[i])
 	assert_eq(first[0], second[0])
-
-
-func test_robot_stops_when_the_queue_is_full() -> void:
-	var robot: EconomyRobot = _robot(EconomyRobot.Profile.PROFITABLE)
-	_colony().nutrients = 0
-	for i: int in range(5):
-		_sim.tick(robot.decide(_sim))
-	assert_eq(_colony().queue_load(), 5)
-	assert_eq(robot.decide(_sim).size(), 0)

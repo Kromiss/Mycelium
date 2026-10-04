@@ -15,6 +15,8 @@ var heart: int = -1
 var nutrients: int = 0
 ## Biomasse : total des nutriments produits depuis le début (GDD §5).
 var biomass: int = 0
+## Nutriments perdus parce que le stock était plein (statistique, GDD §14.5).
+var nutrients_lost: int = 0
 ## Enzymes, en millièmes (sans plafond, GDD §5).
 var enzymes: int = 0
 ## Plafond de stock de nutriments du dernier tick (GDD §5).
@@ -64,6 +66,7 @@ func hash_values() -> PackedInt64Array:
 			heart,
 			nutrients,
 			biomass,
+			nutrients_lost,
 			cell_count,
 			tier,
 			production,

@@ -1,15 +1,16 @@
 class_name SimRunner
 extends RefCounted
 ## Lots de parties simulées pour le panneau de simulations (GDD §14.5, Architecture §11.3) :
-## un lancement simple (N parties par profil coché) ou un balayage (une valeur de réglage, de
-## son minimum à son maximum par pas ; une série par valeur et par profil). Les parties tournent
+## un lancement simple (N parties par robot de la liste) ou un balayage (une valeur de réglage,
+## ou la part d'expansion des robots, de son minimum à son maximum par pas ; une série par valeur
+## et par robot). Les parties tournent
 ## en parallèle sur les fils de travail de Godot ; les tests peuvent les jouer à la suite.
 
 
-## Une série : un profil de robot et des réglages (la valeur balayée, s'il y en a une).
+## Une série : un robot et des réglages (la valeur balayée, s'il y en a une).
 class Series:
 	extends RefCounted
-	var profile: EconomyRobot.Profile = EconomyRobot.Profile.PROFITABLE
+	var spec: RobotSpec
 	var defs: SimDefs
 	## Valeur balayée (affichée), si le lot est un balayage.
 	var sweep_value: float = 0.0
@@ -19,7 +20,7 @@ class Series:
 
 	## Nom de la série : « Rentable » ou « Rentable · 25 ».
 	func label() -> String:
-		var name: String = TranslationServer.translate(EconomyRobot.PROFILE_KEYS[profile])
+		var name: String = spec.label()
 		if not has_sweep:
 			return name
 		return "%s · %s" % [name, NumberFormat.decimal(roundi(sweep_value * Fixed.ONE))]
@@ -37,11 +38,11 @@ var _task: int = -1
 var _sweep: SandboxParam
 
 
-## Prépare un lot : profils cochés, réglages, et éventuellement un balayage (« sweep » non nul,
-## de « low » à « high » par « step »).
+## Prépare un lot : robots de la liste, réglages, et éventuellement un balayage (« sweep » non
+## nul, de « low » à « high » par « step »).
 func setup(
 	defs: SimDefs,
-	profiles: Array[int],
+	specs: Array[RobotSpec],
 	run_count: int,
 	first_seed: int,
 	duration: int,
@@ -59,12 +60,15 @@ func setup(
 	if sweep != null:
 		values = sweep_values(low, high, step)
 	for value: float in values:
-		for profile: int in profiles:
+		for spec: RobotSpec in specs:
 			var one := Series.new()
-			one.profile = profile as EconomyRobot.Profile
+			one.spec = spec.duplicate_spec()
 			one.defs = defs.duplicate_defs()
 			if sweep != null:
-				sweep.write(one.defs, value)
+				if sweep.group == SandboxParam.Group.ROBOT_SHARE:
+					one.spec.expansion_share = clampi(roundi(value), 0, 100)
+				else:
+					sweep.write(one.defs, value)
 				one.sweep_value = value
 				one.has_sweep = true
 			series.append(one)
@@ -126,7 +130,7 @@ func _run_job(job: int) -> void:
 	@warning_ignore("integer_division")
 	var one: Series = series[job / runs]
 	var index: int = job % runs
-	var run := SimRun.new(one.defs, base_seed + index, one.profile, duration_ticks)
+	var run := SimRun.new(one.defs, base_seed + index, one.spec, duration_ticks)
 	var result: SimRunResult = run.run()
 	result.sweep_value = one.sweep_value
 	_mutex.lock()

@@ -257,11 +257,23 @@ static func stock_seconds(state: GameState, colony: ColonyState) -> int:
 	return seconds
 
 
+## Multiplicateur de voisinage et de Rosace (pour-mille) qu'aurait un bâtiment de ce type sur
+## la case avec « extra » voisins actifs du même type en plus (pour les robots, qui estiment
+## ce qu'une pose rapporterait).
+static func synergy_with(state: GameState, colony_id: int, cell: int, type: int, extra: int) -> int:
+	return _synergy(state, colony_id, cell, state.defs.buildings[type], type, extra)
+
+
+## Vrai si la règle de pose du bâtiment accepte la case (GDD §7.4).
+static func placement_ok(state: GameState, colony: ColonyState, cell: int, type: int) -> bool:
+	return _placement_ok(state, colony, cell, state.defs.buildings[type])
+
+
 ## Voisinage (+X % par bâtiment actif du même type adjacent, plafonné) × Rosace.
 static func _synergy(
-	state: GameState, colony_id: int, cell: int, def: SimBuilding, type: int
+	state: GameState, colony_id: int, cell: int, def: SimBuilding, type: int, extra: int = 0
 ) -> int:
-	var same: int = 0
+	var same: int = extra
 	for direction: int in range(6):
 		var other: int = state.map.neighbor_index(cell, direction)
 		if other >= 0 and state.owner[other] == colony_id and state.active_building(other) == type:

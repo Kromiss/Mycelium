@@ -14,7 +14,9 @@ func run(state: GameState, result: TickResult) -> void:
 		colony.production = produced
 		colony.peak_production = maxi(colony.peak_production, produced)
 		colony.stock_cap = produced * Buildings.stock_seconds(state, colony)
-		colony.nutrients = mini(colony.nutrients + produced, colony.stock_cap)
+		var stocked: int = mini(colony.nutrients + produced, colony.stock_cap)
+		colony.nutrients_lost += maxi(0, colony.nutrients + produced - stocked)
+		colony.nutrients = stocked
 		colony.biomass += produced
 		var enzymes: int = colony_enzymes(state, colony)
 		colony.enzyme_production = enzymes

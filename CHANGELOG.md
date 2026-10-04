@@ -6,6 +6,10 @@ L'historique de l'ancienne version web est dans la branche `archive/web`.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-04
+
+G2 — City builder.
+
 ### Ajouté
 - G2, étape 1 — Simulation du city builder : Nœud de digestion, Grenier, Pépinière, Glande
   enzymatique et Mycorhize (`data/buildings/`) ; pose et démolition (commandes `BuildCommand` et
@@ -22,6 +26,16 @@ L'historique de l'ancienne version web est dans la branche `archive/web`.
   Pépinière ; HUD : plafond du stock (barre qui passe en alerte), Enzymes, file de construction
   cliquable ; info-bulle des bâtiments ; tous les réglages des bâtiments dans le Bac à sable et le
   récapitulatif.
+
+- G2, étape 3 — Robots du panneau de simulations : chacun combine un profil d'expansion, un
+  profil de bâtisseur (Aucun, Producteur, Accélérateur, Hasardeux) et la part de la production
+  consacrée à l'expansion (deux bourses) ; liste de robots gardée d'une session à l'autre ;
+  balayage de la part d'expansion ; nouvelles mesures (premier bâtiment de chaque type, bâtiments
+  à la fin, nutriments perdus au plafond, Enzymes produites, attente d'un chantier).
+
+### Modifié
+- Les 4 profils de robot de G1 suivent aussi la règle des bourses : une case n'entre dans la file
+  d'expansion que si la bourse d'expansion la paie.
 
 ## [0.2.0] - 2026-10-04
 

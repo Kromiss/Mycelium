@@ -15,8 +15,16 @@ func after_each() -> void:
 	TranslationServer.set_locale(_locale)
 
 
+func _spec(
+	profile: EconomyRobot.Profile,
+	builder: BuilderRobot.Profile = BuilderRobot.Profile.NONE,
+	share: int = 100
+) -> RobotSpec:
+	return RobotSpec.make(profile, builder, share)
+
+
 func _run(profile: EconomyRobot.Profile, ticks: int) -> SimRunResult:
-	return SimRun.new(SimDefs.from_mode(DUEL), 3, profile, ticks).run()
+	return SimRun.new(SimDefs.from_mode(DUEL), 3, _spec(profile), ticks).run()
 
 
 func test_a_run_measures_zones_tiers_production_and_brakes() -> void:
@@ -67,7 +75,9 @@ func test_stats() -> void:
 
 func test_simple_batch_has_one_series_per_profile() -> void:
 	var runner := SimRunner.new()
-	var profiles: Array[int] = [EconomyRobot.Profile.FAST, EconomyRobot.Profile.CENTER]
+	var profiles: Array[RobotSpec] = [
+		_spec(EconomyRobot.Profile.FAST), _spec(EconomyRobot.Profile.CENTER)
+	]
 	runner.setup(SimDefs.from_mode(DUEL), profiles, 2, 10, 120)
 	assert_eq(runner.job_count(), 4)
 	runner.run_all()
@@ -86,7 +96,7 @@ func test_sweep_makes_one_series_per_value_and_profile() -> void:
 	var params: Array[SandboxParam] = SandboxParam.all(6, 6)
 	var unit_cost: SandboxParam = params[0]
 	assert_eq(unit_cost.id, "unit_cost")
-	var profiles: Array[int] = [EconomyRobot.Profile.PROFITABLE]
+	var profiles: Array[RobotSpec] = [_spec(EconomyRobot.Profile.PROFITABLE)]
 	runner.setup(SimDefs.from_mode(DUEL), profiles, 1, 1, 60, unit_cost, 20.0, 40.0, 10.0)
 	assert_eq(runner.series.size(), 3)
 	assert_eq(runner.series[2].defs.unit_cost, 40_000)
@@ -105,7 +115,9 @@ func test_sweep_values() -> void:
 
 func test_threaded_batch_finishes() -> void:
 	var runner := SimRunner.new()
-	var profiles: Array[int] = [EconomyRobot.Profile.PROFITABLE, EconomyRobot.Profile.RANDOM]
+	var profiles: Array[RobotSpec] = [
+		_spec(EconomyRobot.Profile.PROFITABLE), _spec(EconomyRobot.Profile.RANDOM)
+	]
 	runner.setup(SimDefs.from_mode(DUEL), profiles, 2, 1, 60)
 	runner.start()
 	while not runner.is_finished():
@@ -114,3 +126,41 @@ func test_threaded_batch_finishes() -> void:
 	for one: SimRunner.Series in runner.series:
 		for result: SimRunResult in one.results:
 			assert_not_null(result)
+
+
+func test_a_builder_run_builds_and_measures_the_buildings() -> void:
+	var spec: RobotSpec = _spec(
+		EconomyRobot.Profile.PROFITABLE, BuilderRobot.Profile.ACCELERATOR, 70
+	)
+	var result: SimRunResult = SimRun.new(SimDefs.from_mode(DUEL), 3, spec, 900).run()
+	assert_eq(result.building_minutes.size(), 5)
+	assert_eq(result.building_counts.size(), 5)
+	# L'Accélérateur pose ses Pépinières dès le palier 1.
+	assert_gte(result.building_minutes[2], 0.0)
+	assert_gt(result.building_counts[2], 0)
+	assert_gte(result.lost_share, 0.0)
+	assert_gte(result.waiting_build, 0.0)
+	var hashes: PackedInt64Array = result.replay.play()
+	assert_eq(hashes[hashes.size() - 1], result.replay.final_hash)
+
+
+func test_sweep_of_the_robot_share() -> void:
+	var runner := SimRunner.new()
+	var profiles: Array[RobotSpec] = [
+		_spec(EconomyRobot.Profile.PROFITABLE, BuilderRobot.Profile.PRODUCER, 70)
+	]
+	var share: SandboxParam = SandboxParam.robot_share()
+	runner.setup(SimDefs.from_mode(DUEL), profiles, 1, 1, 60, share, 50.0, 100.0, 50.0)
+	assert_eq(runner.series.size(), 2)
+	assert_eq(runner.series[0].spec.expansion_share, 50)
+	assert_eq(runner.series[1].spec.expansion_share, 100)
+	assert_eq(runner.series[0].label(), "Profitable · Producer · 50 % · 50")
+	runner.run_all()
+	var rows: Array[SimReport.Row] = SimReport.rows(runner.series, false)
+	var labels: Array[String] = []
+	for row: SimReport.Row in rows:
+		labels.append(row.label)
+	assert_has(labels, "First Nursery finished (min)")
+	assert_has(labels, "Digestion Node built at the end")
+	assert_has(labels, "Production lost at the stock cap (%)")
+	assert_has(labels, "Time waiting for a site or a place in the build queue (%)")

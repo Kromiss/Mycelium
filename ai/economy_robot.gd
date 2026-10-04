@@ -1,8 +1,8 @@
 class_name EconomyRobot
 extends RefCounted
-## Robot d'économie de G1 (GDD §14.5, Architecture §6) : il ne fait que coloniser, selon un
-## profil d'expansion, et garde sa file d'expansion pleine (décidé le 4 octobre 2026). Il lit
-## l'état sans le modifier et renvoie des commandes, comme un joueur.
+## Profil d'expansion d'un robot (GDD §14.5, Architecture §6) : quelle case ajouter à la file
+## d'expansion. Depuis G2, le robot (ColonyRobot) n'ajoute la case choisie que si sa bourse
+## d'expansion couvre son coût (décidé le 4 octobre 2026). Il lit l'état sans le modifier.
 
 enum Profile {
 	## Une case tirée au hasard parmi les 3 plus rentables.
@@ -37,31 +37,18 @@ func _init(robot_profile: Profile, colony: int, game_seed: int) -> void:
 	_rng = SimRng.new(game_seed).derive(colony + 1)
 
 
-## Commandes du robot pour le prochain tick : au plus un ajout à la file, s'il y a de la place.
-func decide(simulation: Simulation) -> Array[Command]:
-	var commands: Array[Command] = []
-	var state: GameState = simulation.state
-	var colony: ColonyState = state.colony(colony_id)
-	if colony == null or not colony.alive or state.finished:
-		return commands
-	if colony.queue_load() >= state.defs.expansion_queue_size:
-		return commands
-	var cell: int = choose(state, colony)
-	if cell >= 0:
-		var command := EnqueueCommand.new(state.map.cells[cell], colony_id)
-		commands.append(command)
-	return commands
-
-
 ## Case choisie par le profil parmi celles qui peuvent entrer dans la file (−1 : aucune).
-func choose(state: GameState, colony: ColonyState) -> int:
+## « budget » : ce que le robot peut dépenser (le profil Centre prend la case la plus riche
+## qu'il peut payer) ; −1 : le stock de la colonie.
+func choose(state: GameState, colony: ColonyState, budget: int = -1) -> int:
 	var candidates: PackedInt32Array = _candidates(state, colony)
 	last_candidate_count = candidates.size()
 	if candidates.is_empty():
 		return -1
 	match profile:
 		Profile.CENTER:
-			return _richest_affordable(state, colony, candidates)
+			var money: int = colony.nutrients if budget < 0 else budget
+			return _richest_affordable(state, colony, candidates, money)
 		Profile.FAST:
 			return _best(state, colony, candidates, _payback_score)
 		Profile.RANDOM:
@@ -135,16 +122,16 @@ func _random_among_best(state: GameState, colony: ColonyState, candidates: Packe
 	return ranked[_rng.range_int(pool)]
 
 
-## La case la plus riche que la colonie peut payer tout de suite ; à richesse égale, la plus
-## rentable. −1 si elle ne peut rien payer.
+## La case la plus riche que le robot peut payer tout de suite ; à richesse égale, la plus
+## rentable. −1 s'il ne peut rien payer.
 func _richest_affordable(
-	state: GameState, colony: ColonyState, candidates: PackedInt32Array
+	state: GameState, colony: ColonyState, candidates: PackedInt32Array, money: int
 ) -> int:
 	var best: int = -1
 	var best_richness: int = -1
 	var best_ratio: float = -INF
 	for cell: int in candidates:
-		if Expansion.cost(state, colony, cell) > colony.nutrients:
+		if Expansion.cost(state, colony, cell) > money:
 			continue
 		var richness: int = state.defs.zone_richness_pm[state.map.zones[cell] - 1]
 		var ratio: float = _ratio_score(state, colony, cell)

@@ -1,36 +1,38 @@
 class_name SimRun
 extends RefCounted
-## Une partie simulée sans affichage : un robot d'économie seul sur la forêt, pendant une durée
-## donnée, et les mesures du panneau de simulations (GDD §14.5).
+## Une partie simulée sans affichage : un robot seul sur la forêt (profil d'expansion, profil de
+## bâtisseur, part de l'expansion), pendant une durée donnée, et les mesures du panneau de
+## simulations (GDD §14.5).
 
 const SECONDS_PER_MINUTE: int = 60
 const THIRDS: int = 3
 
 var _defs: SimDefs
 var _seed: int
-var _profile: EconomyRobot.Profile
+var _spec: RobotSpec
 var _duration: int
 
 
 ## « duration_ticks » : durée simulée en secondes (bornée par la durée maximale d'une partie).
-func _init(
-	defs: SimDefs, game_seed: int, profile: EconomyRobot.Profile, duration_ticks: int
-) -> void:
+func _init(defs: SimDefs, game_seed: int, spec: RobotSpec, duration_ticks: int) -> void:
 	_defs = defs.duplicate_defs()
 	_defs.match_ticks = mini(_defs.match_ticks, duration_ticks)
 	_seed = game_seed
-	_profile = profile
+	_spec = spec
 	_duration = _defs.match_ticks
 
 
 ## Joue la partie et renvoie ses mesures.
 func run() -> SimRunResult:
 	var result := SimRunResult.new()
-	result.profile = _profile
+	result.spec = _spec
 	result.game_seed = _seed
 	var replay := Replay.new(_defs, _seed, 1)
 	var simulation := Simulation.new(_defs.duplicate_defs(), _seed, 1)
-	var robot := EconomyRobot.new(_profile, 0, _seed)
+	var robot := ColonyRobot.new(_spec, 0, _seed)
+	var building_types: int = _defs.buildings.size()
+	result.building_minutes.resize(building_types)
+	result.building_minutes.fill(-1.0)
 	var state: GameState = simulation.state
 	var colony: ColonyState = state.colonies[0]
 	# Cases suivies jusqu'à leur remboursement : case → [tick payé, coût, produit cumulé].
@@ -39,7 +41,8 @@ func run() -> SimRunResult:
 		PackedFloat64Array(), PackedFloat64Array(), PackedFloat64Array()
 	]
 	var minute_start: int = 0
-	var waits := PackedInt32Array([0, 0, 0])
+	var waits := PackedInt32Array([0, 0, 0, 0])
+	var enzymes: int = 0
 	while not state.finished:
 		var commands: Array[Command] = robot.decide(simulation)
 		var tick: TickResult = simulation.tick(commands)
@@ -49,6 +52,11 @@ func run() -> SimRunResult:
 			tracked[cell] = PackedInt64Array([tick.tick, tick.growth_costs[start], 0])
 		_follow_paybacks(state, colony, tracked, paybacks)
 		_count_wait(state, colony, robot, waits)
+		enzymes += colony.enzyme_production
+		for done: int in range(0, tick.buildings_completed.size(), 2):
+			var type: int = state.building[tick.buildings_completed[done + 1]]
+			if type >= 0 and result.building_minutes[type] < 0.0:
+				result.building_minutes[type] = _minutes(tick.tick)
 		if state.tick % SECONDS_PER_MINUTE == 0 or state.finished:
 			var span: int = state.tick - (result.production_per_minute.size() * SECONDS_PER_MINUTE)
 			var produced: float = float(colony.biomass - minute_start) / Fixed.ONE
@@ -59,6 +67,7 @@ func run() -> SimRunResult:
 	for third: int in range(THIRDS):
 		result.payback_seconds[third] = _mean(paybacks[third])
 	_fill_final(result, state, colony, waits)
+	result.enzymes_produced = float(enzymes) / Fixed.ONE
 	result.replay = replay
 	return result
 
@@ -85,10 +94,13 @@ func _follow_paybacks(
 		tracked.erase(cell)
 
 
-## Ce qui freine la colonie à ce tick (GDD §14.5) : la pousse, les nutriments, ou rien à prendre.
+## Ce qui freine la colonie à ce tick (GDD §14.5) : la pousse, les nutriments, ou rien à prendre ;
+## à part, l'attente d'un chantier ou d'une place dans la file de construction.
 func _count_wait(
-	state: GameState, colony: ColonyState, robot: EconomyRobot, waits: PackedInt32Array
+	state: GameState, colony: ColonyState, robot: ColonyRobot, waits: PackedInt32Array
 ) -> void:
+	if robot.waiting_for_site:
+		waits[3] += 1
 	if colony.growing.size() >= Buildings.max_growths(state, colony):
 		waits[0] += 1
 	elif not colony.queue.is_empty() or robot.last_candidate_count > 0:
@@ -108,6 +120,16 @@ func _fill_final(
 	result.waiting_growth = waits[0] / total
 	result.waiting_nutrients = waits[1] / total
 	result.waiting_nothing = waits[2] / total
+	result.waiting_build = waits[3] / total
+	result.lost_nutrients = float(colony.nutrients_lost) / Fixed.ONE
+	var produced: float = maxf(1.0, float(colony.biomass))
+	result.lost_share = float(colony.nutrients_lost) / produced
+	result.building_counts.resize(state.defs.buildings.size())
+	for cell: int in range(state.cell_count()):
+		var type: int = state.building[cell]
+		if type >= 0 and state.owner[cell] == colony.id:
+			if state.building_state[cell] == GameState.BuildState.BUILT:
+				result.building_counts[type] += 1
 	result.final_cells = colony.cell_count
 	result.final_tier = colony.tier
 	result.final_production = float(colony.production) / Fixed.ONE

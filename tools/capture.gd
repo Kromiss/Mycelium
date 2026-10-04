@@ -7,7 +7,8 @@ extends SceneTree
 ## (partie avec le menu Échap ouvert), game-end (partie terminée après [secondes]),
 ## game-build (partie où l'on construit aussi), game-radial (menu rond ouvert), game-panel
 ## (panneau d'un bâtiment ouvert), game-place (mode palette, Pépinière survolée) ou
-## simulations (panneau ; [minutes] : lance un petit lot et montre les résultats) ;
+## simulations (panneau ; [minutes] : lance un petit lot et montre les résultats) ou
+## simulations-launch (onglet Lancement du panneau) ;
 ## <thème> : light ou dark ; [mode] : duel ou ffa (forêt de la partie) ;
 ## [secondes] : durée de jeu simulée avant la capture, pour « game » (colonisation automatique).
 
@@ -24,6 +25,7 @@ const SCREENS: Dictionary[String, String] = {
 	"game-panel": "res://game/sandbox_screen.tscn",
 	"game-place": "res://game/sandbox_screen.tscn",
 	"simulations": "res://tools/simulation_panel/simulation_panel.tscn",
+	"simulations-launch": "res://tools/simulation_panel/simulation_panel.tscn",
 }
 const FRAMES_BEFORE_CAPTURE: int = 10
 
@@ -58,6 +60,9 @@ func _initialize() -> void:
 		_open_building_ui(args[0])
 	if args[0] == "simulations" and args.size() > 3:
 		await _simulate(args[3].to_int())
+	if args[0] == "simulations-launch":
+		var tabs: TabContainer = current_scene.get("_tabs")
+		tabs.current_tab = 1
 	if args[0] == "sandbox-bottom":
 		await process_frame
 		var scroll: ScrollContainer = current_scene.get_node("Scroll")

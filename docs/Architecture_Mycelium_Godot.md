@@ -82,7 +82,10 @@ res://
 │   ├── sim_rng.gd            Aléatoire à graine, propre à la simulation
 │   └── state_hash.gd         Empreinte de l'état (vérification de l'hôte, tests)
 ├── ai/                       Robots
-│   ├── economy_robot.gd      G1 : robot d'économie (4 profils d'expansion), repris en G4
+│   ├── economy_robot.gd      G1 : profils d'expansion (4), repris en G4
+│   ├── builder_robot.gd      G2 : profils de bâtisseur (Producteur, Accélérateur, Hasardeux)
+│   ├── colony_robot.gd       G2 : robot du panneau (deux bourses, expansion + construction)
+│   ├── robot_spec.gd         G2 : composition d'un robot (profils et part de l'expansion)
 │   ├── robot.gd              Lit l'état, produit des commandes
 │   ├── evaluators/           Évaluation par utilité (coloniser, bâtir, attaquer, défendre)
 │   └── profiles/             Profils et difficultés (.tres)
@@ -128,7 +131,7 @@ res://
 │   ├── capture.gd            Captures d'écran d'un écran du jeu (menus, Bac à sable, partie jouée N secondes, menu de partie, fin), pour validation visuelle
 │   ├── sim_runner.gd         Lots de parties de robots (simples ou balayages), en parallèle — jalon G1, étendu en G4
 │   ├── simulation/           Une partie mesurée (sim_run), ses mesures, statistiques, tableau et CSV
-│   └── simulation_panel/     Panneau de simulations (éditeur seulement)
+│   └── simulation_panel/     Panneau de simulations (éditeur seulement) ; liste des robots (G2, gardée dans user://)
 ├── tests/
 │   ├── unit/                 Un fichier de test par système
 │   ├── integration/          Parties complètes, déterminisme, scènes
@@ -204,7 +207,8 @@ Fin de partie visée : ~1e6 nutriments/s, soit ~1e9 en millièmes par seconde ; 
 - Décision par **utilité** : chaque évaluateur note les actions possibles (coloniser telle case, construire tel bâtiment, ouvrir un front et régler son débit, renforcer, migrer le Cœur) ; le robot choisit les meilleures.
 - **Difficulté** = délai de réaction, part d'erreurs, profondeur d'évaluation, qualité du choix des fronts et des débits. **Profil** = poids des évaluateurs (bâtisseur, expansionniste, agressif).
 - Les robots utilisent leur propre `SimRng` dérivé de la graine : une partie de robots est donc **rejouable à l'identique**.
-- **G1** : premiers robots d'économie (profils Hasardeux, Rentable, Rapide, Centre, GDD §14.5), qui ne font que coloniser ; ils servent au panneau de simulations et seront repris par les robots complets de G4. `EconomyRobot.decide()` renvoie au plus un `EnqueueCommand` par tick (file gardée pleine) ; la « production ajoutée » d'une case vient de `EconomySystem.added_production()`, pour que la règle reste dans `sim/`.
+- **G1** : premiers robots d'économie (profils Hasardeux, Rentable, Rapide, Centre, GDD §14.5), qui ne font que coloniser ; ils servent au panneau de simulations et seront repris par les robots complets de G4. La « production ajoutée » d'une case vient de `EconomySystem.added_production()`, pour que la règle reste dans `sim/`.
+- **G2** : un robot du panneau est un `ColonyRobot` composé d'un `RobotSpec` (profil d'expansion, profil de bâtisseur, part de l'expansion). `EconomyRobot` choisit la case (dans la limite d'un budget), `BuilderRobot` le bâtiment et sa case ; `ColonyRobot` tient les deux bourses (GDD §14.5) et renvoie au plus un `EnqueueCommand` et un `BuildCommand` par tick. Les estimations des robots passent par `Buildings.synergy_with()` et `Buildings.placement_ok()`, pour que les règles restent dans `sim/`.
 
 ---
 
@@ -369,7 +373,7 @@ Le ressenti (rythme, plaisir des gestes, lisibilité), le rendu visuel, les perf
 |---|---|
 | G0 | Transformation du dépôt, arborescence, autoloads, thèmes, traductions, `hex.gd`, `map_generator.gd` (zones uniquement), rendu de la carte, caméra, menu principal, écran Paramètres, GUT et workflows |
 | G1 | `GameState`, `Simulation`, commandes de colonisation, `GrowthSystem`, `EconomySystem`, `TierSystem`, `fixed.gd`, `sim_rng.gd`, `state_hash.gd`, `LocalTransport`, `Session` ; positions de départ dans `map_generator.gd` ; écran Bac à sable (réglages, valeurs par défaut, récapitulatif copiable), HUD, effets de palier, section Commandes des Paramètres ; enregistrement des commandes et test de rejeu ; robots d'économie (`ai/`), `tools/sim_runner.gd` et panneau de simulations (éditeur seulement). Livré en trois étapes : `sim/` et tests (**étape 1 livrée le 4 octobre 2026**) ; affichage, HUD et Bac à sable (**étape 2 livrée le 4 octobre 2026**) ; robots, simulations et panneau (**étape 3 livrée le 4 octobre 2026**, version 0.2.0) |
-| G2 | Bâtiments (`data/buildings/`), chantiers et file de construction, voisinage, Enzymes, plafond de stock, désactivation ; palette et menu rond ; robots composés (profil d'expansion + profil de bâtisseur + pourcentage) dans le panneau de simulations. Trois étapes : `sim/` et tests (**étape 1 livrée le 4 octobre 2026** : `Buildings`, `BuildCommand`, `DemolishCommand`, `data/buildings/`) ; affichage, HUD et Bac à sable (**étape 2 livrée le 4 octobre 2026** : `BuildingLayer`, `BuildingIcons`, `BuildingPalette`, `RadialMenu`, `BuildingPanel`, `BuildQueueView`, réglages des bâtiments dans `SandboxParam`) ; robots et panneau |
+| G2 | Bâtiments (`data/buildings/`), chantiers et file de construction, voisinage, Enzymes, plafond de stock, désactivation ; palette et menu rond ; robots composés (profil d'expansion + profil de bâtisseur + pourcentage) dans le panneau de simulations. Trois étapes : `sim/` et tests (**étape 1 livrée le 4 octobre 2026** : `Buildings`, `BuildCommand`, `DemolishCommand`, `data/buildings/`) ; affichage, HUD et Bac à sable (**étape 2 livrée le 4 octobre 2026** : `BuildingLayer`, `BuildingIcons`, `BuildingPalette`, `RadialMenu`, `BuildingPanel`, `BuildQueueView`, réglages des bâtiments dans `SandboxParam`) ; robots et panneau (**étape 3 livrée le 4 octobre 2026**, version 0.3.0 : `RobotSpec`, `BuilderRobot`, `ColonyRobot`, `RobotList`, `ColonyState.nutrients_lost`) |
 | G3 | `CombatSystem`, gestes dans `view/input/`, `EventSystem`, `VictorySystem` |
 | G4 | `ai/` (robots complets), `tools/sim_runner.gd` étendu, menus, résultats |
 | G5 | Tutoriel, audio, traduction, profil (sans Steam) |

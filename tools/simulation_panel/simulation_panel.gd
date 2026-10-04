@@ -3,7 +3,8 @@ extends Control
 ## le menu principal seulement quand le jeu est lancé depuis l'éditeur ; il est dans tools/,
 ## exclu des exports. Trois onglets :
 ## - Réglages : les réglages du Bac à sable (formulaire partagé) ;
-## - Lancement : profils cochés, nombre de parties, durée simulée, lancement simple ou balayage ;
+## - Lancement : liste des robots (gardée d'une session à l'autre), nombre de parties, durée
+##   simulée, lancement simple ou balayage (un réglage, ou la part d'expansion des robots) ;
 ## - Résultats : tableau (une colonne par série), courbes, export CSV, rejeu sur la carte.
 
 const FORM_SCENE: PackedScene = preload("res://ui/sandbox/settings_form.tscn")
@@ -14,9 +15,12 @@ const SECONDS_PER_MINUTE: int = 60
 const CSV_NAME: String = "user://simulations_%s.csv"
 const TABLE_WIDTH: float = 0.0
 
+## Fichier de la liste des robots (les tests en donnent un autre).
+var robots_path: String = RobotList.PATH
+
 var _form: SettingsForm
 var _tabs: TabContainer
-var _profile_boxes: Array[CheckBox] = []
+var _robots: RobotList
 var _runs_spin: SpinBox
 var _minutes_spin: SpinBox
 var _mode_option: OptionButton
@@ -126,7 +130,12 @@ func _settings_tab() -> Control:
 
 
 func _launch_tab() -> Control:
+	# Défilant : la liste des robots peut être longue.
+	var scroll := ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	var center := CenterContainer.new()
+	center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(center)
 	var card := PanelContainer.new()
 	card.theme_type_variation = &"HudPanel"
 	center.add_child(card)
@@ -138,14 +147,9 @@ func _launch_tab() -> Control:
 	grid.add_theme_constant_override(&"h_separation", 24)
 	grid.add_theme_constant_override(&"v_separation", 10)
 	box.add_child(grid)
-	var profiles := VBoxContainer.new()
-	for key: String in EconomyRobot.PROFILE_KEYS:
-		var check := CheckBox.new()
-		check.text = key
-		check.button_pressed = true
-		profiles.add_child(check)
-		_profile_boxes.append(check)
-	_add_row(grid, "SIM_PROFILES", profiles)
+	_robots = RobotList.new()
+	_robots.load_list(robots_path)
+	_add_row(grid, "SIM_ROBOTS", _robots)
 	_runs_spin = _spin(1.0, 1000.0, 1.0, DEFAULT_RUNS)
 	_add_row(grid, "SIM_RUNS", _runs_spin)
 	_minutes_spin = _spin(1.0, 30.0, 1.0, DEFAULT_MINUTES)
@@ -180,7 +184,7 @@ func _launch_tab() -> Control:
 	box.add_child(_status)
 	_fill_sweep_params()
 	_update_sweep_fields()
-	return center
+	return scroll
 
 
 func _results_tab() -> Control:
@@ -262,6 +266,7 @@ func _spin(low: float, high: float, step: float, value: float) -> SpinBox:
 func _fill_sweep_params() -> void:
 	var defs: SimDefs = _form.config().defs
 	_params = SandboxParam.all(defs.zone_count(), defs.tier_cells.size(), defs.buildings)
+	_params.append(SandboxParam.robot_share())
 	_sweep_option.clear()
 	for param: SandboxParam in _params:
 		_sweep_option.add_item(param.label())
@@ -289,21 +294,12 @@ func _update_sweep_fields() -> void:
 		spin.editable = sweep
 
 
-## Profils cochés.
-func _checked_profiles() -> Array[int]:
-	var profiles: Array[int] = []
-	for index: int in range(_profile_boxes.size()):
-		if _profile_boxes[index].button_pressed:
-			profiles.append(index)
-	return profiles
-
-
 func _on_start() -> void:
 	var problems: String = _form.problems_text()
 	if not problems.is_empty():
 		_status.text = problems
 		return
-	var profiles: Array[int] = _checked_profiles()
+	var profiles: Array[RobotSpec] = _robots.specs()
 	if profiles.is_empty():
 		_status.text = tr("SIM_NO_PROFILE")
 		return
@@ -445,7 +441,6 @@ func _save() -> void:
 		"sweep_min": _sweep_min.value,
 		"sweep_max": _sweep_max.value,
 		"sweep_step": _sweep_step.value,
-		"profiles": _checked_profiles(),
 		"tab": _tabs.current_tab,
 	}
 
@@ -466,7 +461,6 @@ func _restore() -> void:
 	var sweep_min: float = state.get("sweep_min", 0.0)
 	var sweep_max: float = state.get("sweep_max", 0.0)
 	var sweep_step: float = state.get("sweep_step", 1.0)
-	var profiles: Array[int] = state.get("profiles", [] as Array[int])
 	var tab: int = state.get("tab", 0)
 	_runs_spin.value = runs
 	_minutes_spin.value = minutes
@@ -476,7 +470,5 @@ func _restore() -> void:
 	_sweep_min.value = sweep_min
 	_sweep_max.value = sweep_max
 	_sweep_step.value = sweep_step
-	for index: int in range(_profile_boxes.size()):
-		_profile_boxes[index].button_pressed = profiles.has(index)
 	_update_sweep_fields()
 	_tabs.current_tab = tab

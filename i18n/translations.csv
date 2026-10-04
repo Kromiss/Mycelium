@@ -196,12 +196,25 @@ PROFILE_RANDOM,Random,Hasardeux
 PROFILE_PROFITABLE,Profitable,Rentable
 PROFILE_FAST,Fast,Rapide
 PROFILE_CENTER,Centre,Centre
+BUILDER_NONE,No building,Aucun bâtiment
+BUILDER_PRODUCER,Producer,Producteur
+BUILDER_ACCELERATOR,Accelerator,Accélérateur
+BUILDER_RANDOM,Random builder,Bâtisseur hasardeux
+SIM_ROBOTS,Robots,Robots
+SIM_ADD_ROBOT,Add a robot,Ajouter un robot
+SIM_REMOVE_ROBOT,Remove,Retirer
+SIM_ROBOT_SHARE,Robots: share of production for expansion (%),Robots : part de la production pour l'expansion (%)
+SIM_M_WAIT_BUILD,Time waiting for a site or a place in the build queue (%),Temps à attendre un chantier ou une place dans la file de construction (%)
+SIM_M_FIRST_BUILDING,First %s finished (min),1er bâtiment « %s » terminé (min)
+SIM_M_BUILDING_COUNT,%s built at the end,Bâtiments « %s » à la fin
+SIM_M_LOST,Nutrients lost at the stock cap,Nutriments perdus au plafond du stock
+SIM_M_LOST_SHARE,Production lost at the stock cap (%),Production perdue au plafond du stock (%)
+SIM_M_ENZYMES,Enzymes produced,Enzymes produites
 SIM_TITLE,Simulations,Simulations
 SIM_TAB_SETTINGS,Settings,Réglages
 SIM_TAB_LAUNCH,Launch,Lancement
 SIM_TAB_RESULTS,Results,Résultats
-SIM_PROFILES,Expansion profiles,Profils d'expansion
-SIM_RUNS,Simulations per profile,Simulations par profil
+SIM_RUNS,Simulations per robot,Simulations par robot
 SIM_DURATION,Simulated duration (min),Durée simulée (min)
 SIM_MODE,Launch,Lancement
 SIM_MODE_SIMPLE,Simple,Simple
@@ -212,7 +225,7 @@ SIM_SWEEP_MAX,Maximum,Maximum
 SIM_SWEEP_STEP,Step,Pas
 SIM_START,Run the simulations,Lancer les simulations
 SIM_RUNNING,%d / %d games,%d / %d parties
-SIM_NO_PROFILE,Tick at least one profile,Coche au moins un profil
+SIM_NO_PROFILE,Add at least one robot,Ajoute au moins un robot
 SIM_DONE,Done: %d games in %s s,Terminé : %d parties en %s s
 SIM_EXPORT,Export CSV,Exporter en CSV
 SIM_EXPORTED,Saved: %s,Enregistré : %s

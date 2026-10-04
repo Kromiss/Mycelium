@@ -31,6 +31,17 @@ static func rows(series: Array[SimRunner.Series], with_minutes: bool) -> Array[R
 	result.append(_row(series, _t("SIM_M_WAIT_GROWTH"), _wait.bind(0)))
 	result.append(_row(series, _t("SIM_M_WAIT_NUTRIENTS"), _wait.bind(1)))
 	result.append(_row(series, _t("SIM_M_WAIT_NOTHING"), _wait.bind(2)))
+	result.append(_row(series, _t("SIM_M_WAIT_BUILD"), _wait.bind(3)))
+	var buildings: Array[SimBuilding] = series[0].defs.buildings
+	for type: int in range(sample.building_minutes.size()):
+		var name: String = _t(buildings[type].name_key)
+		result.append(_row(series, _t("SIM_M_FIRST_BUILDING") % name, _first_building.bind(type)))
+	for type: int in range(sample.building_counts.size()):
+		var name: String = _t(buildings[type].name_key)
+		result.append(_row(series, _t("SIM_M_BUILDING_COUNT") % name, _building_count.bind(type)))
+	result.append(_row(series, _t("SIM_M_LOST"), _building_economy.bind(0)))
+	result.append(_row(series, _t("SIM_M_LOST_SHARE"), _building_economy.bind(1)))
+	result.append(_row(series, _t("SIM_M_ENZYMES"), _building_economy.bind(2)))
 	result.append(_row(series, _t("SIM_M_CELLS"), _final.bind(0)))
 	result.append(_row(series, _t("SIM_M_FINAL_TIER"), _final.bind(1)))
 	result.append(_row(series, _t("SIM_M_PRODUCTION"), _final.bind(2)))
@@ -121,9 +132,28 @@ static func _unpaid(result: SimRunResult, third: int) -> float:
 ## Parts du temps en pour-cent.
 static func _wait(result: SimRunResult, kind: int) -> float:
 	var shares: Array[float] = [
-		result.waiting_growth, result.waiting_nutrients, result.waiting_nothing
+		result.waiting_growth,
+		result.waiting_nutrients,
+		result.waiting_nothing,
+		result.waiting_build
 	]
 	return shares[kind] * 100.0
+
+
+static func _first_building(result: SimRunResult, type: int) -> float:
+	return result.building_minutes[type]
+
+
+static func _building_count(result: SimRunResult, type: int) -> float:
+	return float(result.building_counts[type])
+
+
+## Pertes au plafond (nutriments, part de la production en pour-cent) et Enzymes produites.
+static func _building_economy(result: SimRunResult, kind: int) -> float:
+	var values: Array[float] = [
+		result.lost_nutrients, result.lost_share * 100.0, result.enzymes_produced
+	]
+	return values[kind]
 
 
 static func _final(result: SimRunResult, kind: int) -> float:

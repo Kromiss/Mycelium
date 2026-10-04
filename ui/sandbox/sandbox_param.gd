@@ -3,7 +3,7 @@ extends RefCounted
 ## Un réglage chiffré du Bac à sable (GDD §2.1 bis) : où il se range dans SimDefs, comment
 ## l'afficher et ses bornes. Sert à l'écran de réglages et au balayage du panneau de simulations.
 
-enum Group { ECONOMY, ZONES, TIERS, CONSTRUCTION, BUILD_TIMES, BUILDINGS }
+enum Group { ECONOMY, ZONES, TIERS, CONSTRUCTION, BUILD_TIMES, BUILDINGS, ROBOT_SHARE }
 
 ## Réglages de chaque bâtiment (G2) : champ de SimBuilding, clé du libellé, unités par unité
 ## affichée, minimum et maximum. La règle de pose n'est pas réglable (partout en G2).
@@ -85,6 +85,15 @@ static func all(
 	return list
 
 
+## Part de la production que les robots consacrent à l'expansion (pour-cent) : pas un réglage
+## de la partie, mais une valeur que le panneau de simulations peut balayer (G2).
+static func robot_share() -> SandboxParam:
+	var param: SandboxParam = _make("SIM_ROBOT_SHARE", &"", 1.0, 0.0, 100.0, 1.0)
+	param.group = Group.ROBOT_SHARE
+	param.id = "robot_expansion_share"
+	return param
+
+
 ## Réglages généraux des bâtiments (G2) : plafond du stock, pousses, chantiers, file, coûts,
 ## remboursement et durées des chantiers selon le palier de déblocage.
 static func _construction_params() -> Array[SandboxParam]:
@@ -133,6 +142,8 @@ static func _building_params(buildings: Array[SimBuilding]) -> Array[SandboxPara
 
 ## Valeur affichée du réglage.
 func read(defs: SimDefs) -> float:
+	if group == Group.ROBOT_SHARE:
+		return float(RobotSpec.DEFAULT_SHARE)
 	if group == Group.BUILDINGS:
 		var stored: int = defs.buildings[index].get(property)
 		return float(stored) / scale
@@ -146,6 +157,8 @@ func read(defs: SimDefs) -> float:
 ## Change le réglage à partir d'une valeur affichée.
 func write(defs: SimDefs, value: float) -> void:
 	var raw: int = roundi(value * scale)
+	if group == Group.ROBOT_SHARE:
+		return
 	if group == Group.BUILDINGS:
 		defs.buildings[index].set(property, raw)
 		return

@@ -552,7 +552,7 @@ Aucune action de modification (pas d'arrêt de partie, pas de ressources, pas de
 ### 14.5 Panneau de simulations (développement) *(décidé le 4 octobre 2026, jalon G1)*
 Outil d'équilibrage **séparé** de l'interface d'administration, disponible **uniquement quand le jeu est lancé depuis l'éditeur Godot** : il n'existe dans aucun `.exe` livré.
 - **Lancement** : les **réglages du Bac à sable** (§2.1 bis), plus le **nombre de simulations** et la **durée simulée** (30 min par défaut). Deux façons : un **lancement simple** (N simulations par profil coché) ou un **balayage** (une valeur, son minimum, son maximum et son pas ; une série par valeur).
-- **Robots** *(G2)* : on compose une **liste de robots** ; chacun a **un profil d'expansion** (ci-dessous), **un profil de bâtisseur** (Aucun, Producteur : Nœuds puis Glandes en grappes ; Accélérateur : Pépinières et Mycorhizes d'abord ; Hasardeux : un bâtiment au hasard parmi les meilleurs choix) et **un pourcentage réglable** des nutriments consacré à l'expansion (le reste à la construction). La liste est **gardée d'une session à l'autre**.
+- **Robots** *(G2, livrés le 4 octobre 2026, version 0.3.0)* : on compose une **liste de robots** ; chacun a **un profil d'expansion** (ci-dessous), **un profil de bâtisseur** (Aucun, Producteur : Nœuds puis Glandes en grappes ; Accélérateur : Pépinières et Mycorhizes d'abord ; Hasardeux : un bâtiment au hasard parmi les meilleurs choix) et **un pourcentage réglable** des nutriments consacré à l'expansion (le reste à la construction). La liste est **gardée d'une session à l'autre**.
 - **Profils d'expansion**, à comparer côte à côte :
   - **Hasardeux** : une case tirée au hasard parmi les 3 plus rentables (aléatoire tiré de la graine de chaque simulation) ;
   - **Rentable** : le meilleur rapport production ajoutée (zone, Cohésion) / coût ;
@@ -567,6 +567,16 @@ Outil d'équilibrage **séparé** de l'interface d'administration, disponible **
   - **ce qui freine** : chaque seconde compte comme attente de la pousse (toutes les places de pousse prises), attente des nutriments (une place libre mais la file attend, ou Centre ne peut rien payer) ou rien à coloniser ;
   - toutes les valeurs chiffrées des réglages du Bac à sable peuvent être balayées ; chaque partie d'une série a sa propre graine (graine des réglages + numéro de la partie), la même d'une série à l'autre ;
   - le **rejeu** sur la carte se fait aux vitesses **×1, ×4, ×16 et ×64**, avec pause ; on y voit la partie telle qu'elle a été jouée, sans pouvoir donner d'ordres.
+- *Décidé le 4 octobre 2026 (G2, étape 3)* :
+  - **deux bourses** : à chaque seconde, ce que la colonie a gagné est partagé, X % dans la bourse d'expansion et le reste dans la bourse de construction ; le stock de départ va à l'expansion ; si le plafond du stock coupe la production, les deux bourses baissent en proportion. Une case n'entre dans la file d'expansion que si la bourse d'expansion couvre son coût (débité à l'ajout) ; un bâtiment n'est posé que si la bourse de construction le paie. **Tous les robots** suivent cette règle, y compris les 4 profils de G1 (sans bâtisseur, à 100 %) : la règle « file gardée pleine » de G1 est remplacée ;
+  - **Producteur** : Nœuds de digestion sur la case où ils ajoutent le plus de production (voisinage et Rosace compris) ; dès que les Glandes sont débloquées (palier 2), **une Glande pour trois Nœuds**, collée aux autres Glandes ;
+  - **Accélérateur** : d'abord les Pépinières qui donnent tous les chantiers possibles (2 pour atteindre 4 chantiers), puis dès le palier 3 les Mycorhizes qui donnent toutes les pousses possibles (2 pour atteindre 3 pousses) ; ensuite il construit comme le Producteur ;
+  - **Hasardeux** : tire au hasard un type débloqué qu'il peut payer, puis le pose sur la meilleure case pour ce type ;
+  - le Producteur et l'Accélérateur posent un **Grenier** quand leur stock dépasse **80 %** du plafond ;
+  - une **Pépinière** va sur la case qui a le plus de cases colonisables (libres) dans son rayon, hors de la portée des Pépinières déjà posées ; un **Grenier** ou une **Mycorhize** va sur la case où un Nœud rapporterait le moins ;
+  - **mesures ajoutées** : minute du premier bâtiment terminé de chaque type, nombre de bâtiments de chaque type à la fin, nutriments perdus au plafond (total et part de la production), Enzymes produites, part du temps où la construction attend un chantier ou une place dans la file ;
+  - la **part d'expansion** peut être balayée (une série par valeur, appliquée à tous les robots de la liste) ;
+  - **liste du premier lancement** : les 4 profils d'expansion sans bâtisseur à 100 %, puis Rentable avec Producteur, Accélérateur et Hasardeux à 70 %.
 
 
 ---
