@@ -89,7 +89,7 @@ func _follow_paybacks(
 func _count_wait(
 	state: GameState, colony: ColonyState, robot: EconomyRobot, waits: PackedInt32Array
 ) -> void:
-	if colony.growing.size() >= state.defs.max_growths:
+	if colony.growing.size() >= Buildings.max_growths(state, colony):
 		waits[0] += 1
 	elif not colony.queue.is_empty() or robot.last_candidate_count > 0:
 		waits[1] += 1

@@ -258,7 +258,7 @@ Chaque case possédée peut accueillir **un bâtiment**, posé, déplacé ou dé
 6. **Démolir** est **instantané** et rembourse **50 % du prix payé** ; **déplacer** = démolir + reposer (pas de geste dédié).
 7. **Le Cœur est un bâtiment** : il occupe sa case (aucun autre bâtiment ne s'y pose) et n'apporte aucun bonus ; sa case produit comme les autres. S'il tombe sans Sclérote, la colonie est éliminée.
 8. **Capture** : le bâtiment passe à l'attaquant avec la case (§7.6). L'Incendie et le Sanglier, eux, détruisent tout.
-9. **File de construction**, distincte de la file d'expansion : **5 places, chantiers en cours compris**. **Toute pose entre dans la file** et démarre dès qu'un chantier se libère, dans l'ordre d'ajout. Le coût est payé **à la mise en file**. Annuler un bâtiment **en file** le rembourse à **100 %** ; annuler un **chantier** lancé le rembourse à **50 %**.
+9. **File de construction**, distincte de la file d'expansion : **5 places, chantiers en cours compris**. **Toute pose entre dans la file** et démarre dès qu'un chantier se libère, dans l'ordre d'ajout. Le coût est payé **à la mise en file**. Annuler un bâtiment **en file** le rembourse à **100 %** ; annuler un **chantier** lancé le rembourse à **50 %**. Un bâtiment en file dont le palier de déblocage n'est plus atteint **attend dans la file** (il garde sa place) **sans bloquer les suivants**, et démarre quand la colonie retrouve le palier *(décidé le 4 octobre 2026)*.
 
 Les coûts sont en multiples de **U**, le coût de colonisation d'une case de zone 1 au départ.
 
@@ -271,7 +271,7 @@ Les déblocages suivent les **paliers de colonie** (§6.1). Un bâtiment dont le
 |---|---|---|---|---|
 | **Nœud de digestion** | Départ | 2 U | Partout | +50 % de rendement de la case |
 | **Grenier** | Palier 1 | 3 U | Partout | +2 min de plafond de stock |
-| **Pépinière** | Palier 1 | 4 U | Partout | Pousse −30 % dans un rayon de 3 (plusieurs Pépinières ne se cumulent pas) ; +1 chantier simultané (4 au plus) |
+| **Pépinière** | Palier 1 | 4 U | Partout | Pousse −30 % dans un rayon de 3 (plusieurs Pépinières ne se cumulent pas ; la vitesse d'une pousse est **recalculée à chaque seconde** : une Pépinière qui apparaît ou disparaît en cours de pousse change tout de suite sa vitesse, décidé le 4 octobre 2026) ; +1 chantier simultané (4 au plus) |
 | **Glande enzymatique** | Palier 2 | 5 U | Partout | +20 Enzymes/min |
 | **Sclérote** | Palier 2 | 15 U + 50 Enzymes | Case non frontière, **1 seul** | Recueille le Cœur s'il tombe (§9.5) |
 | **Mycorhize** | Palier 3 | 6 U | Partout | +1 pousse simultanée (3 au plus en tout) |
@@ -282,11 +282,12 @@ Les déblocages suivent les **paliers de colonie** (§6.1). Un bâtiment dont le
 | **Carpophore** | Palier 5 | 10 U | Partout | Portée des actions +2 ; montre l'état des Cœurs ennemis ; **visible et ciblé par tous** |
 
 ### 7.3 Voisinage (synergies)
-- **Nœud de digestion** : +10 % par Nœud adjacent (max +30 %). L'ancien +10 % au contact d'un Réservoir est **à remplacer** (voisin à décider).
+- **Nœud de digestion** : +10 % par Nœud adjacent (max +30 %). Le Nœud ne se renforce **qu'avec d'autres Nœuds** : l'ancien bonus au contact d'un Réservoir n'est pas remplacé *(décidé le 4 octobre 2026)*.
 - **Glande enzymatique** : +10 % par Glande adjacente (max +30 %).
 - Ces bonus **se multiplient** avec l'effet du bâtiment : un Nœud entouré de 3 Nœuds donne ×1,5 × 1,3 = ×1,95.
 - **Écorce** : +10 % de temps de prise par Écorce voisine (un mur).
-- **Rosace** : une case entourée de ses 6 voisines possédées compte **+10 %** sur l'effet de son bâtiment, **pour les bâtiments qui produisent** (Nœud de digestion, Glande enzymatique).
+- **Rosace** : une case entourée de ses 6 voisines possédées compte **+10 %** sur l'effet de son bâtiment, **pour les bâtiments qui produisent** (Nœud de digestion, Glande enzymatique). Ce ×1,1 **multiplie tout l'effet**, voisinage compris : un Nœud en Rosace entouré de 3 Nœuds donne ×1,5 × 1,3 × 1,1 *(décidé le 4 octobre 2026)*.
+- Seuls les bâtiments **actifs** (construits et palier atteint) comptent comme voisins.
 - Un **quartier compact** est fort mais plus facile à raser d'un coup (Incendie, Sanglier, attaque) : choisir sa densité est une décision.
 
 ### 7.4 Poser et démolir *(décidé le 4 octobre 2026, jalon G2)*
@@ -460,7 +461,7 @@ Menu principal, **mode Duel**, **mode FFA**, **salon de partie personnalisée**,
 | Bonbon | `#F691C3` | `#E74E9A` | Framboise | `#E0516C` | `#B62A44` |
 | Citron | `#E7DF39` | `#B0A91E` | Indigo | `#4042D4` | `#2A2B99` |
 - Une colonie se dessine comme **une seule tache arrondie** ; le **Cœur** est un champignon avec deux petits yeux. *G1 : version simple d'abord* : cases colorées une par une, Cœur dans la teinte foncée de la colonie, case en pousse avec une jauge qui se remplit ; la tache arrondie vient plus tard.
-- **Bâtiments** : un pictogramme rond et simple au centre de la case (planche de maquettes à valider avant de coder, en G2). **États** : bâtiment désactivé = pictogramme grisé avec un petit cadenas (info-bulle : « palier N requis, X cases ») ; bâtiment capturé = pictogramme à la couleur du capteur ; pousse = cercle pointillé ; **en construction** = pictogramme pointillé avec jauge ; prise en cours = anneau de la couleur de l'attaquant ; coupée = barre blanche.
+- **Bâtiments** : un pictogramme rond et simple au centre de la case. *Maquettes validées le 4 octobre 2026* : spirale (Nœud de digestion), jarre (Grenier), pousse (Pépinière), goutte (Glande enzymatique), racines (Mycorhize), dans un disque crème cerclé d'une teinte foncée de la colonie. **États** : bâtiment désactivé = disque et pictogramme gris neutre à **45 % d'opacité**, avec un petit cadenas **opaque** (info-bulle : « palier N requis, X cases ») ; bâtiment capturé = pictogramme à la couleur du capteur ; pousse = cercle pointillé ; **en construction** = pictogramme pointillé avec jauge ; prise en cours = anneau de la couleur de l'attaquant ; coupée = barre blanche.
 - **Front** : le tronçon est bordé de la couleur de l'attaquant et porte une **jauge de pression** (attaque contre défense) ; les cases qui basculent se teintent peu à peu (visuel à valider sur maquettes en G3).
 
 ### 13.3 Mode sombre
@@ -685,6 +686,7 @@ Questions relevées en relisant chaque jalon. Elles seront posées sous forme de
 37. HUD de G3 : frise, temps restant, alertes, annonce des événements, journal, mini-classement : tout en G3 ?
 38. Pictogrammes des bâtiments de combat et visuel des fronts : maquettes à valider d'abord, comme en G2 ?
 39. Livraison : trois étapes et version 0.4.0, ou découper davantage (combat, puis événements) ?
+40. Bâtiments sur une case coupée du Cœur : en G2, comme la case, ils ne produisent rien (ni bonus de rendement, ni Enzymes) mais gardent leurs autres effets (plafond de stock, chantiers, pousses, Pépinière). À confirmer quand les coupures arrivent avec le combat.
 
 ### G4 : Duel et FFA contre robots
 1. Profils des robots : le §2.5 parle de bâtisseur, expansionniste et agressif, alors que les robots du panneau combinent un profil d'expansion, un profil de bâtisseur et un pourcentage. Les robots de jeu reprennent-ils cette composition, avec un profil de combat en plus ?

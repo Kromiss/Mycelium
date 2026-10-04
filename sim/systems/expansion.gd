@@ -15,6 +15,20 @@ static func cost(state: GameState, colony: ColonyState, cell: int) -> int:
 	return Fixed.mul(Fixed.mul(defs.unit_cost, zone_pm), defs.cost_pow_table[extra])
 
 
+## Secondes de pousse restantes d'une case en pousse (arrondies au-dessus).
+static func growth_seconds_left(state: GameState, cell: int) -> int:
+	@warning_ignore("integer_division")
+	return (state.growth_left[cell] + Fixed.ONE - 1) / Fixed.ONE
+
+
+## Avancement de la pousse d'une case (0 à 1000 pour-mille).
+static func growth_progress_pm(state: GameState, cell: int) -> int:
+	var total: int = growth_ticks(state, cell) * Fixed.ONE
+	return clampi(
+		Fixed.ONE - Fixed.div_round(state.growth_left[cell] * Fixed.ONE, total), 0, Fixed.ONE
+	)
+
+
 ## Durée de pousse d'une case, en ticks.
 static func growth_ticks(state: GameState, cell: int) -> int:
 	return state.defs.growth_ticks_by_zone[state.map.zones[cell] - 1]
@@ -28,7 +42,7 @@ static func check_colonize(state: GameState, colony: ColonyState, cell: int) -> 
 		return Refusal.Code.CELL_TAKEN
 	if not state.touches_network(cell, colony.id):
 		return Refusal.Code.NOT_ADJACENT
-	if colony.growing.size() >= state.defs.max_growths:
+	if colony.growing.size() >= Buildings.max_growths(state, colony):
 		return Refusal.Code.NO_GROWTH_SLOT
 	# Le clic compte dans les places de la file ; une case déjà en file y a déjà sa place.
 	var occupied: int = colony.queue_load() - (1 if colony.queue.has(cell) else 0)
@@ -81,7 +95,7 @@ static func start_growth(
 		colony.queue.remove_at(queued)
 	state.owner[cell] = colony.id
 	state.cell_state[cell] = GameState.CellState.GROWING
-	state.growth_left[cell] = growth_ticks(state, cell)
+	state.growth_left[cell] = growth_ticks(state, cell) * Fixed.ONE
 	colony.growing.append(cell)
 	result.cell_changed(cell)
 	result.colony_changed(colony.id)
@@ -111,7 +125,8 @@ static func prune_queue(state: GameState, colony: ColonyState) -> void:
 ## les suivantes.
 static func start_queued(state: GameState, colony: ColonyState, result: TickResult) -> void:
 	prune_queue(state, colony)
-	while colony.growing.size() < state.defs.max_growths and not colony.queue.is_empty():
+	var slots: int = Buildings.max_growths(state, colony)
+	while colony.growing.size() < slots and not colony.queue.is_empty():
 		var head: int = colony.queue[0]
 		if not state.touches_network(head, colony.id):
 			return

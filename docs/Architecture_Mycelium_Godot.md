@@ -59,7 +59,7 @@ res://
 │   ├── tick_result.gd        Différences d'un tick et empreinte
 │   ├── replay.gd             Enregistrement d'une partie (définitions, graine, commandes) et rejeu
 │   ├── dict_read.gd          Lecture sûre des dictionnaires venus d'un fichier ou du réseau
-│   ├── defs/                 Classes des ressources de data/ (ZoneDef, TierDef, BalanceDef…) et SimDefs
+│   ├── defs/                 Classes des ressources de data/ (ZoneDef, TierDef, BalanceDef, BuildingDef…), SimDefs et SimBuilding (copie d'un bâtiment)
 │   ├── state/
 │   │   ├── forest_map.gd     Cases, zones, terrains et table des voisines
 │   │   ├── game_state.gd     État complet de la partie (tableaux compacts)
@@ -68,6 +68,7 @@ res://
 │   ├── systems/              Un fichier par domaine de règles
 │   │   ├── command_system.gd   Validation et application des commandes
 │   │   ├── expansion.gd        Règles de colonisation et de file, partagées avec les requêtes
+│   │   ├── buildings.gd        Règles du city builder (pose, file de construction, chantiers, démolition, activation, effets), partagées avec les requêtes
 │   │   ├── growth_system.gd    Pousse des cases, chantiers
 │   │   ├── combat_system.gd    Fronts, prises, actions actives, élimination
 │   │   ├── economy_system.gd   Production, réseau, stock, Enzymes
@@ -113,6 +114,7 @@ res://
 │   ├── balance.tres          Constantes générales (tick, base de coût, butin…)
 │   ├── zones.tres            Les 6 zones (richesse, coût, pousse, prise)
 │   ├── tiers.tres            Paliers (seuils, multiplicateurs, déblocages)
+│   ├── buildings.tres        Liste des bâtiments (G2)
 │   ├── buildings/            Un .tres par bâtiment
 │   ├── events/               Un .tres par événement
 │   ├── modes/                Duel, FFA, valeurs par défaut des parties personnalisées
@@ -164,7 +166,13 @@ Dans `GrowthSystem`, la file d'expansion démarre ce qui peut l'être, **puis** 
 ### 4.3 Les commandes
 - Classe de base `Command` : `tick`, `colony_id`, `type`. Les commandes qui visent une case héritent de `CellCommand` (case en coordonnées axiales). Une sous-classe par action : `ColonizeCommand` (clic direct), `EnqueueCommand` et `DequeueCommand` (file d'expansion) en G1, puis `BuildCommand`, `DemolishCommand`, `MoveHeartCommand`, `OpenFrontCommand`, `SetFrontRateCommand`, `StopFrontCommand`, `ReinforceCommand`, `ActiveActionCommand`.
 - Chaque commande sait se **convertir en dictionnaire et inversement** (`to_dict()`, `from_dict()`), pour le réseau et les replays.
-- La validation renvoie un code de refus explicite (`Refusal.Code` : `NOT_ADJACENT`, `NOT_ENOUGH_NUTRIENTS`, `QUEUE_FULL`…, puis `TIER_LOCKED`…) que l'interface traduit en message. L'interface peut demander à l'avance si une commande serait acceptée (`Simulation.check_colonize()`, `check_enqueue()`), ainsi que le coût, la durée de pousse et la production d'une case.
+- La validation renvoie un code de refus explicite (`Refusal.Code` : `NOT_ADJACENT`, `NOT_ENOUGH_NUTRIENTS`, `QUEUE_FULL`…, puis `TIER_LOCKED`…) que l'interface traduit en message. L'interface peut demander à l'avance si une commande serait acceptée (`Simulation.check_colonize()`, `check_enqueue()`, `check_build()`, `check_demolish()`), ainsi que le coût, la durée de pousse et la production d'une case, et le coût d'un bâtiment (`building_cost()`).
+
+### 4.3 bis Les bâtiments *(G2)*
+- Sur chaque case : `building` (indice du bâtiment dans `SimDefs.buildings`, −1 si aucun), `building_state` (`NONE`, `QUEUED`, `CONSTRUCTING`, `BUILT`), `build_left` (secondes de chantier restantes), `building_paid` et `building_paid_enzymes` (prix payé, pour les remboursements) et `building_active` (construit et palier atteint). Chaque colonie a ses `enzymes`, son `stock_cap`, sa file de construction (`build_queue`) et ses chantiers (`constructing`), dans l'ordre d'ajout.
+- `GrowthSystem` démarre ensuite les bâtiments de la file (en sautant ceux dont le palier n'est plus atteint) tant qu'un chantier est libre, puis fait avancer les chantiers : un bâtiment de N secondes posé au tick t est construit à la fin du tick t + N − 1 si un chantier est libre.
+- La progression d'une pousse est en **millièmes de seconde** : chaque tick retire la vitesse de pousse de la case (1000, ou 1000 ÷ 0,7 près d'une Pépinière active), recalculée à chaque tick.
+- `TierSystem` recalcule `building_active` après les paliers ; `EconomySystem` applique le bonus des bâtiments actifs à la production des cases, ajoute les Enzymes des Glandes reliées au Cœur, puis plafonne le stock de nutriments (la Biomasse compte toute la production, plafond ou pas).
 
 ### 4.4 Règles de déterminisme
 1. **L'état ne contient que des entiers.** Les quantités sont en **millièmes** (`int` 64 bits) : 12,5 nutriments = `12500`. Les multiplicateurs sont en **pour-mille** (×1,12 = `1120`).
@@ -360,7 +368,7 @@ Le ressenti (rythme, plaisir des gestes, lisibilité), le rendu visuel, les perf
 |---|---|
 | G0 | Transformation du dépôt, arborescence, autoloads, thèmes, traductions, `hex.gd`, `map_generator.gd` (zones uniquement), rendu de la carte, caméra, menu principal, écran Paramètres, GUT et workflows |
 | G1 | `GameState`, `Simulation`, commandes de colonisation, `GrowthSystem`, `EconomySystem`, `TierSystem`, `fixed.gd`, `sim_rng.gd`, `state_hash.gd`, `LocalTransport`, `Session` ; positions de départ dans `map_generator.gd` ; écran Bac à sable (réglages, valeurs par défaut, récapitulatif copiable), HUD, effets de palier, section Commandes des Paramètres ; enregistrement des commandes et test de rejeu ; robots d'économie (`ai/`), `tools/sim_runner.gd` et panneau de simulations (éditeur seulement). Livré en trois étapes : `sim/` et tests (**étape 1 livrée le 4 octobre 2026**) ; affichage, HUD et Bac à sable (**étape 2 livrée le 4 octobre 2026**) ; robots, simulations et panneau (**étape 3 livrée le 4 octobre 2026**, version 0.2.0) |
-| G2 | Bâtiments (`data/buildings/`), chantiers et file de construction, voisinage, Enzymes, plafond de stock, désactivation ; palette et menu rond ; robots composés (profil d'expansion + profil de bâtisseur + pourcentage) dans le panneau de simulations. Trois étapes : `sim/` et tests ; affichage, HUD et Bac à sable ; robots et panneau |
+| G2 | Bâtiments (`data/buildings/`), chantiers et file de construction, voisinage, Enzymes, plafond de stock, désactivation ; palette et menu rond ; robots composés (profil d'expansion + profil de bâtisseur + pourcentage) dans le panneau de simulations. Trois étapes : `sim/` et tests (**étape 1 livrée le 4 octobre 2026** : `Buildings`, `BuildCommand`, `DemolishCommand`, `data/buildings/`) ; affichage, HUD et Bac à sable ; robots et panneau |
 | G3 | `CombatSystem`, gestes dans `view/input/`, `EventSystem`, `VictorySystem` |
 | G4 | `ai/` (robots complets), `tools/sim_runner.gd` étendu, menus, résultats |
 | G5 | Tutoriel, audio, traduction, profil (sans Steam) |

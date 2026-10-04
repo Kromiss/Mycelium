@@ -33,11 +33,19 @@ func _init(defs: SimDefs, game_seed: int, colony_count: int = -1) -> void:
 	state.cell_state.resize(size)
 	state.growth_left.resize(size)
 	state.connected.resize(size)
+	state.building.resize(size)
+	state.building.fill(-1)
+	state.building_state.resize(size)
+	state.build_left.resize(size)
+	state.building_paid.resize(size)
+	state.building_paid_enzymes.resize(size)
+	state.building_active.resize(size)
 	for sector: int in range(count):
 		_place_colony(sector)
 	state.recompute_network()
 	for colony: ColonyState in state.colonies:
 		colony.tier = TierSystem.tier_for(defs, colony.cell_count)
+		colony.stock_cap = EconomySystem.colony_production(state, colony) * defs.stock_cap_seconds
 		for reached: int in range(colony.tier):
 			colony.tier_ticks[reached] = 0
 
@@ -124,6 +132,36 @@ func cell_production(colony_id: int, cell: Vector2i) -> int:
 		return -1
 	var base: int = EconomySystem.cell_production(state, colony_id, index)
 	return Fixed.mul(base, TierSystem.production_pm(state.defs, colony.tier))
+
+
+## Raison pour laquelle une pose serait refusée (OK si elle serait acceptée).
+func check_build(colony_id: int, cell: Vector2i, building: StringName) -> Refusal.Code:
+	var colony: ColonyState = state.colony(colony_id)
+	if colony == null or not colony.alive:
+		return Refusal.Code.UNKNOWN_COLONY
+	if state.finished:
+		return Refusal.Code.GAME_OVER
+	var type: int = state.defs.building_index(building)
+	return Buildings.check_build(state, colony, cell_index(cell), type)
+
+
+## Raison pour laquelle une démolition serait refusée (OK si elle serait acceptée).
+func check_demolish(colony_id: int, cell: Vector2i) -> Refusal.Code:
+	var colony: ColonyState = state.colony(colony_id)
+	if colony == null or not colony.alive:
+		return Refusal.Code.UNKNOWN_COLONY
+	if state.finished:
+		return Refusal.Code.GAME_OVER
+	return Buildings.check_demolish(state, colony, cell_index(cell))
+
+
+## Coût d'un nouveau bâtiment pour une colonie, en millièmes de nutriment (−1 s'il n'existe pas).
+func building_cost(colony_id: int, building: StringName) -> int:
+	var colony: ColonyState = state.colony(colony_id)
+	var type: int = state.defs.building_index(building)
+	if colony == null or type < 0:
+		return -1
+	return Buildings.cost(state, colony, type)
 
 
 func _place_colony(sector: int) -> void:

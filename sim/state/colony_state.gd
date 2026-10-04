@@ -15,6 +15,12 @@ var heart: int = -1
 var nutrients: int = 0
 ## Biomasse : total des nutriments produits depuis le début (GDD §5).
 var biomass: int = 0
+## Enzymes, en millièmes (sans plafond, GDD §5).
+var enzymes: int = 0
+## Plafond de stock de nutriments du dernier tick (GDD §5).
+var stock_cap: int = 0
+## Production d'Enzymes du dernier tick (millièmes par seconde).
+var enzyme_production: int = 0
 ## Nombre de cases poussées, Cœur compris.
 var cell_count: int = 0
 ## Palier de colonie atteint (0 = départ).
@@ -32,11 +38,20 @@ var zone_ticks: PackedInt32Array = PackedInt32Array()
 var growing: PackedInt32Array = PackedInt32Array()
 ## Cases en attente dans la file d'expansion, dans l'ordre d'ajout.
 var queue: PackedInt32Array = PackedInt32Array()
+## Cases dont le bâtiment attend dans la file de construction, dans l'ordre d'ajout.
+var build_queue: PackedInt32Array = PackedInt32Array()
+## Cases en chantier, dans l'ordre de démarrage.
+var constructing: PackedInt32Array = PackedInt32Array()
 
 
 ## Nombre de places occupées dans la file d'expansion (pousses en cours comprises).
 func queue_load() -> int:
 	return growing.size() + queue.size()
+
+
+## Nombre de places occupées dans la file de construction (chantiers compris).
+func build_load() -> int:
+	return constructing.size() + build_queue.size()
 
 
 ## Valeurs entières de la colonie, dans un ordre fixe, pour l'empreinte de la partie.
@@ -55,8 +70,17 @@ func hash_values() -> PackedInt64Array:
 			peak_production,
 			growing.size(),
 			queue.size(),
+			enzymes,
+			stock_cap,
+			enzyme_production,
+			build_queue.size(),
+			constructing.size(),
 		]
 	)
+	for cell: int in build_queue:
+		values.append(cell)
+	for cell: int in constructing:
+		values.append(cell)
 	for value: int in tier_ticks:
 		values.append(value)
 	for value: int in zone_ticks:

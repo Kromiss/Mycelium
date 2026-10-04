@@ -29,4 +29,24 @@ enum Code {
 	ALREADY_GROWING,
 	## La partie est terminée.
 	GAME_OVER,
+	## La case n'est pas une case poussée de la colonie.
+	NOT_OWNED,
+	## Le Cœur occupe la case.
+	HEART_CELL,
+	## La case a déjà un bâtiment (construit, en chantier ou en file).
+	CELL_OCCUPIED,
+	## Ce bâtiment n'existe pas.
+	UNKNOWN_BUILDING,
+	## Le palier de colonie qui débloque ce bâtiment n'est pas atteint.
+	TIER_LOCKED,
+	## La file de construction est pleine.
+	BUILD_QUEUE_FULL,
+	## Pas assez d'Enzymes.
+	NOT_ENOUGH_ENZYMES,
+	## Pas de bâtiment à démolir sur la case.
+	NO_BUILDING,
+	## La règle de pose du bâtiment n'est pas respectée (case frontière ou non).
+	BAD_PLACEMENT,
+	## Nombre maximal de ce bâtiment atteint.
+	BUILDING_LIMIT,
 }

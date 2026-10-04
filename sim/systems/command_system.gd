@@ -36,6 +36,15 @@ func _apply(state: GameState, command: Command, result: TickResult) -> Refusal.C
 			if code == Refusal.Code.OK:
 				Expansion.dequeue(state, colony, cell)
 				result.colony_changed(colony.id)
+		Command.Type.BUILD:
+			var type: int = state.defs.building_index((command as BuildCommand).building)
+			code = Buildings.check_build(state, colony, cell, type)
+			if code == Refusal.Code.OK:
+				Buildings.build(state, colony, cell, type, result)
+		Command.Type.DEMOLISH:
+			code = Buildings.check_demolish(state, colony, cell)
+			if code == Refusal.Code.OK:
+				Buildings.demolish(state, colony, cell, result)
 	return code
 
 

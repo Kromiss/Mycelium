@@ -153,8 +153,8 @@ func _draw_growing(state: GameState, cell: int, radius: float) -> void:
 		var start: float = TAU * dash / dashes
 		draw_arc(center, radius, start, start + TAU / dashes * 0.55, 6, _dark, 2.0, true)
 	var total: float = float(Expansion.growth_ticks(state, cell))
-	var done: float = total - float(state.growth_left[cell]) + _session.tick_fraction()
-	var progress: float = clampf(done / total, 0.0, 1.0)
+	var progress: float = float(Expansion.growth_progress_pm(state, cell)) / Fixed.ONE
+	progress = clampf(progress + _session.tick_fraction() / total, 0.0, 1.0)
 	var fill: Color = _main
 	fill.a = 0.55
 	draw_circle(center, radius * (0.25 + 0.6 * progress), fill)

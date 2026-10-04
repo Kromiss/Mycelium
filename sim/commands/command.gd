@@ -3,7 +3,7 @@ extends RefCounted
 ## Commande envoyée à la simulation par un joueur, un robot ou un script (Architecture §4.3).
 ## Seule la simulation modifie l'état ; une commande n'est qu'une demande, qu'elle valide.
 
-enum Type { COLONIZE, ENQUEUE, DEQUEUE }
+enum Type { COLONIZE, ENQUEUE, DEQUEUE, BUILD, DEMOLISH }
 
 ## Tick auquel la commande a été appliquée (renseigné par la simulation).
 var tick: int = -1
@@ -28,6 +28,10 @@ static func from_dict(data: Dictionary) -> Command:
 			command = EnqueueCommand.new(Vector2i.ZERO)
 		Type.DEQUEUE:
 			command = DequeueCommand.new(Vector2i.ZERO)
+		Type.BUILD:
+			command = BuildCommand.new(Vector2i.ZERO, &"")
+		Type.DEMOLISH:
+			command = DemolishCommand.new(Vector2i.ZERO)
 		_:
 			return null
 	command.tick = DictRead.get_int(data, "tick", -1)

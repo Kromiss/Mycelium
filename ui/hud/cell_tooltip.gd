@@ -16,7 +16,7 @@ static func lines(session: Session, cell: int) -> PackedStringArray:
 	elif state.is_owned_by(cell, colony.id):
 		result.append(_t("TIP_OWNED"))
 	elif state.cell_state[cell] == GameState.CellState.GROWING:
-		result.append(_t("TIP_GROWING") % state.growth_left[cell])
+		result.append(_t("TIP_GROWING") % Expansion.growth_seconds_left(state, cell))
 	else:
 		result.append(_t("TIP_FREE"))
 		var rank: int = colony.queue.find(cell)

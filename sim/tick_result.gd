@@ -17,6 +17,8 @@ var growth_started: PackedInt32Array = PackedInt32Array()
 var growth_costs: PackedInt64Array = PackedInt64Array()
 ## Pousses terminées : paires (colonie, case).
 var growth_completed: PackedInt32Array = PackedInt32Array()
+## Chantiers terminés : paires (colonie, case).
+var buildings_completed: PackedInt32Array = PackedInt32Array()
 ## Changements de palier : triplets (colonie, ancien palier, nouveau palier).
 var tier_changes: PackedInt32Array = PackedInt32Array()
 ## Vrai si la partie s'est terminée à ce tick (ou l'était déjà).

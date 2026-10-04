@@ -5,6 +5,8 @@ extends RefCounted
 
 ## État d'une case (GDD §4.2). Les états de construction et de prise arrivent avec G2 et G3.
 enum CellState { FREE, GROWING, OWNED }
+## État du bâtiment d'une case (GDD §7.1) : aucun, en file de construction, en chantier, construit.
+enum BuildState { NONE, QUEUED, CONSTRUCTING, BUILT }
 
 ## Numéro du prochain tick à jouer (= secondes de jeu écoulées).
 var tick: int = 0
@@ -21,8 +23,20 @@ var map: ForestMap
 var owner: PackedInt32Array = PackedInt32Array()
 ## État de chaque case (CellState).
 var cell_state: PackedInt32Array = PackedInt32Array()
-## Ticks de pousse restants (0 si la case ne pousse pas).
+## Pousse restante, en millièmes de seconde (0 si la case ne pousse pas). Une Pépinière
+## proche fait avancer la pousse plus vite (GDD §7.2).
 var growth_left: PackedInt32Array = PackedInt32Array()
+## Bâtiment de chaque case : rang dans SimDefs.buildings, −1 sans bâtiment.
+var building: PackedInt32Array = PackedInt32Array()
+## État du bâtiment de chaque case (BuildState).
+var building_state: PackedInt32Array = PackedInt32Array()
+## Secondes de chantier restantes.
+var build_left: PackedInt32Array = PackedInt32Array()
+## Prix payé pour le bâtiment (millièmes de nutriment, et d'Enzymes), pour les remboursements.
+var building_paid: PackedInt64Array = PackedInt64Array()
+var building_paid_enzymes: PackedInt64Array = PackedInt64Array()
+## 1 si le bâtiment est construit et actif (palier atteint, GDD §7.6).
+var building_active: PackedByteArray = PackedByteArray()
 ## 1 si la case est poussée et reliée au Cœur de sa colonie par ses cases poussées.
 var connected: PackedByteArray = PackedByteArray()
 ## Colonies, par numéro.
@@ -74,6 +88,20 @@ func touches_any(cell: int, cells: PackedInt32Array) -> bool:
 		if other >= 0 and cells.has(other):
 			return true
 	return false
+
+
+## Vrai si la case touche au moins une case non possédée par la colonie (case frontière, §7.4).
+func is_frontier(cell: int, colony_id: int) -> bool:
+	for direction: int in range(6):
+		var other: int = map.neighbor_index(cell, direction)
+		if other >= 0 and not is_owned_by(other, colony_id):
+			return true
+	return false
+
+
+## Bâtiment actif d'un type donné sur la case (−1 : pas de bâtiment actif).
+func active_building(cell: int) -> int:
+	return building[cell] if building_active[cell] == 1 else -1
 
 
 ## Recalcule les cases reliées au Cœur de chaque colonie (parcours en largeur).

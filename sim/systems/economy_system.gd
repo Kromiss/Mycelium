@@ -1,8 +1,9 @@
 class_name EconomySystem
 extends RefCounted
-## Étape 5 du tick : production de chaque colonie (GDD §6, §12). Seules les cases poussées et
-## reliées au Cœur produisent ; le Cœur produit comme une case normale. Pas de plafond de stock
-## en G1 (il arrive avec le Grenier, en G2).
+## Étape 5 du tick : production de chaque colonie (GDD §5, §6, §7, §12). Seules les cases
+## poussées et reliées au Cœur produisent ; le Cœur produit comme une case normale. Les
+## bâtiments actifs ajoutent leur effet ; le stock de nutriments est plafonné (3 min de
+## production + 2 min par Grenier), l'excédent est perdu ; les Enzymes n'ont pas de plafond.
 
 
 func run(state: GameState, result: TickResult) -> void:
@@ -12,8 +13,12 @@ func run(state: GameState, result: TickResult) -> void:
 		var produced: int = colony_production(state, colony)
 		colony.production = produced
 		colony.peak_production = maxi(colony.peak_production, produced)
-		colony.nutrients += produced
+		colony.stock_cap = produced * Buildings.stock_seconds(state, colony)
+		colony.nutrients = mini(colony.nutrients + produced, colony.stock_cap)
 		colony.biomass += produced
+		var enzymes: int = colony_enzymes(state, colony)
+		colony.enzyme_production = enzymes
+		colony.enzymes += enzymes
 		if produced > 0:
 			result.colony_changed(colony.id)
 
@@ -28,13 +33,23 @@ static func colony_production(state: GameState, colony: ColonyState) -> int:
 	return Fixed.mul(total, TierSystem.production_pm(state.defs, colony.tier))
 
 
-## Production d'une case avant le multiplicateur du palier :
-## rendement × richesse de la zone × (1 + Cohésion × voisines poussées de la même colonie).
+## Production d'une case avant le multiplicateur du palier : rendement × richesse de la zone
+## × bâtiment (rendement, voisinage, Rosace) × (1 + Cohésion × voisines poussées de la colonie).
 static func cell_production(state: GameState, colony_id: int, cell: int) -> int:
 	var defs: SimDefs = state.defs
 	var base: int = Fixed.mul(defs.cell_yield, defs.zone_richness_pm[state.map.zones[cell] - 1])
+	base = Fixed.mul(base, Buildings.production_factor(state, colony_id, cell))
 	var neighbors: int = state.owned_neighbors(cell, colony_id)
 	return Fixed.mul(base, Fixed.ONE + defs.cohesion_per_neighbor_pm * neighbors)
+
+
+## Enzymes produites par une colonie en un tick (millièmes) : ses Glandes reliées au Cœur.
+static func colony_enzymes(state: GameState, colony: ColonyState) -> int:
+	var total: int = 0
+	for cell: int in range(state.cell_count()):
+		if state.connected[cell] == 1 and state.owner[cell] == colony.id:
+			total += Buildings.enzyme_production(state, colony.id, cell)
+	return total
 
 
 ## Production ajoutée par une case libre si elle poussait maintenant pour la colonie (GDD §14.5,

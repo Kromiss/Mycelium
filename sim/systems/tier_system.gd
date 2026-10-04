@@ -5,6 +5,12 @@ extends RefCounted
 
 
 func run(state: GameState, result: TickResult) -> void:
+	_update_tiers(state, result)
+	# Les bâtiments suivent le palier : désactivés en dessous, réactivés au-dessus (GDD §7.6).
+	Buildings.refresh_activity(state)
+
+
+func _update_tiers(state: GameState, result: TickResult) -> void:
 	for colony: ColonyState in state.colonies:
 		if not colony.alive:
 			continue

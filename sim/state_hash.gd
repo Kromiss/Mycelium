@@ -25,6 +25,12 @@ static func compute(state: GameState) -> int:
 	_update(context, state.cell_state.to_byte_array())
 	_update(context, state.growth_left.to_byte_array())
 	_update(context, state.connected)
+	_update(context, state.building.to_byte_array())
+	_update(context, state.building_state.to_byte_array())
+	_update(context, state.build_left.to_byte_array())
+	_update(context, state.building_paid.to_byte_array())
+	_update(context, state.building_paid_enzymes.to_byte_array())
+	_update(context, state.building_active)
 	for colony: ColonyState in state.colonies:
 		_update(context, colony.hash_values().to_byte_array())
 	var digest: PackedByteArray = context.finish()

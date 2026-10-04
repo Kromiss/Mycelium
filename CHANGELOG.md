@@ -6,6 +6,16 @@ L'historique de l'ancienne version web est dans la branche `archive/web`.
 
 ## [Unreleased]
 
+### Ajouté
+- G2, étape 1 — Simulation du city builder : Nœud de digestion, Grenier, Pépinière, Glande
+  enzymatique et Mycorhize (`data/buildings/`) ; pose et démolition (commandes `BuildCommand` et
+  `DemolishCommand`, codes de refus) ; file de construction de 5 places, 2 à 4 chantiers, durée
+  selon le palier ; coût ×1,12 par bâtiment du même type ; remboursements 100 % (en file) et
+  50 % (chantier ou construit) ; voisinage et Rosace ; Enzymes ; plafond de stock (3 min + 2 min
+  par Grenier) ; Pépinière (pousse −30 %, +1 chantier) et Mycorhize (+1 pousse, 3 au plus) ;
+  désactivation des bâtiments sous leur palier ; tests.
+- Traductions des bâtiments et des nouveaux refus (EN et FR).
+
 ## [0.2.0] - 2026-10-04
 
 G1 — Solo économie.

@@ -96,6 +96,21 @@ REFUSAL_ALREADY_QUEUED,This cell is already in the queue,Cette case est déjà d
 REFUSAL_NOT_QUEUED,This cell is not in the queue,Cette case n'est pas dans la file
 REFUSAL_ALREADY_GROWING,This cell is already growing,Cette case pousse déjà
 REFUSAL_GAME_OVER,The game is over,La partie est terminée
+REFUSAL_NOT_OWNED,This cell is not one of your grown cells,Cette case n'est pas une de tes cases poussées
+REFUSAL_HEART_CELL,The Heart takes up this cell,Le Cœur occupe cette case
+REFUSAL_CELL_OCCUPIED,This cell already has a building,Cette case a déjà un bâtiment
+REFUSAL_UNKNOWN_BUILDING,Unknown building,Bâtiment inconnu
+REFUSAL_TIER_LOCKED,Your colony has not reached the tier for this building,Ta colonie n'a pas atteint le palier de ce bâtiment
+REFUSAL_BUILD_QUEUE_FULL,The build queue is full,La file de construction est pleine
+REFUSAL_NOT_ENOUGH_ENZYMES,Not enough Enzymes,Pas assez d'Enzymes
+REFUSAL_NO_BUILDING,There is no building of yours here,Il n'y a pas de bâtiment à toi ici
+REFUSAL_BAD_PLACEMENT,This building cannot go on this cell,Ce bâtiment ne peut pas aller sur cette case
+REFUSAL_BUILDING_LIMIT,You already have as many of this building as allowed,Tu as déjà le nombre maximal de ce bâtiment
+BUILDING_DIGESTION_NODE,Digestion Node,Nœud de digestion
+BUILDING_GRANARY,Granary,Grenier
+BUILDING_NURSERY,Nursery,Pépinière
+BUILDING_ENZYME_GLAND,Enzyme Gland,Glande enzymatique
+BUILDING_MYCORRHIZA,Mycorrhiza,Mycorhize
 GAME_MENU_TITLE,Game menu,Menu de partie
 GAME_MENU_RESUME,Resume,Reprendre
 GAME_MENU_RESTART,Restart,Recommencer

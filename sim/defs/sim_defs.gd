@@ -8,6 +8,7 @@ extends RefCounted
 const ZONES_PATH: String = "res://data/zones.tres"
 const TIERS_PATH: String = "res://data/tiers.tres"
 const BALANCE_PATH: String = "res://data/balance.tres"
+const BUILDINGS_PATH: String = "res://data/buildings.tres"
 
 # --- Forêt (mode) ---
 ## Identifiant du mode dont la forêt est tirée (« duel », « ffa »).
@@ -38,11 +39,26 @@ var max_growths: int = 0
 var expansion_queue_size: int = 0
 var match_ticks: int = 0
 
+# --- Bâtiments (G2) ---
+var max_growths_cap: int = 0
+var stock_cap_seconds: int = 0
+## Durée de construction selon le palier de déblocage (index 0 = départ), en secondes.
+var build_ticks_by_tier: PackedInt32Array = PackedInt32Array()
+var base_build_sites: int = 0
+var max_build_sites: int = 0
+var build_queue_size: int = 0
+var building_cost_growth_pm: int = 0
+var demolish_refund_pm: int = 0
+## Bâtiments, dans l'ordre de la palette ; un bâtiment est désigné par son rang ici.
+var buildings: Array[SimBuilding] = []
+
 # --- Valeurs dérivées, calculées par prepare() ---
 ## Durée de pousse de chaque zone, en ticks (arrondie au plus proche, au moins 1).
 var growth_ticks_by_zone: PackedInt32Array = PackedInt32Array()
 ## Puissances du facteur de coût de colonisation, en pour-mille.
 var cost_pow_table: PackedInt64Array = PackedInt64Array()
+## Puissances du facteur de coût des bâtiments, en pour-mille.
+var building_pow_table: PackedInt64Array = PackedInt64Array()
 
 
 ## Définitions par défaut d'un mode, lues dans data/.
@@ -50,7 +66,11 @@ static func from_mode(mode: ModeDef) -> SimDefs:
 	var zones: ZoneTable = load(ZONES_PATH)
 	var tiers: TierTable = load(TIERS_PATH)
 	var balance: BalanceDef = load(BALANCE_PATH)
-	return from_resources(mode, zones, tiers, balance)
+	var defs: SimDefs = from_resources(mode, zones, tiers, balance)
+	var table: BuildingTable = load(BUILDINGS_PATH)
+	for def: BuildingDef in table.buildings:
+		defs.buildings.append(SimBuilding.from_def(def))
+	return defs
 
 
 ## Définitions construites à partir de ressources données.
@@ -78,6 +98,14 @@ static func from_resources(
 	defs.max_growths = balance.max_growths
 	defs.expansion_queue_size = balance.expansion_queue_size
 	defs.match_ticks = balance.match_ticks
+	defs.max_growths_cap = balance.max_growths_cap
+	defs.stock_cap_seconds = balance.stock_cap_seconds
+	defs.build_ticks_by_tier = PackedInt32Array(balance.build_ticks_by_tier)
+	defs.base_build_sites = balance.base_build_sites
+	defs.max_build_sites = balance.max_build_sites
+	defs.build_queue_size = balance.build_queue_size
+	defs.building_cost_growth_pm = balance.building_cost_growth_pm
+	defs.demolish_refund_pm = balance.demolish_refund_pm
 	return defs
 
 
@@ -103,6 +131,7 @@ func prepare(max_cells: int) -> void:
 		var ticks: int = Fixed.div_round(base_growth_ticks * growth_pm, Fixed.ONE)
 		growth_ticks_by_zone.append(maxi(1, ticks))
 	cost_pow_table = Fixed.pow_table(colonize_cost_growth_pm, max_cells + 1)
+	building_pow_table = Fixed.pow_table(building_cost_growth_pm, max_cells + 1)
 
 
 ## Liste des problèmes de cohérence (vide si tout va bien), pour refuser des réglages absurdes.
@@ -133,6 +162,22 @@ func validate() -> PackedStringArray:
 		problems.append("queue")
 	if match_ticks < 1:
 		problems.append("match_ticks")
+	if max_growths_cap < max_growths or base_build_sites < 1 or max_build_sites < base_build_sites:
+		problems.append("sites")
+	if build_queue_size < 1 or stock_cap_seconds < 1:
+		problems.append("buildings")
+	for ticks: int in build_ticks_by_tier:
+		if ticks < 1:
+			problems.append("build_ticks")
+	if building_cost_growth_pm < Fixed.ONE or building_cost_growth_pm > 5 * Fixed.ONE:
+		problems.append("building_cost_growth_pm")
+	if demolish_refund_pm < 0 or demolish_refund_pm > Fixed.ONE:
+		problems.append("demolish_refund_pm")
+	for building: SimBuilding in buildings:
+		if building.unlock_tier < 0 or building.unlock_tier > tier_cells.size():
+			problems.append("buildings")
+		elif building.unlock_tier >= build_ticks_by_tier.size():
+			problems.append("build_ticks")
 	return problems
 
 
@@ -162,6 +207,15 @@ func to_dict() -> Dictionary:
 		"max_growths": max_growths,
 		"expansion_queue_size": expansion_queue_size,
 		"match_ticks": match_ticks,
+		"max_growths_cap": max_growths_cap,
+		"stock_cap_seconds": stock_cap_seconds,
+		"build_ticks_by_tier": Array(build_ticks_by_tier),
+		"base_build_sites": base_build_sites,
+		"max_build_sites": max_build_sites,
+		"build_queue_size": build_queue_size,
+		"building_cost_growth_pm": building_cost_growth_pm,
+		"demolish_refund_pm": demolish_refund_pm,
+		"buildings": buildings.map(func(b: SimBuilding) -> Dictionary: return b.to_dict()),
 	}
 
 
@@ -186,4 +240,27 @@ static func from_dict(data: Dictionary) -> SimDefs:
 	defs.max_growths = DictRead.get_int(data, "max_growths")
 	defs.expansion_queue_size = DictRead.get_int(data, "expansion_queue_size")
 	defs.match_ticks = DictRead.get_int(data, "match_ticks")
+	defs.max_growths_cap = DictRead.get_int(data, "max_growths_cap")
+	defs.stock_cap_seconds = DictRead.get_int(data, "stock_cap_seconds")
+	defs.build_ticks_by_tier = DictRead.get_ints(data, "build_ticks_by_tier")
+	defs.base_build_sites = DictRead.get_int(data, "base_build_sites")
+	defs.max_build_sites = DictRead.get_int(data, "max_build_sites")
+	defs.build_queue_size = DictRead.get_int(data, "build_queue_size")
+	defs.building_cost_growth_pm = DictRead.get_int(data, "building_cost_growth_pm")
+	defs.demolish_refund_pm = DictRead.get_int(data, "demolish_refund_pm")
+	var raw: Variant = data.get("buildings", [])
+	if raw is Array:
+		var items: Array = raw
+		for item: Variant in items:
+			if item is Dictionary:
+				var building: Dictionary = item
+				defs.buildings.append(SimBuilding.from_dict(building))
 	return defs
+
+
+## Rang d'un bâtiment d'après son identifiant (−1 s'il n'existe pas).
+func building_index(id: StringName) -> int:
+	for index: int in range(buildings.size()):
+		if buildings[index].id == id:
+			return index
+	return -1

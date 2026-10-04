@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="BuildingDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://sim/defs/building_def.gd" id="1_building"]
+
+[resource]
+script = ExtResource("1_building")
+id = &"enzyme_gland"
+name_key = "BUILDING_ENZYME_GLAND"
+unlock_tier = 2
+cost_units = 5
+enzymes_per_minute = 20
+neighbor_bonus_pm = 100
+neighbor_bonus_max_pm = 300
+rosace_bonus_pm = 100
