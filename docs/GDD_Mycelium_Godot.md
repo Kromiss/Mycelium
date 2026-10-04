@@ -131,15 +131,15 @@ La partie est rythmée par des **événements**. Certains sont **scriptés** (m�
 | 16:00 | **Floraison collective** |
 | 20:00 | **Arbre mourant** (n° 2) |
 | 24:00 | **Floraison collective** |
-| 26:00 | **Mort subite** : les prises vont 3× plus vite |
 | 30:00 | Fin de la partie |
 
-Entre ces rendez-vous, **un événement aléatoire toutes les 2 min environ** à partir de 3:00.
+Entre ces rendez-vous, **un événement aléatoire toutes les 2 min environ** à partir de 3:00 : chances égales entre Orage, Incendie, Sanglier, Festin et Nématodes (jamais deux fois de suite le même), prochain tirage entre 1:45 et 2:15 après le précédent, jamais pendant un événement scripté *(décidé le 4 octobre 2026)*.
 
 ### 3.3 Victoire et élimination
 - **Éliminé** : on perd son **Cœur** et on n'a pas de Sclérote pour le recueillir (§9.5). **Toutes ses cases et tous ses bâtiments passent à la colonie qui l'a éliminée** (§9.6).
 - **Gagnant** : la dernière colonie en vie. Si deux colonies tombent en même temps, la dernière à avoir perdu son Cœur gagne.
-- **Mort subite (26:00)** : les prises sont 3× plus rapides, pour trancher avant la limite de 30 min.
+- **Mort subite : supprimée** *(décidé le 4 octobre 2026)* : la partie va jusqu'à 30:00 sans changement de règle.
+- **Deux Cœurs perdus au même tick** (sans Sclérote) : les deux colonies sont classées entre elles par production moyenne depuis le début, puis par nombre de cases ; s'il ne restait qu'elles, la mieux classée gagne *(décidé le 4 octobre 2026)*.
 - **Fin à 30:00** : les colonies encore en vie sont classées par **production moyenne sur toute la partie**, c'est-à-dire le total des nutriments produits par leurs cases divisé par 30 min. Le butin et les récompenses d'événements ne comptent pas : seule la production compte. En cas d'égalité, le nombre de cases départage. Cette moyenne est affichée en direct dans le mini-classement.
 
 ---
@@ -346,13 +346,22 @@ Il n'y a **aucune pression automatique** au contact. On prend des cases en **ouv
 - **Investir** : il y consacre un **débit de nutriments par seconde**, modifiable à tout moment et consommé en continu.
 - **Avancée** : toutes les cases du tronçon progressent **ensemble**, l'investissement étant réparti entre elles. Le front avance si l'attaque dépasse la **résistance + le renfort** du défenseur, d'autant plus vite que l'**écart** est grand ; sinon il est bloqué.
 - **Fin** : quand les cases du tronçon sont prises, le front **s'arrête** ; pour aller plus loin, on trace un nouveau front. L'attaquant peut aussi arrêter son front à tout moment.
-- **Nombre** : **1 front à la fois** au départ, **+1 par bâtiment** (lequel, et jusqu'où : à préciser en G3).
-- **Visibilité** : le tronçon et sa jauge de pression (attaque contre défense) sont visibles de toute la forêt.
+- **Nombre** : **1 front à la fois** au départ, **+1 par Poste d'assaut actif**, **3 au plus** *(décidé le 4 octobre 2026)*.
+- **Visibilité** : le tronçon et sa jauge de pression (attaque contre défense) sont visibles de toute la forêt ; les **débits restent secrets** (seuls l'attaquant et le défenseur les voient).
+- *Décidé le 4 octobre 2026 (G3)* :
+  - **tronçon** : des cases ennemies **poussées** (pas en pousse), collées à mon réseau, **d'un seul tenant**, toutes de **la même colonie**, **sans limite de longueur** (l'investissement se dilue) ;
+  - **ouvrir un front ne coûte rien** en plus du débit ;
+  - **débit** réglé en **% de ma production** (le nombre de nutriments/s est affiché) ; la somme de tous mes débits (fronts et renforts) est limitée à **100 %** de ma production ; s'il n'y a plus de quoi payer un débit, **le front s'arrête** (message) ;
+  - **progression** : chaque case du tronçon a sa propre progression (0 à 100 %) ; elle **redescend peu à peu** quand la défense dépasse l'attaque, et aussi après l'arrêt du front (comme si l'attaque tombait à 0) ;
+  - **vitesse** : par case, progression par seconde = (attaque − défense) ÷ (défense × 20 s) : attaque double → 20 s, triple → 10 s, 1,5 fois → 40 s ; même rythme à la descente ;
+  - **deux attaquants** peuvent viser la même case : chacun a sa progression, le premier à 100 % prend la case, l'autre la perd de son tronçon ;
+  - pendant la prise, la case **produit** pour le défenseur et il peut encore **y construire** ;
+  - **geste** : maintenir la touche de front (**F**, modifiable) et glisser sur les cases ennemies ; au relâchement, le panneau du front s'ouvre pour régler le débit et confirmer.
 
 ### 9.2 La défense
 - **Alerte** dès qu'un front s'ouvre sur son territoire.
-- **Résistance** : chaque case résiste seule, selon sa zone, sa Cohésion, l'Écorce et le Cœur (×4).
-- **Renfort** : le défenseur peut mettre sur le front attaqué un **débit de nutriments par seconde**, qui s'ajoute à la résistance.
+- **Résistance** : chaque case résiste seule, selon sa zone, sa Cohésion, l'Écorce et le Cœur (×4). *Décidé le 4 octobre 2026* : résistance (nutriments/s) = **2 × la production de la case pour le défenseur** (paliers compris) × **prise de la zone** (×1,0 à ×2,5, §4.3) × (1 + 15 % par voisine du défenseur) × Écorce × Toxinière × Cœur (×4) : elle grandit avec la colonie défendue. **Écorce** : résistance ×2 sur sa case, +20 % sur ses voisines (+10 % par Écorce voisine en plus). **Toxinière** : +30 % de résistance sur sa case et ses voisines.
+- **Renfort** : le défenseur peut mettre sur le front attaqué un **débit de nutriments par seconde**, qui s'ajoute à la résistance. *Décidé le 4 octobre 2026* : un débit **par front** (en % de sa production), **réparti entre ses cases** comme l'attaque, seulement sur un front déjà ouvert.
 - **Il bloque seulement** : un défenseur plus fort arrête le front mais ne le repousse pas chez l'attaquant ; pour reprendre du terrain, il ouvre son propre front.
 - **Défense passive** : Cohésion, Écorce, Toxinière (effets à adapter aux fronts en G3).
 
@@ -364,20 +373,24 @@ Il n'y a **aucune pression automatique** au contact. On prend des cases en **ouv
 ### 9.4 Actions actives
 Elles coûtent des Enzymes, rechargent et **exigent le bâtiment correspondant**. Chacune a **son propre geste**. *Toutes sont à revoir en G3 pour les adapter aux fronts : les gestes et effets ci-dessous datent du Filament d'assaut.*
 
+*Revues le 4 octobre 2026 pour les fronts (G3). Les recharges sont **par colonie et par action** : un second bâtiment du même type ne donne rien de plus.*
+
 | Action | Bâtiment | Geste | Coût | Recharge | Effet |
 |---|---|---|---|---|---|
-| **Assaut** | Poste d'assaut | Maintenir sur un front puis relâcher (charge d'un anneau) | 30 Enzymes | 90 s | Prise 4× plus rapide pendant 20 s |
-| **Toxine** | Toxinière | « Arroser » : peindre la zone visée d'un trait | 20 Enzymes | 2 min | La case et ses voisines : production −50 % pendant 60 s |
-| **Coupure** | Poste d'assaut | **Trancher** un lien du réseau ennemi d'un balayage | 40 Enzymes | 3 min | La case ne fait plus passer les nutriments pendant 45 s (ni Cœur, ni Rosace) |
-| **Siphon** | Haustorium | Tirer un tuyau d'une case ennemie vers une des siennes | 25 Enzymes | 90 s | Vole 20 % de la production des cases à ≤ 2 pendant 60 s |
+| **Assaut** | Poste d'assaut | Bouton dans le panneau d'un de mes fronts | 30 Enzymes | 90 s | Ce front avance **4× plus vite** pendant 20 s |
+| **Toxine** | Toxinière | Clic sur une case ennemie | 20 Enzymes | 2 min | La case et ses voisines : **production −50 % et résistance −50 %** pendant 60 s |
+| **Coupure** | Poste d'assaut | Clic sur une case ennemie (pas le Cœur) | 40 Enzymes | 3 min | Pendant 45 s, la case ne relie plus rien : les cases qui ne touchent plus le Cœur ne produisent plus (îlots) |
+| **Siphon** | Haustorium | Clic sur une case ennemie | 25 Enzymes | 90 s | Je reçois 20 % de la production des cases ennemies à **2 cases ou moins de la case visée** (elles la perdent) pendant 60 s |
+
+**Portée** des actions (le Carpophore donne +2) : **pas encore décidée**.
 
 ### 9.5 Cœur, Sclérote, élimination
-- Le Cœur perdu **renaît sur le Sclérote** (60 s de protection), **une seule fois** : le Sclérote est consommé.
+- Le Cœur perdu **renaît sur le Sclérote** (60 s de protection **du nouveau Cœur seul** : le reste de la colonie peut être attaqué, décidé le 4 octobre 2026), **une seule fois** : le Sclérote est consommé.
 - Sans Sclérote en vie, la perte du Cœur **élimine la colonie**. Un Sclérote désactivé ou capturé ne compte pas (§7.6).
 
 ### 9.6 Butin d'élimination
 La colonie qui **élimine** une autre en tire un gain :
-- **50 % du stock de nutriments** de la victime, plus **2 min de sa production** au moment de sa chute ;
+- **50 % du stock de nutriments** de la victime, plus **2 min de sa production au pic** (sa plus forte production de la partie, décidé le 4 octobre 2026) ;
 - **+100 Enzymes** ;
 - **Frénésie** : production +25 % pendant 2 min ;
 - un **Trophée** (statistiques et récompenses de profil) ;
@@ -403,7 +416,15 @@ Ils rythment la partie. Annoncés **20 s avant** (les scriptés figurent sur la 
 - **Festin** : une case très riche apparaît pendant 90 s dans la zone la plus peuplée ; la première colonie qui la fait pousser la récupère.
 - **Nématodes** : une case mangée toutes les 10 s à la lisière d'une colonie ; les cases voisines les digèrent en 30 s (plus vite avec la Cohésion), ce qui rapporte de la biomasse.
 
-**Zone du moment** : pour les événements « du centre », c'est la zone où se trouve la majorité des colonies.
+**Zone du moment** : pour les événements « du centre », c'est la zone où se trouve la majorité des colonies. *Décidé le 4 octobre 2026* : pour chaque colonie, sa zone la plus au centre ; on prend la plus fréquente (à égalité, la plus centrale) ; seul en Bac à sable, sa zone la plus avancée.
+
+*Décidé le 4 octobre 2026 (G3)* :
+- **Équité** : aucun événement ne doit défavoriser une colonie. L'**Orage** tombe **sur chaque colonie en vie en même temps**, centré sur une de ses cases tirée au hasard ; l'**Incendie**, le **Sanglier** et les **Nématodes** touchent **toutes les colonies à la fois**, de la même façon (même nombre de cases), à un endroit tiré au hasard chez chacune.
+- **Arbre mourant** : 7 cases libres d'un tenant dans la zone du moment ; chaque colonie qui le touche y verse chaque seconde la production de ses cases au contact, sans la perdre ; quand le total atteint 2 min de production moyenne des colonies, il est digéré : récompense au prorata, +25 % au meilleur contributeur, et les 7 cases redeviennent libres. Non digéré au bout de 3 min, il disparaît.
+- **Incendie** : rayon 2 libéré (bâtiments détruits) ; les Cendres produisent ×2 pendant 2 min pour qui les fait repousser.
+- **Sanglier** : 5 cases en ligne libérées.
+- **Festin** : une case libre ×5 de richesse pendant 90 s dans la zone du moment, puis elle redevient normale (et garde son propriétaire).
+- **Nématodes** : 6 cases au plus, une toutes les 10 s, qui redeviennent libres si la colonie ne les « digère » pas (30 s de production de leurs voisines) ; digérées, elles restent et rapportent ce temps en biomasse.
 
 ---
 
@@ -445,7 +466,7 @@ résistance_case    = base_résistance × prise_zone × (1 + 0,15 × voisines_d�
 vitesse_front      = f(débit_attaque ÷ nb_cases_tronçon − (résistance_case + renfort))   (bloqué si ≤ 0)
 ```
 
-Valeurs de la résistance et de la vitesse d'avancée des fronts : à définir en G3 ; Cœur ×4 ; Mort subite : fronts 3× plus rapides.
+Fronts *(décidé le 4 octobre 2026)* : résistance_case = 2 × production de la case pour le défenseur × prise_zone × (1 + 0,15 × voisines) × Écorce × Toxinière × Cœur (×4) ; progression par seconde = (débit ÷ nb_cases − (résistance + renfort ÷ nb_cases)) ÷ ((résistance + renfort ÷ nb_cases) × 20 s). Pas de Mort subite.
 
 ---
 
@@ -588,7 +609,7 @@ Outil d'équilibrage **séparé** de l'interface d'administration, disponible **
 | **G0 : Fondations** | Dépôt transformé pour Godot, vérification automatique et version GitHub avec le .exe à chaque fusion sur main ; carte hex (6 zones, un terrain) en Duel et FFA, rendu « Pastille ronde », caméra ; menu principal minimal (entrées futures grisées) ; écran Paramètres (thème, langue, affichage) |
 | **G1 : Solo économie** | Colonisation (pousse, file d'expansion), Cœur, réseau, production, Cohésion, **paliers de colonie** et retours visuels (onde continue, palier). Entrée **Bac à sable** : joueur seul sur une forêt de Duel ou de FFA au choix. Horloge de partie affichée (le bonus de l'Armillaire arrive en G3), pause (P + bouton) et vitesse (bouton ×1 / ×2 / ×4), réglages du Bac à sable avec retour aux valeurs par défaut et récapitulatif copiable (§2.1 bis). HUD : nutriments qui défilent, courbe de production, Biomasse, barre du prochain palier, grands nombres avec suffixes (K, M, B, T). Carte : cases colonisables **toujours marquées** (teinte à part pour celles payables tout de suite), **info-bulle au survol** d'une case (zone, coût, durée de pousse, production). Raccourcis modifiables dans les Paramètres (Espace = recentrer sur le Cœur, P = pause). Tests : enregistrement des commandes d'une partie et **rejeu à l'identique** (même empreinte). **Panneau de simulations** (§14.5) avec 4 profils de robot d'économie. Livré en **trois étapes** : 1) simulation et tests ; 2) affichage, HUD et Bac à sable ; 3) robots d'économie, simulations et panneau ; version **0.2.0** |
 | **G2 : City builder** | Bâtiments (Nœud de digestion, Grenier, Pépinière, Glande enzymatique, Mycorhize), chantiers, file de construction, voisinage, Enzymes, plafond de stock, déblocages et désactivation par palier ; pose (palette ou menu rond), démolition ; HUD (palette, file et chantiers, Enzymes, stock et plafond) ; pictogrammes validés sur maquettes ; réglages du Bac à sable pour les bâtiments ; robots du panneau de simulations (§14.5) avec profil de bâtisseur. Livré en **trois étapes** (simulation et tests ; affichage, HUD et Bac à sable ; robots et panneau) ; version **0.3.0** |
-| **G3 : Combat et fin de partie** | **Fronts** (tracer, investir, renforcer), actions actives (à adapter aux fronts), Sclérote, élimination, **butin et transfert du territoire**, événements, frise de partie |
+| **G3 : Combat et fin de partie** | **Fronts** (tracer, investir, renforcer), actions actives (adaptées aux fronts), bâtiments de combat, Sclérote, élimination, **butin et transfert du territoire**, Armillaire, événements, frise de partie ; **adversaires dans le Bac à sable** (robots composés avec une part d'attaque) et **parties à plusieurs robots** dans le panneau ; HUD de combat ; écran de résultats complet ; spectateur après élimination ; maquettes validées d'abord. Livré en **quatre étapes** (combat : simulation et tests ; combat : affichage et HUD ; événements ; robots et panneau) ; version **0.4.0** |
 | **G4 : Duel et FFA contre robots** | Menus, robots (3 difficultés, profils), robots dans le Bac à sable, résultats (pause et vitesse réservées au Bac à sable depuis le 4 octobre 2026) |
 | **G5 : Habillage et bêta solo** | **Tutoriel**, audio, profil et statistiques, traduction, essais du jeu contre robots avec de vrais joueurs (sans Steam) |
 | **G6 : Multijoueur** | **Étape 1, tests entre amis avec l'App ID 480** (GodotSteam, sans page Steam ni frais, §14.1) : initialisation de Steam, identité, salons et invitations d'amis, relais Steam, hébergement par un joueur, vérification par empreinte, déconnexion et pilote automatique, arrêt de la partie si l'hôte part. **Étape 2, version complète** : file d'attente Steam, FFA entre joueurs, Duel contre un joueur (invitation puis file d'attente, rang éventuel), **partie personnalisée** complète (salon, emplacements, paramètres de forêt, préréglages, invitations d'amis ; l'ancien jalon G5 « Partie personnalisée (local) » y a été fusionné le 4 octobre 2026), chat, **interface d'administration en lecture seule** |
@@ -610,7 +631,7 @@ Le jeu est donc complet et jouable en solo avant le multijoueur. Pour ne pas avo
 6. **Pas de pactes** dans la première version.
 7. **Tout le multijoueur dans le dernier jalon** (G6), FFA et Duel entre joueurs ensemble, avec GodotSteam.
 8. **Plafond de 30 min** y compris en partie personnalisée.
-9. **Aucun rétrécissement de la carte** : c'est la richesse du centre, le butin et la Mort subite qui poussent au conflit.
+9. **Aucun rétrécissement de la carte** : c'est la richesse du centre et le butin qui poussent au conflit (la Mort subite a été supprimée le 4 octobre 2026).
 10. **Steam** pour la distribution, les comptes, les amis, les invitations et les salons.
 11. **2, 3 ou 6 colonies** seulement, pour des départs strictement équitables.
 12. **Élimination** : tout le territoire et les bâtiments de la victime passent au tueur ; les îlots non reliés comptent pour les paliers mais ne produisent pas.
@@ -627,7 +648,6 @@ Le jeu est donc complet et jouable en solo avant le multijoueur. Pour ne pas avo
 ### Questions ouvertes
 - **Triche de l'hôte** : la vérification par empreinte suffit-elle pour un classement du Duel ?
 - **Coût et distance au Cœur** : garder ou non le terme `0,05 × distance` du coût de colonisation (à trancher avec la migration du Cœur).
-- **Bâtiments de frontière** : actifs ou désactivés quand leur case cesse d'être au bord (G3) ?
 - **Statistiques d'administration** : les statistiques globales Steam suffisent-elles, ou faut-il un petit service de collecte ?
 
 ### À simuler
@@ -640,7 +660,7 @@ Le jeu est donc complet et jouable en solo avant le multijoueur. Pour ne pas avo
 - Butin et transfert du territoire : le tueur gagne d'un coup des cases, des paliers et des bâtiments ; est-ce une boule de neige impossible à rattraper en FFA ?
 - Bâtiments capturés : la conquête devient-elle une boule de neige (on prend les cases et leurs bâtiments) ? Faut-il un délai de remise en service ?
 - Cas limites de §7.6 à trancher : bâtiment en construction annulé, Sclérote capturé détruit si le capteur en a déjà un.
-- Nombre d'éliminations avant 26:00 en FFA (cible : 3 à 5 colonies mortes avant la Mort subite).
+- Nombre d'éliminations en FFA avant 30:00 (sans Mort subite, cible à redéfinir).
 
 ### Idées pour plus tard
 Autres terrains et souches, pactes, population (hyphes) et logements, mode par équipes, forêts thématiques, classement du Duel.
@@ -651,59 +671,21 @@ Autres terrains et souches, pactes, population (hyphes) et logements, mode par �
 
 Questions relevées en relisant chaque jalon. Elles seront posées sous forme de QCM au début du jalon concerné, avant d'écrire le code ; les réponses remplaceront ces lignes dans les sections du document.
 
-### G3 : Combat et fin de partie
+### G3 : Combat et fin de partie *(questions posées le 4 octobre 2026)*
 
-**Contre qui se battre**
-1. Les robots n'arrivent qu'en G4 : face à qui teste-t-on le combat en G3 (colonie adverse inerte, robots d'économie de G1–G2 comme adversaires, second joueur sur le même PC) ?
-2. Peut-on ajouter des adversaires dans le Bac à sable dès G3 ?
-3. Panneau de simulations : les robots attaquent-ils dès G3 et mesure-t-on les éliminations, ou est-ce pour G4 ?
-
-**Fronts**
-4. Valeurs : résistance de base d'une case par zone, et vitesse d'avancée selon l'écart entre attaque et défense.
-5. Tronçon : longueur maximale ? Doit-il être d'un seul tenant ? Peut-il toucher plusieurs voisins à la fois ?
-6. Ouvrir un front coûte-t-il quelque chose en plus du débit (Enzymes, nutriments d'un coup) ?
-7. Si l'attaquant n'a plus de quoi payer son débit : le front s'arrête-t-il ou ralentit-il ?
-8. Front bloqué ou arrêté : les cases à moitié prises gardent-elles leur progression, ou reviennent-elles au défenseur ?
-9. Pendant une prise, la case produit-elle encore pour le défenseur ? Peut-on y construire ?
-10. Deux fronts de deux attaquants sur la même case : possible, et qui la prend ?
-11. Cases en pousse ou en chantier dans un tronçon ; deux colonies qui colonisent la même case libre au même tick : qui l'obtient ?
-12. Renfort du défenseur : pour tout le front ou réparti par case ? Peut-on renforcer à l'avance une frontière avant d'être attaqué ?
-13. Quel bâtiment ajoute un front, et jusqu'à combien ?
-14. Gestes : tracer le tronçon (glisser ?), régler le débit (curseur ?), renforcer, arrêter.
-15. En FFA, les autres colonies voient-elles les débits engagés, ou seulement la jauge ?
-16. Mort subite : les fronts vont-ils 3× plus vite, comme les prises ?
-
-**Actions actives**
-17. Avec les fronts, garde-t-on les quatre actions actives telles quelles, les adapte-t-on, en retire-t-on ? Portée de base des actions (le Carpophore donne +2) : collée au réseau, ou quelques cases ?
-18. Assaut : durée de la charge ; effet sur un front ou sur tous ?
-19. Toxine (« peindre la zone ») : combien de cases ; effet centré sur une case ou sur chaque case peinte ?
-20. Coupure : vise-t-on une case ou le lien entre deux cases ? Les cases isolées deviennent-elles des îlots pendant 45 s ?
-21. Siphon : « cases à ≤ 2 » de la case ennemie visée ou de la case de l'attaquant ?
-22. Recharges par colonie et par action ? Un second Poste d'assaut donne-t-il une charge de plus ?
-
-**Cœur, Sclérote, élimination**
-23. Bâtiments de frontière (et Sclérote, « case non frontière ») dont la case change de statut : actifs ou désactivés ?
-24. Renaissance sur le Sclérote : les 60 s de protection couvrent-elles le nouveau Cœur seul ou toute la colonie ?
-25. Deux colonies qui perdent leur Cœur au même tick : laquelle gagne ?
-26. Butin : les « 2 min de production » de la victime se calculent-elles avant ou après les pertes qui précèdent sa chute ?
-27. Migration du Cœur (reportée après G1) : arrive-t-elle en G3 ? Elle conditionne le terme de distance du coût de colonisation.
-
-**Événements**
-28. Tirage de l'événement aléatoire (toutes les 2 min environ) : mêmes chances pour tous ou des poids ? Comment choisir les cases touchées ?
-29. Arbre mourant : sa « vie », ses règles exactes, ce que deviennent ses 7 cases ; en Duel il remplit toute la Clairière (~7 cases), est-ce voulu ?
-30. Incendie : à qui profitent les Cendres (×2 pendant 2 min), et si personne ne recolonise ?
-31. Festin : combien rapporte la case très riche, et que devient-elle après 90 s ?
-32. Nématodes : nombre maximal de cases mangées, ce qu'elles deviennent, ce qui se passe si personne ne les digère.
-33. « Zone du moment » : comment la calculer quand une colonie couvre plusieurs zones, et en Bac à sable avec une seule colonie ?
-34. Réglages du Bac à sable pour les événements (lesquels, fréquence) dès G3 ?
-
-**Fin de partie et interface**
-35. À 30:00 en G3 : écran de résultats simple, ou l'écran complet prévu en G4 ?
-36. Mode spectateur après élimination : G3 ou G4 ?
-37. HUD de G3 : frise, temps restant, alertes, annonce des événements, journal, mini-classement : tout en G3 ?
-38. Pictogrammes des bâtiments de combat et visuel des fronts : maquettes à valider d'abord, comme en G2 ?
-39. Livraison : trois étapes et version 0.4.0, ou découper davantage (combat, puis événements) ?
-40. Bâtiments sur une case coupée du Cœur : en G2, comme la case, ils ne produisent rien (ni bonus de rendement, ni Enzymes) mais gardent leurs autres effets (plafond de stock, chantiers, pousses, Pépinière). À confirmer quand les coupures arrivent avec le combat.
+Les réponses sont reportées dans les sections concernées (§3, §9, §10, §12, §15). Le reste :
+- **Adversaires** : en G3, les robots du panneau (expansion + bâtisseur) colonisent, construisent et **attaquent** grâce à une **troisième part, « attaque »** (en plus de l'expansion et de la construction) : elle finance un front ouvert sur le voisin au contact le plus faible quand elle suffit à doubler la défense des cases visées ; quand on l'attaque, le robot renforce avec cette même part. Les robots « intelligents » restent pour G4.
+- **Bâtiments de combat des robots** : tous les bâtisseurs posent un **Sclérote** dès le palier 2 (case intérieure la plus loin du front) ; nouveau profil de bâtisseur **Défenseur** (Écorces et Toxinières sur la frontière au contact d'un voisin) ; un **Poste d'assaut** est posé par les robots dont la part d'attaque n'est pas nulle. **Actions** : les robots ne lancent que l'**Assaut** (sur leur front le plus avancé, dès qu'il est prêt).
+- **Bac à sable** : adversaires au choix (Duel : 2 colonies ; FFA : 3 ou 6), chacun composé comme un robot du panneau ; « seul » reste possible. **Tous les réglages** des événements (activation de chacun, intervalle des aléatoires, heures des scriptés, chiffres) et du combat (résistance, vitesse, protection de départ, butin).
+- **Panneau de simulations** : parties à **plusieurs robots** sur la même forêt dès G3 ; mesures d'éliminations, minute de la première, parties finies au temps, cases prises par fronts.
+- **Fin de partie** : **écran de résultats complet dès G3** (classement, statistiques, courbes de production de chaque colonie, revoir la partie). Éliminé en Bac à sable : **spectateur** (vitesse et pause possibles), avec un bouton vers l'écran de fin.
+- **HUD de G3** : frise et temps restant (événements annoncés 20 s avant), alertes et journal, mini-classement, boutons des actions avec recharges, liste de mes fronts et renforts.
+- **Maquettes** à valider avant de coder l'affichage : pictogrammes des 6 bâtiments de combat, visuel d'un front et de sa jauge, panneau d'un front, actions.
+- **Gardé pour plus tard** : migration du Cœur (le coût de colonisation reste sans terme de distance).
+- **Bâtiments sur une case coupée du Cœur** : comme en G2, ils ne produisent rien mais gardent leurs autres effets (défense comprise).
+- **Bâtiments de frontière** (et Sclérote) : la règle de pose ne compte qu'à la pose ; ensuite le bâtiment reste actif.
+- **Colonisation de la même case au même tick par deux colonies** : l'ordre des colonies est tiré au sort à chaque tick (graine) ; la seconde est refusée sans rien payer.
+- **Encore ouvert** : **portée des actions actives** (le Carpophore donne +2) ; gestes précis des actions (mode « viser une case » depuis les boutons du HUD) à voir sur les maquettes.
 
 ### G4 : Duel et FFA contre robots
 1. Profils des robots : le §2.5 parle de bâtisseur, expansionniste et agressif, alors que les robots du panneau combinent un profil d'expansion, un profil de bâtisseur et un pourcentage. Les robots de jeu reprennent-ils cette composition, avec un profil de combat en plus ?
