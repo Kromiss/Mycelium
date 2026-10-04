@@ -36,7 +36,7 @@
       ▼                                                             │
   Session (game/)  ── met à jour l'état local, émet des signaux ────┘
       │
-      ├──► Affichage (view/) : carte, colonies, filaments, effets
+      ├──► Affichage (view/) : carte, colonies, fronts, effets
       └──► Interface (ui/)   : HUD, alertes, frise, classement
 ```
 
@@ -59,11 +59,11 @@ res://
 │   ├── state/
 │   │   ├── game_state.gd     État complet de la partie (tableaux compacts)
 │   │   ├── colony_state.gd   État d'une colonie (ressources, palier, recharges…)
-│   │   └── filament_state.gd Filaments en cours
+│   │   └── front_state.gd    Fronts en cours
 │   ├── systems/              Un fichier par domaine de règles
 │   │   ├── command_system.gd   Validation et application des commandes
 │   │   ├── growth_system.gd    Pousse des cases, chantiers
-│   │   ├── combat_system.gd    Filaments, prises, actions actives, élimination
+│   │   ├── combat_system.gd    Fronts, prises, actions actives, élimination
 │   │   ├── economy_system.gd   Production, réseau, stock, Enzymes
 │   │   ├── tier_system.gd      Paliers, activation et désactivation des bâtiments
 │   │   ├── event_system.gd     Frise, événements aléatoires
@@ -89,7 +89,7 @@ res://
 ├── view/                     Affichage de la partie (lecture seule)
 │   ├── map/                  Cases-bulles (MultiMeshInstance2D), zones (shader)
 │   ├── colony/               Taches arrondies, Cœur, pictogrammes de bâtiments
-│   ├── filaments/            Filaments (Line2D + shader)
+│   ├── fronts/               Fronts et jauges de pression (Line2D + shader)
 │   ├── effects/              Ondes de palier, particules, Floraison
 │   ├── camera/               Caméra 2D (déplacement, zoom)
 │   └── input/                Gestes : clic, glisser, balayer -> commandes
@@ -123,7 +123,7 @@ res://
 ## 4. La simulation (`sim/`)
 
 ### 4.1 L'état
-- `GameState` contient tout ce qui définit la partie à un instant donné : numéro du tick, graine, carte, colonies, filaments, événements en cours.
+- `GameState` contient tout ce qui définit la partie à un instant donné : numéro du tick, graine, carte, colonies, fronts, événements en cours.
 - La carte est stockée en **tableaux compacts** indexés par numéro de case (`PackedInt32Array`, `PackedInt64Array`) : terrain, zone, propriétaire, bâtiment, état du bâtiment, progression de pousse, de construction et de prise.
 - Les colonies sont des objets `ColonyState` (ressources, palier, Cœur, Sclérote, recharges, statistiques).
 - **Aucune référence vers un nœud**, aucune dépendance à l'affichage.
@@ -135,7 +135,7 @@ res://
 |---|---|---|
 | 1 | `CommandSystem` | Trie les commandes (joueur, puis ordre d'arrivée), les valide, applique les valides, refuse les autres avec une raison |
 | 2 | `GrowthSystem` | Avance la pousse des cases et les chantiers |
-| 3 | `CombatSystem` | Avance les filaments et les prises, applique les actions actives, traite les éliminations et le butin |
+| 3 | `CombatSystem` | Fait avancer les fronts (attaque contre résistance et renfort), applique les actions actives, traite les éliminations et le butin |
 | 4 | `TierSystem` | Recalcule les paliers, active ou désactive les bâtiments |
 | 5 | `EconomySystem` | Réseau (cases reliées au Cœur), production, plafond de stock, Enzymes, biomasse |
 | 6 | `EventSystem` | Déclenche et fait avancer les événements de la frise |
@@ -145,7 +145,7 @@ res://
 `TickResult` contient les **différences** (cases modifiées, ressources des colonies, événements déclenchés, commandes refusées) et l'**empreinte**.
 
 ### 4.3 Les commandes
-- Classe de base `Command` : `tick`, `colony_id`, `type`. Une sous-classe par action : `ColonizeCommand`, `BuildCommand`, `DemolishCommand`, `MoveHeartCommand`, `LaunchFilamentCommand`, `CutFilamentCommand`, `PerfectStrikeCommand`, `ActiveActionCommand`.
+- Classe de base `Command` : `tick`, `colony_id`, `type`. Une sous-classe par action : `ColonizeCommand`, `BuildCommand`, `DemolishCommand`, `MoveHeartCommand`, `OpenFrontCommand`, `SetFrontRateCommand`, `StopFrontCommand`, `ReinforceCommand`, `ActiveActionCommand`.
 - Chaque commande sait se **convertir en dictionnaire et inversement** (`to_dict()`, `from_dict()`), pour le réseau et les replays.
 - La validation renvoie un code de refus explicite (`NOT_ADJACENT`, `NOT_ENOUGH_NUTRIENTS`, `TIER_LOCKED`…) que l'interface traduit en message.
 
@@ -175,8 +175,8 @@ Fin de partie visée : ~1e6 nutriments/s, soit ~1e9 en millièmes par seconde ; 
 ## 6. Les robots (`ai/`)
 
 - Un robot reçoit l'état (en lecture seule) et renvoie une liste de commandes, **à la même fréquence et avec les mêmes limites qu'un joueur**.
-- Décision par **utilité** : chaque évaluateur note les actions possibles (coloniser telle case, construire tel bâtiment, attaquer, trancher, migrer le Cœur) ; le robot choisit les meilleures.
-- **Difficulté** = délai de réaction, part d'erreurs, profondeur d'évaluation, taux de Frappes parfaites réussies. **Profil** = poids des évaluateurs (bâtisseur, expansionniste, agressif).
+- Décision par **utilité** : chaque évaluateur note les actions possibles (coloniser telle case, construire tel bâtiment, ouvrir un front et régler son débit, renforcer, migrer le Cœur) ; le robot choisit les meilleures.
+- **Difficulté** = délai de réaction, part d'erreurs, profondeur d'évaluation, qualité du choix des fronts et des débits. **Profil** = poids des évaluateurs (bâtisseur, expansionniste, agressif).
 - Les robots utilisent leur propre `SimRng` dérivé de la graine : une partie de robots est donc **rejouable à l'identique**.
 - **G1** : premiers robots d'économie (profils Hasardeux, Rentable, Rapide, Centre, GDD §14.5), qui ne font que coloniser ; ils servent au panneau de simulations et seront repris par les robots complets de G4.
 
@@ -204,7 +204,7 @@ Fin de partie visée : ~1e6 nutriments/s, soit ~1e9 en millièmes par seconde ; 
 ## 9. Affichage et interface (`view/`, `ui/`)
 
 - L'affichage **écoute** les signaux de la `Session` et lit `LocalViewState`. Il ne modifie jamais l'état.
-- `view/input/` transforme les gestes en commandes : clic (sélection, colonisation), glisser (filament), balayer (trancher, Coupure), maintenir (Assaut). Les seuils des gestes (distance, durée) sont dans `data/balance.tres`.
+- `view/input/` transforme les gestes en commandes : clic (sélection, colonisation), glisser (tracer un front), balayer (Coupure), maintenir (Assaut) ; gestes des fronts et des actions à préciser en G3. Les seuils des gestes (distance, durée) sont dans `data/balance.tres`.
 - Entre deux ticks, l'affichage **interpole** (jauges qui se remplissent, compteurs qui défilent) pour que le jeu reste fluide à 60 images/s malgré une simulation à 1 tick/s.
 - Thèmes : deux palettes (`data/palettes/light.tres` et `dark.tres`, classe `Palette`) ; `ThemeFactory` en construit le thème de l'interface et `Settings` l'applique à la fenêtre. Les contrôles placés dans un `CanvasLayer` n'héritent pas du thème de la fenêtre : l'écran doit le leur appliquer (`Settings.ui_theme`).
 - Thème au premier lancement : **Système** (suit le réglage clair ou sombre de Windows).
@@ -226,7 +226,7 @@ Fin de partie visée : ~1e6 nutriments/s, soit ~1e9 en millièmes par seconde ; 
 | Classes (`class_name`) | `PascalCase` | `EconomySystem` |
 | Fonctions, variables | `snake_case` | `compute_production()` |
 | Privé | préfixe `_` | `_cohesion_bonus()` |
-| Constantes, énumérations | `CONSTANT_CASE` | `MAX_FILAMENTS` |
+| Constantes, énumérations | `CONSTANT_CASE` | `MAX_FRONTS` |
 | Signaux | `snake_case`, au passé | `cell_captured` |
 | Nœuds dans les scènes | `PascalCase` | `BuildingPalette` |
 
@@ -299,7 +299,7 @@ func _colony_production(state: GameState, colony: ColonyState) -> int:
 ### 11.3 Simulations d'équilibrage (`tools/sim_runner.gd`)
 Dès G1, le `sim_runner` est piloté par le **panneau de simulations** (GDD §14.5), une scène de `ui/` chargée seulement quand `OS.has_feature("editor")` est vrai : le panneau n'existe dans aucun export. Les simulations tournent sans affichage, avec une barre de progression ; les résultats (moyenne, min, max, écart type) s'exportent en CSV dans `user://`.
 
-Lance des centaines de parties de robots sans affichage et en temps accéléré, puis écrit un rapport (CSV) : minute d'arrivée dans chaque zone, courbe de production, nombre d'éliminations avant 26:00, parties finies au temps, efficacité des filaments et de « trancher », effet du butin. C'est l'outil qui répond aux questions « À simuler » du GDD.
+Lance des centaines de parties de robots sans affichage et en temps accéléré, puis écrit un rapport (CSV) : minute d'arrivée dans chaque zone, courbe de production, nombre d'éliminations avant 26:00, parties finies au temps, efficacité des fronts, effet du butin. C'est l'outil qui répond aux questions « À simuler » du GDD.
 
 ### 11.4 Ce qui n'est pas couvert par les tests automatiques
 Le ressenti (rythme, plaisir des gestes, lisibilité), le rendu visuel, les performances sur un vrai PC, l'exécutable Windows et tout ce qui passe par Steam : ces points se vérifient **en jouant** (G5 et G6).

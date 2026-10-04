@@ -9,8 +9,8 @@ Les valeurs chiffrées de ce document sont des **points de départ à simuler**,
 ## 1. Pitch
 
 - **Genre** : city builder incrémental compétitif en temps réel, type dernier survivant.
-- **Fantasy** : tu es un réseau fongique. Tu bâtis une ville souterraine, tu la regardes **doubler, puis doubler encore**, et tu la défends contre des voisins dont tu vois les filaments approcher, en descendant vers un centre toujours plus riche et plus disputé.
-- **Boucle courte (10 à 60 s)** : coloniser une case, poser un bâtiment, atteindre le prochain palier, lancer ou trancher un filament.
+- **Fantasy** : tu es un réseau fongique. Tu bâtis une ville souterraine, tu la regardes **doubler, puis doubler encore**, et tu la défends contre des voisins dont tu vois les fronts avancer, en descendant vers un centre toujours plus riche et plus disputé.
+- **Boucle courte (10 à 60 s)** : coloniser une case, poser un bâtiment, atteindre le prochain palier, ouvrir un front ou renforcer sa défense.
 - **Boucle moyenne (3 à 5 min)** : changer de zone, bâtir le quartier suivant, rapprocher le Cœur du centre, choisir sa cible.
 - **Boucle longue (30 min)** : survivre, éliminer, finir dernier vivant.
 
@@ -18,7 +18,7 @@ Les valeurs chiffrées de ce document sont des **points de départ à simuler**,
 1. **L'espace est la ressource principale.** Prendre les bonnes cases, puis les rentabiliser.
 2. **La colonie explose.** Chaque minute, le joueur doit sentir que ses chiffres et sa taille changent d'échelle.
 3. **La ville est l'identité.** C'est le plan de ta ville (où, quoi, dans quel ordre) qui te distingue des autres.
-4. **L'attaque se voit et se mérite.** Un geste précis, visible par tous, pas un simple clic.
+4. **L'attaque se voit et laisse réagir.** Un choix stratégique visible par tous (où ouvrir un front, combien y investir), pas un simple clic ; le défenseur a le temps de répondre.
 5. **Départ équitable, centre risqué.** Mêmes chances au départ ; plus on prend de risques, plus on peut gagner.
 6. **Lisibilité** : on comprend en 5 secondes qui domine, qui est menacé et ce qui arrive ensuite.
 
@@ -97,8 +97,8 @@ Une **courte partie scénarisée (~10 min)** contre un robot passif, sur une pet
 | 3 | Construire un Nœud de digestion | Bâtiments, chantiers |
 | 4 | Atteindre 5 puis 10 cases | Paliers de colonie, production qui double |
 | 5 | Construire le Sclérote | Seconde vie du Cœur |
-| 6 | Lancer un filament sur une case du robot, réussir une Frappe parfaite | Attaque |
-| 7 | Trancher le filament du robot | Défense |
+| 6 | Ouvrir un front sur le robot et prendre des cases | Attaque (fronts) |
+| 7 | Renforcer un front ouvert par le robot | Défense |
 | 8 | Prendre le Cœur du robot | Élimination et butin |
 
 Le robot ne fait qu'attaquer sur commande du script (étape 7) ; le reste du temps, il ne joue pas.
@@ -186,7 +186,7 @@ Cible : une colonie moyenne atteint la zone N vers la minute 3,5 × N. La limita
 
 | Ressource | Rôle | Source |
 |---|---|---|
-| **Nutriments** | Monnaie de base : colonisation, bâtiments, filaments | Toutes les cases |
+| **Nutriments** | Monnaie de base : colonisation, bâtiments, fronts | Toutes les cases |
 | **Enzymes** | Bâtiments avancés et actions actives | Glande enzymatique, événements |
 | **Biomasse** | Total des nutriments produits : sert au départage à 30:00 (production moyenne = biomasse ÷ durée) et aux statistiques | Conversion des nutriments produits |
 
@@ -267,8 +267,8 @@ Les déblocages suivent les **paliers de colonie** (§6.1). Un bâtiment dont le
 | **Sclérote** | Palier 2 | 15 U + 50 Enzymes | Case non frontière, **1 seul** | Recueille le Cœur s'il tombe (§9.5) |
 | **Mycorhize** | Palier 3 | 6 U | Partout | +1 pousse simultanée (3 au plus en tout) |
 | **Écorce** | Palier 3 | 4 U + 10 Enzymes | Partout | Temps de prise ×2 sur sa case, +20 % sur ses voisines |
-| **Toxinière** | Palier 3 | 6 U + 20 Enzymes | Case frontière | Filaments ennemis visant ses voisines 15 % plus lents ; **débloque Toxine** |
-| **Poste d'assaut** | Palier 4 | 8 U + 40 Enzymes | Case frontière | +1 filament simultané (max 5) ; **débloque Assaut et Coupure** |
+| **Toxinière** | Palier 3 | 6 U + 20 Enzymes | Case frontière | Ralentit les fronts ennemis sur ses voisines (effet à adapter aux fronts en G3) ; **débloque Toxine** |
+| **Poste d'assaut** | Palier 4 | 8 U + 40 Enzymes | Case frontière | +1 front simultané (à confirmer en G3) ; **débloque Assaut et Coupure** |
 | **Haustorium** | Palier 4 | 8 U + 30 Enzymes | Case frontière | **Débloque Siphon** |
 | **Carpophore** | Palier 5 | 10 U | Partout | Portée des actions +2 ; montre l'état des Cœurs ennemis ; **visible et ciblé par tous** |
 
@@ -295,11 +295,11 @@ Les déblocages suivent les **paliers de colonie** (§6.1). Un bâtiment dont le
 ### 7.6 Désactivation et capture
 
 **Désactivation (perte de palier).** Chaque bâtiment est lié à son palier de déblocage (§7.2). Si le nombre de cases de la colonie repasse **sous** ce seuil, le bâtiment **n'est pas détruit : il est désactivé**. Il reste sur sa case, mais :
-- il n'a **aucun effet** : ni production, ni synergie de voisinage (§7.3), ni bonus de Rosace, ni action débloquée, ni filament ou chantier supplémentaire ;
+- il n'a **aucun effet** : ni production, ni synergie de voisinage (§7.3), ni bonus de Rosace, ni action débloquée, ni front ou chantier supplémentaire ;
 - on ne peut plus en construire de nouveaux du même type, mais on peut le démolir (remboursement 50 %) ;
 - il se **réactive tout seul** dès que la colonie repasse au-dessus du seuil.
 
-Les effets déjà lancés (action en recharge, filament ou chantier en cours) vont à leur terme. Les bâtiments de départ (Nœud de digestion) ne se désactivent jamais. Un **Sclérote désactivé ne peut pas recueillir le Cœur** : tomber sous le palier 2 juste avant de perdre son Cœur est fatal.
+Les effets déjà lancés (action en recharge, front ou chantier en cours) vont à leur terme. Les bâtiments de départ (Nœud de digestion) ne se désactivent jamais. Un **Sclérote désactivé ne peut pas recueillir le Cœur** : tomber sous le palier 2 juste avant de perdre son Cœur est fatal.
 
 **Capture.** Quand une case est prise, **son bâtiment passe à l'attaquant avec la case**, intact et à la couleur du capteur :
 - il est **actif** si le capteur a atteint le palier qui le débloque ;
@@ -322,24 +322,22 @@ D'autres souches pourront être ajoutées plus tard ; l'écran de choix arrivera
 
 ## 9. Conflit
 
-Il n'y a **aucune pression automatique** au contact. On ne prend une case qu'avec une **action visuelle précise**, visible par tous.
+Il n'y a **aucune pression automatique** au contact. On prend des cases en **ouvrant un front** : une décision stratégique, visible de tous, qui laisse au défenseur le temps de réagir. *(Décidé le 4 octobre 2026 : les fronts remplacent le Filament d'assaut, la Frappe parfaite et « trancher ».)*
 
-### 9.1 L'attaque : le Filament d'assaut
-1. **Sélectionner** une de ses cases frontière (clic gauche) : les cases ennemies attaquables pulsent.
-2. **Glisser** (bouton maintenu) vers une case ennemie adjacente : un **filament** se tend, en direct, avec une trajectoire visible.
-3. **Relâcher sur la cible** : l'attaque démarre. Échap ou clic droit annule avant le relâchement.
-4. Un **anneau de progression** se remplit sur la case ; **toute la forêt voit le filament** (couleur de l'attaquant).
-5. **Frappe parfaite** : un anneau de timing pulse pendant la prise ; cliquer au bon moment fait gagner **30 % du temps restant** (une seule fois par filament, sinon rien).
-
-- **Coût** : 25 % du coût de colonisation de la case visée, perdu si le filament est tranché.
-- **Limite** : **2 filaments simultanés** (+1 par Poste d'assaut, max 5).
-- **Tracé de front** : en glissant sur plusieurs cases ennemies adjacentes d'affilée, on lance plusieurs filaments (ils occupent plusieurs emplacements).
-- **Temps de prise** : voir §12 ; il dépend de la zone, de la Cohésion du défenseur, de l'Écorce et du nombre de cases de l'attaquant qui touchent la cible.
+### 9.1 L'attaque : ouvrir un front
+- **Tracer un tronçon** : l'attaquant trace, le long de sa frontière avec une colonie voisine, un **tronçon** de cases ennemies collées à son réseau. Plus le tronçon est large, plus l'investissement est dilué.
+- **Investir** : il y consacre un **débit de nutriments par seconde**, modifiable à tout moment et consommé en continu.
+- **Avancée** : toutes les cases du tronçon progressent **ensemble**, l'investissement étant réparti entre elles. Le front avance si l'attaque dépasse la **résistance + le renfort** du défenseur, d'autant plus vite que l'**écart** est grand ; sinon il est bloqué.
+- **Fin** : quand les cases du tronçon sont prises, le front **s'arrête** ; pour aller plus loin, on trace un nouveau front. L'attaquant peut aussi arrêter son front à tout moment.
+- **Nombre** : **1 front à la fois** au départ, **+1 par bâtiment** (lequel, et jusqu'où : à préciser en G3).
+- **Visibilité** : le tronçon et sa jauge de pression (attaque contre défense) sont visibles de toute la forêt.
 
 ### 9.2 La défense
-- **Alerte** visible dès qu'un filament se tend sur son territoire.
-- **Trancher le filament** : un **geste de balayage** à travers le filament l'annule et fait perdre son coût à l'attaquant (coût pour le défenseur, recharge 8 s ; l'attaquant ne peut pas relancer sur la même case pendant 4 s).
-- **Défense passive** : Cohésion, Écorce, Toxinière.
+- **Alerte** dès qu'un front s'ouvre sur son territoire.
+- **Résistance** : chaque case résiste seule, selon sa zone, sa Cohésion, l'Écorce et le Cœur (×4).
+- **Renfort** : le défenseur peut mettre sur le front attaqué un **débit de nutriments par seconde**, qui s'ajoute à la résistance.
+- **Il bloque seulement** : un défenseur plus fort arrête le front mais ne le repousse pas chez l'attaquant ; pour reprendre du terrain, il ouvre son propre front.
+- **Défense passive** : Cohésion, Écorce, Toxinière (effets à adapter aux fronts en G3).
 
 ### 9.3 Cibles
 - On n'attaque que des cases **collées à son réseau**.
@@ -347,11 +345,11 @@ Il n'y a **aucune pression automatique** au contact. On ne prend une case qu'ave
 - Le **Cœur** se prend 4× plus lentement.
 
 ### 9.4 Actions actives
-Elles coûtent des Enzymes, rechargent et **exigent le bâtiment correspondant**. Chacune a **son propre geste** :
+Elles coûtent des Enzymes, rechargent et **exigent le bâtiment correspondant**. Chacune a **son propre geste**. *Toutes sont à revoir en G3 pour les adapter aux fronts : les gestes et effets ci-dessous datent du Filament d'assaut.*
 
 | Action | Bâtiment | Geste | Coût | Recharge | Effet |
 |---|---|---|---|---|---|
-| **Assaut** | Poste d'assaut | Maintenir sur un filament puis relâcher (charge d'un anneau) | 30 Enzymes | 90 s | Prise 4× plus rapide pendant 20 s |
+| **Assaut** | Poste d'assaut | Maintenir sur un front puis relâcher (charge d'un anneau) | 30 Enzymes | 90 s | Prise 4× plus rapide pendant 20 s |
 | **Toxine** | Toxinière | « Arroser » : peindre la zone visée d'un trait | 20 Enzymes | 2 min | La case et ses voisines : production −50 % pendant 60 s |
 | **Coupure** | Poste d'assaut | **Trancher** un lien du réseau ennemi d'un balayage | 40 Enzymes | 3 min | La case ne fait plus passer les nutriments pendant 45 s (ni Cœur, ni Rosace) |
 | **Siphon** | Haustorium | Tirer un tuyau d'une case ennemie vers une des siennes | 25 Enzymes | 90 s | Vole 20 % de la production des cases à ≤ 2 pendant 60 s |
@@ -425,13 +423,12 @@ coût_colonisation  = base × (1 + 0,05 × dist_cœur) × difficulté_zone × 1,
                      (base = U = 30 ; terme dist_cœur à décider, absent en G1 ; nb_cases = cases poussées)
 coût_bâtiment      = base_bâtiment × 1,12 ^ nb_du_même_type   (terminés, en chantier et en file)
 durée_chantier     = 3 / 5 / 8 / 11 / 15 / 20 s selon le palier de déblocage (départ → palier 5)
-coût_filament      = 0,25 × coût_colonisation(case visée)
 stock_max          = production_totale × (3 min + 2 min × nb_greniers)
-temps_prise        = base_prise × prise_zone × (1 + 0,15 × voisines_défenseur) × facteur_écorce
-                     × facteur_cœur / (1 + 0,25 × voisines_attaquant_adjacentes)
+résistance_case    = base_résistance × prise_zone × (1 + 0,15 × voisines_défenseur) × facteur_écorce × facteur_cœur
+vitesse_front      = f(débit_attaque ÷ nb_cases_tronçon − (résistance_case + renfort))   (bloqué si ≤ 0)
 ```
 
-Base de prise : **~8 s** pour une case de zone 1 sans voisines ; Cœur ×4 ; Mort subite ÷3.
+Valeurs de la résistance et de la vitesse d'avancée des fronts : à définir en G3 ; Cœur ×4 ; Mort subite : fronts 3× plus rapides.
 
 ---
 
@@ -455,7 +452,7 @@ Menu principal, **mode Duel**, **mode FFA**, **salon de partie personnalisée**,
 | Citron | `#E7DF39` | `#B0A91E` | Indigo | `#4042D4` | `#2A2B99` |
 - Une colonie se dessine comme **une seule tache arrondie** ; le **Cœur** est un champignon avec deux petits yeux. *G1 : version simple d'abord* : cases colorées une par une, Cœur dans la teinte foncée de la colonie, case en pousse avec une jauge qui se remplit ; la tache arrondie vient plus tard.
 - **Bâtiments** : un pictogramme rond et simple au centre de la case (planche de maquettes à valider avant de coder, en G2). **États** : bâtiment désactivé = pictogramme grisé avec un petit cadenas (info-bulle : « palier N requis, X cases ») ; bâtiment capturé = pictogramme à la couleur du capteur ; pousse = cercle pointillé ; **en construction** = pictogramme pointillé avec jauge ; prise en cours = anneau de la couleur de l'attaquant ; coupée = barre blanche.
-- **Filament d'assaut** : un trait vivant de la couleur de l'attaquant, qui ondule et s'épaissit à mesure que la prise avance.
+- **Front** : le tronçon est bordé de la couleur de l'attaquant et porte une **jauge de pression** (attaque contre défense) ; les cases qui basculent se teintent peu à peu (visuel à valider sur maquettes en G3).
 
 ### 13.3 Mode sombre
 Un réglage **Thème : Clair / Sombre / Système** dans les **Paramètres** (appliqué à toute l'interface et à la carte). **Au premier lancement : Système.**
@@ -476,7 +473,7 @@ Les couleurs de colonie sont **éclaircies si besoin** en mode sombre pour garde
 ### 13.4 Caméra
 - **Déplacement** : clic droit maintenu (on fait glisser la carte) et souris contre les **bords de l'écran**.
 - **Zoom** : molette, **centré sur la position de la souris**.
-- Le clic gauche reste réservé au jeu (sélection, filaments).
+- Le clic gauche reste réservé au jeu (sélection, fronts).
 - **Coloniser** : clic gauche sur une case libre collée à la colonie = la pousse démarre tout de suite (sinon la commande est refusée).
 - **File d'expansion** : **Maj + clic gauche** ajoute une case à la file, ou la retire si elle y est déjà. **Maj + clic gauche glissé** sur plusieurs cases les ajoute dans l'ordre du tracé ; le tracé **s'arrête** à la première case qui ne peut pas entrer en file ou quand la file est pleine (message), et repasser sur une case déjà en file ne change rien.
 
@@ -490,7 +487,7 @@ Raccourcis par défaut : **Espace** recentre la caméra sur le Cœur ; **P** met
 - **Palette de bâtiments** (débloqués et coût) et **barre des paliers** (prochain seuil).
 - **Mini-classement** : colonies encore en vie, leur taille et leur production moyenne depuis le début (critère de départage à 30:00).
 - **Frise de la partie** : prochains événements, temps restant.
-- **Journal et alertes** : filament sur mon territoire, Cœur menacé, événement annoncé, élimination d'une colonie.
+- **Journal et alertes** : front ouvert sur mon territoire, Cœur menacé, événement annoncé, élimination d'une colonie.
 
 ---
 
@@ -509,7 +506,7 @@ Raccourcis par défaut : **Espace** recentre la caméra sur le Cœur ; **P** met
 - Configuration et profil enregistrés dans `user://` (thème, résolution, langue, raccourcis, préréglages de parties).
 
 ### 14.2 Architecture
-- **Simulation autoritaire intégrée** : une seule simulation fait foi ; les joueurs envoient des **commandes** (coloniser, construire, démolir, lancer un filament, trancher, déplacer le Cœur, action active) qu'elle valide.
+- **Simulation autoritaire intégrée** : une seule simulation fait foi ; les joueurs envoient des **commandes** (coloniser, construire, démolir, ouvrir, régler ou arrêter un front, renforcer, déplacer le Cœur, action active) qu'elle valide.
 - **Solo (robots)** : la simulation tourne **dans l'exécutable**, sans réseau.
 - **En ligne : hébergé par un joueur.** Pas de serveur à nous : l'**hôte** fait tourner la simulation dans son jeu, les autres s'y connectent. Transport par **Steam Networking Sockets** (relais Steam : pas de ports à ouvrir, adresses IP masquées), via le `MultiplayerPeer` de GodotSteam.
 - **Qui héberge** : le créateur du salon en partie personnalisée ; pour le Duel et le FFA publics, le propriétaire du salon Steam formé par la file d'attente.
@@ -522,7 +519,7 @@ Raccourcis par défaut : **Espace** recentre la caméra sur le Cœur ; **P** met
 ### 14.3 Données et rendu
 - État de la carte en **tableaux compacts** (`PackedInt32Array` : propriétaire, bâtiment, progression de pousse, de prise et de construction, zone, intégrité). Quelques centaines de cases : coût négligeable.
 - Réseau : recherche en largeur depuis le Cœur (cases reliées, îlots, Coupure), recalculée de façon incrémentale.
-- Cases-bulles en `MultiMeshInstance2D` ; colonies en taches arrondies via `Geometry2D.merge_polygons` et `offset_polygon` (jointures rondes) ; filaments en `Line2D` animés par shader ; thème clair/sombre par deux ressources `Theme` interchangeables.
+- Cases-bulles en `MultiMeshInstance2D` ; colonies en taches arrondies via `Geometry2D.merge_polygons` et `offset_polygon` (jointures rondes) ; fronts en `Line2D` animés par shader ; thème clair/sombre par deux ressources `Theme` interchangeables.
 - Objectif : **60 images/s** sur un PC modeste.
 
 ### 14.4 Interface d'administration (lecture seule)
@@ -555,7 +552,7 @@ Outil d'équilibrage **séparé** de l'interface d'administration, disponible **
 | **G0 : Fondations** | Dépôt transformé pour Godot, vérification automatique et version GitHub avec le .exe à chaque fusion sur main ; carte hex (6 zones, un terrain) en Duel et FFA, rendu « Pastille ronde », caméra ; menu principal minimal (entrées futures grisées) ; écran Paramètres (thème, langue, affichage) |
 | **G1 : Solo économie** | Colonisation (pousse, file d'expansion), Cœur, réseau, production, Cohésion, **paliers de colonie** et retours visuels (onde continue, palier). Entrée **Bac à sable** : joueur seul sur une forêt de Duel ou de FFA au choix. Horloge de partie affichée (le bonus de l'Armillaire arrive en G3), pause (P + bouton) et vitesse (bouton ×1 / ×2 / ×4), réglages du Bac à sable avec retour aux valeurs par défaut et récapitulatif copiable (§2.1 bis). HUD : nutriments qui défilent, courbe de production, Biomasse, barre du prochain palier, grands nombres avec suffixes (K, M, B, T). Carte : cases colonisables **toujours marquées** (teinte à part pour celles payables tout de suite), **info-bulle au survol** d'une case (zone, coût, durée de pousse, production). Raccourcis modifiables dans les Paramètres (Espace = recentrer sur le Cœur, P = pause). Tests : enregistrement des commandes d'une partie et **rejeu à l'identique** (même empreinte). **Panneau de simulations** (§14.5) avec 4 profils de robot d'économie. Livré en **trois étapes** : 1) simulation et tests ; 2) affichage, HUD et Bac à sable ; 3) robots d'économie, simulations et panneau ; version **0.2.0** |
 | **G2 : City builder** | Bâtiments (Nœud de digestion, Grenier, Pépinière, Glande enzymatique, Mycorhize), chantiers, file de construction, voisinage, Enzymes, plafond de stock, déblocages et désactivation par palier ; pose (palette ou menu rond), démolition ; HUD (palette, file et chantiers, Enzymes, stock et plafond) ; pictogrammes validés sur maquettes ; réglages du Bac à sable pour les bâtiments ; robots du panneau de simulations (§14.5) avec profil de bâtisseur. Livré en **trois étapes** (simulation et tests ; affichage, HUD et Bac à sable ; robots et panneau) ; version **0.3.0** |
-| **G3 : Combat et fin de partie** | Filament d'assaut, trancher, actions actives, Sclérote, élimination, **butin et transfert du territoire**, événements, frise de partie |
+| **G3 : Combat et fin de partie** | **Fronts** (tracer, investir, renforcer), actions actives (à adapter aux fronts), Sclérote, élimination, **butin et transfert du territoire**, événements, frise de partie |
 | **G4 : Duel et FFA contre robots** | Menus, robots (3 difficultés, profils), robots dans le Bac à sable, résultats (pause et vitesse réservées au Bac à sable depuis le 4 octobre 2026) |
 | **G5 : Habillage et bêta solo** | **Tutoriel**, audio, profil et statistiques, traduction, essais du jeu contre robots avec de vrais joueurs (sans Steam) |
 | **G6 : Multijoueur** | **Étape 1, tests entre amis avec l'App ID 480** (GodotSteam, sans page Steam ni frais, §14.1) : initialisation de Steam, identité, salons et invitations d'amis, relais Steam, hébergement par un joueur, vérification par empreinte, déconnexion et pilote automatique, arrêt de la partie si l'hôte part. **Étape 2, version complète** : file d'attente Steam, FFA entre joueurs, Duel contre un joueur (invitation puis file d'attente, rang éventuel), **partie personnalisée** complète (salon, emplacements, paramètres de forêt, préréglages, invitations d'amis ; l'ancien jalon G5 « Partie personnalisée (local) » y a été fusionné le 4 octobre 2026), chat, **interface d'administration en lecture seule** |
@@ -569,8 +566,8 @@ Le jeu est donc complet et jouable en solo avant le multijoueur. Pour ne pas avo
 ## 16. Décisions à valider et questions ouvertes
 
 ### Choix de conception à confirmer
-1. **Aucune pression automatique** : la prise de case passe uniquement par le Filament d'assaut.
-2. **Trancher un filament** : une défense active ; peut créer des impasses si elle est trop efficace.
+1. **Aucune pression automatique** : la prise de case passe uniquement par les **fronts** (§9), qui remplacent le Filament d'assaut, la Frappe parfaite et « trancher » (4 octobre 2026).
+2. **Défense** : résistance des cases plus renfort en nutriments/s ; le défenseur bloque un front mais ne le repousse pas.
 3. **Armillaire** gardée comme souche unique (sa croissance sur la durée sert l'aspect incrémental).
 4. **Déblocages par palier de colonie** (et non par le temps).
 5. **Production et déblocages liés au nombre de cases actuel** : perdre un palier **désactive** les bâtiments concernés (sans les détruire) ; capturer une case donne son bâtiment au capteur, actif ou désactivé selon son propre palier (§7.6).
@@ -604,7 +601,7 @@ Le jeu est donc complet et jouable en solo avant le multijoueur. Pour ne pas avo
 - Courbe de production : facteur de 10 000 à 100 000 sur 30 min ; temps de remboursement d'une case (~10 s au début, moins de 60 s en fin de partie).
 - Seuils des paliers (5, 10, 20, 40, 80, 160) selon la taille de la forêt (Duel ~198 cases par colonie, FFA ~153).
 - Taille des zones : la Clairière (zone 6) ne fait que ~7 cases en Duel et ~19 en FFA ; est-ce assez pour une case objectif ?
-- Temps de prise et efficacité de « trancher » : peut-on encore éliminer quelqu'un ?
+- Fronts : rapport entre débit d'attaque, résistance et renfort ; peut-on encore éliminer quelqu'un, ou tous les fronts finissent-ils bloqués ?
 - Butin et transfert du territoire : le tueur gagne d'un coup des cases, des paliers et des bâtiments ; est-ce une boule de neige impossible à rattraper en FFA ?
 - Bâtiments capturés : la conquête devient-elle une boule de neige (on prend les cases et leurs bâtiments) ? Faut-il un délai de remise en service ?
 - Cas limites de §7.6 à trancher : bâtiment en construction annulé, Sclérote capturé détruit si le capteur en a déjà un.
@@ -626,26 +623,24 @@ Questions relevées en relisant chaque jalon. Elles seront posées sous forme de
 2. Peut-on ajouter des adversaires dans le Bac à sable dès G3 ?
 3. Panneau de simulations : les robots attaquent-ils dès G3 et mesure-t-on les éliminations, ou est-ce pour G4 ?
 
-**Filament d'assaut**
-4. Le coût (25 % du coût de colonisation de la case visée) est-il calculé pour l'attaquant (son nombre de cases, la zone de la case) ?
-5. Le filament part-il de la case sélectionnée ou de n'importe quelle case de l'attaquant collée à la cible ? Que devient-il si sa case de départ est prise ou coupée ?
-6. Tracé de front : chaque case survolée doit-elle toucher le réseau de l'attaquant, ou seulement la précédente du tracé ?
-7. Frappe parfaite : largeur de la fenêtre de timing, rythme de la pulsation, une seule tentative ou plusieurs ?
-8. Pendant une prise, la case visée produit-elle encore pour le défenseur ? Peut-on y construire ?
-9. Prise interrompue : la progression est-elle perdue ou gardée ?
-10. Deux attaquants sur la même case : est-ce possible, et qui la prend ?
-11. Peut-on attaquer une case en pousse ou en chantier ? Deux colonies qui colonisent la même case libre au même tick : qui l'obtient ?
-12. Temps de prise arrondis à la seconde, au plus proche comme la pousse ?
-
-**Trancher un filament**
-13. Le « coût pour le défenseur » n'est pas chiffré : combien, et en quelle ressource ?
-14. Qui peut trancher : seulement le défenseur visé, ou n'importe quelle colonie ?
-15. La recharge de 8 s vaut-elle pour tous les filaments ou par filament ?
-16. Risque d'impasse (recharge de 8 s = temps de prise de base de 8 s) : à traiter maintenant ou après simulation ?
+**Fronts**
+4. Valeurs : résistance de base d'une case par zone, et vitesse d'avancée selon l'écart entre attaque et défense.
+5. Tronçon : longueur maximale ? Doit-il être d'un seul tenant ? Peut-il toucher plusieurs voisins à la fois ?
+6. Ouvrir un front coûte-t-il quelque chose en plus du débit (Enzymes, nutriments d'un coup) ?
+7. Si l'attaquant n'a plus de quoi payer son débit : le front s'arrête-t-il ou ralentit-il ?
+8. Front bloqué ou arrêté : les cases à moitié prises gardent-elles leur progression, ou reviennent-elles au défenseur ?
+9. Pendant une prise, la case produit-elle encore pour le défenseur ? Peut-on y construire ?
+10. Deux fronts de deux attaquants sur la même case : possible, et qui la prend ?
+11. Cases en pousse ou en chantier dans un tronçon ; deux colonies qui colonisent la même case libre au même tick : qui l'obtient ?
+12. Renfort du défenseur : pour tout le front ou réparti par case ? Peut-on renforcer à l'avance une frontière avant d'être attaqué ?
+13. Quel bâtiment ajoute un front, et jusqu'à combien ?
+14. Gestes : tracer le tronçon (glisser ?), régler le débit (curseur ?), renforcer, arrêter.
+15. En FFA, les autres colonies voient-elles les débits engagés, ou seulement la jauge ?
+16. Mort subite : les fronts vont-ils 3× plus vite, comme les prises ?
 
 **Actions actives**
-17. Portée de base des actions (le Carpophore donne +2) : collée au réseau, ou quelques cases ?
-18. Assaut : durée de la charge ; effet sur un filament ou sur tous ?
+17. Avec les fronts, garde-t-on les quatre actions actives telles quelles, les adapte-t-on, en retire-t-on ? Portée de base des actions (le Carpophore donne +2) : collée au réseau, ou quelques cases ?
+18. Assaut : durée de la charge ; effet sur un front ou sur tous ?
 19. Toxine (« peindre la zone ») : combien de cases ; effet centré sur une case ou sur chaque case peinte ?
 20. Coupure : vise-t-on une case ou le lien entre deux cases ? Les cases isolées deviennent-elles des îlots pendant 45 s ?
 21. Siphon : « cases à ≤ 2 » de la case ennemie visée ou de la case de l'attaquant ?
@@ -671,12 +666,12 @@ Questions relevées en relisant chaque jalon. Elles seront posées sous forme de
 35. À 30:00 en G3 : écran de résultats simple, ou l'écran complet prévu en G4 ?
 36. Mode spectateur après élimination : G3 ou G4 ?
 37. HUD de G3 : frise, temps restant, alertes, annonce des événements, journal, mini-classement : tout en G3 ?
-38. Pictogrammes des bâtiments de combat et visuel du filament : maquettes à valider d'abord, comme en G2 ?
+38. Pictogrammes des bâtiments de combat et visuel des fronts : maquettes à valider d'abord, comme en G2 ?
 39. Livraison : trois étapes et version 0.4.0, ou découper davantage (combat, puis événements) ?
 
 ### G4 : Duel et FFA contre robots
 1. Profils des robots : le §2.5 parle de bâtisseur, expansionniste et agressif, alors que les robots du panneau combinent un profil d'expansion, un profil de bâtisseur et un pourcentage. Les robots de jeu reprennent-ils cette composition, avec un profil de combat en plus ?
-2. Valeurs des difficultés Facile, Normal, Difficile (délai de réaction, part d'erreurs, profondeur d'évaluation, taux de Frappes parfaites).
+2. Valeurs des difficultés Facile, Normal, Difficile (délai de réaction, part d'erreurs, profondeur d'évaluation, qualité du choix des fronts et des débits).
 3. « Mêmes limites qu'un joueur » : nombre maximal de commandes par seconde pour un robot ?
 4. FFA contre robots : une difficulté pour tous ou une par robot (« mélange ») ? Profils choisis ou tirés au hasard ?
 5. Secteur et couleur du joueur en Duel et en FFA : choisis ou tirés au hasard ? Ordre des couleurs pour 2 et 6 colonies (daltonisme compris) ?
@@ -685,7 +680,7 @@ Questions relevées en relisant chaque jalon. Elles seront posées sous forme de
 8. Écran de résultats : contenu exact (rang, statistiques, courbe de production, graine publiée) et boutons (rejouer, menu, revoir la partie).
 9. Replay en timelapse (§11.4) : dans quel jalon ?
 10. Robots dans le Bac à sable : choisis comme dans le panneau (paire de profils et pourcentage), avec une difficulté ?
-11. Panneau de simulations : ajoute-t-on les mesures de combat (éliminations avant 26:00, parties finies au temps, efficacité des filaments et de « trancher », effet du butin) ?
+11. Panneau de simulations : ajoute-t-on les mesures de combat (éliminations avant 26:00, parties finies au temps, efficacité des fronts, effet du butin) ?
 
 ### G5 : Habillage et bêta solo
 1. Tutoriel : quelle forêt (« petite forêt de Duel » : rayon 5 ?) ? Faut-il ajouter des étapes pour la file d'expansion, la Mycorhize ou les Enzymes ?
