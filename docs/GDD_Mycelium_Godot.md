@@ -108,7 +108,7 @@ Le robot ne fait qu'attaquer sur commande du script (étape 7) ; le reste du tem
 ## 3. Déroulé d'une partie
 
 ### 3.1 Départ
-- Chaque colonie démarre avec **3 cases, Cœur compris** : le Cœur sur l'anneau extérieur, au milieu de son secteur (zone 1), et 2 cases collées à lui, côté centre.
+- Chaque colonie démarre avec **3 cases, Cœur compris** *(décidé le 4 octobre 2026)* : le Cœur sur un **coin de la forêt** (le milieu exact de son secteur, zone 1), la case collée à lui **vers le centre**, et une case collée à lui **sur le bord** (au-dessus du Cœur pour le coin de droite). Les départs des autres colonies s'en déduisent par rotation, donc tous identiques ; en Duel, coin gauche contre coin droit.
 - **Stock de départ : 6 U** (180 nutriments), de quoi poser ses premières cases et un bâtiment.
 - **Protection de départ : aucune attaque avant 2:00.**
 
@@ -168,12 +168,13 @@ Cible : une colonie moyenne atteint la zone N vers la minute 3,5 × N. La limita
 
 ### 4.4 Règles d'expansion
 - On ne colonise qu'une case **adjacente** à son réseau. Une case **en pousse ne fait pas encore partie du réseau** : on ne peut pas coloniser sa voisine avant la fin de la pousse.
-- Coût = `base × (1 + 0,05 × distance_au_cœur) × difficulté_zone × 1,02 ^ nb_cases` (à simuler), avec `base` = **U = 30** nutriments. `nb_cases` ne compte que les **cases poussées** (pas les cases en pousse). Le terme `0,05 × distance_au_cœur` est **à décider plus tard** (absent en G1, à trancher avec la migration du Cœur) ; s'il est gardé, la distance se mesure **par le réseau** (plus court chemin à travers ses propres cases).
+- Coût = `base × (1 + 0,05 × distance_au_cœur) × difficulté_zone × 1,02 ^ (nb_cases − 3)` (à simuler), avec `base` = **U = 30** nutriments. `nb_cases` ne compte que les **cases poussées** (pas les cases en pousse) ; on retire les **3 cases de départ** pour que la première case de zone 1 coûte exactement U (décidé le 4 octobre 2026). Le terme `0,05 × distance_au_cœur` est **à décider plus tard** (absent en G1, à trancher avec la migration du Cœur) ; s'il est gardé, la distance se mesure **par le réseau** (plus court chemin à travers ses propres cases).
 - La colonisation n'est pas instantanée : les hyphes **poussent** (~4 s en zone 1), ce qui laisse une fenêtre de réaction. Les durées sont en **secondes entières** (1 tick par seconde) : 4 s en zone 1, **arrondies au plus proche** dans les autres zones (4 × 1,2 = 4,8 → 5 s).
 - **Pousses simultanées** : **une seule** au départ ; chaque **Mycorhize** (§7.2) en ajoute une, **3 au plus**.
 - **File d'expansion** : jusqu'à **5 cases, pousse en cours comprise** (1 en pousse + 4 en attente). Elles poussent **dans l'ordre où elles ont été ajoutées**. Le coût est payé **au démarrage de la pousse**, au prix du moment : une case attend en file d'avoir les nutriments.
   - **En chaîne** : une case collée seulement à une case déjà en file peut y entrer ; elle attend que la précédente ait poussé.
   - **Retirer** une case de la file la retire **avec toutes les cases qui en dépendent** en chaîne. Une pousse lancée va à son terme.
+  - **Clic direct et file** *(décidé le 4 octobre 2026)* : un clic direct sur une case payable, quand une place de pousse est libre, **passe devant** une file qui attend (la file continue d'attendre derrière). Il compte dans les 5 places de la file ; un clic sur une case déjà en file la lance et la retire de la file.
 - **Cohésion** : chaque case compte ses voisines possédées (0 à 6), **cases poussées seulement**. Production **+5 % par voisine** (max +30 %) ; en défense, temps de prise **+15 % par voisine**. Une **Rosace** (6 voisines) ne peut pas être visée par une Coupure.
 
 ### 4.5 Le réseau
@@ -214,6 +215,7 @@ Quand le **nombre de cases** franchit un seuil, **la production de la colonie do
 | 5 | 80 | ×32 | Carpophore |
 | 6 | 160 | ×64 | (le prestige du conquérant) |
 
+- Seules les **cases poussées** comptent, Cœur compris : une case en pousse ne compte qu'à la fin de sa pousse (décidé le 4 octobre 2026).
 - Le multiplicateur et les déblocages suivent le **nombre de cases actuel** : perdre des cases peut faire perdre un palier, ce qui rend la défense tendue. Les bâtiments liés au palier perdu ne sont **pas détruits, ils sont désactivés** (§7.6), et reprennent du service dès que le palier est de nouveau atteint.
 - Rien ne s'achète : on grandit et le palier tombe tout seul.
 
@@ -417,9 +419,9 @@ production_case    = rendement × richesse_zone × (1 + bonus_bâtiment) × (1 +
                      × (1 + 0,05 × voisines) × modif_événement
 production_totale  = Σ production_case (cases reliées au Cœur)
                      × 2 ^ paliers_atteints × bonus_souche(t)
-paliers_atteints   = nombre de seuils (5, 10, 20, 40, 80, 160 cases) ≤ nb_cases
+paliers_atteints   = nombre de seuils (5, 10, 20, 40, 80, 160 cases) ≤ nb_cases (cases poussées)
 bonus_souche(t)    = 1,00 + 0,25 × t / 30 min
-coût_colonisation  = base × (1 + 0,05 × dist_cœur) × difficulté_zone × 1,02 ^ nb_cases
+coût_colonisation  = base × (1 + 0,05 × dist_cœur) × difficulté_zone × 1,02 ^ (nb_cases − 3)
                      (base = U = 30 ; terme dist_cœur à décider, absent en G1 ; nb_cases = cases poussées)
 coût_bâtiment      = base_bâtiment × 1,12 ^ nb_du_même_type   (terminés, en chantier et en file)
 durée_chantier     = 3 / 5 / 8 / 11 / 15 / 20 s selon le palier de déblocage (départ → palier 5)
@@ -474,7 +476,7 @@ Les couleurs de colonie sont **éclaircies si besoin** en mode sombre pour garde
 - **Déplacement** : clic droit maintenu (on fait glisser la carte) et souris contre les **bords de l'écran**.
 - **Zoom** : molette, **centré sur la position de la souris**.
 - Le clic gauche reste réservé au jeu (sélection, fronts).
-- **Coloniser** : clic gauche sur une case libre collée à la colonie = la pousse démarre tout de suite (sinon la commande est refusée).
+- **Coloniser** : clic gauche sur une case libre collée à la colonie = la pousse démarre tout de suite (sinon la commande est refusée) ; il passe devant une file qui attend (§4.4).
 - **File d'expansion** : **Maj + clic gauche** ajoute une case à la file, ou la retire si elle y est déjà. **Maj + clic gauche glissé** sur plusieurs cases les ajoute dans l'ordre du tracé ; le tracé **s'arrête** à la première case qui ne peut pas entrer en file ou quand la file est pleine (message), et repasser sur une case déjà en file ne change rien.
 
 ### 13.5 Paramètres

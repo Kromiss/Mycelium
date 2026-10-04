@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="BalanceDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://sim/defs/balance_def.gd" id="1_balance"]
+
+[resource]
+script = ExtResource("1_balance")
+unit_cost = 30000
+cell_yield = 3333
+base_growth_ticks = 4
+start_stock_units = 6
+colonize_cost_growth_pm = 1020
+cohesion_per_neighbor_pm = 50
+max_growths = 1
+expansion_queue_size = 5

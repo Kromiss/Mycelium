@@ -55,13 +55,19 @@ res://
 │   ├── steam_service.gd      Accès à GodotSteam (initialisation, identité, amis, salons) — jalon G6
 │   └── scene_router.gd       Changement d'écran (menu, partie, résultats)
 ├── sim/                      Règles du jeu, code pur (RefCounted uniquement)
-│   ├── simulation.gd         Point d'entrée : tick(commandes) -> TickResult
+│   ├── simulation.gd         Point d'entrée : tick(commandes) -> TickResult, requêtes pour l'interface
+│   ├── tick_result.gd        Différences d'un tick et empreinte
+│   ├── replay.gd             Enregistrement d'une partie (définitions, graine, commandes) et rejeu
+│   ├── dict_read.gd          Lecture sûre des dictionnaires venus d'un fichier ou du réseau
+│   ├── defs/                 Classes des ressources de data/ (ZoneDef, TierDef, BalanceDef…) et SimDefs
 │   ├── state/
+│   │   ├── forest_map.gd     Cases, zones, terrains et table des voisines
 │   │   ├── game_state.gd     État complet de la partie (tableaux compacts)
-│   │   ├── colony_state.gd   État d'une colonie (ressources, palier, recharges…)
+│   │   ├── colony_state.gd   État d'une colonie (ressources, palier, file d'expansion…)
 │   │   └── front_state.gd    Fronts en cours
 │   ├── systems/              Un fichier par domaine de règles
 │   │   ├── command_system.gd   Validation et application des commandes
+│   │   ├── expansion.gd        Règles de colonisation et de file, partagées avec les requêtes
 │   │   ├── growth_system.gd    Pousse des cases, chantiers
 │   │   ├── combat_system.gd    Fronts, prises, actions actives, élimination
 │   │   ├── economy_system.gd   Production, réseau, stock, Enzymes
@@ -142,12 +148,14 @@ res://
 | 7 | `VictorySystem` | Fin de partie, classement, départage à 30:00 |
 | 8 | `StateHash` | Calcule l'empreinte de l'état |
 
+Dans `GrowthSystem`, la file d'expansion démarre ce qui peut l'être, **puis** toutes les pousses avancent d'un tick : une pousse de N secondes lancée au tick t (par un clic ou par la file) se termine à la fin du tick t + N − 1, et la case rejoint le réseau pour le tick suivant. Un clic direct est traité à l'étape 1, avant la file : il passe devant elle (GDD §4.4).
+
 `TickResult` contient les **différences** (cases modifiées, ressources des colonies, événements déclenchés, commandes refusées) et l'**empreinte**.
 
 ### 4.3 Les commandes
-- Classe de base `Command` : `tick`, `colony_id`, `type`. Une sous-classe par action : `ColonizeCommand`, `BuildCommand`, `DemolishCommand`, `MoveHeartCommand`, `OpenFrontCommand`, `SetFrontRateCommand`, `StopFrontCommand`, `ReinforceCommand`, `ActiveActionCommand`.
+- Classe de base `Command` : `tick`, `colony_id`, `type`. Les commandes qui visent une case héritent de `CellCommand` (case en coordonnées axiales). Une sous-classe par action : `ColonizeCommand` (clic direct), `EnqueueCommand` et `DequeueCommand` (file d'expansion) en G1, puis `BuildCommand`, `DemolishCommand`, `MoveHeartCommand`, `OpenFrontCommand`, `SetFrontRateCommand`, `StopFrontCommand`, `ReinforceCommand`, `ActiveActionCommand`.
 - Chaque commande sait se **convertir en dictionnaire et inversement** (`to_dict()`, `from_dict()`), pour le réseau et les replays.
-- La validation renvoie un code de refus explicite (`NOT_ADJACENT`, `NOT_ENOUGH_NUTRIENTS`, `TIER_LOCKED`…) que l'interface traduit en message.
+- La validation renvoie un code de refus explicite (`Refusal.Code` : `NOT_ADJACENT`, `NOT_ENOUGH_NUTRIENTS`, `QUEUE_FULL`…, puis `TIER_LOCKED`…) que l'interface traduit en message. L'interface peut demander à l'avance si une commande serait acceptée (`Simulation.check_colonize()`, `check_enqueue()`), ainsi que le coût, la durée de pousse et la production d'une case.
 
 ### 4.4 Règles de déterminisme
 1. **L'état ne contient que des entiers.** Les quantités sont en **millièmes** (`int` 64 bits) : 12,5 nutriments = `12500`. Les multiplicateurs sont en **pour-mille** (×1,12 = `1120`).
@@ -166,7 +174,7 @@ Fin de partie visée : ~1e6 nutriments/s, soit ~1e9 en millièmes par seconde ; 
 
 - Chaque élément de contenu est une **ressource typée** : `BuildingDef`, `ZoneDef`, `TierDef`, `EventDef`, `ModeDef` (classes déclarées dans `sim/defs/`, champs exportés).
 - Exemple : `data/buildings/digestion_node.tres` contient l'identifiant, le coût en U, le palier de déblocage, la règle de pose, les effets et les synergies.
-- La simulation reçoit les définitions **au démarrage de la partie** ; elle ne charge rien elle-même pendant les ticks.
+- La simulation reçoit les définitions **au démarrage de la partie**, sous la forme d'un `SimDefs` : une copie en entiers de tous les chiffres (`SimDefs.from_mode()` lit `zones.tres`, `tiers.tres`, `balance.tres` et le mode). Elle ne charge rien elle-même pendant les ticks. `SimDefs.prepare()` calcule les valeurs dérivées (durées de pousse par zone, table de puissances du coût) ; `validate()` signale les réglages absurdes ; `to_dict()` / `from_dict()` servent aux replays et au récapitulatif du Bac à sable.
 - Les paramètres d'une partie personnalisée ou du **Bac à sable** **surchargent** les valeurs du mode, sans jamais modifier les fichiers.
 - Changer un chiffre d'équilibrage = modifier un `.tres`, relancer les tests et le `sim_runner`.
 
@@ -184,8 +192,8 @@ Fin de partie visée : ~1e6 nutriments/s, soit ~1e9 en millièmes par seconde ; 
 
 ## 7. Transport et multijoueur (`net/`)
 
-- `Transport` est une interface : `send_command(cmd)`, signal `tick_received(result)`.
-- `LocalTransport` : la simulation tourne dans le jeu ; les commandes sont transmises directement. Utilisé en solo, dans le tutoriel et dans les tests.
+- `Transport` est une interface : `send_command(cmd)`, `advance()` (joue le prochain tick, en local ou chez l'hôte), signal `tick_received(result)`.
+- `LocalTransport` : la simulation tourne dans le jeu ; les commandes sont transmises directement et jouées au prochain tick. Il les enregistre dans un `Replay` avec l'empreinte de chaque tick. Utilisé en solo, dans le Bac à sable, le tutoriel et les tests.
 - `SteamTransport` (jalon G6) :
   - **Hôte** : fait tourner la simulation, reçoit les commandes des invités par Steam Networking Sockets, envoie les différences et l'empreinte de chaque tick.
   - **Invité** : envoie ses commandes, applique les différences, **rejoue la simulation localement** à partir des commandes et compare l'empreinte ; un écart arrête la partie et la signale.
@@ -195,7 +203,7 @@ Fin de partie visée : ~1e6 nutriments/s, soit ~1e9 en millièmes par seconde ; 
 
 ## 8. Session, scènes et singletons
 
-- `Session` (`game/session.gd`) assemble une partie : crée la simulation et le transport, inscrit les robots, cadence les ticks (1 par seconde, ×2 ou ×4 en Bac à sable), met à jour `LocalViewState` et émet des **signaux** (`cell_changed`, `tier_reached`, `filament_launched`, `colony_eliminated`…).
+- `Session` (`game/session.gd`) assemble une partie : crée la simulation et le transport, inscrit les robots, cadence les ticks (1 par seconde, ×2 ou ×4 en Bac à sable), met à jour `LocalViewState` et émet des **signaux** (`ticked`, `paused_changed`, `speed_changed` en G1 ; `cell_changed`, `tier_reached`, `colony_eliminated`… quand l'affichage en aura besoin). `start_local(defs, graine, colonies, time_control)` lance une partie locale ; la pause et la vitesse ne répondent que si `time_control` est vrai (Bac à sable). `advance_time()` joue les ticks dus (8 au plus par image) et `tick_fraction()` donne l'avancement vers le prochain tick, pour interpoler l'affichage.
 - **Singletons limités à trois** : `Settings`, `SceneRouter` et, au jalon G6, `SteamService`. `SteamService` est **facultatif** : les modes locaux (joueur et robots : Bac à sable, Duel et FFA contre robots, tutoriel) sont **isolés des modes en ligne** et fonctionnent sans Steam ni GodotSteam. Aucun code de `sim/`, `ai/`, `game/` ni des écrans des modes locaux ne dépend de `SteamService` ou de `SteamTransport` ; seuls `net/steam_transport.gd` et les écrans du multijoueur (salons, invitations, file d'attente) y touchent. L'état de la partie n'est **jamais** dans un singleton : il appartient à la `Session` en cours.
 - Une scène par écran (`ui/menus/main_menu.tscn`, `ui/hud/hud.tscn`…), une scène par élément réutilisable (bouton de bâtiment, ligne de classement).
 
@@ -341,7 +349,7 @@ Le ressenti (rythme, plaisir des gestes, lisibilité), le rendu visuel, les perf
 | Jalon | Code concerné |
 |---|---|
 | G0 | Transformation du dépôt, arborescence, autoloads, thèmes, traductions, `hex.gd`, `map_generator.gd` (zones uniquement), rendu de la carte, caméra, menu principal, écran Paramètres, GUT et workflows |
-| G1 | `GameState`, `Simulation`, commandes de colonisation, `GrowthSystem`, `EconomySystem`, `TierSystem`, `fixed.gd`, `sim_rng.gd`, `state_hash.gd`, `LocalTransport`, `Session` ; positions de départ dans `map_generator.gd` ; écran Bac à sable (réglages, valeurs par défaut, récapitulatif copiable), HUD, effets de palier, section Commandes des Paramètres ; enregistrement des commandes et test de rejeu ; robots d'économie (`ai/`), `tools/sim_runner.gd` et panneau de simulations (éditeur seulement). Livré en trois étapes : `sim/` et tests ; affichage, HUD et Bac à sable ; robots, simulations et panneau |
+| G1 | `GameState`, `Simulation`, commandes de colonisation, `GrowthSystem`, `EconomySystem`, `TierSystem`, `fixed.gd`, `sim_rng.gd`, `state_hash.gd`, `LocalTransport`, `Session` ; positions de départ dans `map_generator.gd` ; écran Bac à sable (réglages, valeurs par défaut, récapitulatif copiable), HUD, effets de palier, section Commandes des Paramètres ; enregistrement des commandes et test de rejeu ; robots d'économie (`ai/`), `tools/sim_runner.gd` et panneau de simulations (éditeur seulement). Livré en trois étapes : `sim/` et tests (**étape 1 livrée le 4 octobre 2026**) ; affichage, HUD et Bac à sable ; robots, simulations et panneau |
 | G2 | Bâtiments (`data/buildings/`), chantiers et file de construction, voisinage, Enzymes, plafond de stock, désactivation ; palette et menu rond ; robots composés (profil d'expansion + profil de bâtisseur + pourcentage) dans le panneau de simulations. Trois étapes : `sim/` et tests ; affichage, HUD et Bac à sable ; robots et panneau |
 | G3 | `CombatSystem`, gestes dans `view/input/`, `EventSystem`, `VictorySystem` |
 | G4 | `ai/` (robots complets), `tools/sim_runner.gd` étendu, menus, résultats |

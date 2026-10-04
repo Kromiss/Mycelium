@@ -45,6 +45,32 @@ func test_modes_have_equitable_colony_counts() -> void:
 		assert_gt(mode.rings_per_zone, 0)
 
 
+func test_tiers_double_production_at_growing_thresholds() -> void:
+	var tiers: TierTable = load("res://data/tiers.tres")
+	assert_eq(tiers.count(), 6)
+	var cells: int = MapGenerator.START_CELLS
+	var production: int = Fixed.ONE
+	for i: int in range(tiers.count()):
+		var tier: TierDef = tiers.tiers[i]
+		assert_eq(tier.tier, i + 1)
+		assert_gt(tier.cells, cells)
+		assert_gt(tier.production_pm, production)
+		cells = tier.cells
+		production = tier.production_pm
+
+
+func test_balance_values_are_usable() -> void:
+	for mode: ModeDef in MODES:
+		var defs: SimDefs = SimDefs.from_mode(mode)
+		assert_eq(defs.validate(), PackedStringArray(), String(mode.id))
+		assert_eq(defs.radius(), MapGenerator.generate(mode, 6).radius)
+	var balance: BalanceDef = load("res://data/balance.tres")
+	assert_gt(balance.unit_cost, 0)
+	assert_gt(balance.cell_yield, 0)
+	assert_gt(balance.base_growth_ticks, 0)
+	assert_gte(balance.expansion_queue_size, balance.max_growths)
+
+
 func test_every_translation_has_english_and_french() -> void:
 	var rows: Dictionary[String, PackedStringArray] = _translation_rows()
 	assert_gt(rows.size(), 0)

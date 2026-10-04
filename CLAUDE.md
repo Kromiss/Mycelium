@@ -29,7 +29,8 @@ formatage et style avec gdtoolkit 4.5.0. Le détail de l'arborescence est dans
 | `data/` | équilibrage et contenu (ressources `.tres`) |
 | `view/` | affichage de la carte (lecture seule) |
 | `ui/` | écrans et thème de l'interface |
-| `game/` | assemblage d'une partie |
+| `game/` | assemblage d'une partie (`Session`) |
+| `net/` | transport des commandes (local ; Steam au G6) |
 | `autoload/` | singletons `Settings` et `SceneRouter` |
 | `tests/` | tests GUT (`unit/`, `integration/`) |
 | `tools/` | outils de développement (captures d'écran…) |
@@ -40,8 +41,8 @@ Commandes (avec `godot` = l'exécutable Godot 4.6.3) :
 ```bash
 godot --headless --import                                              # importer le projet
 godot --headless -s addons/gut/gut_cmdln.gd -gconfig=res://.gutconfig.json   # tests
-gdformat --check autoload game sim ui view tests tools                 # formatage
-gdlint autoload game sim ui view tests tools                           # style
+gdformat --check autoload game net sim ui view tests tools                 # formatage
+gdlint autoload game net sim ui view tests tools                           # style
 godot --headless --export-release "Windows Desktop" build/windows/Mycelium.exe   # export
 ```
 
