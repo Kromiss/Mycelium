@@ -25,4 +25,122 @@ SETTINGS_RESOLUTION,Window size,Taille de la fenêtre
 SETTINGS_BACK,Back,Retour
 FOREST_MODE_DUEL,Duel forest,Forêt de Duel
 FOREST_MODE_FFA,FFA forest,Forêt de FFA
-FOREST_HINT,Right-click drag or screen edges: move · Wheel: zoom · Esc: menu,Clic droit maintenu ou bords de l'écran : déplacer · Molette : zoom · Échap : menu
+MENU_DUEL_SOON,Duel (soon),Duel (bientôt)
+MENU_FFA_SOON,FFA (soon),FFA (bientôt)
+MENU_SANDBOX,Sandbox,Bac à sable
+SANDBOX_TITLE,Sandbox,Bac à sable
+SANDBOX_INTRO,"Alone on the forest, every number can be changed. Games last 30 minutes.","Seul sur la forêt, tous les chiffres sont modifiables. Une partie dure 30 minutes."
+SANDBOX_FOREST,Forest,Forêt
+SANDBOX_SEED,Seed,Graine
+SANDBOX_NEW_SEED,New seed,Nouvelle graine
+SANDBOX_ECONOMY,Economy,Économie
+SANDBOX_UNIT_COST,U: cost of a zone 1 cell at start,U : coût d'une case de zone 1 au départ
+SANDBOX_CELL_YIELD,Yield of a zone 1 cell (nutrients/s),Rendement d'une case de zone 1 (nutriments/s)
+SANDBOX_GROWTH,Growth time in zone 1 (s),Durée de pousse en zone 1 (s)
+SANDBOX_START_STOCK,Starting stock (in U),Stock de départ (en U)
+SANDBOX_COST_GROWTH,Cost increase per grown cell (×),Hausse du coût par case poussée (×)
+SANDBOX_COHESION,Cohesion per owned neighbour (%),Cohésion par voisine possédée (%)
+SANDBOX_MAX_GROWTHS,Simultaneous growths,Pousses simultanées
+SANDBOX_QUEUE,Expansion queue size (growths included),Taille de la file d'expansion (pousses comprises)
+SANDBOX_ZONES,Zones,Zones
+SANDBOX_ZONE,Zone,Zone
+SANDBOX_RICHNESS,Richness ×,Richesse ×
+SANDBOX_ZONE_COST,Cost ×,Coût ×
+SANDBOX_ZONE_GROWTH,Growth ×,Pousse ×
+SANDBOX_TIERS,Colony tiers,Paliers de colonie
+SANDBOX_TIER,Tier,Palier
+SANDBOX_TIER_CELLS,Grown cells,Cases poussées
+SANDBOX_TIER_PRODUCTION,Production ×,Production ×
+SANDBOX_DEFAULTS,Default values,Valeurs par défaut
+SANDBOX_LAUNCH,Start,Lancer
+SANDBOX_BACK,Back,Retour
+SANDBOX_INVALID,Invalid settings: %s,Réglages invalides : %s
+HUD_NUTRIENTS,Nutrients,Nutriments
+HUD_PER_SECOND,+%s /s,+%s /s
+HUD_BIOMASS,Biomass,Biomasse
+HUD_PRODUCTION,Production,Production
+HUD_TIER,Tier %d · %s,Palier %d · %s
+HUD_TIER_START,Start · ×1,Départ · ×1
+HUD_NEXT_TIER,%d / %d cells → %s,%d / %d cases → %s
+HUD_LAST_TIER,Last tier reached · %d cells,Dernier palier atteint · %d cases
+HUD_CLOCK,%s / %s,%s / %s
+HUD_PAUSE,Pause,Pause
+HUD_RESUME,Resume,Reprendre
+HUD_SPEED,Speed ×%d,Vitesse ×%d
+HUD_RECAP,Copy summary,Copier le récapitulatif
+HUD_COPIED,Summary copied to the clipboard,Récapitulatif copié dans le presse-papiers
+HUD_PAUSED,Paused,En pause
+HUD_PAUSED_NO_ORDERS,Paused: orders are blocked,En pause : les ordres sont bloqués
+HUD_TIER_BANNER,Tier %s!,Palier %s !
+HUD_QUEUE,Queue: %d / %d,File : %d / %d
+HUD_HINT,Click: colonize · %s + click: queue · %s: centre on the Heart · %s: menu,Clic : coloniser · %s + clic : file · %s : recentrer sur le Cœur · %s : menu
+TIP_ZONE,Zone %d,Zone %d
+TIP_FREE,Free cell,Case libre
+TIP_HEART,Heart of your colony,Cœur de ta colonie
+TIP_OWNED,Your colony,Ta colonie
+TIP_GROWING,Growing: %d s left,En pousse : encore %d s
+TIP_QUEUED,In the queue (#%d),Dans la file (n° %d)
+TIP_COST,Cost: %s,Coût : %s
+TIP_GROWTH,Growth: %d s,Pousse : %d s
+TIP_PRODUCTION,Production: %s /s,Production : %s /s
+TIP_PRODUCTION_ONCE,Once grown: %s /s,Une fois poussée : %s /s
+REFUSAL_UNKNOWN_COLONY,This colony no longer plays,Cette colonie ne joue plus
+REFUSAL_UNKNOWN_COMMAND,Unknown order,Ordre inconnu
+REFUSAL_OUT_OF_MAP,Outside the forest,Hors de la forêt
+REFUSAL_CELL_TAKEN,This cell is already taken,Cette case est déjà prise
+REFUSAL_NOT_ADJACENT,This cell does not touch your network,Cette case ne touche pas ton réseau
+REFUSAL_NOT_ENOUGH_NUTRIENTS,Not enough nutrients,Pas assez de nutriments
+REFUSAL_NO_GROWTH_SLOT,A cell is already growing: use the queue,Une case pousse déjà : utilise la file
+REFUSAL_QUEUE_FULL,The expansion queue is full,La file d'expansion est pleine
+REFUSAL_ALREADY_QUEUED,This cell is already in the queue,Cette case est déjà dans la file
+REFUSAL_NOT_QUEUED,This cell is not in the queue,Cette case n'est pas dans la file
+REFUSAL_ALREADY_GROWING,This cell is already growing,Cette case pousse déjà
+REFUSAL_GAME_OVER,The game is over,La partie est terminée
+GAME_MENU_TITLE,Game menu,Menu de partie
+GAME_MENU_RESUME,Resume,Reprendre
+GAME_MENU_RESTART,Restart,Recommencer
+GAME_MENU_QUIT,Quit to the main menu,Quitter vers le menu
+END_TITLE,Time's up!,Fin de la partie
+END_REPLAY,Play again with the same settings,Rejouer avec les mêmes réglages
+END_MENU,Main menu,Menu principal
+RECAP_HEADER,%s %s — Sandbox,%s %s — Bac à sable
+RECAP_SETTINGS,Settings,Réglages
+RECAP_FOREST,Forest: %s (radius %d) · seed %d,Forêt : %s (rayon %d) · graine %d
+RECAP_ECONOMY,U: %s · zone 1 yield: %s/s · zone 1 growth: %d s · starting stock: %d U,U : %s · rendement en zone 1 : %s/s · pousse en zone 1 : %d s · stock de départ : %d U
+RECAP_EXPANSION,Cost increase per cell: %s · cohesion: +%s %% per neighbour · simultaneous growths: %d · queue: %d,Hausse du coût par case : %s · Cohésion : +%s %% par voisine · pousses simultanées : %d · file : %d
+RECAP_ZONES,Zones (richness / cost / growth): %s,Zones (richesse / coût / pousse) : %s
+RECAP_TIERS,Tiers (cells → production): %s,Paliers (cases → production) : %s
+RECAP_RESULTS,Results at %s,Résultats à %s
+RECAP_CELLS,Grown cells: %d · tier %d (%s),Cases poussées : %d · palier %d (%s)
+RECAP_PRODUCTION,Production: %s/s (peak %s/s) · biomass: %s · nutrients: %s,Production : %s/s (record %s/s) · biomasse : %s · nutriments : %s
+RECAP_TIER_TIMES,Tiers reached: %s,Paliers atteints : %s
+RECAP_ZONE_TIMES,Zones reached: %s,Zones atteintes : %s
+RECAP_AT,%d at %s,%d à %s
+RECAP_NONE,none,aucun
+SETTINGS_CONTROLS,Controls,Commandes
+ACTION_RECENTER,Centre on the Heart,Recentrer sur le Cœur
+ACTION_PAUSE,Pause (sandbox),Pause (Bac à sable)
+ACTION_MENU,Game menu / back,Menu de partie / retour
+ACTION_QUEUE,Expansion queue (hold + click),File d'expansion (maintenir + clic)
+CONTROLS_PRESS_KEY,Press a key…,Appuie sur une touche…
+CONTROLS_RESET,Default controls,Commandes par défaut
+CONTROLS_KEY_TAKEN,Key already used by: %s,Touche déjà utilisée par : %s
+COLOR_LAVENDER,Lavender,Lavande
+COLOR_CORAL,Coral,Corail
+COLOR_MINT,Mint,Menthe
+COLOR_SKY,Sky,Ciel
+COLOR_CANDY,Candy,Bonbon
+COLOR_LEMON,Lemon,Citron
+COLOR_APPLE,Apple,Pomme
+COLOR_APRICOT,Apricot,Abricot
+COLOR_PLUM,Plum,Prune
+COLOR_LAGOON,Lagoon,Lagon
+COLOR_RASPBERRY,Raspberry,Framboise
+COLOR_INDIGO,Indigo,Indigo
+KEY_SHIFT,Shift,Maj
+KEY_SPACE,Space,Espace
+KEY_ESCAPE,Esc,Échap
+KEY_ENTER,Enter,Entrée
+KEY_BACKSPACE,Backspace,Retour arrière
+KEY_TAB,Tab,Tab
+KEY_CTRL,Ctrl,Ctrl

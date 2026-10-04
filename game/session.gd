@@ -10,6 +10,8 @@ signal ticked(result: TickResult)
 signal paused_changed(paused: bool)
 ## La vitesse a changé.
 signal speed_changed(speed: int)
+## La partie est terminée (durée maximale atteinte) : plus aucun tick ne sera joué.
+signal game_finished
 
 ## Vitesses permises en Bac à sable, dans l'ordre du bouton.
 const SPEEDS: Array[int] = [1, 2, 4]
@@ -26,6 +28,8 @@ var local_colony: int = 0
 var speed: int = 1
 ## Vrai si le temps est arrêté.
 var paused: bool = false
+## Production de la colonie locale à chaque tick joué (millièmes par seconde), pour la courbe.
+var production_history: PackedInt64Array = PackedInt64Array()
 
 var _time_control: bool = false
 var _accumulator: float = 0.0
@@ -45,6 +49,7 @@ func start_local(
 	_accumulator = 0.0
 	speed = 1
 	paused = false
+	production_history = PackedInt64Array()
 	_running = true
 
 
@@ -53,10 +58,29 @@ func has_time_control() -> bool:
 	return _time_control
 
 
-## Envoie une commande de la colonie locale, jouée au prochain tick.
-func send_command(command: Command) -> void:
+## Vrai tant que la partie tourne (pas encore terminée).
+func is_running() -> bool:
+	return _running
+
+
+## Vrai si le joueur peut donner des ordres : partie en cours et pas en pause.
+func accepts_commands() -> bool:
+	return _running and not paused
+
+
+## Envoie une commande de la colonie locale, jouée au prochain tick. Refusée (faux) pendant la
+## pause ou une fois la partie terminée (décidé le 4 octobre 2026).
+func send_command(command: Command) -> bool:
+	if not accepts_commands():
+		return false
 	command.colony_id = local_colony
 	transport.send_command(command)
+	return true
+
+
+## Colonie du joueur local.
+func colony() -> ColonyState:
+	return simulation.state.colony(local_colony)
 
 
 ## Met en pause ou relance le temps (Bac à sable seulement).
@@ -99,9 +123,10 @@ func advance_time(seconds: float) -> void:
 		_accumulator = minf(_accumulator, 1.0)
 
 
-## Joue un tick tout de suite.
+## Joue un tick tout de suite (sans effet une fois la partie terminée).
 func step() -> void:
-	transport.advance()
+	if _running:
+		transport.advance()
 
 
 func _process(delta: float) -> void:
@@ -109,4 +134,10 @@ func _process(delta: float) -> void:
 
 
 func _on_tick_received(result: TickResult) -> void:
+	var local: ColonyState = colony()
+	if local != null:
+		production_history.append(local.production)
 	ticked.emit(result)
+	if result.finished and _running:
+		_running = false
+		game_finished.emit()

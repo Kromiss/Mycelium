@@ -1,16 +1,18 @@
 extends Node
-## Singleton « SceneRouter » : passe d'un écran à l'autre et garde le mode choisi.
+## Singleton « SceneRouter » : passe d'un écran à l'autre et garde ce dont l'écran suivant a
+## besoin (réglages de la partie de Bac à sable).
 
 const MAIN_MENU: String = "res://ui/menus/main_menu.tscn"
 const SETTINGS: String = "res://ui/settings/settings_screen.tscn"
-const FOREST: String = "res://game/forest_screen.tscn"
+const SANDBOX_SETUP: String = "res://ui/sandbox/sandbox_setup.tscn"
+const SANDBOX_GAME: String = "res://game/sandbox_screen.tscn"
 const MODES: Dictionary[StringName, ModeDef] = {
 	&"duel": preload("res://data/modes/duel.tres"),
 	&"ffa": preload("res://data/modes/ffa.tres"),
 }
 
-## Mode de la forêt à afficher.
-var current_mode: ModeDef = MODES[&"duel"]
+## Réglages de la partie de Bac à sable à lancer (ou en cours).
+var sandbox_config: SandboxConfig
 
 
 func goto_main_menu() -> void:
@@ -21,9 +23,16 @@ func goto_settings() -> void:
 	_change(SETTINGS)
 
 
-func goto_forest(mode_id: StringName) -> void:
-	current_mode = MODES[mode_id]
-	_change(FOREST)
+## Écran de réglages du Bac à sable, toujours avec les valeurs par défaut (GDD §2.1 bis).
+func goto_sandbox_setup() -> void:
+	sandbox_config = null
+	_change(SANDBOX_SETUP)
+
+
+## Lance une partie de Bac à sable avec ces réglages.
+func start_sandbox(config: SandboxConfig) -> void:
+	sandbox_config = config
+	_change(SANDBOX_GAME)
 
 
 func quit() -> void:

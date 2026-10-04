@@ -90,17 +90,22 @@ res://
 │   └── steam_transport.gd    En ligne : hôte ou invité (jalon G6)
 ├── game/
 │   ├── session.gd            Relie simulation, transport, robots et affichage
+│   ├── sandbox_screen.tscn   Partie de Bac à sable (carte, colonie, gestes, caméra, HUD)
+│   ├── sandbox_config.gd     Réglages d'une partie de Bac à sable (mode, graine, SimDefs)
+│   ├── sandbox_recap.gd      Texte du récapitulatif copiable
 │   ├── local_view_state.gd   Copie de l'état côté affichage (mise à jour par différences)
 │   └── tutorial_director.gd  Étapes du tutoriel
 ├── view/                     Affichage de la partie (lecture seule)
 │   ├── map/                  Cases-bulles (MultiMeshInstance2D), zones (shader)
-│   ├── colony/               Taches arrondies, Cœur, pictogrammes de bâtiments
+│   ├── colony/               Colonie (G1 : cases colorées, Cœur, pousse, colonisables, file, onde) ; plus tard taches arrondies et pictogrammes
 │   ├── fronts/               Fronts et jauges de pression (Line2D + shader)
 │   ├── effects/              Ondes de palier, particules, Floraison
 │   ├── camera/               Caméra 2D (déplacement, zoom)
 │   └── input/                Gestes : clic, glisser, balayer -> commandes
 ├── ui/                       Écrans et HUD (nœuds Control)
-│   ├── menus/  hud/  lobby/  settings/  results/  tutorial/  admin/
+│   ├── menus/  hud/  sandbox/  lobby/  settings/  results/  tutorial/  admin/
+│   ├── number_format.gd      Grands nombres (K, M, B, T), multiplicateurs, horloge
+│   ├── controls_text.gd      Nom des touches liées aux actions
 │   └── theme_factory.gd      Construit le thème de l'interface à partir d'une palette
 ├── data/                     Équilibrage et contenu (ressources .tres)
 │   ├── balance.tres          Constantes générales (tick, base de coût, butin…)
@@ -110,12 +115,12 @@ res://
 │   ├── events/               Un .tres par événement
 │   ├── modes/                Duel, FFA, valeurs par défaut des parties personnalisées
 │   ├── palettes/             light.tres et dark.tres : couleurs de l'interface et de la carte
-│   └── colors.tres           Couleurs de colonie (clair et sombre) — jalon G1
+│   └── colors.tres           Les 12 couleurs de colonie (principale et foncée) — jalon G1
 ├── assets/                   fonts/, icons/, audio/, shaders/
 ├── i18n/
 │   └── translations.csv      Textes FR et EN
 ├── tools/
-│   ├── capture.gd            Captures d'écran d'un écran du jeu, pour validation visuelle
+│   ├── capture.gd            Captures d'écran d'un écran du jeu (menus, Bac à sable, partie jouée N secondes, menu de partie, fin), pour validation visuelle
 │   └── sim_runner.gd         Parties de robots accélérées, sans affichage — jalon G1 (économie), étendu en G4
 ├── tests/
 │   ├── unit/                 Un fichier de test par système
@@ -203,7 +208,7 @@ Fin de partie visée : ~1e6 nutriments/s, soit ~1e9 en millièmes par seconde ; 
 
 ## 8. Session, scènes et singletons
 
-- `Session` (`game/session.gd`) assemble une partie : crée la simulation et le transport, inscrit les robots, cadence les ticks (1 par seconde, ×2 ou ×4 en Bac à sable), met à jour `LocalViewState` et émet des **signaux** (`ticked`, `paused_changed`, `speed_changed` en G1 ; `cell_changed`, `tier_reached`, `colony_eliminated`… quand l'affichage en aura besoin). `start_local(defs, graine, colonies, time_control)` lance une partie locale ; la pause et la vitesse ne répondent que si `time_control` est vrai (Bac à sable). `advance_time()` joue les ticks dus (8 au plus par image) et `tick_fraction()` donne l'avancement vers le prochain tick, pour interpoler l'affichage.
+- `Session` (`game/session.gd`) assemble une partie : crée la simulation et le transport, inscrit les robots, cadence les ticks (1 par seconde, ×2 ou ×4 en Bac à sable), met à jour `LocalViewState` et émet des **signaux** (`ticked`, `paused_changed`, `speed_changed` en G1 ; `cell_changed`, `tier_reached`, `colony_eliminated`… quand l'affichage en aura besoin). `start_local(defs, graine, colonies, time_control)` lance une partie locale ; la pause et la vitesse ne répondent que si `time_control` est vrai (Bac à sable). `send_command()` renvoie faux, sans rien envoyer, pendant la pause ou une fois la partie finie ; `game_finished` est émis quand la simulation atteint sa durée maximale (`VictorySystem`, 30:00), après quoi plus aucun tick n'est joué. `production_history` garde la production de la colonie locale à chaque tick (courbe du HUD). En G1, l'affichage lit directement l'état de la simulation locale ; `LocalViewState` arrive avec le jeu en ligne. `advance_time()` joue les ticks dus (8 au plus par image) et `tick_fraction()` donne l'avancement vers le prochain tick, pour interpoler l'affichage.
 - **Singletons limités à trois** : `Settings`, `SceneRouter` et, au jalon G6, `SteamService`. `SteamService` est **facultatif** : les modes locaux (joueur et robots : Bac à sable, Duel et FFA contre robots, tutoriel) sont **isolés des modes en ligne** et fonctionnent sans Steam ni GodotSteam. Aucun code de `sim/`, `ai/`, `game/` ni des écrans des modes locaux ne dépend de `SteamService` ou de `SteamTransport` ; seuls `net/steam_transport.gd` et les écrans du multijoueur (salons, invitations, file d'attente) y touchent. L'état de la partie n'est **jamais** dans un singleton : il appartient à la `Session` en cours.
 - Une scène par écran (`ui/menus/main_menu.tscn`, `ui/hud/hud.tscn`…), une scène par élément réutilisable (bouton de bâtiment, ligne de classement).
 
@@ -212,6 +217,7 @@ Fin de partie visée : ~1e6 nutriments/s, soit ~1e9 en millièmes par seconde ; 
 ## 9. Affichage et interface (`view/`, `ui/`)
 
 - L'affichage **écoute** les signaux de la `Session` et lit `LocalViewState`. Il ne modifie jamais l'état.
+- G1 : `view/input/map_input.gd` (clic, touche de file + clic, tracé), `view/colony/colony_layer.gd` (dessin de la colonie et onde, couleurs des bulles via `ForestView.set_bubble_color()`), `ui/hud/` (HUD, courbe, info-bulle, menu de partie, panneau de fin). Avant d'envoyer une commande, l'interface demande à la simulation si elle serait acceptée (`check_colonize()`, `check_enqueue()` avec les cases déjà envoyées pour le prochain tick) : les règles restent dans `sim/`.
 - `view/input/` transforme les gestes en commandes : clic (sélection, colonisation), glisser (tracer un front), balayer (Coupure), maintenir (Assaut) ; gestes des fronts et des actions à préciser en G3. Les seuils des gestes (distance, durée) sont dans `data/balance.tres`.
 - Entre deux ticks, l'affichage **interpole** (jauges qui se remplissent, compteurs qui défilent) pour que le jeu reste fluide à 60 images/s malgré une simulation à 1 tick/s.
 - Thèmes : deux palettes (`data/palettes/light.tres` et `dark.tres`, classe `Palette`) ; `ThemeFactory` en construit le thème de l'interface et `Settings` l'applique à la fenêtre. Les contrôles placés dans un `CanvasLayer` n'héritent pas du thème de la fenêtre : l'écran doit le leur appliquer (`Settings.ui_theme`).
@@ -349,7 +355,7 @@ Le ressenti (rythme, plaisir des gestes, lisibilité), le rendu visuel, les perf
 | Jalon | Code concerné |
 |---|---|
 | G0 | Transformation du dépôt, arborescence, autoloads, thèmes, traductions, `hex.gd`, `map_generator.gd` (zones uniquement), rendu de la carte, caméra, menu principal, écran Paramètres, GUT et workflows |
-| G1 | `GameState`, `Simulation`, commandes de colonisation, `GrowthSystem`, `EconomySystem`, `TierSystem`, `fixed.gd`, `sim_rng.gd`, `state_hash.gd`, `LocalTransport`, `Session` ; positions de départ dans `map_generator.gd` ; écran Bac à sable (réglages, valeurs par défaut, récapitulatif copiable), HUD, effets de palier, section Commandes des Paramètres ; enregistrement des commandes et test de rejeu ; robots d'économie (`ai/`), `tools/sim_runner.gd` et panneau de simulations (éditeur seulement). Livré en trois étapes : `sim/` et tests (**étape 1 livrée le 4 octobre 2026**) ; affichage, HUD et Bac à sable ; robots, simulations et panneau |
+| G1 | `GameState`, `Simulation`, commandes de colonisation, `GrowthSystem`, `EconomySystem`, `TierSystem`, `fixed.gd`, `sim_rng.gd`, `state_hash.gd`, `LocalTransport`, `Session` ; positions de départ dans `map_generator.gd` ; écran Bac à sable (réglages, valeurs par défaut, récapitulatif copiable), HUD, effets de palier, section Commandes des Paramètres ; enregistrement des commandes et test de rejeu ; robots d'économie (`ai/`), `tools/sim_runner.gd` et panneau de simulations (éditeur seulement). Livré en trois étapes : `sim/` et tests (**étape 1 livrée le 4 octobre 2026**) ; affichage, HUD et Bac à sable (**étape 2 livrée le 4 octobre 2026**) ; robots, simulations et panneau |
 | G2 | Bâtiments (`data/buildings/`), chantiers et file de construction, voisinage, Enzymes, plafond de stock, désactivation ; palette et menu rond ; robots composés (profil d'expansion + profil de bâtisseur + pourcentage) dans le panneau de simulations. Trois étapes : `sim/` et tests ; affichage, HUD et Bac à sable ; robots et panneau |
 | G3 | `CombatSystem`, gestes dans `view/input/`, `EventSystem`, `VictorySystem` |
 | G4 | `ai/` (robots complets), `tools/sim_runner.gd` étendu, menus, résultats |

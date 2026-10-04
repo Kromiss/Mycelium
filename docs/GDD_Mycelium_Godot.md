@@ -37,6 +37,13 @@ Les valeurs chiffrées de ce document sont des **points de départ à simuler**,
 - **Le plus paramétrable possible** : un écran de réglages avant de lancer, présent **dès G1** et enrichi à chaque jalon de ce qu'il apporte (bâtiments, combat, robots…). En G1 : forêt et graine, stock de départ, chiffres d'économie (U, rendement, durée de pousse, pousses simultanées, paliers…), multiplicateurs des zones, et **le plus de paramètres possibles**. Un bouton **remet les valeurs par défaut**.
 - Les réglages **ne sont pas gardés** d'une partie à l'autre : chaque lancement repart des valeurs par défaut.
 - **Récapitulatif à tout moment** : un bouton du HUD copie dans le presse-papiers un texte lisible avec les **réglages** de la partie et ses **résultats** (durée, cases, paliers et production atteints), pour les transmettre après un test. Préréglages nommés : plus tard.
+- *Décidé le 4 octobre 2026 (G1, étape 2)* :
+  - la partie **s'arrête à 30:00** : la carte reste visible et un **panneau de fin** montre les résultats avec trois boutons, **Copier le récapitulatif**, **Rejouer avec les mêmes réglages** et **Menu** ;
+  - **Échap** met en pause et ouvre un **menu de partie** : Reprendre, Copier le récapitulatif, Recommencer (mêmes réglages), Quitter vers le menu ;
+  - **pendant la pause, aucun ordre** : clics et file d'expansion sont refusés (message) jusqu'à la reprise ;
+  - l'**horloge** affiche le temps écoulé sur le total (« 12:34 / 30:00 ») ;
+  - la **courbe de production** couvre toute la partie, en **échelle logarithmique** ;
+  - réglages proposés en G1 : forêt (Duel ou FFA) et graine ; U, rendement d'une case de zone 1, durée de pousse en zone 1, stock de départ (en U), hausse du coût par case, Cohésion par voisine, pousses simultanées, taille de la file ; richesse, coût et pousse de chaque zone ; seuil et multiplicateur de chaque palier. La durée (30 min) n'est pas réglable.
 
 ### 2.2 Duel (1 contre 1)
 - **Contre un robot** : disponible dès le départ. Choix de la difficulté (Facile, Normal, Difficile).
@@ -477,12 +484,13 @@ Les couleurs de colonie sont **éclaircies si besoin** en mode sombre pour garde
 - **Zoom** : molette, **centré sur la position de la souris**.
 - Le clic gauche reste réservé au jeu (sélection, fronts).
 - **Coloniser** : clic gauche sur une case libre collée à la colonie = la pousse démarre tout de suite (sinon la commande est refusée) ; il passe devant une file qui attend (§4.4).
+- **Marquage (G1, décidé le 4 octobre 2026)** : chaque case colonisable a un **contour** de la couleur de la colonie, avec en plus une **teinte pâle** si elle est payable tout de suite ; chaque case en attente dans la file porte son **numéro d'ordre** ; une case en pousse a un cercle pointillé et une jauge qui se remplit.
 - **File d'expansion** : **Maj + clic gauche** ajoute une case à la file, ou la retire si elle y est déjà. **Maj + clic gauche glissé** sur plusieurs cases les ajoute dans l'ordre du tracé ; le tracé **s'arrête** à la première case qui ne peut pas entrer en file ou quand la file est pleine (message), et repasser sur une case déjà en file ne change rien.
 
 ### 13.5 Paramètres
 Affichage (plein écran, fenêtré, résolution, **thème clair / sombre / système**), audio, langue (français et anglais), commandes (raccourcis modifiables, **dès G1**), accessibilité (taille de l'interface, palette adaptée au daltonisme).
 
-Raccourcis par défaut : **Espace** recentre la caméra sur le Cœur ; **P** met en pause (Bac à sable seulement).
+Raccourcis par défaut : **Espace** recentre la caméra sur le Cœur ; **P** met en pause (Bac à sable seulement) ; **Échap** ouvre le menu de partie (ou revient en arrière dans les menus) ; **Maj** est la touche de la file d'expansion. En G1, ces **quatre touches** sont modifiables (décidé le 4 octobre 2026) ; la souris de la caméra ne l'est pas. Une touche ne peut servir qu'à une action ; un bouton remet les touches par défaut.
 
 ### 13.6 HUD de partie
 - **Panneau latéral** : ressources, **courbe de production**, stock et son plafond, Enzymes (dès la première Glande), file de construction et chantiers, cooldowns.

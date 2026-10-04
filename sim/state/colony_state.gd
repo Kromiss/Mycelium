@@ -23,6 +23,11 @@ var tier: int = 0
 var production: int = 0
 ## Plus forte production atteinte.
 var peak_production: int = 0
+## Tick où chaque palier a été atteint pour la première fois (index 0 = palier 1 ; −1 jamais).
+var tier_ticks: PackedInt32Array = PackedInt32Array()
+## Tick où une case de chaque zone a fini de pousser pour la première fois
+## (index 0 = zone 1 ; −1 jamais ; 0 pour la zone de départ).
+var zone_ticks: PackedInt32Array = PackedInt32Array()
 ## Cases en pousse, dans l'ordre de démarrage.
 var growing: PackedInt32Array = PackedInt32Array()
 ## Cases en attente dans la file d'expansion, dans l'ordre d'ajout.
@@ -52,6 +57,10 @@ func hash_values() -> PackedInt64Array:
 			queue.size(),
 		]
 	)
+	for value: int in tier_ticks:
+		values.append(value)
+	for value: int in zone_ticks:
+		values.append(value)
 	for cell: int in growing:
 		values.append(cell)
 	for cell: int in queue:

@@ -122,3 +122,14 @@ func test_cell_production_query_includes_tier() -> void:
 		_sim.cell_production(0, HEART), 2 * EconomySystem.cell_production(_sim.state, 0, index)
 	)
 	assert_eq(_sim.cell_production(0, Vector2i(99, 0)), -1)
+
+
+func test_tier_and_zone_times_are_recorded() -> void:
+	assert_eq(_colony().zone_ticks[0], 0)
+	assert_eq(_colony().zone_ticks[1], -1)
+	assert_eq(_colony().tier_ticks, PackedInt32Array([-1, -1, -1, -1, -1, -1]))
+	_sim.tick()
+	_own([Vector2i(10, 1), Vector2i(10, -1)])
+	_sim.tick()
+	assert_eq(_colony().tier_ticks[0], 1)
+	assert_eq(_colony().tier_ticks[1], -1)

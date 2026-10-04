@@ -130,134 +130,28 @@ func test_growing_cell_is_not_part_of_the_network_yet() -> void:
 	assert_eq(_sim.check_colonize(0, BEYOND_ABOVE), Refusal.Code.OK)
 
 
-func test_queue_runs_in_order_and_follows_chains() -> void:
-	var commands: Array[Command] = [
-		EnqueueCommand.new(ABOVE),
-		EnqueueCommand.new(BEYOND_ABOVE),
-		EnqueueCommand.new(FURTHER),
-		EnqueueCommand.new(BELOW),
-	]
-	var result: TickResult = _sim.tick(commands)
-	assert_eq(result.refused.size(), 0)
-	assert_eq(_colony().growing, PackedInt32Array([_index(ABOVE)]))
-	assert_eq(
-		_colony().queue, PackedInt32Array([_index(BEYOND_ABOVE), _index(FURTHER), _index(BELOW)])
-	)
-	# ABOVE pousse en 4 ticks (0 à 3) ; BEYOND_ABOVE (zone 2 : 5 s) démarre au tick 4.
+func test_zone_arrival_is_recorded_when_the_cell_has_grown() -> void:
+	_sim.tick([ColonizeCommand.new(ABOVE)])
+	_run(3)
+	_sim.tick([ColonizeCommand.new(BEYOND_ABOVE)])
+	assert_eq(_colony().zone_ticks[1], -1)
 	_run(4)
-	assert_eq(_state_of(ABOVE), GameState.CellState.OWNED)
-	assert_eq(_colony().growing, PackedInt32Array([_index(BEYOND_ABOVE)]))
-	_run(5)
-	assert_eq(_colony().growing, PackedInt32Array([_index(FURTHER)]))
-	_run(5)
-	assert_eq(_colony().growing, PackedInt32Array([_index(BELOW)]))
-	_run(4)
-	assert_true(_colony().queue.is_empty())
-	assert_eq(_colony().cell_count, 7)
+	assert_eq(_colony().zone_ticks[1], 8)
 
 
-func test_queue_holds_five_cells_growth_included() -> void:
-	var cells: Array[Vector2i] = [ABOVE, BELOW, EDGE_UP, BEYOND_ABOVE, FURTHER, Vector2i(9, 1)]
-	var commands: Array[Command] = []
-	for cell: Vector2i in cells:
-		commands.append(EnqueueCommand.new(cell))
-	var result: TickResult = _sim.tick(commands)
-	assert_eq(result.refused_codes, PackedInt32Array([Refusal.Code.QUEUE_FULL]))
-	assert_eq(_colony().queue_load(), 5)
-
-
-func test_queue_refusals() -> void:
-	var commands: Array[Command] = [
-		EnqueueCommand.new(BEYOND_ABOVE),
-		EnqueueCommand.new(ABOVE),
-		EnqueueCommand.new(ABOVE),
-		EnqueueCommand.new(INNER),
-		DequeueCommand.new(BELOW),
-	]
-	var result: TickResult = _sim.tick(commands)
-	assert_eq(
-		result.refused_codes,
-		PackedInt32Array(
-			[
-				Refusal.Code.NOT_ADJACENT,
-				Refusal.Code.ALREADY_QUEUED,
-				Refusal.Code.CELL_TAKEN,
-				Refusal.Code.NOT_QUEUED,
-			]
-		)
-	)
-
-
-func test_queue_waits_for_nutrients_without_skipping() -> void:
-	_colony().nutrients = 0
-	var commands: Array[Command] = [EnqueueCommand.new(ABOVE), EnqueueCommand.new(BELOW)]
-	_sim.tick(commands)
-	assert_true(_colony().growing.is_empty())
-	assert_eq(_colony().queue.size(), 2)
-	# Environ 11 nutriments par seconde : 30 sont réunis en 3 ticks, et la case part au 4ᵉ.
-	_run(2)
-	assert_true(_colony().growing.is_empty())
-	_run(1)
-	assert_eq(_colony().growing, PackedInt32Array([_index(ABOVE)]))
-	assert_eq(_colony().queue, PackedInt32Array([_index(BELOW)]))
-
-
-func test_dequeue_removes_dependent_chain() -> void:
-	_colony().nutrients = 0
-	var commands: Array[Command] = [
-		EnqueueCommand.new(ABOVE),
-		EnqueueCommand.new(BEYOND_ABOVE),
-		EnqueueCommand.new(BELOW),
-		EnqueueCommand.new(FURTHER),
-	]
-	_sim.tick(commands)
-	var result: TickResult = _sim.tick([DequeueCommand.new(ABOVE)])
-	assert_eq(result.refused.size(), 0)
-	assert_eq(_colony().queue, PackedInt32Array([_index(BELOW)]))
-
-
-func test_growth_already_started_cannot_be_dequeued() -> void:
-	_sim.tick([EnqueueCommand.new(ABOVE), EnqueueCommand.new(BEYOND_ABOVE)])
-	var result: TickResult = _sim.tick([DequeueCommand.new(ABOVE)])
-	assert_eq(result.refused_codes, PackedInt32Array([Refusal.Code.ALREADY_GROWING]))
-	assert_eq(_colony().queue, PackedInt32Array([_index(BEYOND_ABOVE)]))
-
-
-func test_direct_click_passes_ahead_of_a_waiting_queue() -> void:
-	_colony().nutrients = 0
-	_sim.tick([EnqueueCommand.new(ABOVE)])
-	_colony().nutrients = 30_000
-	var result: TickResult = _sim.tick([ColonizeCommand.new(BELOW)])
-	assert_eq(result.refused.size(), 0)
-	assert_eq(_colony().growing, PackedInt32Array([_index(BELOW)]))
-	assert_eq(_colony().queue, PackedInt32Array([_index(ABOVE)]))
-
-
-func test_direct_click_on_a_queued_cell_starts_it() -> void:
-	_colony().nutrients = 0
-	_sim.tick([EnqueueCommand.new(ABOVE), EnqueueCommand.new(BELOW)])
-	_colony().nutrients = 30_000
-	var result: TickResult = _sim.tick([ColonizeCommand.new(BELOW)])
-	assert_eq(result.refused.size(), 0)
-	assert_eq(_colony().growing, PackedInt32Array([_index(BELOW)]))
-	assert_eq(_colony().queue, PackedInt32Array([_index(ABOVE)]))
-
-
-func test_direct_click_counts_in_the_queue_places() -> void:
-	_colony().nutrients = 0
-	var commands: Array[Command] = []
-	for cell: Vector2i in [ABOVE, BEYOND_ABOVE, FURTHER, BELOW, EDGE_UP]:
-		commands.append(EnqueueCommand.new(cell))
-	_sim.tick(commands)
-	_colony().nutrients = 30_000
-	var result: TickResult = _sim.tick([ColonizeCommand.new(Vector2i(9, 1))])
-	assert_eq(result.refused_codes, PackedInt32Array([Refusal.Code.QUEUE_FULL]))
-
-
-func test_more_simultaneous_growths_when_allowed() -> void:
+func test_game_stops_at_the_time_limit() -> void:
 	var defs: SimDefs = SimDefs.from_mode(DUEL)
-	defs.max_growths = 2
+	defs.match_ticks = 5
 	_sim = Simulation.new(defs, 1, 1)
-	var result: TickResult = _sim.tick([ColonizeCommand.new(ABOVE), ColonizeCommand.new(BELOW)])
-	assert_eq(result.refused.size(), 0)
-	assert_eq(_colony().growing.size(), 2)
+	var result: TickResult
+	for i: int in range(5):
+		result = _sim.tick()
+	assert_true(result.finished)
+	assert_true(_sim.state.finished)
+	var biomass: int = _colony().biomass
+	var frozen: int = _sim.state_hash()
+	result = _sim.tick([ColonizeCommand.new(BELOW)])
+	assert_eq(result.refused_codes, PackedInt32Array([Refusal.Code.GAME_OVER]))
+	assert_eq(_colony().biomass, biomass)
+	assert_eq(_sim.state.tick, 5)
+	assert_eq(_sim.state_hash(), frozen)

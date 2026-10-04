@@ -11,7 +11,14 @@ static func compute(state: GameState) -> int:
 	var error: Error = context.start(HashingContext.HASH_SHA256)
 	assert(error == OK, "Impossible de démarrer le calcul d'empreinte.")
 	var header := PackedInt64Array(
-		[state.tick, state.game_seed, state.cell_count(), state.colonies.size(), state.rng.state()]
+		[
+			state.tick,
+			1 if state.finished else 0,
+			state.game_seed,
+			state.cell_count(),
+			state.colonies.size(),
+			state.rng.state(),
+		]
 	)
 	_update(context, header.to_byte_array())
 	_update(context, state.owner.to_byte_array())

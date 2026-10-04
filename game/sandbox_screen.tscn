@@ -1,0 +1,36 @@
+[gd_scene load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://game/sandbox_screen.gd" id="1_screen"]
+[ext_resource type="Script" path="res://game/session.gd" id="2_session"]
+[ext_resource type="PackedScene" path="res://view/map/forest_view.tscn" id="3_view"]
+[ext_resource type="Script" path="res://view/colony/colony_layer.gd" id="4_colony"]
+[ext_resource type="Script" path="res://view/camera/map_camera.gd" id="5_camera"]
+[ext_resource type="Script" path="res://view/input/map_input.gd" id="6_input"]
+[ext_resource type="PackedScene" path="res://ui/hud/hud.tscn" id="7_hud"]
+
+[node name="SandboxScreen" type="Node2D"]
+script = ExtResource("1_screen")
+
+[node name="Session" type="Node" parent="."]
+unique_name_in_owner = true
+script = ExtResource("2_session")
+
+[node name="ForestView" parent="." instance=ExtResource("3_view")]
+unique_name_in_owner = true
+
+[node name="ColonyLayer" type="Node2D" parent="."]
+unique_name_in_owner = true
+script = ExtResource("4_colony")
+
+[node name="MapCamera" type="Camera2D" parent="."]
+unique_name_in_owner = true
+script = ExtResource("5_camera")
+
+[node name="MapInput" type="Node" parent="."]
+unique_name_in_owner = true
+script = ExtResource("6_input")
+
+[node name="HudLayer" type="CanvasLayer" parent="."]
+
+[node name="Hud" parent="HudLayer" instance=ExtResource("7_hud")]
+unique_name_in_owner = true

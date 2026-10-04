@@ -17,6 +17,8 @@ var growth_started: PackedInt32Array = PackedInt32Array()
 var growth_completed: PackedInt32Array = PackedInt32Array()
 ## Changements de palier : triplets (colonie, ancien palier, nouveau palier).
 var tier_changes: PackedInt32Array = PackedInt32Array()
+## Vrai si la partie s'est terminée à ce tick (ou l'était déjà).
+var finished: bool = false
 ## Empreinte de l'état à la fin du tick.
 var state_hash: int = 0
 

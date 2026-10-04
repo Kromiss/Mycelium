@@ -11,6 +11,7 @@ var _commands := CommandSystem.new()
 var _growth := GrowthSystem.new()
 var _tiers := TierSystem.new()
 var _economy := EconomySystem.new()
+var _victory := VictorySystem.new()
 
 
 ## Crée une partie : forêt de « defs », « colony_count » colonies (une par secteur, dans
@@ -37,16 +38,26 @@ func _init(defs: SimDefs, game_seed: int, colony_count: int = -1) -> void:
 	state.recompute_network()
 	for colony: ColonyState in state.colonies:
 		colony.tier = TierSystem.tier_for(defs, colony.cell_count)
+		for reached: int in range(colony.tier):
+			colony.tier_ticks[reached] = 0
 
 
 ## Joue un tick avec les commandes reçues depuis le précédent. Ordre fixe des systèmes.
 func tick(commands: Array[Command] = []) -> TickResult:
 	var result := TickResult.new()
 	result.tick = state.tick
+	if state.finished:
+		# Partie terminée : l'état ne bouge plus, les commandes sont refusées.
+		for command: Command in commands:
+			result.refuse(command, Refusal.Code.GAME_OVER)
+		result.finished = true
+		result.state_hash = StateHash.compute(state)
+		return result
 	_commands.run(state, commands, result)
 	_growth.run(state, result)
 	_tiers.run(state, result)
 	_economy.run(state, result)
+	_victory.run(state, state.tick + 1, result)
 	state.tick += 1
 	result.state_hash = StateHash.compute(state)
 	return result
@@ -85,15 +96,23 @@ func check_colonize(colony_id: int, cell: Vector2i) -> Refusal.Code:
 	var colony: ColonyState = state.colony(colony_id)
 	if colony == null or not colony.alive:
 		return Refusal.Code.UNKNOWN_COLONY
+	if state.finished:
+		return Refusal.Code.GAME_OVER
 	return Expansion.check_colonize(state, colony, cell_index(cell))
 
 
 ## Raison pour laquelle un ajout à la file serait refusé (OK s'il serait accepté).
-func check_enqueue(colony_id: int, cell: Vector2i) -> Refusal.Code:
+## « pending » : cases dont l'ajout est déjà demandé pour le prochain tick (tracé en cours).
+func check_enqueue(colony_id: int, cell: Vector2i, pending: Array[Vector2i] = []) -> Refusal.Code:
 	var colony: ColonyState = state.colony(colony_id)
 	if colony == null or not colony.alive:
 		return Refusal.Code.UNKNOWN_COLONY
-	return Expansion.check_enqueue(state, colony, cell_index(cell))
+	if state.finished:
+		return Refusal.Code.GAME_OVER
+	var indices := PackedInt32Array()
+	for other: Vector2i in pending:
+		indices.append(cell_index(other))
+	return Expansion.check_enqueue(state, colony, cell_index(cell), indices)
 
 
 ## Production d'une case pour une colonie, en millièmes par seconde, palier compris : ce
@@ -112,11 +131,16 @@ func _place_colony(sector: int) -> void:
 	colony.id = state.colonies.size()
 	colony.sector = sector
 	colony.nutrients = state.defs.start_stock()
+	colony.tier_ticks.resize(state.defs.tier_cells.size())
+	colony.tier_ticks.fill(-1)
+	colony.zone_ticks.resize(state.defs.zone_count())
+	colony.zone_ticks.fill(-1)
 	for cell: Vector2i in MapGenerator.start_cells(state.map.radius, sector, state.defs.sectors):
 		var index: int = state.map.index_of(cell)
 		state.owner[index] = colony.id
 		state.cell_state[index] = GameState.CellState.OWNED
 		colony.cell_count += 1
+		colony.zone_ticks[state.map.zones[index] - 1] = 0
 		if colony.heart < 0:
 			colony.heart = index
 	state.colonies.append(colony)

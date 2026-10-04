@@ -12,3 +12,4 @@ colonize_cost_growth_pm = 1020
 cohesion_per_neighbor_pm = 50
 max_growths = 1
 expansion_queue_size = 5
+match_ticks = 1800

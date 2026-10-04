@@ -17,11 +17,28 @@ const RESOLUTIONS: Array[Vector2i] = [
 	Vector2i(3840, 2160),
 ]
 const SECTION: String = "settings"
+const CONTROLS_SECTION: String = "controls"
+## Actions dont la touche est modifiable (GDD §13.5, décidé le 4 octobre 2026), avec leur
+## touche par défaut (code physique) et la clé de traduction de leur nom.
+const CONTROLS: Dictionary[StringName, int] = {
+	&"recenter_camera": KEY_SPACE,
+	&"toggle_pause": KEY_P,
+	&"back_to_menu": KEY_ESCAPE,
+	&"queue_modifier": KEY_SHIFT,
+}
+const CONTROL_NAMES: Dictionary[StringName, String] = {
+	&"recenter_camera": "ACTION_RECENTER",
+	&"toggle_pause": "ACTION_PAUSE",
+	&"back_to_menu": "ACTION_MENU",
+	&"queue_modifier": "ACTION_QUEUE",
+}
 
 var theme_mode: ThemeMode = ThemeMode.SYSTEM
 var locale: String = "en"
 var window_mode: WindowMode = WindowMode.MAXIMIZED
 var resolution: Vector2i = RESOLUTIONS[0]
+## Touche de chaque action modifiable (code physique).
+var controls: Dictionary[StringName, int] = CONTROLS.duplicate()
 
 
 ## Valeurs du premier lancement : la langue suit celle du système
@@ -51,7 +68,50 @@ static func load_from(path: String, system_language: String) -> SettingsStore:
 	var saved_resolution: Vector2i = file.get_value(SECTION, "resolution", store.resolution)
 	if saved_resolution in RESOLUTIONS:
 		store.resolution = saved_resolution
+	store._load_controls(file)
 	return store
+
+
+## Lit les touches enregistrées ; si l'une manque, est invalide ou sert à deux actions, toutes
+## les touches restent par défaut.
+func _load_controls(file: ConfigFile) -> void:
+	var loaded: Dictionary[StringName, int] = {}
+	var used: Dictionary[int, bool] = {}
+	for action: StringName in CONTROLS:
+		var saved_key: Variant = file.get_value(CONTROLS_SECTION, String(action), CONTROLS[action])
+		if not saved_key is int:
+			return
+		var keycode: int = saved_key
+		if keycode <= 0 or used.has(keycode):
+			return
+		used[keycode] = true
+		loaded[action] = keycode
+	controls = loaded
+
+
+## Change la touche d'une action. Refusé (faux) si l'action n'est pas modifiable, si la touche
+## est invalide ou déjà prise par une autre action.
+func set_control(action: StringName, keycode: int) -> bool:
+	if not CONTROLS.has(action) or keycode <= 0:
+		return false
+	var owner: StringName = action_for_key(keycode)
+	if owner != &"" and owner != action:
+		return false
+	controls[action] = keycode
+	return true
+
+
+## Action modifiable liée à une touche (vide si aucune).
+func action_for_key(keycode: int) -> StringName:
+	for action: StringName in controls:
+		if controls[action] == keycode:
+			return action
+	return &""
+
+
+## Remet toutes les touches par défaut.
+func reset_controls() -> void:
+	controls = CONTROLS.duplicate()
 
 
 ## Enregistre les paramètres. Renvoie le code d'erreur de Godot (OK si tout va bien).
@@ -61,4 +121,6 @@ func save_to(path: String) -> Error:
 	file.set_value(SECTION, "locale", locale)
 	file.set_value(SECTION, "window_mode", window_mode)
 	file.set_value(SECTION, "resolution", resolution)
+	for action: StringName in controls:
+		file.set_value(CONTROLS_SECTION, String(action), controls[action])
 	return file.save(path)

@@ -39,17 +39,21 @@ static func check_colonize(state: GameState, colony: ColonyState, cell: int) -> 
 	return Refusal.Code.OK
 
 
-## Peut-on ajouter la case à la file d'expansion ?
-static func check_enqueue(state: GameState, colony: ColonyState, cell: int) -> Refusal.Code:
+## Peut-on ajouter la case à la file d'expansion ? « pending » : cases déjà demandées mais
+## pas encore ajoutées (commandes en route vers le prochain tick), comptées comme en file.
+static func check_enqueue(
+	state: GameState, colony: ColonyState, cell: int, pending := PackedInt32Array()
+) -> Refusal.Code:
 	if cell < 0:
 		return Refusal.Code.OUT_OF_MAP
 	if state.cell_state[cell] != GameState.CellState.FREE:
 		return Refusal.Code.CELL_TAKEN
-	if colony.queue.has(cell):
+	if colony.queue.has(cell) or pending.has(cell):
 		return Refusal.Code.ALREADY_QUEUED
-	if colony.queue_load() >= state.defs.expansion_queue_size:
+	if colony.queue_load() + pending.size() >= state.defs.expansion_queue_size:
 		return Refusal.Code.QUEUE_FULL
-	if not _touches_network_or_queue(state, colony, cell, colony.queue):
+	var queued: PackedInt32Array = colony.queue + pending
+	if not _touches_network_or_queue(state, colony, cell, queued):
 		return Refusal.Code.NOT_ADJACENT
 	return Refusal.Code.OK
 

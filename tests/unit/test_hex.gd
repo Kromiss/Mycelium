@@ -53,3 +53,11 @@ func test_edge_corners_are_shared_with_the_neighbor() -> void:
 		# Parcouru en sens inverse depuis la case voisine.
 		assert_almost_eq(a, d, Vector2(0.001, 0.001))
 		assert_almost_eq(b, c, Vector2(0.001, 0.001))
+
+
+func test_from_pixel_is_the_inverse_of_to_pixel() -> void:
+	for cell: Vector2i in Hex.cells_in_radius(6):
+		var center: Vector2 = Hex.to_pixel(cell, 32.0)
+		assert_eq(Hex.from_pixel(center, 32.0), cell)
+		# Un point proche du centre reste dans la même case.
+		assert_eq(Hex.from_pixel(center + Vector2(10.0, -8.0), 32.0), cell)

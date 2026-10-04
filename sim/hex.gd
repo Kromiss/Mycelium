@@ -67,6 +67,30 @@ static func to_pixel(cell: Vector2i, size: float) -> Vector2:
 	return Vector2(size * SQRT3 * (cell.x + cell.y * 0.5), size * 1.5 * cell.y)
 
 
+## Case qui contient un point de l'écran, pour des hexagones de rayon extérieur « size »
+## (inverse de to_pixel). Réservé à l'affichage et aux entrées.
+static func from_pixel(point: Vector2, size: float) -> Vector2i:
+	var q: float = (SQRT3 / 3.0 * point.x - point.y / 3.0) / size
+	var r: float = (2.0 / 3.0 * point.y) / size
+	return round_axial(q, r)
+
+
+## Arrondit des coordonnées axiales fractionnaires à la case la plus proche.
+static func round_axial(q: float, r: float) -> Vector2i:
+	var s: float = -q - r
+	var rq: float = roundf(q)
+	var rr: float = roundf(r)
+	var rs: float = roundf(s)
+	var dq: float = absf(rq - q)
+	var dr: float = absf(rr - r)
+	var ds: float = absf(rs - s)
+	if dq > dr and dq > ds:
+		rq = -rr - rs
+	elif dr > ds:
+		rr = -rq - rs
+	return Vector2i(roundi(rq), roundi(rr))
+
+
 ## Coin numéro « index » (0 à 5) d'un hexagone pointe en haut. Le coin 0 est en haut à droite,
 ## puis les coins tournent dans le sens des aiguilles d'une montre à l'écran.
 static func corner(center: Vector2, size: float, index: int) -> Vector2:

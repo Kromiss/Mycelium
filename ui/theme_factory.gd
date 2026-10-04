@@ -16,6 +16,10 @@ const TITLE_WEIGHT: int = 600
 ## Arrondi des boutons : très grand pour obtenir des pastilles.
 const PILL_RADIUS: int = 999
 const CARD_RADIUS: int = 28
+## Taille des petits textes du HUD (libellés des réglages, info-bulles).
+const SMALL_SIZE: int = 20
+## Taille des grands chiffres du HUD (nutriments).
+const BIG_NUMBER_SIZE: int = 44
 
 
 ## Thème complet pour une palette.
@@ -28,7 +32,14 @@ static func build(palette: Palette) -> Theme:
 	_add_buttons(theme, palette, &"OptionButton")
 	_add_popup(theme, palette)
 	_add_panel(theme, palette)
+	_add_inputs(theme, palette)
+	_add_hud(theme, palette)
 	return theme
+
+
+## Police des titres (Fredoka, graisse des titres), pour les textes dessinés sur la carte.
+static func title_font() -> FontVariation:
+	return _font(FREDOKA, TITLE_WEIGHT)
 
 
 static func _font(file: FontFile, weight: int) -> FontVariation:
@@ -100,6 +111,91 @@ static func _add_panel(theme: Theme, palette: Palette) -> void:
 	card.set_corner_radius_all(CARD_RADIUS)
 	card.set_content_margin_all(40)
 	theme.set_stylebox(&"panel", &"PanelContainer", card)
+
+
+static func _add_inputs(theme: Theme, palette: Palette) -> void:
+	for state: StringName in [&"normal", &"read_only"]:
+		theme.set_stylebox(state, &"LineEdit", _field(palette.background, palette.line))
+	theme.set_stylebox(&"focus", &"LineEdit", _field(Color.TRANSPARENT, palette.text_secondary))
+	theme.set_color(&"font_color", &"LineEdit", palette.text)
+	theme.set_color(&"font_uneditable_color", &"LineEdit", palette.text_secondary)
+	theme.set_color(&"caret_color", &"LineEdit", palette.text)
+	theme.set_color(&"selection_color", &"LineEdit", palette.line)
+	# Barre de progression (prochain palier).
+	var track := StyleBoxFlat.new()
+	track.bg_color = palette.line
+	track.set_corner_radius_all(PILL_RADIUS)
+	track.content_margin_top = 7
+	track.content_margin_bottom = 7
+	theme.set_stylebox(&"background", &"ProgressBar", track)
+	var fill := StyleBoxFlat.new()
+	fill.bg_color = palette.text_secondary
+	fill.set_corner_radius_all(PILL_RADIUS)
+	theme.set_stylebox(&"fill", &"ProgressBar", fill)
+	theme.set_color(&"font_color", &"ProgressBar", palette.text)
+
+
+static func _add_hud(theme: Theme, palette: Palette) -> void:
+	# Petits boutons du HUD (pause, vitesse, récapitulatif).
+	theme.set_type_variation(&"SmallButton", &"Button")
+	var small: StyleBoxFlat = _pill(palette.card, palette.line)
+	small.content_margin_left = 18
+	small.content_margin_right = 18
+	small.content_margin_top = 6
+	small.content_margin_bottom = 6
+	theme.set_stylebox(&"normal", &"SmallButton", small)
+	var small_hover: StyleBoxFlat = small.duplicate()
+	small_hover.bg_color = palette.card_hover()
+	theme.set_stylebox(&"hover", &"SmallButton", small_hover)
+	var small_pressed: StyleBoxFlat = small.duplicate()
+	small_pressed.bg_color = palette.card_pressed()
+	theme.set_stylebox(&"pressed", &"SmallButton", small_pressed)
+	theme.set_font_size(&"font_size", &"SmallButton", SMALL_SIZE)
+	# Panneaux du HUD : cartes plus serrées que celles des écrans de menu.
+	theme.set_type_variation(&"HudPanel", &"PanelContainer")
+	var hud: StyleBoxFlat = _card(palette, 20)
+	theme.set_stylebox(&"panel", &"HudPanel", hud)
+	# Info-bulles et messages.
+	theme.set_type_variation(&"TipPanel", &"PanelContainer")
+	var tip: StyleBoxFlat = _card(palette, 14)
+	tip.set_corner_radius_all(16)
+	theme.set_stylebox(&"panel", &"TipPanel", tip)
+	theme.set_type_variation(&"SmallLabel", &"Label")
+	theme.set_font_size(&"font_size", &"SmallLabel", SMALL_SIZE)
+	theme.set_type_variation(&"SmallHintLabel", &"Label")
+	theme.set_font_size(&"font_size", &"SmallHintLabel", SMALL_SIZE)
+	theme.set_color(&"font_color", &"SmallHintLabel", palette.text_secondary)
+	theme.set_type_variation(&"BigNumberLabel", &"Label")
+	theme.set_font(&"font", &"BigNumberLabel", _font(FREDOKA, TITLE_WEIGHT))
+	theme.set_font_size(&"font_size", &"BigNumberLabel", BIG_NUMBER_SIZE)
+	theme.set_type_variation(&"BannerLabel", &"Label")
+	theme.set_font(&"font", &"BannerLabel", _font(FREDOKA, TITLE_WEIGHT))
+	theme.set_font_size(&"font_size", &"BannerLabel", TITLE_SIZE)
+
+
+## Carte arrondie avec une marge intérieure donnée.
+static func _card(palette: Palette, margin: int) -> StyleBoxFlat:
+	var box := StyleBoxFlat.new()
+	box.bg_color = palette.card
+	box.border_color = palette.line
+	box.set_border_width_all(2)
+	box.set_corner_radius_all(CARD_RADIUS)
+	box.set_content_margin_all(margin)
+	return box
+
+
+## Champ de saisie arrondi.
+static func _field(background: Color, border: Color) -> StyleBoxFlat:
+	var box := StyleBoxFlat.new()
+	box.bg_color = background
+	box.border_color = border
+	box.set_border_width_all(2)
+	box.set_corner_radius_all(14)
+	box.content_margin_left = 14
+	box.content_margin_right = 14
+	box.content_margin_top = 6
+	box.content_margin_bottom = 6
+	return box
 
 
 ## Boîte en forme de pastille (bords entièrement arrondis).

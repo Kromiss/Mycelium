@@ -27,4 +27,6 @@ enum Code {
 	NOT_QUEUED,
 	## La pousse de la case a déjà démarré : elle va à son terme.
 	ALREADY_GROWING,
+	## La partie est terminée.
+	GAME_OVER,
 }

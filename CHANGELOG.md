@@ -7,6 +7,17 @@ L'historique de l'ancienne version web est dans la branche `archive/web`.
 ## [Unreleased]
 
 ### Ajouté
+- G1, étape 2 — Bac à sable jouable : entrée du menu principal (Duel et FFA grisés jusqu'aux
+  robots), écran de réglages (forêt, graine, économie, zones, paliers, valeurs par défaut), partie
+  seul sur la forêt de Duel ou de FFA en Menthe, arrêt à 30:00 avec panneau de fin.
+- Carte : cases de la colonie colorées, Cœur foncé qui saute aux paliers, onde continue vers le
+  Cœur, cases colonisables marquées (teinte pâle si payables), numéros de la file, pousse avec
+  jauge, info-bulle (zone, coût, pousse, production).
+- Gestes : clic pour coloniser, Maj + clic pour la file (ou retirer), Maj + glisser pour tracer.
+- HUD : nutriments qui défilent, production, Biomasse, courbe de production (log), barre du
+  prochain palier, file, horloge, pause (P), vitesse ×1/×2/×4, récapitulatif copiable, messages,
+  menu de partie (Échap).
+- Paramètres : section Commandes (Espace, P, Échap, Maj modifiables).
 - G1, étape 1 — Simulation de l'économie (sans affichage) : état de partie en entiers, tick d'une
   seconde, commandes de colonisation (clic direct qui passe devant la file) et de file d'expansion
   (5 places, cases en chaîne, retrait en cascade), pousse selon la zone, réseau relié au Cœur,

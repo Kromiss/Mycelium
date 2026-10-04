@@ -28,6 +28,9 @@ func _advance(state: GameState, colony: ColonyState, result: TickResult) -> bool
 			continue
 		state.cell_state[cell] = GameState.CellState.OWNED
 		colony.cell_count += 1
+		var zone: int = state.map.zones[cell] - 1
+		if colony.zone_ticks[zone] < 0:
+			colony.zone_ticks[zone] = state.tick
 		completed = true
 		result.growth_completed.append_array(PackedInt32Array([colony.id, cell]))
 		result.colony_changed(colony.id)

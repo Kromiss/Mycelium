@@ -36,6 +36,7 @@ var colonize_cost_growth_pm: int = 0
 var cohesion_per_neighbor_pm: int = 0
 var max_growths: int = 0
 var expansion_queue_size: int = 0
+var match_ticks: int = 0
 
 # --- Valeurs dérivées, calculées par prepare() ---
 ## Durée de pousse de chaque zone, en ticks (arrondie au plus proche, au moins 1).
@@ -76,6 +77,7 @@ static func from_resources(
 	defs.cohesion_per_neighbor_pm = balance.cohesion_per_neighbor_pm
 	defs.max_growths = balance.max_growths
 	defs.expansion_queue_size = balance.expansion_queue_size
+	defs.match_ticks = balance.match_ticks
 	return defs
 
 
@@ -129,6 +131,8 @@ func validate() -> PackedStringArray:
 		problems.append("colonize_cost_growth_pm")
 	if max_growths < 1 or expansion_queue_size < max_growths:
 		problems.append("queue")
+	if match_ticks < 1:
+		problems.append("match_ticks")
 	return problems
 
 
@@ -157,6 +161,7 @@ func to_dict() -> Dictionary:
 		"cohesion_per_neighbor_pm": cohesion_per_neighbor_pm,
 		"max_growths": max_growths,
 		"expansion_queue_size": expansion_queue_size,
+		"match_ticks": match_ticks,
 	}
 
 
@@ -180,4 +185,5 @@ static func from_dict(data: Dictionary) -> SimDefs:
 	defs.cohesion_per_neighbor_pm = DictRead.get_int(data, "cohesion_per_neighbor_pm")
 	defs.max_growths = DictRead.get_int(data, "max_growths")
 	defs.expansion_queue_size = DictRead.get_int(data, "expansion_queue_size")
+	defs.match_ticks = DictRead.get_int(data, "match_ticks")
 	return defs

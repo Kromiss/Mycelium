@@ -11,6 +11,9 @@ func run(state: GameState, result: TickResult) -> void:
 		var tier: int = tier_for(state.defs, colony.cell_count)
 		if tier == colony.tier:
 			continue
+		for reached: int in range(colony.tier, tier):
+			if colony.tier_ticks[reached] < 0:
+				colony.tier_ticks[reached] = state.tick
 		result.tier_changes.append_array(PackedInt32Array([colony.id, colony.tier, tier]))
 		result.colony_changed(colony.id)
 		colony.tier = tier

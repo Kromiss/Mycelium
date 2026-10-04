@@ -35,6 +35,15 @@ func frame(bounds: Rect2) -> void:
 	position = bounds.get_center()
 
 
+## Centre la caméra sur un point, avec un zoom donné en multiple du zoom qui montre toute la
+## forêt (borné par les limites du zoom).
+func focus(point: Vector2, fit_factor: float) -> void:
+	var fit: float = _min_zoom / min_zoom_fit_ratio
+	zoom = Vector2.ONE * clampf(fit * fit_factor, _min_zoom, max_zoom)
+	position = point
+	_clamp_position()
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("camera_zoom_in"):
 		_zoom_at(get_viewport().get_mouse_position(), zoom_step)

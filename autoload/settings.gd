@@ -20,6 +20,7 @@ func _ready() -> void:
 	store = SettingsStore.load_from(SAVE_PATH, OS.get_locale_language())
 	_apply_locale()
 	_apply_window()
+	apply_controls()
 	_refresh_theme(true)
 
 
@@ -68,6 +69,33 @@ func available_resolutions() -> Array[Vector2i]:
 	if result.is_empty():
 		result.append(SettingsStore.RESOLUTIONS[0])
 	return result
+
+
+## Change la touche d'une action. Faux si la touche est déjà prise par une autre action.
+func set_control(action: StringName, keycode: int) -> bool:
+	if not store.set_control(action, keycode):
+		return false
+	_save()
+	apply_controls()
+	return true
+
+
+## Remet les touches par défaut.
+func reset_controls() -> void:
+	store.reset_controls()
+	_save()
+	apply_controls()
+
+
+## Applique les touches enregistrées aux actions du jeu.
+func apply_controls() -> void:
+	for action: StringName in store.controls:
+		if not InputMap.has_action(action):
+			InputMap.add_action(action)
+		InputMap.action_erase_events(action)
+		var event := InputEventKey.new()
+		event.physical_keycode = store.controls[action] as Key
+		InputMap.action_add_event(action, event)
 
 
 func _save() -> void:

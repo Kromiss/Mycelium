@@ -19,3 +19,5 @@ extends Resource
 @export var max_growths: int = 1
 ## Taille de la file d'expansion, pousses en cours comprises.
 @export var expansion_queue_size: int = 5
+## Durée maximale d'une partie, en secondes (ticks) : 30 min (GDD §2.6).
+@export var match_ticks: int = 1800

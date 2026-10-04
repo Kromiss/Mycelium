@@ -8,6 +8,8 @@ enum CellState { FREE, GROWING, OWNED }
 
 ## Numéro du prochain tick à jouer (= secondes de jeu écoulées).
 var tick: int = 0
+## Vrai quand la partie est terminée : plus aucun tick ne change l'état.
+var finished: bool = false
 ## Graine de la partie.
 var game_seed: int = 0
 ## Chiffres de la partie.
