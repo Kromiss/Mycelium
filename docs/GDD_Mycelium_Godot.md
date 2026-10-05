@@ -1,4 +1,4 @@
-# MYCÉLIUM : LAST COLONY — Document de conception, portage Godot (v0.5 : combattre des robots)
+# MYCÉLIUM : LAST COLONY — Document de conception, portage Godot (v0.5.2 : Sporophore fixe, bâtiments en préparation)
 
 > Jeu incrémental compétitif en parties de **30 minutes maximum**. Chaque joueur incarne une colonie de champignons dont le **cœur est une tourelle** : elle lance des spores qui colorent les cases d'une carte d'hexagones. Plus la colonie a de cases, plus elle produit ; ce qu'elle produit sert à **améliorer sa tourelle** (dégâts, cadence, portée…), qui prend alors encore plus de cases. Le centre de la forêt est le plus riche et le plus disputé : **le but est d'être la dernière colonie vivante.** Trois façons de jouer : **Duel**, **FFA** (jusqu'à 6 colonies) et **Partie personnalisée**. Cible : un **projet Godot exporté en .exe (Windows), distribué sur Steam**.
 
@@ -11,7 +11,7 @@
 - **Genre** : jeu incrémental compétitif en temps réel (« tower idle »), type dernier survivant.
 - **Fantasy** : tu es un réseau fongique dont le cœur est un champignon qui crache des spores. Tu le regardes conquérir la forêt case après case, tu le rends de plus en plus puissant et tu le mesures aux champignons voisins.
 - **Boucle courte (5 à 30 s)** : acheter une amélioration, changer la priorité de tir, désigner une case à prendre, lancer une capacité.
-- **Boucle moyenne (2 à 5 min)** : atteindre un palier et choisir une mutation, déplacer la tourelle vers le centre, choisir sa cible parmi les voisins.
+- **Boucle moyenne (2 à 5 min)** : atteindre un palier et choisir une mutation, placer un bâtiment pour avancer le front (§5 bis, à venir), choisir sa cible parmi les voisins.
 - **Boucle longue (30 min)** : survivre, abattre les tourelles adverses, finir dernier vivant.
 
 ### Piliers de design
@@ -68,10 +68,10 @@ Permet de créer **tout type de partie** : le type (Duel ou FFA), les joueurs, l
 | Durée maximale | 30 min | 5 à **30 min** (plafond fixe) |
 
 ### 2.5 Robots
-- Les robots jouent **avec les mêmes règles et les mêmes commandes que les joueurs** : pas de triche. Ils choisissent leurs **améliorations**, leur **priorité de tir**, leurs **mutations**, leurs **capacités** et les **déplacements** de leur tourelle.
-- **Profils** : *Canonnier* (dégâts et cadence d'abord), *Bâtisseur* (rendement et défense d'abord), *Conquérant* (portée et ennemis d'abord). **Seul le Conquérant déplace sa Tourelle**, vers le centre de la forêt (décidé le 4 octobre 2026). **Difficultés** : à définir au jalon G4.
+- Les robots jouent **avec les mêmes règles et les mêmes commandes que les joueurs** : pas de triche. Ils choisissent leurs **améliorations**, leur **priorité de tir**, leurs **mutations**, et leurs **capacités**.
+- **Profils** : *Canonnier* (dégâts et cadence d'abord), *Bâtisseur* (rendement et défense d'abord), *Conquérant* (portée et ennemis d'abord). Depuis le 5 octobre 2026, **aucun robot ne déplace sa Tourelle** (elle est fixe, §5.5).
 - **Comportement (G3, étape 3)** : à chaque seconde, un robot prend la mutation la plus lourde pour son profil, garde sa priorité de tir habituelle ou passe à sa priorité de défense quand ses cases sont visées, désigne la Tourelle adverse dès qu'il peut la viser (Canonnier et Conquérant), lance la Salve quand il tire, le Mur sur une case attaquée et le Nuage sur les cases adverses, et achète l'amélioration au meilleur rapport poids / coût (en économisant pour elle si elle n'est pas encore payable). Les poids de chaque profil sont dans `ai/profiles/` (voir « Choix de l'étape 3 de G3, à confirmer », §17).
-- **Robot de jeu** *(G4, décidé le 5 octobre 2026)* : en Duel et en FFA, les adversaires sont des **robots de jeu**, sans profil visible : un réglage interne **équilibré** (dégâts, rendement et portée à parts égales ; il déplace sa Tourelle). Les **profils** (Canonnier, Bâtisseur, Conquérant) restent réservés au panneau de simulations et au Bac à sable. Trois difficultés, dont les valeurs sont dans `data/` :
+- **Robot de jeu** *(G4, décidé le 5 octobre 2026)* : en Duel et en FFA, les adversaires sont des **robots de jeu**, sans profil visible : un réglage interne **équilibré** (dégâts, rendement et portée à parts égales). Les **profils** (Canonnier, Bâtisseur, Conquérant) restent réservés au panneau de simulations et au Bac à sable. Trois difficultés, dont les valeurs sont dans `data/` :
   - **Difficile** : le comportement actuel (il agit chaque seconde, sans erreur) ;
   - **Normal** : le même, mais il n'agit que toutes les **2 s** ;
   - **Facile** : il agit toutes les **3 s**, fait **1 achat sur 4 au hasard**, prend sa **mutation au hasard**, ne lance **jamais le Mur ni le Nuage** et **ne vise pas la Tourelle adverse**.
@@ -170,7 +170,7 @@ Cible : une colonie moyenne atteint la zone N vers la minute 3,5 × N.
 - Il y a **une seule Tourelle** par colonie.
 
 ### 5.2 Portée et cibles
-- La Tourelle a une **portée** : un **cercle de N cases** autour d'elle. Elle ne vise que des cases dans ce cercle.
+- La Tourelle a une **portée** : un **cercle de N cases** autour d'elle (**2 au départ, 4 au plus avec l'amélioration**, décidé le 5 octobre 2026). Elle ne vise que des cases dans ce cercle.
 - Dans le cercle, elle ne peut viser qu'une **case collée à mon territoire** (libre ou adverse) : le territoire reste d'un seul tenant. Elle peut aussi viser **une de mes cases blessées pour la soigner** (§7.3).
 - L'amélioration **Portée** agrandit le cercle.
 
@@ -189,10 +189,28 @@ Départage entre cases à égalité : la plus proche de la Tourelle, puis un tir
 ### 5.4 Cible désignée au clic
 Un **clic gauche** sur une case visable en fait la **cible prioritaire** : la Tourelle la vise **jusqu'à ce qu'elle soit prise**, puis reprend la priorité choisie. Un nouveau clic remplace la cible désignée ; un clic sur une de mes cases blessées la désigne pour le soin, jusqu'à ce qu'elle soit à pleine vie.
 
-### 5.5 Déplacement
-- La Tourelle peut **se déplacer pas à pas** : une case à la fois, vers **une de mes cases voisines** de la sienne.
-- Chaque pas dure **10 s**, pendant lesquelles elle **ne tire pas**. **Pas de recharge** entre deux pas.
-- Geste : touche de déplacement (**D**, modifiable) puis clic sur une de mes cases voisines ; on peut enchaîner les pas. Pendant un pas, la Tourelle garde ses PV et **reste sur sa case de départ** jusqu'à l'arrivée : c'est là qu'elle peut être visée (décidé le 4 octobre 2026). À l'arrivée, sa case de départ redevient une case normale.
+### 5.5 Pas de déplacement *(décidé le 5 octobre 2026)*
+- **La Tourelle ne bouge pas** : elle reste toute la partie sur sa case de départ. Avec sa petite portée (§5.2), ce sont les **bâtiments** (§5 bis) qui font avancer le front et vont attaquer les autres colonies.
+- Supprimés avec le déplacement : la touche **D**, la mutation *Rapide* et les pas des robots.
+- *Ancienne règle (4 octobre 2026), pour mémoire :* pas d'une case vers une de mes cases voisines, 10 s sans tirer.
+
+---
+
+## 5 bis. Les bâtiments *(en cours de définition, décisions du 5 octobre 2026)*
+
+La Tourelle est fixe et porte loin seulement à 4 cases : **ce sont les bâtiments qui font gagner du terrain et vont attaquer les autres colonies**. Il y en a **3** :
+
+| Bâtiment | Rôle | Cible (fixe, pas de réglage) | Débloqué au palier |
+|---|---|---|---|
+| **Essaimeur** | Prend seul les **cases libres** autour de lui, rien contre l'adversaire | cases libres seulement | 1 |
+| **Avant-poste** | Petite tourelle **polyvalente** qui tire seule | la case visable la plus proche | 2 |
+| **Mortier** | **Longue portée**, très lent, gros dégâts : pour **assiéger** | bâtiments et Sporophore adverses d'abord | 3 |
+
+- **Construction** : sur **une de mes cases** ; le nombre total de bâtiments est limité par des **places** : **1 place au palier 1, +1 par palier**.
+- **Puissance** : les **améliorations du panneau** (Dégâts, Cadence, Critique…) s'appliquent aussi aux bâtiments, chacun avec ses propres coefficients (par exemple Mortier : dégâts ×4, cadence ÷4 ; valeurs à fixer).
+- **Défense** : un bâtiment a **ses propres PV**, comme le Sporophore ; la case sous lui ne peut être prise qu'une fois le bâtiment tombé.
+- **Bâtiment tombé** : il devient **endormi pendant 60 s** (il ne fait rien). Au bout des 60 s, **la colonie qui tient alors la case sous lui l'obtient** : l'attaquant s'il a pris la case entre-temps, sinon son propriétaire le récupère. (Le propriétaire ne doit pas le récupérer « en l'état » trop facilement : c'est ce délai qui laisse une chance aux deux camps.)
+- **Questions encore ouvertes** : voir §20, « Bâtiments ».
 
 ---
 
@@ -209,7 +227,7 @@ Un **clic gauche** sur une case visable en fait la **cible prioritaire** : la To
 - La prise est donc une **course** entre mes dégâts et sa défense (PV, régénération, soin).
 
 ### 6.3 Cadence et dégâts
-- **Tourelle de départ** : 1 spore par seconde, **10 dégâts**, portée **3**.
+- **Tourelle de départ** *(décidé le 5 octobre 2026)* : **0,2 spore par seconde** (un tir toutes les 5 s), **5 dégâts**, portée **2** (avant : 1 tir/s, 10 dégâts, portée 3). Avec 1 dégât par seconde, une case libre de 40 PV se prend en 40 s, et une case adverse bien entourée ne peut plus être prise par la Tourelle seule : **c'est voulu**, il faut des améliorations ou les bâtiments.
 - La simulation avance d'**1 tick par seconde** : une cadence de 2,5 tirs/s donne 2 ou 3 tirs selon le tick (reste cumulé), toujours de façon déterministe. L'animation des spores est interpolée à l'écran.
 
 ---
@@ -285,7 +303,7 @@ Cible : **~10 nutriments/s au départ → 1e5 à 1e6 nutriments/s en fin de part
 |---|---|---|---|
 | **Dégâts** | +25 % des dégâts de base | 1 U | Départ |
 | **Cadence** | +10 % de tirs par seconde | 2 U | Départ |
-| **Portée** | +1 case de rayon (10 niveaux au plus) | 10 U, ×3 par niveau | Départ |
+| **Portée** | +1 case de rayon (**2 niveaux au plus** : portée 4, décidé le 5 octobre 2026) | 10 U, ×3 par niveau | Départ |
 | **Rendement** | +10 % de production de mes cases | 2 U | Départ |
 | **Régénération** | +1 % des PV max par seconde | 5 U | 1 |
 | **Soin** | +25 % de soin par spore | 5 U | 1 |
@@ -304,7 +322,7 @@ U = 30 nutriments, comme avant.
 
 À chaque **palier atteint pour la première fois**, le joueur **choisit 1 mutation parmi 3** tirées au hasard (graine). Elles sont permanentes pour la partie.
 
-Liste (15 mutations ; les 3 proposées sont tirées sans remise parmi celles pas encore prises). **La partie continue pendant le choix**, sans limite de temps. Si un nouveau palier arrive avant le choix, **les choix s'empilent** : on choisit le premier, puis les 3 cartes du suivant s'affichent (décidé le 4 octobre 2026).
+Liste (14 mutations ; *Rapide* supprimée le 5 octobre 2026 avec le déplacement ; les 3 proposées sont tirées sans remise parmi celles pas encore prises). **La partie continue pendant le choix**, sans limite de temps. Si un nouveau palier arrive avant le choix, **les choix s'empilent** : on choisit le premier, puis les 3 cartes du suivant s'affichent (décidé le 4 octobre 2026).
 - *Spores lourdes* : dégâts ×1,5, cadence ×0,8.
 - *Spores légères* : cadence ×1,4, dégâts ×0,8.
 - *Hyphes longues* : portée +1.
@@ -316,7 +334,6 @@ Liste (15 mutations ; les 3 proposées sont tirées sans remise parmi celles pas
 - *Guérisseur* : soin ×2.
 - *Sporée* : +1 spore par tir.
 - *Glande* : +50 % d'Enzymes aux prochains paliers.
-- *Rapide* : un pas de la Tourelle dure 5 s.
 - *Blindé* : PV de la Tourelle ×2.
 - *Toxique* : les cases touchées perdent leur régénération pendant 5 s.
 - *Avare* : améliorations −15 % de coût.
@@ -408,13 +425,14 @@ Chiffres décidés le 4 octobre 2026, comme points de départ à simuler.
 Menu principal, **mode Duel**, **mode FFA**, **salon de partie personnalisée**, **partie** (carte à gauche, panneau à droite), spectateur, résultats, profil, **paramètres**, et l'**interface d'administration** cachée (§18.4).
 
 ### 16.2 Écran de partie *(maquettes validées le 4 octobre 2026 : canevas « Mycélium — maquettes de la Tourelle (G3) »)*
-- **Carte (à gauche, ~62 % de la largeur)** : la forêt, le cercle de portée de ma Tourelle (pointillé), les spores en vol, la cible en cours ; en haut à gauche, la **frise** (horloge, prochains événements ; jusqu'à G5, horloge et fin de la protection de départ seulement, décidé le 4 octobre 2026 ; en Bac à sable, boutons pause, vitesse et récapitulatif) ; en haut à droite, le **mini-classement** (colonies en vie, cases, éliminations, production moyenne) ; en bas à gauche, le **journal et les alertes**, avec un rappel des gestes (clic : viser, D : déplacer).
+- **Carte (à gauche, ~62 % de la largeur)** : la forêt, le cercle de portée de ma Tourelle (pointillé), les spores en vol, la cible en cours ; en haut à gauche, la **frise** (horloge, prochains événements ; jusqu'à G5, horloge et fin de la protection de départ seulement, décidé le 4 octobre 2026 ; en Bac à sable, boutons pause, vitesse et récapitulatif) ; en haut à droite, le **mini-classement** (colonies en vie, cases, éliminations, production moyenne) ; en bas à gauche, le **journal et les alertes**, avec un rappel du geste (clic : viser).
 - **Panneau (à droite, ~38 %)**, de haut en bas :
   1. **Ressources** : nutriments (qui défilent) et production, Enzymes, Biomasse, barre du prochain palier ;
   2. **Tourelle** : PV, dégâts, cadence, portée, spores par tir, et les 4 boutons de **priorité de tir** ;
-  3. **Améliorations**, en onglets *Attaque*, *Défense*, *Économie*, avec le niveau, l'effet (avant → après), le coût et le choix ×1 / ×10 / Max ; une amélioration verrouillée indique le palier requis ;
-  4. **Capacités** : boutons ronds avec recharge, coût et touche.
-- **Mutation** : au palier, trois cartes s'affichent sur la carte assombrie (touches 1 à 3) ; la partie **ne s'arrête pas** pendant le choix ; les mutations prises sont listées dans le panneau (une pastille par mutation, palier et effet dans l'info-bulle). Un **bouton avec un œil** cache les cartes pour voir la carte ; un bouton du panneau (« Choisir une mutation ») les rouvre (décidé le 4 octobre 2026).
+  3. **Mes mutations** : une **seule ligne** d'icônes, une par mutation prise, avec son palier ; nom et effet dans l'info-bulle (décidé le 5 octobre 2026 : le cadre ne grandit plus) ;
+  4. **Améliorations**, en onglets *Attaque*, *Défense*, *Économie*, avec le niveau, l'effet (avant → après), le coût et le choix ×1 / ×10 / Max ; une amélioration verrouillée indique le palier requis. Elles prennent toute la hauteur restante, en **lignes compactes** (54 px, décidé le 5 octobre 2026) ; les cadences s'écrivent au centième (0,22 tir/s) ;
+  5. **Capacités** : boutons ronds avec recharge, coût et touche.
+- **Mutation** : au palier, trois cartes s'affichent sur la carte assombrie (touches 1 à 3) ; la partie **ne s'arrête pas** pendant le choix ; les mutations prises sont listées dans le panneau (une icône par mutation, palier et effet dans l'info-bulle). Un **bouton avec un œil** cache les cartes pour voir la carte ; un bouton du panneau (« Choisir une mutation ») les rouvre (décidé le 4 octobre 2026).
 - **Gestes des capacités** : la Salve part tout de suite ; le Mur et le Nuage attendent un clic sur une case (touche ou bouton, puis clic), Échap ou clic droit annulent.
 
 ### 16.3 Direction artistique « Pastille ronde »
@@ -453,8 +471,8 @@ Les couleurs de colonie sont **éclaircies si besoin** en mode sombre pour garde
 
 ### 16.5 Caméra et commandes
 - **Déplacement** : clic droit maintenu et souris contre les **bords de l'écran** ; **zoom** à la molette, centré sur la souris.
-- **Clic gauche** : désigne une case comme cible prioritaire (§5.4) ; avec la touche de déplacement, choisit le pas de la Tourelle (§5.5).
-- **Raccourcis par défaut** : **Espace** recentre sur la Tourelle ; **P** pause (Bac à sable) ; **Échap** annule le geste en cours ou ouvre le menu de partie ; **D** déplacer la Tourelle ; **Q, W, E** capacités ; **1 à 3** choisissent une mutation quand les cartes sont affichées. **Pas de touches pour les priorités de tir** (souris seulement, décidé le 4 octobre 2026). Tous modifiables dans les Paramètres ; une touche ne sert qu'à une action ; un bouton remet les touches par défaut.
+- **Clic gauche** : désigne une case comme cible prioritaire (§5.4).
+- **Raccourcis par défaut** : **Espace** recentre sur la Tourelle ; **P** pause (Bac à sable) ; **Échap** annule le geste en cours ou ouvre le menu de partie ; **Q, W, E** capacités ; **1 à 3** choisissent une mutation quand les cartes sont affichées. **Pas de touches pour les priorités de tir** (souris seulement, décidé le 4 octobre 2026). Tous modifiables dans les Paramètres ; une touche ne sert qu'à une action ; un bouton remet les touches par défaut.
 
 ### 16.6 Paramètres
 Affichage (plein écran, fenêtré, résolution, **thème clair / sombre / système**), audio, langue (français et anglais), commandes (raccourcis modifiables), accessibilité (taille de l'interface, palette adaptée au daltonisme).
@@ -480,13 +498,13 @@ En partie locale, un ordre du joueur (achat, priorité, cible, pas, capacité, m
 Prochain jalon limité au combat contre les robots, les événements passent en G5 (§19) ; robot de jeu à part, sans profil visible, équilibré, avec trois difficultés dans `data/` (Difficile = robots actuels, Normal agit toutes les 2 s, Facile toutes les 3 s et maladroit) (§2.5) ; en FFA, une difficulté pour les 5 robots, les profils sont réservés à la simulation (§2.3) ; secteur du joueur et couleurs de toutes les colonies tirés au hasard (graine) ; écrans dans le style actuel, sans maquette ; livraison en une fois ; menu Jouer → Duel ou FFA → difficulté, graine tirée au hasard ; quitter une partie en cours demande une confirmation ; éliminé en FFA : fin tout de suite avec son rang ; fin de partie minimale : rang, cases, Tourelles abattues, durée de survie, pic de production, boutons Rejouer (nouvelle partie, mêmes choix) et Menu ; Bac à sable : profils et robot de jeu (Facile, Normal, Difficile) au choix sur chaque secteur libre.
 
 ### Décisions de l'étape 3 de G3 (4 octobre 2026, QCM)
-Bac à sable : un profil de robot par secteur libre (§2.1 bis) ; seul le Conquérant déplace sa Tourelle (§2.5) ; panneau de simulations : une série = une composition de forêt (un robot par secteur), mesures par secteur (§18.5).
+Bac à sable : un profil de robot par secteur libre (§2.1 bis) ; seul le Conquérant déplace sa Tourelle (§2.5, caduc depuis le 5 octobre 2026 : la Tourelle est fixe) ; panneau de simulations : une série = une composition de forêt (un robot par secteur), mesures par secteur (§18.5).
 
 ### Choix de l'étape 3 de G3, à confirmer
 Points de comportement des robots et du panneau tranchés pour écrire le code, sans question dédiée (tous réglables dans `ai/profiles/` ou faciles à changer) :
 1. Priorités de tir : Canonnier *Plus riche*, puis *Ennemis d'abord* quand ses cases sont visées ; Bâtisseur *Plus riche*, puis *Soigner d'abord* quand ses cases sont visées ; Conquérant toujours *Ennemis d'abord*. La priorité de défense est gardée au moins 10 s.
 2. Canonnier et Conquérant désignent la Tourelle adverse la plus proche dès qu'elle est visable ; le Bâtisseur ne désigne jamais de cible.
-3. Le Conquérant ne fait un pas que vers une de ses cases plus proche du centre, entourée d'au moins 4 de ses cases, avec 20 s d'attente entre deux pas.
+3. *(Caduc depuis le 5 octobre 2026 : la Tourelle est fixe.)* Le Conquérant ne fait un pas que vers une de ses cases plus proche du centre, entourée d'au moins 4 de ses cases, avec 20 s d'attente entre deux pas.
 4. Capacités, pour les trois profils : Salve dès qu'elle est prête et que la Tourelle a une cible ; Mur sur la case attaquée la plus proche de la Tourelle ; Nuage sur la case adverse à portée dont la zone touche une Tourelle adverse, sinon le plus de cases adverses (jamais sur des cases libres).
 5. Améliorations : poids par amélioration (Canonnier : Dégâts et Cadence 10 ; Bâtisseur : Rendement 10, défense 5–6 ; Conquérant : Portée 10, Dégâts et Cadence 6) ; mutations : poids par mutation (par exemple Spores lourdes et légères pour le Canonnier, Cohésion pour le Bâtisseur, Hyphes longues et Prédateur pour le Conquérant).
 6. Bac à sable : aucun adversaire par défaut.
@@ -498,13 +516,16 @@ Points de règle que l'étape 1 a dû trancher pour écrire le code, sans questi
 2. Changer de priorité lâche les cibles gardées (la cible désignée au clic reste).
 3. La Tourelle ne vise jamais sa propre case (pas de soin de la Tourelle par elle-même).
 4. Éclaboussure, Rebond et Nuage toxique abîment aussi les cases qui ne touchent pas mon territoire, mais ne peuvent pas les prendre (elles restent à 1 PV au moins) ; de même, une Tourelle qui ne touche pas mon territoire ne peut pas tomber.
-5. Un pas est annulé si la case d'arrivée n'est plus à moi ; à l'arrivée, la case de départ est à pleine vie.
+5. *(Caduc depuis le 5 octobre 2026.)* Un pas est annulé si la case d'arrivée n'est plus à moi ; à l'arrivée, la case de départ est à pleine vie.
 6. Les colonies tirent l'une après l'autre ; la première change à chaque tick, pour qu'aucune ne soit avantagée sur une case disputée.
 7. Le Mur de mycélium protège mes cases (Tourelle comprise) autour de n'importe quelle case choisie ; le Nuage toxique vise une case à portée, même sans toucher mon territoire.
 8. ×10 achète jusqu'à 10 niveaux tant qu'ils sont payables (refusé seulement si aucun ne l'est).
 9. La mutation *Cohésion* double le bonus par voisine et son plafond (production +60 % au plus).
 10. Améliorations et capacités suivent le palier actuel (comme les améliorations, §8.3).
 11. Onglets du panneau : Attaque (Dégâts, Cadence, Portée, Spores, Éclaboussure, Critique, Rebond), Défense (Régénération, Soin, PV des cases, Écorce), Économie (Rendement).
+
+### Réglages du Sporophore et bâtiments (5 octobre 2026, QCM)
+Sporophore **fixe** : plus de déplacement, de touche D, de mutation *Rapide* (14 mutations) ni de pas des robots (§5.5) ; portée **2**, amélioration Portée limitée à **2 niveaux** (portée 4) ; **0,2 tir/s et 5 dégâts** (§6.3), sans compenser la régénération : prendre une case adverse demande des améliorations ou des bâtiments ; cadre « Mes mutations » réduit à **une ligne d'icônes** et lignes d'améliorations **compactes** (§16.2). **Bâtiments** : Essaimeur, Avant-poste, Mortier ; places par palier ; améliorations partagées ; cibles fixes par type ; PV propres ; bâtiment tombé endormi 60 s puis à la colonie qui tient sa case (§5 bis).
 
 ### Questions ouvertes
 - **Triche de l'hôte** : la vérification par empreinte suffit-elle pour un classement du Duel ?
@@ -519,7 +540,7 @@ Points de règle que l'étape 1 a dû trancher pour écrire le code, sans questi
 - Nombre d'éliminations avant 30:00 en Duel et en FFA.
 
 ### Idées pour plus tard
-Autres terrains et souches, pactes, mode par équipes, forêts thématiques, classement du Duel, jalons d'amélioration tous les 25 niveaux, spore errante (îlots lointains), tourelles-relais, **événements aléatoires** (Orage, Incendie, Sanglier, Festin, Nématodes : repoussés le 4 octobre 2026).
+Autres terrains et souches, pactes, mode par équipes, forêts thématiques, classement du Duel, jalons d'amélioration tous les 25 niveaux, spore errante (îlots lointains), **événements aléatoires** (Orage, Incendie, Sanglier, Festin, Nématodes : repoussés le 4 octobre 2026).
 
 ---
 
@@ -538,7 +559,7 @@ Autres terrains et souches, pactes, mode par équipes, forêts thématiques, cla
 - Configuration et profil enregistrés dans `user://` (thème, résolution, langue, raccourcis, préréglages de parties).
 
 ### 18.2 Architecture
-- **Simulation autoritaire intégrée** : une seule simulation fait foi ; les joueurs envoient des **commandes** qu'elle valide : **acheter une amélioration**, **régler la priorité de tir**, **désigner une cible**, **déplacer la Tourelle**, **choisir une mutation**, **lancer une capacité**.
+- **Simulation autoritaire intégrée** : une seule simulation fait foi ; les joueurs envoient des **commandes** qu'elle valide : **acheter une amélioration**, **régler la priorité de tir**, **désigner une cible**, **choisir une mutation**, **lancer une capacité**.
 - **Solo (robots)** : la simulation tourne **dans l'exécutable**, sans réseau.
 - **En ligne : hébergé par un joueur.** Pas de serveur à nous : l'**hôte** fait tourner la simulation, les autres s'y connectent par **Steam Networking Sockets** (relais Steam), via le `MultiplayerPeer` de GodotSteam. Hôte : le créateur du salon en partie personnalisée ; pour le Duel et le FFA publics, le propriétaire du salon Steam formé par la file d'attente.
 - **Simulation à pas fixe : 1 tick par seconde** ; interpolation côté client pour l'animation (dont le vol des spores). L'hôte envoie les **différences** par tick.
@@ -585,11 +606,24 @@ Outil d'équilibrage disponible **uniquement quand le jeu est lancé depuis l'é
 
 La simulation ne reçoit que des **commandes** depuis G1 : le passage en ligne consiste surtout à la faire tourner chez l'hôte et à brancher le réseau Steam.
 
+**Bâtiments (§5 bis)** : jalon à placer dans la feuille de route avec le propriétaire.
+
 ---
 
 ## 20. Questions en attente des jalons suivants
 
 Elles seront posées sous forme de QCM au début du jalon concerné.
+
+### Bâtiments (§5 bis)
+1. Place dans la feuille de route : nouveau jalon avant les événements (G5 décalé) ou après ? Maquettes d'abord, comme G3 ?
+2. Valeurs de départ de chaque bâtiment : portée, dégâts, cadence et PV, en part de ceux du Sporophore.
+3. Coût d'un bâtiment (fixe, ou qui monte avec le palier) et durée de construction.
+4. Portée des bâtiments : visent-ils seulement des cases collées à mon territoire, comme le Sporophore ? Le Mortier peut-il tirer par-dessus ?
+5. Bâtiment endormi : peut-on encore le frapper ? Avec quels PV se réveille-t-il (pleins, 25 %) ? Que se passe-t-il si la colonie qui l'obtient n'a plus de place libre ?
+6. Bâtiment dont la case est coupée du Sporophore (§12) : il tombe, il s'endort, ou il reste actif ?
+7. Peut-on démolir ou déplacer son propre bâtiment pour libérer une place ?
+8. La mutation *Hyphes longues* (portée +1) peut-elle dépasser la portée 4 du Sporophore ? S'applique-t-elle aux bâtiments ?
+9. Robots : comment placent-ils leurs bâtiments ?
 
 ### G4 : Combattre des robots
 *Questions 1 à 8 et 10 tranchées le 5 octobre 2026 (§17, « Décisions de G4 ») ; restent 9 et 11.*

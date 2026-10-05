@@ -36,7 +36,7 @@ stat = 2
 effect = 1
 base_cost_units = 10
 cost_growth_pm = 3000
-max_level = 10
+max_level = 2
 unlock_tier = 0
 
 [sub_resource type="Resource" id="upgrade_4"]

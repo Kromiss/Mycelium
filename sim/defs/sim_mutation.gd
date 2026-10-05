@@ -16,7 +16,6 @@ var enemy_damage_pm: int = 1000
 var heal_pm: int = 1000
 var spores_add: int = 0
 var enzymes_pm: int = 1000
-var step_ticks: int = 0
 var turret_hp_pm: int = 1000
 var toxic_ticks: int = 0
 var cost_pm: int = 1000
@@ -39,7 +38,6 @@ func fields() -> PackedStringArray:
 			"heal_pm",
 			"spores_add",
 			"enzymes_pm",
-			"step_ticks",
 			"turret_hp_pm",
 			"toxic_ticks",
 			"cost_pm",

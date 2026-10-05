@@ -95,7 +95,7 @@ func refresh() -> void:
 	_bar.value = clampf(float(colony.turret_hp) / float(maxi(1, maximum)), 0.0, 1.0)
 	_stats[0].text = NumberFormat.amount(ColonyStats.damage(defs, colony))
 	var rate: String = NumberFormat.decimal(
-		Fixed.div_round(ColonyStats.rate_pm(state, colony), 100) * 100
+		GameText.round_hundredth(ColonyStats.rate_pm(state, colony))
 	)
 	_stats[1].text = tr("HUD_RATE_VALUE") % rate
 	_stats[2].text = str(ColonyStats.turret_range(defs, colony))

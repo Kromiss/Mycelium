@@ -19,8 +19,6 @@ var captures: PackedInt32Array = PackedInt32Array()
 var cells_lost: PackedInt32Array = PackedInt32Array()
 ## Tourelles abattues : paires (colonie éliminée, colonie qui l'a abattue).
 var eliminations: PackedInt32Array = PackedInt32Array()
-## Pas terminés : triplets (colonie, case de départ, case d'arrivée).
-var moves: PackedInt32Array = PackedInt32Array()
 ## Capacités lancées : triplets (colonie, rang de la capacité, case choisie ou −1).
 var abilities: PackedInt32Array = PackedInt32Array()
 ## Changements de palier : triplets (colonie, ancien palier, nouveau palier).

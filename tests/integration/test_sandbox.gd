@@ -5,11 +5,10 @@ extends GutTest
 const DUEL: ModeDef = preload("res://data/modes/duel.tres")
 const SETUP: PackedScene = preload("res://ui/sandbox/sandbox_setup.tscn")
 const GAME: PackedScene = preload("res://game/game_screen.tscn")
-## Cases de la colonie en Duel (rayon 11) : une case libre collée au territoire de départ,
-## une case qui ne le touche pas, et la case de départ vers le centre.
+## Cases de la colonie en Duel (rayon 11) : une case libre collée au territoire de départ et
+## une case à portée qui ne le touche pas.
 const ABOVE := Vector2i(10, -1)
-const BEYOND := Vector2i(8, 0)
-const INNER := Vector2i(10, 0)
+const BEYOND := Vector2i(9, 2)
 
 var _locale: String
 
@@ -139,17 +138,6 @@ func test_click_targets_a_cell_and_refusals_show_a_message() -> void:
 	assert_eq(session.colony().designated, _index(session, ABOVE))
 
 
-func test_move_key_then_click_makes_the_sporophore_step() -> void:
-	var screen: Node = _game()
-	var session: Session = screen.get_node("%Session")
-	var input: MapInput = screen.get_node("%MapInput")
-	input.set_moving(true)
-	input.click(_index(session, INNER))
-	assert_false(input.is_moving())
-	session.step()
-	assert_eq(session.colony().move_to, _index(session, INNER))
-
-
 func test_orders_are_blocked_while_paused() -> void:
 	var screen: Node = _game()
 	var session: Session = screen.get_node("%Session")
@@ -205,13 +193,14 @@ func test_recap_lists_settings_and_results() -> void:
 		"Opponents: Sector 2: None",
 		"Duel forest (radius 11) · seed 42",
 		"U: cost unit of upgrades: 30",
-		"Sporophore: damage per spore: 10",
+		"Sporophore: damage per spore: 5",
+		"Sporophore: range (cells): 2",
 		"Zone 2 — Richness ×: 1.5, Free cell HP ×: 1.4, Owned cell HP ×: 1.2",
 		"Damage — Effect per level: 250",
 		"Salvo — Enzymes: 20",
 		"Results at 00:05",
-		"Cells: 4 · tier 0 (×1)",
-		"cells captured: 1",
+		"Cells: 3 · tier 0 (×1)",
+		"cells captured: 0",
 		"Upgrades: none",
 		"Tiers reached: none",
 	]:

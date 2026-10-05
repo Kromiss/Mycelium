@@ -42,8 +42,6 @@ func _random_commands(simulation: Simulation, colony: ColonyState, rng: SimRng) 
 			commands.append(SetPriorityCommand.new(rng.range_int(4)))
 		1:
 			commands.append(TargetCommand.new(_random_cell_near(state, colony, rng)))
-		2:
-			commands.append(MoveTurretCommand.new(_random_cell_near(state, colony, rng)))
 		3:
 			commands.append(ChooseMutationCommand.new(rng.range_int(3)))
 		4:
@@ -104,7 +102,6 @@ func test_replay_rejects_unknown_format() -> void:
 func test_commands_survive_a_round_trip() -> void:
 	for command: Command in [
 		TargetCommand.new(Vector2i(3, -4), 2),
-		MoveTurretCommand.new(Vector2i(-1, 5), 1),
 		SetPriorityCommand.new(ColonyState.Priority.ENEMIES_FIRST, 3),
 		BuyUpgradeCommand.new(&"damage", 10, 4),
 		ChooseMutationCommand.new(2, 5),

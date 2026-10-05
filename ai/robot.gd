@@ -25,8 +25,6 @@ var colony_id: int = 0
 var _rng: SimRng
 ## Tick jusqu'auquel (exclu) la priorité de défense est gardée.
 var _defense_until: int = 0
-## Tick à partir duquel un nouveau pas est permis.
-var _next_step_tick: int = 0
 
 
 func _init(
@@ -54,7 +52,6 @@ func decide(simulation: Simulation) -> Array[Command]:
 	_add(simulation, commands, _mutation_command(state, colony))
 	_add(simulation, commands, _priority_command(state, colony, attacked))
 	_add(simulation, commands, _target_command(simulation, colony))
-	_add(simulation, commands, _step_command(state, colony))
 	for command: Command in _ability_commands(state, colony, attacked):
 		_add(simulation, commands, command)
 	var random_one_in: int = difficulty.random_upgrade_one_in if difficulty != null else 0
@@ -142,35 +139,6 @@ func _target_command(simulation: Simulation, colony: ColonyState) -> Command:
 	if best < 0:
 		return null
 	return TargetCommand.new(state.map.cells[best], colony_id)
-
-
-## Pas vers le centre de la forêt : une de ses cases voisines de la Tourelle, plus proche du
-## centre, entourée d'assez de ses cases ; une pause sépare deux pas.
-func _step_command(state: GameState, colony: ColonyState) -> Command:
-	if not profile.moves_turret:
-		return null
-	if colony.is_moving():
-		_next_step_tick = state.tick + profile.step_pause_ticks
-		return null
-	if state.tick < _next_step_tick:
-		return null
-	var here: int = Hex.length(state.map.cells[colony.turret])
-	var best: int = -1
-	var best_length: int = here
-	for direction: int in range(6):
-		var cell: int = state.map.neighbor_index(colony.turret, direction)
-		if cell < 0 or state.owner[cell] != colony.id:
-			continue
-		var length: int = Hex.length(state.map.cells[cell])
-		if length >= best_length:
-			continue
-		if state.owned_neighbors(cell, colony.id) < profile.step_min_owned_neighbors:
-			continue
-		best = cell
-		best_length = length
-	if best < 0:
-		return null
-	return MoveTurretCommand.new(state.map.cells[best], colony_id)
 
 
 ## Capacités prêtes et payables (Enzymes partagées entre elles), chacune sur sa case.

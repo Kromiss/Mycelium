@@ -1,6 +1,7 @@
 class_name TurretSystem
 extends RefCounted
-## Étape 2 du tick : les Tourelles font leurs pas, puis tirent (GDD §5, §6, §7.3). Les colonies
+## Étape 2 du tick : les Tourelles tirent (GDD §5, §6, §7.3) ; elles ne bougent pas (décidé le
+## 5 octobre 2026). Les colonies
 ## jouent l'une après l'autre ; la première change à chaque tick (tick modulo nombre de
 ## colonies) pour qu'aucune ne soit toujours avantagée sur une case disputée.
 
@@ -11,53 +12,7 @@ func run(state: GameState, result: TickResult) -> void:
 		var colony: ColonyState = state.colonies[(state.tick + offset) % count]
 		if not colony.alive:
 			continue
-		if colony.is_moving():
-			_advance_step(state, colony, result)
-		else:
-			_fire(state, colony, result)
-
-
-## Raison pour laquelle un pas vers la case serait refusé (OK s'il serait accepté) : une de
-## mes cases voisines de la Tourelle, sans pas déjà en cours.
-static func check_move(state: GameState, colony: ColonyState, cell: int) -> Refusal.Code:
-	if cell < 0:
-		return Refusal.Code.OUT_OF_MAP
-	if colony.is_moving():
-		return Refusal.Code.ALREADY_MOVING
-	if state.owner[cell] != colony.id or cell == colony.turret:
-		return Refusal.Code.NOT_OWNED
-	if state.distance(cell, colony.turret) != 1:
-		return Refusal.Code.NOT_ADJACENT
-	return Refusal.Code.OK
-
-
-## Commence un pas : la Tourelle reste sur sa case et ne tire plus jusqu'à l'arrivée.
-static func start_move(state: GameState, colony: ColonyState, cell: int) -> void:
-	colony.move_to = cell
-	colony.move_left = ColonyStats.step_ticks(state.defs, colony)
-
-
-## Un pas dure N secondes : commencé au tick t, il se termine à la fin du tick t + N − 1.
-## Si la case d'arrivée n'est plus à la colonie, le pas est annulé. À l'arrivée, la case de
-## départ redevient une case normale, à pleine vie.
-func _advance_step(state: GameState, colony: ColonyState, result: TickResult) -> void:
-	colony.move_left -= 1
-	result.colony_changed(colony.id)
-	if colony.move_left > 0:
-		return
-	var origin: int = colony.turret
-	var destination: int = colony.move_to
-	colony.move_to = -1
-	colony.move_left = 0
-	if state.owner[destination] != colony.id:
-		return
-	colony.turret = destination
-	state.hp[origin] = ColonyStats.cell_max_hp(state, origin)
-	state.last_hitter[origin] = -1
-	colony.targets = PackedInt32Array()
-	result.moves.append_array(PackedInt32Array([colony.id, origin, destination]))
-	result.cell_changed(origin)
-	result.cell_changed(destination)
+		_fire(state, colony, result)
 
 
 ## Tirs du tick : chaque tir envoie une spore par cible (cible désignée d'abord, puis cibles

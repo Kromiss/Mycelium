@@ -1,9 +1,7 @@
 class_name MapInput
 extends Node
-## Gestes du joueur sur la carte (GDD §5.4, §5.5, §11, §16.5), transformés en commandes :
+## Gestes du joueur sur la carte (GDD §5.4, §11, §16.5), transformés en commandes :
 ## - clic gauche sur une case visable : elle devient la cible prioritaire de la Tourelle ;
-## - touche de déplacement (D), puis clic sur une de mes cases voisines de la Tourelle : la
-##   Tourelle y fait un pas ;
 ## - capacité qui vise une case (Mur, Nuage : touche ou bouton), puis clic sur la case ;
 ##   la Salve part tout de suite.
 ## Échap ou un clic droit court annule le geste en cours. La validité est demandée à la
@@ -17,7 +15,7 @@ signal message(text: String)
 signal mode_changed(mode: Mode, ability: int)
 
 ## Ce que fera le prochain clic sur la carte.
-enum Mode { TARGET, MOVE, ABILITY }
+enum Mode { TARGET, ABILITY }
 
 ## Déplacement maximal de la souris, en pixels, pour qu'un clic droit soit « court ».
 const SHORT_CLICK_DISTANCE: float = 8.0
@@ -51,20 +49,7 @@ func pending_ability() -> int:
 	return _ability if _mode == Mode.ABILITY else -1
 
 
-## Vrai si le prochain clic choisit le pas de la Tourelle.
-func is_moving() -> bool:
-	return _mode == Mode.MOVE
-
-
-## Active ou quitte le mode déplacement.
-func set_moving(active: bool) -> void:
-	if active:
-		_set_mode(Mode.MOVE, -1)
-	elif _mode == Mode.MOVE:
-		_set_mode(Mode.TARGET, -1)
-
-
-## Annule le geste en cours (déplacement ou capacité). Faux s'il n'y en avait pas.
+## Annule le geste en cours (capacité qui attend sa case). Faux s'il n'y en avait pas.
 func cancel() -> bool:
 	if _mode == Mode.TARGET:
 		return false
@@ -102,10 +87,6 @@ func use_ability(index: int) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if _session == null:
 		return
-	if event.is_action_pressed("move_turret"):
-		set_moving(_mode != Mode.MOVE)
-		get_viewport().set_input_as_handled()
-		return
 	if event is InputEventMouseMotion:
 		_update_hover()
 	elif event is InputEventMouseButton:
@@ -127,19 +108,15 @@ func _right_button(button: InputEventMouseButton) -> void:
 		cancel()
 
 
-## Clic sur une case : pas de la Tourelle, case d'une capacité ou cible prioritaire selon le
-## geste en cours.
+## Clic sur une case : case d'une capacité ou cible prioritaire selon le geste en cours.
 func click(cell: int) -> void:
 	if not _can_order():
 		return
 	var target: Vector2i = _view.map().cells[cell]
 	var command: Command = TargetCommand.new(target)
-	match _mode:
-		Mode.MOVE:
-			command = MoveTurretCommand.new(target)
-		Mode.ABILITY:
-			var ability: SimAbility = _session.simulation.state.defs.abilities[_ability]
-			command = UseAbilityCommand.new(ability.id, target)
+	if _mode == Mode.ABILITY:
+		var ability: SimAbility = _session.simulation.state.defs.abilities[_ability]
+		command = UseAbilityCommand.new(ability.id, target)
 	command.colony_id = _session.local_colony
 	var code: Refusal.Code = _session.simulation.check(command)
 	if code != Refusal.Code.OK:

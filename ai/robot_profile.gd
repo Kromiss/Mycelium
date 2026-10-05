@@ -22,13 +22,6 @@ extends Resource
 @export var defense_hold_ticks: int = 10
 ## Vrai s'il désigne au clic la Tourelle adverse dès qu'il peut la viser.
 @export var hunts_turrets: bool = false
-## Vrai s'il déplace sa Tourelle vers le centre de la forêt.
-@export var moves_turret: bool = false
-## Nombre minimal de ses cases autour de la case d'arrivée d'un pas (la Tourelle avance
-## derrière son territoire, pas en première ligne).
-@export var step_min_owned_neighbors: int = 4
-## Attente minimale entre deux pas, en secondes.
-@export var step_pause_ticks: int = 20
 ## Identifiants des capacités qu'il lance.
 @export var abilities: Array[StringName] = []
 

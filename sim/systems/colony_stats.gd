@@ -111,16 +111,6 @@ static func toxic_ticks(defs: SimDefs, colony: ColonyState) -> int:
 	return ticks
 
 
-## Durée d'un pas de la Tourelle, en secondes (la mutation la plus rapide l'emporte).
-static func step_ticks(defs: SimDefs, colony: ColonyState) -> int:
-	var ticks: int = defs.step_ticks
-	for index: int in colony.mutations:
-		var value: int = defs.mutations[index].step_ticks
-		if value > 0:
-			ticks = mini(ticks, value)
-	return ticks
-
-
 ## PV max de la Tourelle, en millièmes (10 × PV de base d'une case, Écorce, Blindé).
 static func turret_max_hp(defs: SimDefs, colony: ColonyState) -> int:
 	var hp: int = defs.cell_hp * defs.turret_hp_cells

@@ -19,8 +19,6 @@ extends Node2D
 @export var spore_arc: float = 0.35
 ## Nombre maximal de spores dessinées par tick.
 @export var max_spores: int = 80
-## Opacité de la Tourelle fantôme d'un pas.
-@export var ghost_alpha: float = 0.55
 
 var _view: ForestView
 var _session: Session
@@ -144,7 +142,7 @@ func _draw() -> void:
 	_draw_local(state, radius, palette)
 	for colony: ColonyState in state.colonies:
 		if colony.alive:
-			_draw_turret(state, colony, radius, palette)
+			_draw_turret(state, colony, radius)
 	_draw_spores(state, radius)
 	if _hover >= 0:
 		var hover_color: Color = palette.text
@@ -178,7 +176,7 @@ func _draw_healed(cell: int, colony_id: int, radius: float) -> void:
 	)
 
 
-## Ce qui ne concerne que la colonie du joueur : cercle de portée, cibles, pas en cours.
+## Ce qui ne concerne que la colonie du joueur : cercle de portée et cibles.
 func _draw_local(state: GameState, radius: float, palette: Palette) -> void:
 	var colony: ColonyState = _session.colony()
 	if colony == null or not colony.alive:
@@ -198,9 +196,8 @@ func _draw_local(state: GameState, radius: float, palette: Palette) -> void:
 		_draw_dashed_circle(target, radius + 1.0, palette.text, outline_width, 14)
 
 
-## Le Sporophore d'une colonie, avec le halo de ma couleur pour le mien, et la Tourelle
-## fantôme d'un pas en cours.
-func _draw_turret(state: GameState, colony: ColonyState, radius: float, palette: Palette) -> void:
+## Le Sporophore d'une colonie, avec le halo de ma couleur pour le mien.
+func _draw_turret(state: GameState, colony: ColonyState, radius: float) -> void:
 	var stage: int = TurretArt.stage_for(colony.tier)
 	var size: float = radius * TurretArt.STAGE_SCALES[stage]
 	var center: Vector2 = _view.cell_center(colony.turret)
@@ -216,30 +213,6 @@ func _draw_turret(state: GameState, colony: ColonyState, radius: float, palette:
 	if health < 1.0:
 		var ring: float = size + 4.0
 		draw_arc(center, ring, -PI / 2.0, -PI / 2.0 + TAU * health, 40, main, 5.0, true)
-	if colony.is_moving():
-		var target: Vector2 = _view.cell_center(colony.move_to)
-		_draw_dashed_circle(center, size + 6.0, _dark[colony.id], 3.0, 14)
-		TurretArt.draw(
-			self, target, size, stage, _dark[colony.id], main, TurretArt.INK, ghost_alpha
-		)
-		if local:
-			_draw_chip(
-				target + Vector2(0.0, size + 26.0), tr("MAP_STEP") % colony.move_left, palette
-			)
-
-
-## Petite étiquette arrondie (pas en cours).
-func _draw_chip(center: Vector2, text: String, palette: Palette) -> void:
-	var font: Font = ThemeFactory.bold_font()
-	var size: int = 22
-	var width: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x + 28.0
-	var rect := Rect2(center - Vector2(width * 0.5, 18.0), Vector2(width, 36.0))
-	var box: StyleBoxFlat = HudStyle.pill(palette.card, _dark[_session.local_colony], 3)
-	draw_style_box(box, rect)
-	var baseline: Vector2 = Vector2(rect.position.x, center.y + size * 0.36)
-	draw_string(
-		font, baseline, text, HORIZONTAL_ALIGNMENT_CENTER, width, size, _dark[_session.local_colony]
-	)
 
 
 ## Spores du dernier tick, en arc de la Tourelle à la case touchée pendant le tick suivant.

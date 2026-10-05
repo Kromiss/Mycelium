@@ -13,11 +13,11 @@ func test_defaults_come_from_data() -> void:
 	assert_eq(defs.radius(), 17)
 	assert_eq(defs.unit_cost, 30_000)
 	assert_eq(defs.start_stock(), 0)
-	assert_eq(defs.turret_damage, 10_000)
+	assert_eq(defs.turret_damage, 5_000)
 	assert_eq(defs.tier_cells, PackedInt32Array([5, 10, 20, 40, 80, 160]))
 	assert_eq(defs.tier_enzymes, PackedInt32Array([20, 40, 60, 80, 100, 120]))
 	assert_eq(defs.upgrades.size(), 12)
-	assert_eq(defs.mutations.size(), 15)
+	assert_eq(defs.mutations.size(), 14)
 	assert_eq(defs.abilities.size(), 3)
 
 
@@ -25,7 +25,7 @@ func test_prepare_builds_cost_tables() -> void:
 	var defs: SimDefs = SimDefs.from_mode(DUEL)
 	defs.prepare()
 	var range_index: int = defs.upgrade_index(&"range")
-	assert_eq(defs.upgrade_cost_tables[range_index].size(), 11)
+	assert_eq(defs.upgrade_cost_tables[range_index].size(), 3)
 	assert_eq(defs.upgrade_cost_tables[range_index][2], 9_000)
 	assert_eq(defs.upgrade_cost_tables[defs.upgrade_index(&"damage")][1], 1_150)
 
@@ -61,11 +61,10 @@ func test_copies_are_independent() -> void:
 func test_validate_rejects_absurd_settings() -> void:
 	var defs: SimDefs = SimDefs.from_mode(DUEL)
 	defs.sectors = 4
-	defs.step_ticks = 0
 	defs.turret_range = 0
 	defs.tier_cells[1] = 2
 	defs.upgrades[0].unlock_tier = 9
 	var problems: PackedStringArray = defs.validate()
-	for problem: String in ["sectors", "step_ticks", "turret", "tier_cells", "upgrades"]:
+	for problem: String in ["sectors", "turret", "tier_cells", "upgrades"]:
 		assert_has(problems, problem)
 	assert_eq(SimDefs.from_mode(FFA).validate(), PackedStringArray())

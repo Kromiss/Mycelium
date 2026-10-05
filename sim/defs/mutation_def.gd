@@ -29,8 +29,6 @@ extends Resource
 @export var spores_add: int = 0
 ## Lots d'Enzymes des paliers suivants.
 @export var enzymes_pm: int = 1000
-## Durée d'un pas de la Tourelle (secondes ; 0 : inchangée).
-@export var step_ticks: int = 0
 ## PV de la Tourelle.
 @export var turret_hp_pm: int = 1000
 ## Les cases touchées perdent leur régénération pendant ce nombre de secondes (0 : non).

@@ -11,8 +11,13 @@ const EDGE_0 := Vector2i(11, -1)
 
 
 ## Définitions de Duel, sans régénération si « regen » est faux (calculs de PV plus simples).
+## La Tourelle garde des valeurs fixes (10 dégâts, 1 tir/s, portée 3) : les tests de mécanique
+## ne dépendent pas de l'équilibrage de data/balance.tres.
 static func duel_defs(regen: bool = true) -> SimDefs:
 	var defs: SimDefs = SimDefs.from_mode(DUEL)
+	defs.turret_damage = 10_000
+	defs.turret_rate_pm = 1000
+	defs.turret_range = 3
 	if not regen:
 		defs.regen_pm = 0
 	return defs

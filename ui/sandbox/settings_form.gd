@@ -24,7 +24,6 @@ const PROBLEM_KEYS: Dictionary[String, String] = {
 	"economy": "SANDBOX_GENERAL",
 	"hp": "SANDBOX_GENERAL",
 	"turret": "SANDBOX_GENERAL",
-	"step_ticks": "SANDBOX_STEP",
 	"upgrade_cost_growth_pm": "SANDBOX_COST_GROWTH",
 	"match_ticks": "SANDBOX_PROTECTION",
 	"mutation_choices": "SANDBOX_GENERAL",

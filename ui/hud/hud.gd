@@ -363,13 +363,11 @@ func _update_hint() -> void:
 		_hint_label.text = tr("HUD_HINT_SPECTATOR") % ControlsText.action_key("toggle_pause")
 		return
 	match _hint_mode:
-		MapInput.Mode.MOVE:
-			_hint_label.text = tr("HUD_HINT_MOVE") % cancel
 		MapInput.Mode.ABILITY:
 			var ability: SimAbility = _session.simulation.state.defs.abilities[_hint_ability]
 			_hint_label.text = tr("HUD_HINT_ABILITY") % [tr(ability.name_key), cancel]
 		_:
-			_hint_label.text = tr("HUD_HINT") % ControlsText.action_key("move_turret")
+			_hint_label.text = tr("HUD_HINT")
 
 
 func _update_tooltip() -> void:

@@ -28,8 +28,6 @@ static func check(state: GameState, command: Command) -> Refusal.Code:
 			if not ColonyState.Priority.values().has(priority):
 				return Refusal.Code.UNKNOWN_PRIORITY
 			return Refusal.Code.OK
-		Command.Type.MOVE_TURRET:
-			return TurretSystem.check_move(state, colony, _cell(state, command))
 		Command.Type.BUY_UPGRADE:
 			var id: StringName = (command as BuyUpgradeCommand).upgrade
 			return Upgrades.check_buy(state, colony, state.defs.upgrade_index(id))
@@ -55,8 +53,6 @@ func _apply(state: GameState, command: Command, result: TickResult) -> Refusal.C
 			# Nouvelle priorité : les cibles gardées sont lâchées, la cible désignée reste.
 			colony.priority = (command as SetPriorityCommand).priority
 			colony.targets = PackedInt32Array()
-		Command.Type.MOVE_TURRET:
-			TurretSystem.start_move(state, colony, _cell(state, command))
 		Command.Type.BUY_UPGRADE:
 			var buy := command as BuyUpgradeCommand
 			Upgrades.buy(state, colony, state.defs.upgrade_index(buy.upgrade), buy.count)

@@ -157,8 +157,6 @@ static func eliminate(
 	victim.turret_hp = 0
 	victim.designated = -1
 	victim.targets = PackedInt32Array()
-	victim.move_to = -1
-	victim.move_left = 0
 	victim.production = 0
 	for cell: int in range(state.cell_count()):
 		if state.owner[cell] == victim.id:

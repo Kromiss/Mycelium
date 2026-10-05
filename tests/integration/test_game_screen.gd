@@ -138,6 +138,22 @@ func test_mutation_cards_appear_hide_with_the_eye_and_come_back() -> void:
 	assert_false(reopen.visible)
 
 
+func test_chosen_mutations_fit_on_one_line_of_icons() -> void:
+	var card: MutationsCard = _hud.mutations_card()
+	card.refresh(false)
+	var empty_height: float = card.get_combined_minimum_size().y
+	_grow(10)
+	_session.step()
+	_hud.choose_mutation(0)
+	_session.step()
+	_hud.choose_mutation(0)
+	_session.step()
+	card.refresh(false)
+	assert_eq(card.icon_count(), 2)
+	# Le cadre garde la hauteur d'une seule ligne, quel que soit le nombre de mutations.
+	assert_almost_eq(card.get_combined_minimum_size().y, empty_height, 1.0)
+
+
 func test_stacked_choices_show_one_after_the_other() -> void:
 	_grow(10)
 	_session.step()
@@ -192,8 +208,8 @@ func test_upgrade_effects_show_before_and_after() -> void:
 	var defs: SimDefs = simulation.state.defs
 	var damage: SimUpgrade = defs.upgrades[defs.upgrade_index(&"damage")]
 	var values: PackedInt64Array = simulation.upgrade_values(0, &"damage", 1)
-	assert_eq(values, PackedInt64Array([10_000, 12_500]))
-	assert_eq(GameText.upgrade_effect(damage, values), "+25 % per level · 10 → 12")
+	assert_eq(values, PackedInt64Array([5_000, 6_250]))
+	assert_eq(GameText.upgrade_effect(damage, values), "+25 % per level · 5 → 6")
 	var rate: SimUpgrade = defs.upgrades[defs.upgrade_index(&"rate")]
 	var rates: PackedInt64Array = simulation.upgrade_values(0, &"rate", 3)
-	assert_eq(GameText.upgrade_effect(rate, rates), "+10 % per level · 1 → 1.3 shots/s")
+	assert_eq(GameText.upgrade_effect(rate, rates), "+10 % per level · 0.2 → 0.26 shots/s")

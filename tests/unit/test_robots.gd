@@ -24,8 +24,6 @@ func _upgrade(id: StringName) -> int:
 func _profile() -> RobotProfile:
 	var profile := RobotProfile.new()
 	profile.id = &"test"
-	profile.step_min_owned_neighbors = 0
-	profile.step_pause_ticks = 0
 	return profile
 
 
@@ -165,39 +163,6 @@ func test_hunter_designates_the_enemy_turret_when_it_can() -> void:
 	assert_eq((targets[0] as TargetCommand).cell, enemy)
 	profile.hunts_turrets = false
 	assert_true(_commands_of(robot.decide(_sim), Command.Type.TARGET).is_empty())
-
-
-func test_conqueror_steps_toward_the_center_behind_its_territory() -> void:
-	var profile: RobotProfile = _profile()
-	profile.moves_turret = true
-	profile.step_min_owned_neighbors = 3
-	var robot := Robot.new(profile, 0, 1)
-	# La case vers le centre n'a pas assez de voisines à la colonie.
-	assert_true(_commands_of(robot.decide(_sim), Command.Type.MOVE_TURRET).is_empty())
-	Fixture.give(_sim, 0, _behind_inner())
-	var moves: Array[Command] = _commands_of(robot.decide(_sim), Command.Type.MOVE_TURRET)
-	assert_eq(moves.size(), 1)
-	assert_eq((moves[0] as MoveTurretCommand).cell, Fixture.INNER_0)
-	_sim.tick(moves)
-	assert_true(_colony().is_moving())
-	assert_true(_commands_of(robot.decide(_sim), Command.Type.MOVE_TURRET).is_empty())
-
-
-func test_only_moving_profiles_step() -> void:
-	var profile: RobotProfile = _profile()
-	Fixture.give(_sim, 0, _behind_inner())
-	var robot := Robot.new(profile, 0, 1)
-	assert_true(_commands_of(robot.decide(_sim), Command.Type.MOVE_TURRET).is_empty())
-	assert_true(RobotCatalog.CONQUEROR.moves_turret)
-	assert_false(RobotCatalog.GUNNER.moves_turret)
-	assert_false(RobotCatalog.BUILDER.moves_turret)
-
-
-## Ligne vers le centre et deux cases en dessous : la case vers le centre a 3 voisines à moi.
-func _behind_inner() -> Array[Vector2i]:
-	var cells: Array[Vector2i] = Fixture.line_to_center(3)
-	cells.append_array([Vector2i(10, 1), Vector2i(9, 1)])
-	return cells
 
 
 # --- Capacités ---
@@ -378,7 +343,6 @@ func test_catalog_names_profiles_and_game_robots() -> void:
 	assert_eq(robot.profile, RobotCatalog.GAME_ROBOT)
 	assert_eq(robot.difficulty, RobotCatalog.EASY)
 	assert_eq(robot.colony_id, 2)
-	assert_true(RobotCatalog.GAME_ROBOT.moves_turret)
 	assert_eq(RobotCatalog.HARD.act_every_ticks, 1)
 	assert_eq(RobotCatalog.NORMAL.act_every_ticks, 2)
 	assert_eq(RobotCatalog.EASY.act_every_ticks, 3)

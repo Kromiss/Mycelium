@@ -6,6 +6,20 @@ L'historique de l'ancienne version web est dans la branche `archive/web`.
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-10-05
+
+Réglages du Sporophore et du panneau, avant l'arrivée des bâtiments.
+
+### Modifié
+- Le Sporophore ne bouge plus : plus de pas, plus de touche D, plus de mutation *Rapide*
+  (14 mutations) ; les robots ne déplacent plus leur Tourelle.
+- Portée de départ 2 (au lieu de 3), amélioration Portée limitée à 2 niveaux (portée 4 au plus).
+- Cadence de départ 0,2 tir/s (un tir toutes les 5 s) et 5 dégâts par spore (au lieu de 1 tir/s
+  et 10 dégâts). Les cadences s'affichent au centième.
+- Panneau : « Mes mutations » tient sur une seule ligne d'icônes (palier sur l'icône, nom et effet
+  dans l'info-bulle) ; les lignes d'améliorations sont plus compactes, pour en voir plus.
+- Format d'enregistrement des rejeux : 3 (les rejeux plus anciens ne se relisent plus).
+
 ## [0.5.1] - 2026-10-05
 
 Correctif — réactivité en partie.

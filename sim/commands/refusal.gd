@@ -15,7 +15,7 @@ enum Code {
 	GAME_OVER,
 	## La case n'est pas dans le cercle de portée de la Tourelle.
 	OUT_OF_RANGE,
-	## La case ne touche pas le territoire de la colonie (ou n'est pas voisine de la Tourelle).
+	## La case ne touche pas le territoire de la colonie.
 	NOT_ADJACENT,
 	## Case adverse ou capacité pendant la protection de départ.
 	PROTECTED,
@@ -25,8 +25,6 @@ enum Code {
 	TURRET_CELL,
 	## La case n'est pas à la colonie.
 	NOT_OWNED,
-	## La Tourelle fait déjà un pas.
-	ALREADY_MOVING,
 	## Cette priorité de tir n'existe pas.
 	UNKNOWN_PRIORITY,
 	## Cette amélioration n'existe pas.

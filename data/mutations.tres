@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="MutationTable" load_steps=18 format=3]
+[gd_resource type="Resource" script_class="MutationTable" load_steps=17 format=3]
 
 [ext_resource type="Script" path="res://sim/defs/mutation_def.gd" id="1_item"]
 [ext_resource type="Script" path="res://sim/defs/mutation_table.gd" id="2_table"]
@@ -82,13 +82,6 @@ name_key = "MUTATION_GLAND"
 desc_key = "MUTATION_GLAND_DESC"
 enzymes_pm = 1500
 
-[sub_resource type="Resource" id="mutation_12"]
-script = ExtResource("1_item")
-id = &"swift"
-name_key = "MUTATION_SWIFT"
-desc_key = "MUTATION_SWIFT_DESC"
-step_ticks = 5
-
 [sub_resource type="Resource" id="mutation_13"]
 script = ExtResource("1_item")
 id = &"armored"
@@ -112,4 +105,4 @@ cost_pm = 850
 
 [resource]
 script = ExtResource("2_table")
-mutations = Array[ExtResource("1_item")]([SubResource("mutation_1"), SubResource("mutation_2"), SubResource("mutation_3"), SubResource("mutation_4"), SubResource("mutation_5"), SubResource("mutation_6"), SubResource("mutation_7"), SubResource("mutation_8"), SubResource("mutation_9"), SubResource("mutation_10"), SubResource("mutation_11"), SubResource("mutation_12"), SubResource("mutation_13"), SubResource("mutation_14"), SubResource("mutation_15")])
+mutations = Array[ExtResource("1_item")]([SubResource("mutation_1"), SubResource("mutation_2"), SubResource("mutation_3"), SubResource("mutation_4"), SubResource("mutation_5"), SubResource("mutation_6"), SubResource("mutation_7"), SubResource("mutation_8"), SubResource("mutation_9"), SubResource("mutation_10"), SubResource("mutation_11"), SubResource("mutation_13"), SubResource("mutation_14"), SubResource("mutation_15")])

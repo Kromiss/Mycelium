@@ -105,10 +105,10 @@ res://
 │   └── tutorial_director.gd  Étapes du tutoriel
 ├── view/                     Affichage de la partie (lecture seule)
 │   ├── map/                  Cases-bulles (MultiMeshInstance2D), zones (shader)
-│   ├── colony/               Colonies (G3 : états des cases des maquettes, Sporophore en trois stades — turret_art.gd —, portée, cibles, spores, pas en cours) ; plus tard taches arrondies
+│   ├── colony/               Colonies (G3 : états des cases des maquettes, Sporophore en trois stades — turret_art.gd —, portée, cibles, spores) ; plus tard taches arrondies
 │   ├── effects/              Ondes de palier, particules, Floraison
 │   ├── camera/               Caméra 2D (déplacement, zoom)
-│   └── input/                Gestes : clic (cible), D + clic (pas de la Tourelle), capacité + clic (Mur, Nuage) -> commandes
+│   └── input/                Gestes : clic (cible), capacité + clic (Mur, Nuage) -> commandes
 ├── ui/                       Écrans et HUD (nœuds Control)
 │   ├── menus/  hud/  sandbox/  play/  lobby/  settings/  results/  tutorial/  admin/
 │   │                         (play/ en G4 : lancement d'une partie contre les robots, mode et difficulté)
@@ -150,7 +150,7 @@ res://
 ### 4.1 L'état
 - `GameState` contient tout ce qui définit la partie à un instant donné : numéro du tick, graine, carte, colonies, classement final.
 - La carte est stockée en **tableaux compacts** indexés par numéro de case (`PackedInt32Array`, `PackedInt64Array`) : propriétaire, PV (millièmes), dernière colonie qui a entamé la case, tick de fin de l'arrêt de régénération (Toxique, Nuage), et un rang tiré de la graine pour départager les cases à égalité.
-- Les colonies sont des objets `ColonyState` : ressources, palier, Tourelle (case, PV, priorité, cible désignée, cibles gardées, tirs accumulés, pas en cours), niveaux d'amélioration, mutations et choix en attente, recharges et effets des capacités, Trophées, élimination, statistiques. Les PV de la case d'une Tourelle sont ceux de la Tourelle (`turret_hp`).
+- Les colonies sont des objets `ColonyState` : ressources, palier, Tourelle (case, PV, priorité, cible désignée, cibles gardées, tirs accumulés), niveaux d'amélioration, mutations et choix en attente, recharges et effets des capacités, Trophées, élimination, statistiques. Les PV de la case d'une Tourelle sont ceux de la Tourelle (`turret_hp`).
 - **Aucune référence vers un nœud**, aucune dépendance à l'affichage.
 
 ### 4.2 Le tick
@@ -169,11 +169,11 @@ res://
 
 Dans `TurretSystem`, les colonies jouent l'une après l'autre et la première change à chaque tick (tick modulo nombre de colonies). Une Tourelle accumule ses tirs en millièmes (cadence non entière) ; avant chaque tir, ses cibles sont remises à jour (une par spore ; la cible désignée d'abord ; une cible est gardée tant qu'elle reste visable). Un pas de N secondes commencé au tick t se termine à la fin du tick t + N − 1 ; pendant le pas, la Tourelle ne tire pas et reste sur sa case de départ.
 
-`TickResult` contient les **différences** (cases et colonies modifiées, spores tirées, prises, cases perdues par coupure, éliminations, pas terminés, capacités lancées, paliers, nouveaux choix de mutations, commandes refusées) et l'**empreinte**.
+`TickResult` contient les **différences** (cases et colonies modifiées, spores tirées, prises, cases perdues par coupure, éliminations, capacités lancées, paliers, nouveaux choix de mutations, commandes refusées) et l'**empreinte**.
 
 ### 4.3 Les commandes
-- Classe de base `Command` : `tick`, `colony_id`, `type`. Les commandes qui visent une case héritent de `CellCommand` (case en coordonnées axiales). Une sous-classe par action (G3) : `TargetCommand` (cible au clic), `SetPriorityCommand`, `MoveTurretCommand` (un pas), `BuyUpgradeCommand` (1, 10 ou le maximum), `ChooseMutationCommand`, `UseAbilityCommand`.
-- **Ordres du joueur local au clic** *(décidé le 5 octobre 2026)* : en partie locale, une commande du joueur est jouée tout de suite, entre deux ticks, par `Simulation.apply_now(commandes)` (étape des commandes seule : ni tir ni production) ; le tick suivant se déroule ensuite normalement. Les commandes des robots restent jouées au début du tick. Le `Replay` (format 2) note ces commandes « early » et les rejoue juste avant leur tick (`Replay.batch_at()`), ce qui redonne la même partie. En ligne (G7), l'hôte décidera : ce point sera revu à ce moment-là.
+- Classe de base `Command` : `tick`, `colony_id`, `type`. Les commandes qui visent une case héritent de `CellCommand` (case en coordonnées axiales). Une sous-classe par action (G3) : `TargetCommand` (cible au clic), `SetPriorityCommand`, `BuyUpgradeCommand` (1, 10 ou le maximum), `ChooseMutationCommand`, `UseAbilityCommand`. `MoveTurretCommand` a été retirée le 5 octobre 2026 (Sporophore fixe) : les replays enregistrés avant la 0.5.2 ne se rejouent plus.
+- **Ordres du joueur local au clic** *(décidé le 5 octobre 2026)* : en partie locale, une commande du joueur est jouée tout de suite, entre deux ticks, par `Simulation.apply_now(commandes)` (étape des commandes seule : ni tir ni production) ; le tick suivant se déroule ensuite normalement. Les commandes des robots restent jouées au début du tick. Le `Replay` (format 2 ; 3 depuis la 0.5.2, sans commande de pas) note ces commandes « early » et les rejoue juste avant leur tick (`Replay.batch_at()`), ce qui redonne la même partie. En ligne (G7), l'hôte décidera : ce point sera revu à ce moment-là.
 - Chaque commande sait se **convertir en dictionnaire et inversement** (`to_dict()`, `from_dict()`), pour le réseau et les replays.
 - La validation renvoie un code de refus explicite (`Refusal.Code` : `OUT_OF_RANGE`, `NOT_ADJACENT`, `PROTECTED`, `TIER_LOCKED`, `NOT_ENOUGH_NUTRIENTS`, `COOLDOWN`…) que l'interface traduit en message. L'interface peut demander à l'avance si une commande serait acceptée (`Simulation.check(commande)`), ainsi que les PV max d'une case (`cell_max_hp()`), la portée (`in_range()`, `is_target()`) et le coût d'une amélioration (`upgrade_cost()`, `upgrade_preview()` pour ×10 et Max). Les chiffres d'une colonie (dégâts, cadence, portée, PV, production…) viennent de `ColonyStats`.
 

@@ -66,7 +66,7 @@ HUD_PAUSED_NO_ORDERS,Paused: orders are blocked,En pause : les ordres sont bloqu
 HUD_HINT_SPECTATOR,Robot game · %s: pause · Speed: up to ×64,Partie de robots · %s : pause · Vitesse : jusqu'à ×64
 HUD_SPECTATOR_NO_ORDERS,Watching a robot game: no orders,Partie de robots regardée : aucun ordre
 HUD_TIER_BANNER,Tier %s!,Palier %s !
-HUD_HINT,Click: target this cell · %s: move the Sporophore,Clic : viser cette case · %s : déplacer le Sporophore
+HUD_HINT,Click: target this cell,Clic : viser cette case
 TIP_ZONE,Zone %d,Zone %d
 TIP_FREE,Free cell,Case libre
 TIP_OWNED,Your colony,Ta colonie
@@ -128,7 +128,6 @@ SANDBOX_TURRET_RANGE,Sporophore: range (cells),Sporophore : portée (cases)
 SANDBOX_TURRET_SPORES,Sporophore: spores per shot,Sporophore : spores par tir
 SANDBOX_TURRET_HP,Sporophore: HP (in base cell HP),Sporophore : PV (en PV de base d'une case)
 SANDBOX_HEAL,Heal per spore (% of damage),Soin par spore (% des dégâts)
-SANDBOX_STEP,Duration of a Sporophore step (s),Durée d'un pas du Sporophore (s)
 SANDBOX_CRIT_DAMAGE,Critical hit damage (×),Dégâts d'un coup critique (×)
 SANDBOX_PROTECTION,Starting protection (s),Protection de départ (s)
 SANDBOX_TROPHY_PRODUCTION,Trophy: production bonus (%),Trophée : bonus de production (%)
@@ -160,7 +159,6 @@ RECAP_PAIR,%s: %s,%s : %s
 RECAP_COMBAT,Enzymes: %s · cells captured: %d · trophies: %d,Enzymes : %s · cases prises : %d · trophées : %d
 RECAP_UPGRADES,Upgrades: %s,Améliorations : %s
 RECAP_MUTATIONS,Mutations: %s,Mutations : %s
-ACTION_MOVE_TURRET,Move the Sporophore (then click),Déplacer le Sporophore (puis clic)
 UPGRADE_DAMAGE,Damage,Dégâts
 UPGRADE_RATE,Fire rate,Cadence
 UPGRADE_RANGE,Range,Portée
@@ -195,8 +193,6 @@ MUTATION_SPORE_BURST,Spore burst,Sporée
 MUTATION_SPORE_BURST_DESC,+1 spore per shot,+1 spore par tir
 MUTATION_GLAND,Gland,Glande
 MUTATION_GLAND_DESC,+50% Enzymes at the next tiers,+50 % d'Enzymes aux prochains paliers
-MUTATION_SWIFT,Swift,Rapide
-MUTATION_SWIFT_DESC,A Sporophore step lasts 5 s,Un pas du Sporophore dure 5 s
 MUTATION_ARMORED,Armoured,Blindé
 MUTATION_ARMORED_DESC,Sporophore HP ×2,PV du Sporophore ×2
 MUTATION_TOXIC,Toxic,Toxique
@@ -216,7 +212,6 @@ REFUSAL_PROTECTED,Not during the starting protection,Pas pendant la protection d
 REFUSAL_NOT_WOUNDED,This cell is at full health,Cette case est à pleine vie
 REFUSAL_TURRET_CELL,Your Sporophore stands on this cell,Ton Sporophore est sur cette case
 REFUSAL_NOT_OWNED,This cell is not yours,Cette case n'est pas à toi
-REFUSAL_ALREADY_MOVING,Your Sporophore is already moving,Ton Sporophore est déjà en train de se déplacer
 REFUSAL_UNKNOWN_PRIORITY,Unknown priority,Priorité inconnue
 REFUSAL_UNKNOWN_UPGRADE,Unknown upgrade,Amélioration inconnue
 REFUSAL_TIER_LOCKED,Your colony has not reached the required tier,Ta colonie n'a pas atteint le palier requis
@@ -234,7 +229,6 @@ HUD_KILLS,%d kills,%d élim.
 HUD_RATE_VALUE,%s/s,%s/s
 HUD_JOURNAL,Log,Journal
 HUD_JOURNAL_EMPTY,Nothing yet,Rien pour l'instant
-HUD_HINT_MOVE,Click one of your cells next to the Sporophore · %s: cancel,Clic sur une de tes cases voisines du Sporophore · %s : annuler
 HUD_HINT_ABILITY,%s: click a cell · %s: cancel,%s : clique sur une case · %s : annuler
 HUD_ENZYMES_AMOUNT,Enzymes %s,Enzymes %s
 HUD_BIOMASS_AMOUNT,Biomass %s,Biomasse %s
@@ -286,7 +280,6 @@ MUTATION_TITLE,Choose a mutation,Choisis une mutation
 MUTATION_SUBTITLE,The game goes on while you choose.,La partie continue pendant le choix.
 MUTATION_KEY,Key %s,Touche %s
 MUTATION_HIDE,Hide the cards to see the map,Cacher les cartes pour voir la carte
-MAP_STEP,"Step: %d s, not firing","Pas : %d s, sans tirer"
 JOURNAL_PROTECTION,Starting protection over: enemy cells can be targeted,Fin de la protection : les cases adverses peuvent être visées
 JOURNAL_ATTACK,%s is attacking your cells,%s vise tes cases
 JOURNAL_LOST,%s took %d of your cells,%s a pris %d de tes cases
@@ -311,7 +304,6 @@ SANDBOX_MUT_ENEMY_DAMAGE,Damage to enemy cells ×,Dégâts aux cases adverses ×
 SANDBOX_MUT_HEAL,Healing ×,Soin ×
 SANDBOX_MUT_SPORES,Spores per shot +,Spores par tir +
 SANDBOX_MUT_ENZYMES,Tier Enzymes ×,Enzymes des paliers ×
-SANDBOX_MUT_STEP,Step duration (s),Durée d'un pas (s)
 SANDBOX_MUT_TURRET_HP,Sporophore HP ×,PV du Sporophore ×
 SANDBOX_MUT_TOXIC,No regeneration (s),Sans régénération (s)
 SANDBOX_MUT_COST,Upgrade cost ×,Coût des améliorations ×

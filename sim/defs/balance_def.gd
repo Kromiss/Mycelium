@@ -32,20 +32,18 @@ extends Resource
 @export var captured_hp_pm: int = 250
 
 # --- Tourelle (§5, §6.3, §7.3, §7.4) ---
-## Dégâts d'une spore, en millièmes (10).
-@export var turret_damage: int = 10_000
-## Tirs par seconde, en pour-mille (1 tir/s).
-@export var turret_rate_pm: int = 1000
-## Portée de départ, en cases.
-@export var turret_range: int = 3
+## Dégâts d'une spore, en millièmes (5, décidé le 5 octobre 2026).
+@export var turret_damage: int = 5_000
+## Tirs par seconde, en pour-mille (0,2 tir/s : un tir toutes les 5 s, décidé le 5 octobre 2026).
+@export var turret_rate_pm: int = 200
+## Portée de départ, en cases (2, décidé le 5 octobre 2026).
+@export var turret_range: int = 2
 ## Spores par tir au départ.
 @export var turret_spores: int = 1
 ## PV de la Tourelle, en nombre de PV de base d'une case (10 × 40 = 400, décidé le 4 octobre 2026).
 @export var turret_hp_cells: int = 10
 ## Soin d'une spore, en part des dégâts (50 %).
 @export var heal_pm: int = 500
-## Durée d'un pas de la Tourelle, en secondes.
-@export var step_ticks: int = 10
 ## Multiplicateur des dégâts d'un coup critique (×3).
 @export var crit_damage_pm: int = 3000
 

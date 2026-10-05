@@ -3,7 +3,8 @@ extends PanelContainer
 ## Améliorations (maquette « Écran de partie ») : onglets Attaque / Défense / Économie, choix
 ## ×1 / ×10 / Max, et une ligne par amélioration de l'onglet : pastille du niveau, nom, effet
 ## (avant → après), bouton du coût (plein s'il est payable, grisé sinon). Une amélioration
-## verrouillée indique le palier requis.
+## verrouillée indique le palier requis. Lignes compactes (54 px, décidé le 5 octobre 2026)
+## pour en voir plus sans faire défiler.
 
 ## Le joueur veut acheter « count » niveaux (0 : le maximum payable) d'une amélioration.
 signal buy_requested(upgrade: StringName, count: int)
@@ -13,6 +14,8 @@ const TAB_KEYS: Array[String] = ["TAB_ATTACK", "TAB_DEFENSE", "TAB_ECONOMY"]
 ## Choix d'achat : nombre de niveaux (0 : le maximum payable) et clé du libellé.
 const COUNTS: Array[int] = [1, 10, 0]
 const COUNT_KEYS: Array[String] = ["BUY_ONE", "BUY_TEN", "BUY_MAX"]
+## Hauteur d'une ligne d'amélioration, en pixels.
+const ROW_HEIGHT: float = 54.0
 
 var _session: Session
 var _main: Color = Color.WHITE
@@ -142,9 +145,9 @@ func _new_line(upgrade: SimUpgrade) -> Line:
 	line.upgrade = upgrade
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override(&"separation", 15)
-	row.custom_minimum_size = Vector2(0.0, 69.0)
+	row.custom_minimum_size = Vector2(0.0, ROW_HEIGHT)
 	line.badge = Label.new()
-	line.badge.custom_minimum_size = Vector2(51.0, 51.0)
+	line.badge.custom_minimum_size = Vector2(42.0, 42.0)
 	line.badge.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	line.badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	line.badge.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -165,7 +168,7 @@ func _new_line(upgrade: SimUpgrade) -> Line:
 	# Réagit dès l'appui (pas au relâchement) : l'achat part tout de suite.
 	line.button.action_mode = BaseButton.ACTION_MODE_BUTTON_PRESS
 	line.button.focus_mode = Control.FOCUS_NONE
-	line.button.custom_minimum_size = Vector2(132.0, 54.0)
+	line.button.custom_minimum_size = Vector2(132.0, 42.0)
 	line.button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	line.button.add_theme_font_override(&"font", ThemeFactory.bold_font())
 	line.button.add_theme_font_size_override(&"font_size", ThemeFactory.BODY_SIZE)

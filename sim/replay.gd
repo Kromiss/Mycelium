@@ -14,8 +14,9 @@ class Batch:
 	var next: int = 0
 
 
-## Version du format, à augmenter si l'enregistrement change (2 : commandes « early »).
-const FORMAT: int = 2
+## Version du format, à augmenter si l'enregistrement change (2 : commandes « early » ; 3 : plus de
+## commande de pas, les numéros des types de commande ont changé).
+const FORMAT: int = 3
 
 var defs: SimDefs
 var game_seed: int = 0

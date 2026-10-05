@@ -47,9 +47,6 @@ var designated: int = -1
 var targets: PackedInt32Array = PackedInt32Array()
 ## Tirs accumulés, en millièmes de tir (la cadence n'est pas un nombre entier de tirs par tick).
 var shot_progress: int = 0
-## Case vers laquelle la Tourelle fait un pas (−1 : aucun pas), et secondes restantes.
-var move_to: int = -1
-var move_left: int = 0
 
 # --- Améliorations, mutations, capacités ---
 ## Niveau de chaque amélioration (rang dans SimDefs.upgrades).
@@ -109,11 +106,6 @@ func stats_copy() -> ColonyState:
 	return copy
 
 
-## Vrai si la Tourelle est en train de faire un pas.
-func is_moving() -> bool:
-	return move_to >= 0
-
-
 ## Valeurs entières de la colonie, dans un ordre fixe, pour l'empreinte de la partie.
 func hash_values() -> PackedInt64Array:
 	var values := PackedInt64Array(
@@ -133,8 +125,6 @@ func hash_values() -> PackedInt64Array:
 			priority,
 			designated,
 			shot_progress,
-			move_to,
-			move_left,
 			salvo_until,
 			salvo_rate_pm,
 			wall_center,

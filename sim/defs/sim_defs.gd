@@ -31,7 +31,6 @@ const BALANCE_FIELDS: PackedStringArray = [
 	"turret_spores",
 	"turret_hp_cells",
 	"heal_pm",
-	"step_ticks",
 	"crit_damage_pm",
 	"match_ticks",
 	"protection_ticks",
@@ -82,7 +81,6 @@ var turret_range: int = 0
 var turret_spores: int = 0
 var turret_hp_cells: int = 0
 var heal_pm: int = 0
-var step_ticks: int = 0
 var crit_damage_pm: int = 0
 var match_ticks: int = 0
 var protection_ticks: int = 0
@@ -222,8 +220,6 @@ func validate() -> PackedStringArray:
 		problems.append("hp")
 	if turret_damage < 0 or turret_rate_pm < 0 or turret_range < 1 or turret_spores < 1:
 		problems.append("turret")
-	if step_ticks < 1:
-		problems.append("step_ticks")
 	if upgrade_cost_growth_pm < Fixed.ONE:
 		problems.append("upgrade_cost_growth_pm")
 	if match_ticks < 1 or protection_ticks < 0:

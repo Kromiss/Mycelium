@@ -42,7 +42,7 @@ static func _stat_text(stat: int, value: int, per_level: bool) -> String:
 		UpgradeDef.Stat.DAMAGE, UpgradeDef.Stat.HEAL, UpgradeDef.Stat.TURRET_HP:
 			return percent(value) if per_level else NumberFormat.amount(value)
 		UpgradeDef.Stat.RATE:
-			return percent(value) if per_level else NumberFormat.decimal(_round_tenth(value))
+			return percent(value) if per_level else NumberFormat.decimal(round_hundredth(value))
 		UpgradeDef.Stat.YIELD:
 			return percent(value) if per_level else NumberFormat.rate(value)
 		UpgradeDef.Stat.CELL_HP:
@@ -57,9 +57,10 @@ static func percent(per_mille: int) -> String:
 	return NumberFormat.decimal(per_mille * 100)
 
 
-## Arrondi au dixième d'une valeur en millièmes (cadences).
-static func _round_tenth(milli: int) -> int:
-	return Fixed.div_round(milli, 100) * 100
+## Arrondi au centième d'une valeur en millièmes (cadences : à 0,2 tir/s, un niveau de Cadence
+## ajoute 0,02 tir/s).
+static func round_hundredth(milli: int) -> int:
+	return Fixed.div_round(milli, 10) * 10
 
 
 static func _t(key: String) -> String:

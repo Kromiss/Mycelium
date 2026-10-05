@@ -125,7 +125,7 @@ func test_upgrades_match_the_catalogue() -> void:
 
 func test_every_mutation_changes_something() -> void:
 	var table: MutationTable = load("res://data/mutations.tres")
-	assert_eq(table.mutations.size(), 15)
+	assert_eq(table.mutations.size(), 14)
 	var neutral := MutationDef.new()
 	for mutation: MutationDef in table.mutations:
 		var changes: int = 0
