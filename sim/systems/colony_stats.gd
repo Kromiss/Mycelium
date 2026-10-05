@@ -53,14 +53,18 @@ static func damage_on(state: GameState, colony: ColonyState, cell: int) -> int:
 
 ## Tirs par seconde, en pour-mille, Salve comprise si elle est active à ce tick.
 static func rate_pm(state: GameState, colony: ColonyState) -> int:
-	var defs: SimDefs = state.defs
-	var rate: int = Fixed.mul(
-		defs.turret_rate_pm, Fixed.ONE + upgrade_bonus(defs, colony, UpgradeDef.Stat.RATE)
-	)
-	rate = Fixed.mul(rate, mutation_product(defs, colony, &"rate_pm"))
+	var rate: int = base_rate_pm(state.defs, colony)
 	if state.tick < colony.salvo_until:
 		rate = Fixed.mul(rate, colony.salvo_rate_pm)
 	return rate
+
+
+## Tirs par seconde, en pour-mille, sans la Salve (améliorations et mutations).
+static func base_rate_pm(defs: SimDefs, colony: ColonyState) -> int:
+	var rate: int = Fixed.mul(
+		defs.turret_rate_pm, Fixed.ONE + upgrade_bonus(defs, colony, UpgradeDef.Stat.RATE)
+	)
+	return Fixed.mul(rate, mutation_product(defs, colony, &"rate_pm"))
 
 
 ## Portée de la Tourelle, en cases.
@@ -129,10 +133,7 @@ static func stat_value(state: GameState, colony: ColonyState, stat: int) -> int:
 		UpgradeDef.Stat.DAMAGE:
 			return damage(defs, colony)
 		UpgradeDef.Stat.RATE:
-			var rate: int = Fixed.mul(
-				defs.turret_rate_pm, Fixed.ONE + upgrade_bonus(defs, colony, UpgradeDef.Stat.RATE)
-			)
-			return Fixed.mul(rate, mutation_product(defs, colony, &"rate_pm"))
+			return base_rate_pm(defs, colony)
 		UpgradeDef.Stat.RANGE:
 			return turret_range(defs, colony)
 		UpgradeDef.Stat.YIELD:
@@ -154,6 +155,30 @@ static func stat_value(state: GameState, colony: ColonyState, stat: int) -> int:
 		UpgradeDef.Stat.BOUNCE:
 			return bounce(defs, colony)
 	return 0
+
+
+# --- Bâtiments (GDD §5 bis) ---
+
+
+## Places de bâtiment de la colonie : 1 au palier 1, +1 par palier (palier actuel).
+static func building_slots(defs: SimDefs, colony: ColonyState) -> int:
+	return colony.tier * defs.building_slots_per_tier
+
+
+## Portée d'un bâtiment (rang dans SimDefs.buildings), en cases : la sienne, plus Hyphes
+## longues (la Portée du panneau ne compte pas).
+static func building_reach(defs: SimDefs, colony: ColonyState, type: int) -> int:
+	return defs.buildings[type].reach + mutation_sum(defs, colony, &"building_range_add")
+
+
+## PV max d'un bâtiment, en millièmes : les siens × l'amélioration PV des cases.
+static func building_max_hp(defs: SimDefs, colony: ColonyState, type: int) -> int:
+	return Fixed.mul(defs.buildings[type].hp, cell_hp_factor(defs, colony))
+
+
+## Tirs par seconde d'un bâtiment, en pour-mille : cadence du Sporophore sans la Salve × la sienne.
+static func building_rate_pm(defs: SimDefs, colony: ColonyState, type: int) -> int:
+	return Fixed.mul(base_rate_pm(defs, colony), defs.buildings[type].rate_pm)
 
 
 # --- Cases ---

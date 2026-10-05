@@ -11,6 +11,7 @@ const BALANCE_PATH: String = "res://data/balance.tres"
 const UPGRADES_PATH: String = "res://data/upgrades.tres"
 const MUTATIONS_PATH: String = "res://data/mutations.tres"
 const ABILITIES_PATH: String = "res://data/abilities.tres"
+const BUILDINGS_PATH: String = "res://data/buildings.tres"
 ## Champs copiés tels quels depuis BalanceDef (mêmes noms des deux côtés).
 const BALANCE_FIELDS: PackedStringArray = [
 	"unit_cost",
@@ -37,6 +38,9 @@ const BALANCE_FIELDS: PackedStringArray = [
 	"trophy_production_pm",
 	"trophy_enzymes",
 	"mutation_choices",
+	"building_slots_per_tier",
+	"building_start_hp_pm",
+	"building_sleep_ticks",
 ]
 ## Champs des zones et des paliers (tableaux, index 0 = zone 1 ou palier 1).
 const ZONE_FIELDS: PackedStringArray = ["zone_richness_pm", "zone_free_hp_pm", "zone_defense_pm"]
@@ -87,6 +91,9 @@ var protection_ticks: int = 0
 var trophy_production_pm: int = 0
 var trophy_enzymes: int = 0
 var mutation_choices: int = 0
+var building_slots_per_tier: int = 0
+var building_start_hp_pm: int = 0
+var building_sleep_ticks: int = 0
 
 # --- Contenu ---
 ## Améliorations, dans l'ordre du panneau ; une amélioration est désignée par son rang ici.
@@ -95,6 +102,8 @@ var upgrades: Array[SimUpgrade] = []
 var mutations: Array[SimMutation] = []
 ## Capacités, dans l'ordre des boutons.
 var abilities: Array[SimAbility] = []
+## Bâtiments, dans l'ordre des boutons ; un bâtiment est désigné par son rang ici.
+var buildings: Array[SimBuilding] = []
 
 # --- Valeurs dérivées, calculées par prepare() ---
 ## Pour chaque amélioration : facteur de coût ^ niveau, en pour-mille.
@@ -116,6 +125,9 @@ static func from_mode(mode: ModeDef) -> SimDefs:
 	var ability_table: AbilityTable = load(ABILITIES_PATH)
 	for def: AbilityDef in ability_table.abilities:
 		defs.abilities.append(SimAbility.from_def(def))
+	var building_table: BuildingTable = load(BUILDINGS_PATH)
+	for def: BuildingDef in building_table.buildings:
+		defs.buildings.append(SimBuilding.from_def(def))
 	return defs
 
 
@@ -172,6 +184,14 @@ func upgrade_index(id: StringName) -> int:
 func ability_index(id: StringName) -> int:
 	for index: int in range(abilities.size()):
 		if abilities[index].id == id:
+			return index
+	return -1
+
+
+## Rang d'un bâtiment d'après son identifiant (−1 s'il n'existe pas).
+func building_index(id: StringName) -> int:
+	for index: int in range(buildings.size()):
+		if buildings[index].id == id:
 			return index
 	return -1
 
@@ -238,6 +258,17 @@ func validate() -> PackedStringArray:
 			problems.append("abilities")
 		elif ability.cost_enzymes < 0 or ability.cooldown_ticks < 0 or ability.radius < 0:
 			problems.append("abilities")
+	if building_slots_per_tier < 0 or building_sleep_ticks < 0:
+		problems.append("building_rules")
+	if building_start_hp_pm < 0 or building_start_hp_pm > Fixed.ONE:
+		problems.append("building_rules")
+	for building: SimBuilding in buildings:
+		if building.unlock_tier < 0 or building.unlock_tier > tier_count():
+			problems.append("buildings")
+		elif building.cost_enzymes < 0 or building.build_ticks < 0 or building.reach < 1:
+			problems.append("buildings")
+		elif building.hp < 1 or building.damage_pm < 0 or building.rate_pm < 0:
+			problems.append("buildings")
 	return problems
 
 
@@ -261,6 +292,7 @@ func to_dict() -> Dictionary:
 	data["upgrades"] = upgrades.map(func(item: SimUpgrade) -> Dictionary: return item.to_dict())
 	data["mutations"] = mutations.map(func(item: SimMutation) -> Dictionary: return item.to_dict())
 	data["abilities"] = abilities.map(func(item: SimAbility) -> Dictionary: return item.to_dict())
+	data["buildings"] = buildings.map(func(item: SimBuilding) -> Dictionary: return item.to_dict())
 	return data
 
 
@@ -280,6 +312,8 @@ static func from_dict(data: Dictionary) -> SimDefs:
 		defs.mutations.append(SimMutation.from_dict(item))
 	for item: Dictionary in _dicts(data, "abilities"):
 		defs.abilities.append(SimAbility.from_dict(item))
+	for item: Dictionary in _dicts(data, "buildings"):
+		defs.buildings.append(SimBuilding.from_dict(item))
 	return defs
 
 

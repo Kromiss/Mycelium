@@ -28,3 +28,6 @@ protection_ticks = 120
 trophy_production_pm = 250
 trophy_enzymes = 100
 mutation_choices = 3
+building_slots_per_tier = 1
+building_start_hp_pm = 100
+building_sleep_ticks = 60

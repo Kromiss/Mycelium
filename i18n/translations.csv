@@ -176,7 +176,7 @@ MUTATION_HEAVY_SPORES_DESC,"Damage ×1.5, fire rate ×0.8","Dégâts ×1,5, cade
 MUTATION_LIGHT_SPORES,Light spores,Spores légères
 MUTATION_LIGHT_SPORES_DESC,"Fire rate ×1.4, damage ×0.8","Cadence ×1,4, dégâts ×0,8"
 MUTATION_LONG_HYPHAE,Long hyphae,Hyphes longues
-MUTATION_LONG_HYPHAE_DESC,Range +1,Portée +1
+MUTATION_LONG_HYPHAE_DESC,Range of your buildings +1,Portée de tes bâtiments +1
 MUTATION_COHESION,Cohesion,Cohésion
 MUTATION_COHESION_DESC,Cohesion counts double (production and HP),La Cohésion compte double (production et PV)
 MUTATION_TENACIOUS,Tenacious mycelium,Mycélium tenace
@@ -222,6 +222,14 @@ REFUSAL_UNKNOWN_MUTATION,Unknown mutation,Mutation inconnue
 REFUSAL_UNKNOWN_ABILITY,Unknown ability,Capacité inconnue
 REFUSAL_COOLDOWN,This ability is recharging,Cette capacité se recharge
 REFUSAL_NOT_ENOUGH_ENZYMES,Not enough Enzymes,Pas assez d'Enzymes
+REFUSAL_UNKNOWN_BUILDING,Unknown building,Bâtiment inconnu
+REFUSAL_NO_BUILDING_SLOT,All your building slots are taken,Toutes tes places de bâtiment sont prises
+REFUSAL_CELL_OCCUPIED,This cell already has a building,Cette case a déjà un bâtiment
+REFUSAL_NO_BUILDING,None of your buildings stands here,Aucun de tes bâtiments ici
+REFUSAL_BUILDING_CELL,Your Sporophore cannot heal a building,Ton Sporophore ne peut pas soigner un bâtiment
+BUILDING_SWARMER,Swarmer,Essaimeur
+BUILDING_OUTPOST,Outpost,Avant-poste
+BUILDING_MORTAR,Mortar,Mortier
 HUD_PROTECTION,Protection: %s,Protection : %s
 HUD_RANKING,Ranking · average production,Classement · prod. moyenne
 HUD_YOU,You,Toi

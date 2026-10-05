@@ -45,4 +45,14 @@ enum Code {
 	COOLDOWN,
 	## Pas assez d'Enzymes.
 	NOT_ENOUGH_ENZYMES,
+	## Ce bâtiment n'existe pas.
+	UNKNOWN_BUILDING,
+	## Toutes les places de bâtiment sont prises.
+	NO_BUILDING_SLOT,
+	## La case a déjà un bâtiment.
+	CELL_OCCUPIED,
+	## Aucun de mes bâtiments sur cette case.
+	NO_BUILDING,
+	## Un bâtiment ne peut pas être soigné par le Sporophore.
+	BUILDING_CELL,
 }

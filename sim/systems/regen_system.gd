@@ -1,10 +1,10 @@
 class_name RegenSystem
 extends RefCounted
-## Étape 3 du tick : régénération (GDD §6.1, §7.2, §7.4). Chaque case regagne une part de ses
-## PV max par seconde : 2 % pour une case libre, la régénération de sa colonie pour une case
-## possédée ; la Tourelle de même. Une case touchée par Toxique ou un Nuage toxique ne se
-## régénère pas pendant l'effet. Les PV qui dépassent un maximum qui a baissé (Cohésion
-## perdue) sont ramenés au maximum.
+## Étape 4 du tick : régénération (GDD §5 bis, §6.1, §7.2, §7.4). Chaque case regagne une part
+## de ses PV max par seconde : 2 % pour une case libre, la régénération de sa colonie pour une
+## case possédée ; la Tourelle et les bâtiments de même (un chantier monte vers ses PV max).
+## Une case touchée par Toxique ou un Nuage toxique ne se régénère pas pendant l'effet. Les PV
+## qui dépassent un maximum qui a baissé (Cohésion perdue) sont ramenés au maximum.
 
 
 func run(state: GameState, result: TickResult) -> void:
@@ -43,6 +43,7 @@ func run(state: GameState, result: TickResult) -> void:
 	for colony: ColonyState in state.colonies:
 		if colony.alive:
 			_regenerate_turret(state, colony, rates[colony.id], result)
+	Buildings.regenerate(state, rates, result)
 
 
 func _regenerate(state: GameState, cell: int, maximum: int, rate: int, result: TickResult) -> void:

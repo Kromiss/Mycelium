@@ -8,6 +8,7 @@ var desc_key: String = ""
 var damage_pm: int = 1000
 var rate_pm: int = 1000
 var range_add: int = 0
+var building_range_add: int = 0
 var cohesion_pm: int = 1000
 var regen_pm: int = 1000
 var deep_production_pm: int = 1000
@@ -30,6 +31,7 @@ func fields() -> PackedStringArray:
 			"damage_pm",
 			"rate_pm",
 			"range_add",
+			"building_range_add",
 			"cohesion_pm",
 			"regen_pm",
 			"deep_production_pm",

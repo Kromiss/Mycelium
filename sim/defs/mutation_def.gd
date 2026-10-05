@@ -12,8 +12,9 @@ extends Resource
 ## Dégâts d'un tir, et cadence.
 @export var damage_pm: int = 1000
 @export var rate_pm: int = 1000
-## Portée en plus (cases).
+## Portée en plus (cases) du Sporophore, et de tous mes bâtiments.
 @export var range_add: int = 0
+@export var building_range_add: int = 0
 ## Multiplicateur de la Cohésion (bonus par voisine et plafond), production et PV.
 @export var cohesion_pm: int = 1000
 ## Régénération des cases et de la Tourelle.

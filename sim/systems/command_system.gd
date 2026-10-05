@@ -22,7 +22,7 @@ static func check(state: GameState, command: Command) -> Refusal.Code:
 		return Refusal.Code.GAME_OVER
 	match command.type:
 		Command.Type.TARGET:
-			return Targeting.check_target(state, colony, _cell(state, command))
+			return Targeting.check_designation(state, colony, _cell(state, command))
 		Command.Type.SET_PRIORITY:
 			var priority: int = (command as SetPriorityCommand).priority
 			if not ColonyState.Priority.values().has(priority):
@@ -37,6 +37,11 @@ static func check(state: GameState, command: Command) -> Refusal.Code:
 		Command.Type.USE_ABILITY:
 			var ability: int = state.defs.ability_index((command as UseAbilityCommand).ability)
 			return Abilities.check_use(state, colony, ability, _cell(state, command))
+		Command.Type.BUILD:
+			var building: int = state.defs.building_index((command as BuildCommand).building)
+			return Buildings.check_build(state, colony, building, _cell(state, command))
+		Command.Type.DEMOLISH:
+			return Buildings.check_demolish(state, colony, _cell(state, command))
 	return Refusal.Code.UNKNOWN_COMMAND
 
 
@@ -62,6 +67,11 @@ func _apply(state: GameState, command: Command, result: TickResult) -> Refusal.C
 			var use := command as UseAbilityCommand
 			var ability: int = state.defs.ability_index(use.ability)
 			Abilities.use(state, colony, ability, _cell(state, command), result)
+		Command.Type.BUILD:
+			var building: int = state.defs.building_index((command as BuildCommand).building)
+			Buildings.build(state, colony, building, _cell(state, command), result)
+		Command.Type.DEMOLISH:
+			Buildings.demolish(state, colony, _cell(state, command), result)
 	result.colony_changed(colony.id)
 	return Refusal.Code.OK
 

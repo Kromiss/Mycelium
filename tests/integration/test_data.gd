@@ -1,6 +1,6 @@
 extends GutTest
-## Cohérence des données : zones, paliers, améliorations, mutations, capacités, modes et
-## traductions.
+## Cohérence des données : zones, paliers, améliorations, mutations, capacités, bâtiments,
+## modes et traductions.
 
 # Chargées avec load() : un preload() en constante fausse ici la vérification des types.
 const ZONES_PATH: String = "res://data/zones.tres"
@@ -148,6 +148,23 @@ func test_abilities_unlock_at_tiers_one_three_and_five() -> void:
 	assert_eq(tiers, [1, 3, 5])
 
 
+func test_three_buildings_unlock_at_tiers_one_two_and_three() -> void:
+	var table: BuildingTable = load("res://data/buildings.tres")
+	var ids: Array[StringName] = []
+	var kinds: Array[int] = []
+	var tiers: Array[int] = []
+	for building: BuildingDef in table.buildings:
+		ids.append(building.id)
+		kinds.append(building.kind)
+		tiers.append(building.unlock_tier)
+		assert_gt(building.cost_enzymes, 0, String(building.id))
+		assert_gt(building.hp, 0, String(building.id))
+		assert_gt(building.reach, 0, String(building.id))
+	assert_eq(ids, [&"swarmer", &"outpost", &"mortar"])
+	assert_eq(kinds, [BuildingDef.Kind.SWARMER, BuildingDef.Kind.OUTPOST, BuildingDef.Kind.MORTAR])
+	assert_eq(tiers, [1, 2, 3])
+
+
 func test_content_names_are_translated() -> void:
 	var rows: Dictionary[String, PackedStringArray] = _translation_rows()
 	var defs: SimDefs = SimDefs.from_mode(MODES[0])
@@ -158,6 +175,8 @@ func test_content_names_are_translated() -> void:
 		keys.append_array([mutation.name_key, mutation.desc_key])
 	for ability: SimAbility in defs.abilities:
 		keys.append(ability.name_key)
+	for building: SimBuilding in defs.buildings:
+		keys.append(building.name_key)
 	for name: String in Refusal.Code.keys():
 		if name != "OK":
 			keys.append("REFUSAL_" + name)

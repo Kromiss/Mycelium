@@ -42,6 +42,8 @@ func _init(
 	state.last_hitter.resize(size)
 	state.last_hitter.fill(-1)
 	state.no_regen_until.resize(size)
+	state.building_at.resize(size)
+	state.building_at.fill(-1)
 	state.cell_rank = _shuffled_ranks(size)
 	state.cell_by_rank.resize(size)
 	for cell: int in range(size):
@@ -73,6 +75,7 @@ func tick(commands: Array[Command] = []) -> TickResult:
 		result.state_hash = StateHash.compute(state)
 		return result
 	_commands.run(state, commands, result)
+	Buildings.update(state, result)
 	_turrets.run(state, result)
 	_regen.run(state, result)
 	_tiers.run(state, result)
@@ -130,10 +133,47 @@ func in_range(colony_id: int, cell: int) -> bool:
 	return colony != null and colony.alive and Targeting.in_range(state, colony, cell)
 
 
-## Vrai si la colonie peut viser la case (prise ou soin).
+## Vrai si la colonie peut désigner la case au clic : son Sporophore (prise ou soin) ou un de
+## ses bâtiments actifs peut la viser.
 func is_target(colony_id: int, cell: int) -> bool:
 	var colony: ColonyState = state.colony(colony_id)
-	return colony != null and colony.alive and Targeting.is_target(state, colony, cell)
+	if colony == null or not colony.alive:
+		return false
+	return Targeting.check_designation(state, colony, cell) == Refusal.Code.OK
+
+
+## Places de bâtiment de la colonie : [prises, total] (GDD §5 bis).
+func building_slots(colony_id: int) -> PackedInt32Array:
+	var colony: ColonyState = state.colony(colony_id)
+	if colony == null:
+		return PackedInt32Array([0, 0])
+	return PackedInt32Array(
+		[
+			Buildings.standing_count(state, colony_id),
+			ColonyStats.building_slots(state.defs, colony),
+		]
+	)
+
+
+## Bâtiment posé sur une case (endormi compris), ou null.
+func building_on(cell: int) -> BuildingState:
+	return state.building_on(cell) if cell >= 0 else null
+
+
+## PV max d'un bâtiment, en millièmes (pour son propriétaire actuel).
+func building_max_hp(building: BuildingState) -> int:
+	var owner: ColonyState = state.colony(building.owner)
+	if owner == null:
+		return state.defs.buildings[building.type].hp
+	return ColonyStats.building_max_hp(state.defs, owner, building.type)
+
+
+## Portée d'un bâtiment, en cases (pour son propriétaire actuel).
+func building_reach(building: BuildingState) -> int:
+	var owner: ColonyState = state.colony(building.owner)
+	if owner == null:
+		return state.defs.buildings[building.type].reach
+	return ColonyStats.building_reach(state.defs, owner, building.type)
 
 
 ## Coût du prochain niveau d'une amélioration pour la colonie, en millièmes

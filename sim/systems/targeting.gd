@@ -31,6 +31,8 @@ static func check_target(
 	if not in_range(state, colony, cell, reach):
 		return Refusal.Code.OUT_OF_RANGE
 	if state.owner[cell] == colony.id:
+		if state.standing_building(cell) != null:
+			return Refusal.Code.BUILDING_CELL
 		if state.hp[cell] >= ColonyStats.cell_max_hp(state, cell):
 			return Refusal.Code.NOT_WOUNDED
 		return Refusal.Code.OK
@@ -46,6 +48,21 @@ static func is_target(state: GameState, colony: ColonyState, cell: int, reach: i
 	return check_target(state, colony, cell, reach) == Refusal.Code.OK
 
 
+## Raison pour laquelle la case ne peut pas être désignée au clic (OK si elle peut l'être) :
+## le Sporophore ou un de mes bâtiments actifs peut la viser (GDD §5.4, §5 bis). Sinon, la
+## raison donnée par le Sporophore.
+static func check_designation(state: GameState, colony: ColonyState, cell: int) -> Refusal.Code:
+	var code: Refusal.Code = check_target(state, colony, cell)
+	if code == Refusal.Code.OK or cell < 0:
+		return code
+	for building: BuildingState in state.buildings:
+		if building.owner != colony.id or not building.active(state.tick):
+			continue
+		if BuildingTargeting.can_target(state, colony, building, cell):
+			return Refusal.Code.OK
+	return code
+
+
 ## Remet à jour la cible désignée et les cibles gardées : celles qui ne sont plus visables
 ## (prises, soignées, hors de portée) sont lâchées, puis les places libres sont remplies
 ## dans l'ordre de la priorité. Une cible n'est jamais remplacée tant qu'elle reste visable.
@@ -55,8 +72,11 @@ static func refresh(
 ) -> void:
 	if reach < 0:
 		reach = ColonyStats.turret_range(state.defs, colony)
-	if colony.designated >= 0 and not is_target(state, colony, colony.designated, reach):
-		colony.designated = -1
+	var own: bool = colony.designated >= 0 and is_target(state, colony, colony.designated, reach)
+	if colony.designated >= 0 and not own:
+		# Hors de portée du Sporophore : la cible reste désignée si un bâtiment peut la frapper.
+		if check_designation(state, colony, colony.designated) != Refusal.Code.OK:
+			colony.designated = -1
 	var kept := PackedInt32Array()
 	for cell: int in colony.targets:
 		if cell == colony.designated or kept.has(cell):
@@ -64,7 +84,7 @@ static func refresh(
 		if is_target(state, colony, cell, reach):
 			kept.append(cell)
 	var wanted: int = ColonyStats.spores(state.defs, colony)
-	if colony.designated >= 0:
+	if own:
 		wanted -= 1
 	if kept.size() < wanted:
 		var excluded := kept.duplicate()
@@ -77,10 +97,13 @@ static func refresh(
 	colony.targets = kept
 
 
-## Cibles du prochain tir, dans l'ordre : la cible désignée, puis les cibles gardées.
-static func shot_targets(colony: ColonyState) -> PackedInt32Array:
+## Cibles du prochain tir du Sporophore, dans l'ordre : la cible désignée (s'il peut la
+## viser), puis les cibles gardées.
+static func shot_targets(
+	state: GameState, colony: ColonyState, reach: int = -1
+) -> PackedInt32Array:
 	var cells := PackedInt32Array()
-	if colony.designated >= 0:
+	if colony.designated >= 0 and is_target(state, colony, colony.designated, reach):
 		cells.append(colony.designated)
 	cells.append_array(colony.targets)
 	return cells
@@ -112,6 +135,8 @@ static func candidate_key(state: GameState, colony: ColonyState, cell: int) -> i
 	var priority: int = colony.priority
 	if own:
 		if priority != ColonyState.Priority.HEAL_FIRST or cell == colony.turret:
+			return -1
+		if state.building_at[cell] >= 0 and state.standing_building(cell) != null:
 			return -1
 		if state.hp[cell] >= ColonyStats.cell_max_hp(state, cell):
 			return -1

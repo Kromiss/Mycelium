@@ -1,6 +1,6 @@
 class_name EconomySystem
 extends RefCounted
-## Étape 5 du tick : production de chaque colonie (GDD §8.2, §15). Toutes les cases de la
+## Étape 6 du tick : production de chaque colonie (GDD §8.2, §15). Toutes les cases de la
 ## colonie produisent (elles restent reliées à la Tourelle : les cases coupées redeviennent
 ## libres), Tourelle comprise ; le stock n'a pas de plafond ; la Biomasse compte tout.
 

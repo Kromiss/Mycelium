@@ -111,7 +111,7 @@ func refresh(result: TickResult = null) -> void:
 			_colors[cell] = color
 			_view.set_bubble_color(cell, color)
 	for colony: ColonyState in state.colonies:
-		for cell: int in Targeting.shot_targets(colony):
+		for cell: int in Targeting.shot_targets(state, colony):
 			if state.owner[cell] == colony.id:
 				_healed.append_array(PackedInt32Array([cell, colony.id]))
 	queue_redraw()

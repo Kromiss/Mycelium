@@ -31,6 +31,10 @@ var start_colonies: int = 0
 var ranking: PackedInt32Array = PackedInt32Array()
 ## Colonies, par numéro.
 var colonies: Array[ColonyState] = []
+## Bâtiments posés, dans l'ordre de construction (GDD §5 bis).
+var buildings: Array[BuildingState] = []
+## Rang dans « buildings » du bâtiment de chaque case (−1 : aucun). Tenu à jour par Buildings.
+var building_at: PackedInt32Array = PackedInt32Array()
 ## Aléatoire de la partie.
 var rng: SimRng
 
@@ -61,6 +65,20 @@ func is_owned_by(cell: int, colony_id: int) -> bool:
 func is_turret_cell(cell: int) -> bool:
 	var holder: ColonyState = owner_of(cell)
 	return holder != null and holder.turret == cell
+
+
+## Bâtiment posé sur la case (endormi compris), ou null.
+func building_on(cell: int) -> BuildingState:
+	var index: int = building_at[cell]
+	return buildings[index] if index >= 0 else null
+
+
+## Bâtiment qui tient la case (en chantier ou actif, pas endormi), ou null.
+func standing_building(cell: int) -> BuildingState:
+	var index: int = building_at[cell]
+	if index < 0 or not buildings[index].standing(tick):
+		return null
+	return buildings[index]
 
 
 ## Nombre de voisines de la case qui appartiennent à la colonie (0 à 6).

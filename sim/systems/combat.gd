@@ -8,7 +8,10 @@ extends RefCounted
 ## Inflige « amount » millièmes de dégâts à une case qui n'est pas à l'attaquant. Renvoie le
 ## reste des dégâts si la case a été prise (0 sinon). Rien pendant la protection de départ
 ## pour une case adverse, ni sur une case protégée par un Mur de mycélium. « toxic » : secondes
-## sans régénération infligées (Toxique ; −1 : les calculer).
+## sans régénération infligées (Toxique ; −1 : les calculer). Un bâtiment qui tient la case
+## prend les dégâts à sa place (la case ne peut être prise qu'une fois le bâtiment tombé).
+## « siege » (Mortier) : un Sporophore ou un bâtiment peut tomber même loin du territoire de
+## l'attaquant (décidé le 6 octobre 2026).
 static func deal(
 	state: GameState,
 	attacker: ColonyState,
@@ -16,6 +19,7 @@ static func deal(
 	amount: int,
 	result: TickResult,
 	toxic: int = -1,
+	siege: bool = false,
 ) -> int:
 	var owner: int = state.owner[cell]
 	if owner == attacker.id or amount <= 0:
@@ -28,11 +32,16 @@ static func deal(
 	if toxic > 0:
 		state.no_regen_until[cell] = maxi(state.no_regen_until[cell], state.tick + toxic)
 	result.cell_changed(cell)
+	if state.building_at[cell] >= 0:
+		var building: BuildingState = state.standing_building(cell)
+		if building != null:
+			Buildings.damage(state, building, attacker, amount, result, siege)
+			return 0
 	# « Collée à mon territoire » n'est regardé que si la case (ou la Tourelle) tomberait.
 	if victim != null and victim.turret == cell:
 		result.colony_changed(victim.id)
 		var left: int = victim.turret_hp - amount
-		if left <= 0 and state.touches_colony(cell, attacker.id):
+		if left <= 0 and (siege or state.touches_colony(cell, attacker.id)):
 			eliminate(state, victim, attacker, result)
 		else:
 			victim.turret_hp = maxi(left, 1)
@@ -115,8 +124,9 @@ static func may_split(state: GameState, cell: int, colony_id: int) -> bool:
 	return runs > 1
 
 
-## Les cases de la colonie qui ne sont plus reliées à sa Tourelle redeviennent libres
-## (décidé le 4 octobre 2026).
+## Les cases de la colonie qui ne sont plus reliées à sa Tourelle ni à un de ses bâtiments
+## (en chantier ou actif) redeviennent libres (décidé le 4 octobre 2026 ; les bâtiments tiennent
+## leur îlot, décidé le 6 octobre 2026).
 static func cut_off(state: GameState, colony: ColonyState, result: TickResult) -> void:
 	if colony.turret < 0:
 		return
@@ -126,6 +136,11 @@ static func cut_off(state: GameState, colony: ColonyState, result: TickResult) -
 	linked.resize(state.cell_count())
 	linked[colony.turret] = 1
 	var frontier := PackedInt32Array([colony.turret])
+	for building: BuildingState in state.buildings:
+		if building.owner == colony.id and building.standing(state.tick):
+			if owners[building.cell] == colony.id and linked[building.cell] == 0:
+				linked[building.cell] = 1
+				frontier.append(building.cell)
 	var next: int = 0
 	while next < frontier.size():
 		var cell: int = frontier[next]
@@ -158,6 +173,11 @@ static func eliminate(
 	victim.designated = -1
 	victim.targets = PackedInt32Array()
 	victim.production = 0
+	# Ses bâtiments s'endorment : à leur réveil, ils iront à qui tiendra leur case (décidé le
+	# 6 octobre 2026).
+	for building: BuildingState in state.buildings:
+		if building.owner == victim.id and building.standing(state.tick):
+			Buildings.fall(state, building, -1, result, false)
 	for cell: int in range(state.cell_count()):
 		if state.owner[cell] == victim.id:
 			free_cell(state, cell, result)

@@ -57,3 +57,11 @@ extends Resource
 @export var trophy_enzymes: int = 100
 ## Nombre de mutations proposées à chaque palier.
 @export var mutation_choices: int = 3
+
+# --- Bâtiments (§5 bis) ---
+## Places de bâtiment gagnées à chaque palier (1 au palier 1, +1 par palier).
+@export var building_slots_per_tier: int = 1
+## PV d'un bâtiment au début de son chantier, en part de ses PV max (10 %).
+@export var building_start_hp_pm: int = 100
+## Durée du sommeil d'un bâtiment tombé, en secondes (60).
+@export var building_sleep_ticks: int = 60

@@ -1,6 +1,6 @@
 class_name TierSystem
 extends RefCounted
-## Étape 4 du tick : paliers de colonie (GDD §8.3, §10). Le palier suit le nombre de cases
+## Étape 5 du tick : paliers de colonie (GDD §8.3, §10). Le palier suit le nombre de cases
 ## actuel (il peut redescendre). La première fois qu'un palier est atteint, la colonie reçoit
 ## son lot d'Enzymes et un choix de mutations ; les choix non faits s'empilent (décidé le
 ## 4 octobre 2026) et la partie continue pendant le choix.

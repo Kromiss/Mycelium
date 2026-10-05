@@ -1,6 +1,6 @@
 class_name VictorySystem
 extends RefCounted
-## Étape 6 du tick : fin de partie (GDD §3.3). La partie s'arrête quand il ne reste qu'une
+## Étape 7 du tick : fin de partie (GDD §3.3). La partie s'arrête quand il ne reste qu'une
 ## colonie en vie (s'il y en avait au moins deux), ou à la durée maximale. Le classement met
 ## les colonies en vie d'abord (éliminations, puis production moyenne, puis cases), puis les
 ## éliminées de la dernière à la première (à égalité de tick : production moyenne, puis cases).
