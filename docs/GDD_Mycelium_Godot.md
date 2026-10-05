@@ -226,6 +226,23 @@ Dégâts et cadence sont donnés en multiple de ceux du Sporophore (5 dégâts, 
 - **Robots** : ils construisent **selon leur profil** : Conquérant, Mortiers et Avant-postes vers l'ennemi ; Bâtisseur, Essaimeurs vers les cases libres riches ; Canonnier, Avant-postes ; robot de jeu, un peu de tout. Toujours sur le front.
 - **Livraison** : **en une fois**, version **0.6.0**.
 
+### 5 ter. Équilibrage de G5 *(attendus décidés le 5 octobre 2026, QCM)*
+
+G5 inclut un **équilibrage** du jeu (le choix du 4 octobre de ne pas équilibrer tout de suite est levé).
+
+- **Méthode** : des centaines de parties **robot contre robot** jouées par le panneau de simulations ; Claude mesure, ajuste les valeurs de `data/` et recommence jusqu'à atteindre les cibles.
+- **Périmètre** : **tout le jeu** peut bouger (bâtiments, Sporophore, y compris portée, cadence, dégâts et prix décidés le 5 octobre, économie, paliers, améliorations, mutations, capacités, PV des zones).
+- **Robots** : les cibles valent pour le **robot de jeu Difficile contre Difficile** et aussi en **Normal** ; **Facile perd contre Normal dans 80 % des parties** au moins. Pas de cible d'équilibre entre profils (ils servent aux tests).
+- **Cibles**, dans l'ordre de priorité (en cas de conflit, **la durée des parties passe d'abord**) :
+  1. **Duel** : la plupart des parties finissent par une **élimination entre 12 et 20 min**.
+  2. **FFA (6)** : en priorité, **première élimination vers 8-12 min** et un **dernier survivant avant 30:00** dans au moins la moitié des parties (le plus souvent possible) ; avoir 2-3 survivants à 30:00 reste acceptable selon l'effet boule de neige.
+  3. **Début** : le **premier bâtiment vers 1:00**.
+  4. **Bâtiments décisifs** : une colonie qui n'utilise qu'un type perd nettement contre une qui mélange ; chaque type fait **au moins 20 %** des bâtiments des gagnants.
+  5. **Boule de neige** : avantage fort assumé, le **meneur à 10 min gagne 80-90 %** des parties.
+  6. **Rythme** : zone N atteinte vers **3,5 × N min** ; production ×10 000 à ×100 000 sur la partie (~10 → 1e5-1e6 nutriments/s).
+  7. **Actions** : **8 à 10 actions par minute** pour un joueur actif (achats, bâtiments, capacités, cibles).
+- **Rendu** : les nouvelles valeurs appliquées dans `data/`, et dans le GDD un tableau **avant / après** avec les **mesures pour chaque cible**.
+
 ---
 
 ## 6. Prendre une case
