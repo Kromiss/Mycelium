@@ -1,7 +1,7 @@
 class_name StateHash
 extends RefCounted
 ## Empreinte de l'état d'une partie (Architecture §4.2, §7) : deux états identiques donnent
-## toujours la même empreinte. Sert aux tests de déterminisme, aux replays et, au G6, à la
+## toujours la même empreinte. Sert aux tests de déterminisme, aux replays et, au G8, à la
 ## vérification de l'hôte par les invités.
 
 

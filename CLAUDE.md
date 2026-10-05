@@ -15,7 +15,7 @@ des robots puis en ligne. Cible : un exécutable Windows, distribué sur Steam.
 
 Les détails de game design se décident avec le propriétaire (Kromiss) : **ne jamais inventer de règle
 de jeu, et poser la question au moindre doute**. La référence est `docs/GDD_Mycelium_Godot.md` (aussi
-dans les documents du projet Claude « Jeu incremental ») ; les jalons sont dans son §19.
+dans les documents du projet Claude « Jeu incremental ») ; les jalons sont dans son §19 (G5 : bâtiments).
 
 L'ancienne version web est archivée dans la branche `archive/web` : ne pas la modifier.
 
@@ -32,7 +32,7 @@ formatage et style avec gdtoolkit 4.5.0. Le détail de l'arborescence est dans
 | `view/` | affichage de la carte (lecture seule) |
 | `ui/` | écrans et thème de l'interface |
 | `game/` | assemblage d'une partie (`Session`) |
-| `net/` | transport des commandes (local ; Steam au G7) |
+| `net/` | transport des commandes (local ; Steam au G8) |
 | `ai/` | robots Canonnier, Bâtisseur et Conquérant (profils dans `ai/profiles/`) |
 | `autoload/` | singletons `Settings` et `SceneRouter` |
 | `tests/` | tests GUT (`unit/`, `integration/`) |

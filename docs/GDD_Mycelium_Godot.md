@@ -85,7 +85,7 @@ Permet de créer **tout type de partie** : le type (Duel ou FFA), les joueurs, l
 - **Résultat** : rang de partie = ordre d'élimination ; statistiques de fin (cases conquises, tourelles abattues, durée de survie, pic de production).
 
 ### 2.7 Tutoriel
-Une **courte partie scénarisée (~10 min)** contre un robot passif, sur une petite forêt de Duel ; **proposée au premier lancement**, passable et rejouable (jalon G6). Étapes :
+Une **courte partie scénarisée (~10 min)** contre un robot passif, sur une petite forêt de Duel ; **proposée au premier lancement**, passable et rejouable (jalon G7). Étapes :
 
 | Étape | Objectif | Ce qu'on apprend |
 |---|---|---|
@@ -209,7 +209,8 @@ La Tourelle est fixe et porte loin seulement à 4 cases : **ce sont les bâtimen
 - **Construction** : sur **une de mes cases** ; le nombre total de bâtiments est limité par des **places** : **1 place au palier 1, +1 par palier**.
 - **Puissance** : les **améliorations du panneau** (Dégâts, Cadence, Critique…) s'appliquent aussi aux bâtiments, chacun avec ses propres coefficients (par exemple Mortier : dégâts ×4, cadence ÷4 ; valeurs à fixer).
 - **Défense** : un bâtiment a **ses propres PV**, comme le Sporophore ; la case sous lui ne peut être prise qu'une fois le bâtiment tombé.
-- **Bâtiment tombé** : il devient **endormi pendant 60 s** (il ne fait rien). Au bout des 60 s, **la colonie qui tient alors la case sous lui l'obtient** : l'attaquant s'il a pris la case entre-temps, sinon son propriétaire le récupère. (Le propriétaire ne doit pas le récupérer « en l'état » trop facilement : c'est ce délai qui laisse une chance aux deux camps.)
+- **Bâtiment tombé** : il devient **endormi pendant 60 s** (il ne fait rien et **ne peut pas être frappé** : on se bat pour la case dessous). Au bout des 60 s, **la colonie qui tient alors la case sous lui l'obtient** : l'attaquant s'il a pris la case entre-temps, sinon son propriétaire le récupère. Il se **réveille à pleine vie**. La colonie qui l'obtient le **garde même sans place libre** (les places ne comptent que pour construire). (Le propriétaire ne doit pas le récupérer « en l'état » trop facilement : c'est ce délai qui laisse une chance aux deux camps.)
+- **Bâtiment coupé du Sporophore** : il **reste actif** et garde sa case, même isolé (exception à la règle des cases coupées, §12).
 - **Questions encore ouvertes** : voir §20, « Bâtiments ».
 
 ---
@@ -285,7 +286,7 @@ Cible : **~10 nutriments/s au départ → 1e5 à 1e6 nutriments/s en fin de part
 ### 8.5 Retour visuel (le « boum »)
 - La Tourelle **pulse à chaque tir** ; les spores volent jusqu'à leur case ; une case prise **éclot** à la couleur de la colonie.
 - Au franchissement d'un **palier** : message « Palier ×2 ! », la Tourelle grossit un instant, puis la carte des mutations s'ouvre.
-- Les **compteurs défilent**. La **courbe de production**, absente des maquettes validées, n'est plus affichée dans le panneau depuis l'étape 2 de G3 (place des améliorations) : elle reviendra sur l'écran de résultats (G5), à confirmer.
+- Les **compteurs défilent**. La **courbe de production**, absente des maquettes validées, n'est plus affichée dans le panneau depuis l'étape 2 de G3 (place des améliorations) : elle reviendra sur l'écran de résultats (G6), à confirmer.
 - La Tourelle **change d'aspect** avec ses améliorations (plus grande, plus de chapeaux, plus de spores), pour que sa puissance se lise sur la carte.
 
 ---
@@ -374,7 +375,7 @@ Boutons à **recharge**, payés en **Enzymes**, débloqués par les paliers (§8
 *Décidé le 4 octobre 2026 : seulement les deux événements scriptés ; les événements aléatoires sont des idées pour plus tard (§17).* Ils sont annoncés **20 s avant** et figurent sur la frise. Chacun peut être activé ou non dans une partie personnalisée et dans le Bac à sable.
 
 - **Floraison collective** (8:00, 16:00, 24:00) : production **×2** pendant 30 s pour toutes les colonies.
-- **Arbre mourant** (12:00 et 20:00) : 7 cases libres d'un tenant dans la zone du moment, avec **beaucoup de PV** (valeur à fixer en G5) ; chaque colonie qui le vise y inflige ses dégâts. Quand il tombe, récompense en nutriments (≈ 2 min de production moyenne) et 100 Enzymes **au prorata des dégâts**, +25 % au meilleur ; ses 7 cases redeviennent libres. Disparaît au bout de 3 min.
+- **Arbre mourant** (12:00 et 20:00) : 7 cases libres d'un tenant dans la zone du moment, avec **beaucoup de PV** (valeur à fixer en G6) ; chaque colonie qui le vise y inflige ses dégâts. Quand il tombe, récompense en nutriments (≈ 2 min de production moyenne) et 100 Enzymes **au prorata des dégâts**, +25 % au meilleur ; ses 7 cases redeviennent libres. Disparaît au bout de 3 min.
 
 **Zone du moment** : pour chaque colonie, sa zone la plus au centre ; on prend la plus fréquente (à égalité, la plus centrale) ; seul en Bac à sable, sa zone la plus avancée.
 
@@ -425,7 +426,7 @@ Chiffres décidés le 4 octobre 2026, comme points de départ à simuler.
 Menu principal, **mode Duel**, **mode FFA**, **salon de partie personnalisée**, **partie** (carte à gauche, panneau à droite), spectateur, résultats, profil, **paramètres**, et l'**interface d'administration** cachée (§18.4).
 
 ### 16.2 Écran de partie *(maquettes validées le 4 octobre 2026 : canevas « Mycélium — maquettes de la Tourelle (G3) »)*
-- **Carte (à gauche, ~62 % de la largeur)** : la forêt, le cercle de portée de ma Tourelle (pointillé), les spores en vol, la cible en cours ; en haut à gauche, la **frise** (horloge, prochains événements ; jusqu'à G5, horloge et fin de la protection de départ seulement, décidé le 4 octobre 2026 ; en Bac à sable, boutons pause, vitesse et récapitulatif) ; en haut à droite, le **mini-classement** (colonies en vie, cases, éliminations, production moyenne) ; en bas à gauche, le **journal et les alertes**, avec un rappel du geste (clic : viser).
+- **Carte (à gauche, ~62 % de la largeur)** : la forêt, le cercle de portée de ma Tourelle (pointillé), les spores en vol, la cible en cours ; en haut à gauche, la **frise** (horloge, prochains événements ; jusqu'à G6, horloge et fin de la protection de départ seulement, décidé le 4 octobre 2026 ; en Bac à sable, boutons pause, vitesse et récapitulatif) ; en haut à droite, le **mini-classement** (colonies en vie, cases, éliminations, production moyenne) ; en bas à gauche, le **journal et les alertes**, avec un rappel du geste (clic : viser).
 - **Panneau (à droite, ~38 %)**, de haut en bas :
   1. **Ressources** : nutriments (qui défilent) et production, Enzymes, Biomasse, barre du prochain palier ;
   2. **Tourelle** : PV, dégâts, cadence, portée, spores par tir, et les 4 boutons de **priorité de tir** ;
@@ -489,10 +490,10 @@ Deux petits points repris du brouillon sans question dédiée, à signaler si be
 Le code de G1 et G2 qui ne sert plus est supprimé dès l'étape 1, avec un affichage provisoire du Bac à sable jusqu'à l'étape 2 ; cases coupées de la Tourelle : libres (§12) ; case libre prise : pleine vie (§6.1) ; la Tourelle finit sa prise avant de changer de cible (§5.3) ; spores en plus : d'autres cases (§9.2) ; pendant un pas, la Tourelle est visée sur sa case de départ (§5.5) ; choix de mutations empilés (§10) ; PV de la Tourelle : 400 fixes (§7.4).
 
 ### Décisions de l'étape 2 de G3 (4 octobre 2026, QCM)
-Pas de touches pour les priorités de tir, 1 à 3 pour les cartes de mutation (§16.5) ; cartes de mutation cachées par un bouton œil et rouvertes depuis le panneau (§16.2) ; frise : horloge et fin de la protection jusqu'à G5 (§16.2) ; stades de la Tourelle liés au palier (§16.3).
+Pas de touches pour les priorités de tir, 1 à 3 pour les cartes de mutation (§16.5) ; cartes de mutation cachées par un bouton œil et rouvertes depuis le panneau (§16.2) ; frise : horloge et fin de la protection jusqu'à G6 (§16.2) ; stades de la Tourelle liés au palier (§16.3).
 
 ### Réactivité (5 octobre 2026, QCM)
-En partie locale, un ordre du joueur (achat, priorité, cible, pas, capacité, mutation) prend effet **au clic**, sans attendre le tick suivant ; les boutons d'action réagissent dès l'appui. Les à-coups de l'affichage à chaque tick sont réduits (calcul du tir et rafraîchissement du HUD plus rapides). En ligne (G7), la façon de faire sera revue.
+En partie locale, un ordre du joueur (achat, priorité, cible, pas, capacité, mutation) prend effet **au clic**, sans attendre le tick suivant ; les boutons d'action réagissent dès l'appui. Les à-coups de l'affichage à chaque tick sont réduits (calcul du tir et rafraîchissement du HUD plus rapides). En ligne (G8), la façon de faire sera revue.
 
 ### Décisions de G4 « Combattre des robots » (5 octobre 2026, QCM)
 Prochain jalon limité au combat contre les robots, les événements passent en G5 (§19) ; robot de jeu à part, sans profil visible, équilibré, avec trois difficultés dans `data/` (Difficile = robots actuels, Normal agit toutes les 2 s, Facile toutes les 3 s et maladroit) (§2.5) ; en FFA, une difficulté pour les 5 robots, les profils sont réservés à la simulation (§2.3) ; secteur du joueur et couleurs de toutes les colonies tirés au hasard (graine) ; écrans dans le style actuel, sans maquette ; livraison en une fois ; menu Jouer → Duel ou FFA → difficulté, graine tirée au hasard ; quitter une partie en cours demande une confirmation ; éliminé en FFA : fin tout de suite avec son rang ; fin de partie minimale : rang, cases, Tourelles abattues, durée de survie, pic de production, boutons Rejouer (nouvelle partie, mêmes choix) et Menu ; Bac à sable : profils et robot de jeu (Facile, Normal, Difficile) au choix sur chaque secteur libre.
@@ -525,7 +526,7 @@ Points de règle que l'étape 1 a dû trancher pour écrire le code, sans questi
 11. Onglets du panneau : Attaque (Dégâts, Cadence, Portée, Spores, Éclaboussure, Critique, Rebond), Défense (Régénération, Soin, PV des cases, Écorce), Économie (Rendement).
 
 ### Réglages du Sporophore et bâtiments (5 octobre 2026, QCM)
-Sporophore **fixe** : plus de déplacement, de touche D, de mutation *Rapide* (14 mutations) ni de pas des robots (§5.5) ; portée **2**, amélioration Portée limitée à **2 niveaux** (portée 4) ; **0,2 tir/s et 5 dégâts** (§6.3), sans compenser la régénération : prendre une case adverse demande des améliorations ou des bâtiments ; cadre « Mes mutations » réduit à **une ligne d'icônes** et lignes d'améliorations **compactes** (§16.2). **Bâtiments** : Essaimeur, Avant-poste, Mortier ; places par palier ; améliorations partagées ; cibles fixes par type ; PV propres ; bâtiment tombé endormi 60 s puis à la colonie qui tient sa case (§5 bis).
+Sporophore **fixe** : plus de déplacement, de touche D, de mutation *Rapide* (14 mutations) ni de pas des robots (§5.5) ; portée **2**, amélioration Portée limitée à **2 niveaux** (portée 4) ; **0,2 tir/s et 5 dégâts** (§6.3), sans compenser la régénération : prendre une case adverse demande des améliorations ou des bâtiments ; cadre « Mes mutations » réduit à **une ligne d'icônes** et lignes d'améliorations **compactes** (§16.2). **Bâtiments** (jalon G5, sans maquettes) : Essaimeur, Avant-poste, Mortier ; places par palier ; améliorations partagées ; cibles fixes par type ; PV propres ; bâtiment tombé endormi 60 s (intouchable) puis à la colonie qui tient sa case, réveillé à pleine vie et gardé même sans place ; bâtiment coupé du Sporophore : reste actif (§5 bis).
 
 ### Questions ouvertes
 - **Triche de l'hôte** : la vérification par empreinte suffit-elle pour un classement du Duel ?
@@ -598,15 +599,16 @@ Outil d'équilibrage disponible **uniquement quand le jeu est lancé depuis l'é
 | **G2** *(livré, 0.3.0)* | Remplacé par G3 |
 | **G3 : Le Sporophore et l'affrontement** *(livré, 0.4.0 : étapes 1 et 2 le 4 octobre 2026, étape 3 le 5 octobre 2026)* | **Suppression** du code de G1 et G2 qui ne sert plus ; Tourelle (tir automatique, portée, priorités, cible au clic, déplacement pas à pas) ; PV, régénération et soin ; panneau d'améliorations à droite ; paliers avec Enzymes et mutations ; capacités ; Armillaire ; **affrontement entre Tourelles, élimination et Trophée** ; écran carte + panneau ; Bac à sable avec adversaires robots. Maquettes **validées le 4 octobre 2026**. Livré en **trois étapes** : 1) simulation et tests ; 2) affichage, panneau et Bac à sable ; 3) robots Canonnier, Bâtisseur et Conquérant (adversaires du Bac à sable et panneau de simulations à plusieurs robots) ; version **0.4.0** |
 | **G4 : Combattre des robots** *(décidé le 5 octobre 2026 : uniquement le combat contre les robots ; livré le 5 octobre 2026, 0.5.0)* | Duel et FFA contre robots : menus Jouer, robots de jeu (3 difficultés, profils), **fin de partie minimale** (rang, statistiques de base, retour au menu) ; version **0.5.0** |
-| **G5 : Événements et fin de partie** | Floraison collective et Arbre mourant, frise, journal et alertes complets, écran de résultats complet, spectateur après élimination ; version **0.6.0** |
-| **G6 : Habillage et bêta solo** | Tutoriel (8 étapes, §2.7), audio, profil et statistiques, traduction, essais avec de vrais joueurs (sans Steam) |
-| **G7 : Multijoueur** | Étape 1 : tests entre amis avec l'App ID 480 (Steam, salons, invitations, relais, hébergement par un joueur, empreinte, déconnexion). Étape 2 : file d'attente, FFA et Duel entre joueurs, partie personnalisée complète, chat, interface d'administration |
+| **G5 : Bâtiments** *(décidé le 5 octobre 2026, sans maquettes)* | Essaimeur, Avant-poste, Mortier (§5 bis) : simulation et tests, affichage et gestes de construction dans le style actuel, robots qui construisent ; version **0.6.0** |
+| **G6 : Événements et fin de partie** | Floraison collective et Arbre mourant, frise, journal et alertes complets, écran de résultats complet, spectateur après élimination ; version **0.7.0** |
+| **G7 : Habillage et bêta solo** | Tutoriel (8 étapes, §2.7), audio, profil et statistiques, traduction, essais avec de vrais joueurs (sans Steam) |
+| **G8 : Multijoueur** | Étape 1 : tests entre amis avec l'App ID 480 (Steam, salons, invitations, relais, hébergement par un joueur, empreinte, déconnexion). Étape 2 : file d'attente, FFA et Duel entre joueurs, partie personnalisée complète, chat, interface d'administration |
 
 **Hors feuille de route** : page Steam, App ID réel (Steam Direct, 100 $), succès et Steam Playtest, dès que le propriétaire décide de payer.
 
 La simulation ne reçoit que des **commandes** depuis G1 : le passage en ligne consiste surtout à la faire tourner chez l'hôte et à brancher le réseau Steam.
 
-**Bâtiments (§5 bis)** : jalon à placer dans la feuille de route avec le propriétaire.
+Le 5 octobre 2026, les **bâtiments** deviennent **G5** ; les jalons suivants sont décalés d'un cran (événements G6, habillage G7, multijoueur G8).
 
 ---
 
@@ -614,16 +616,14 @@ La simulation ne reçoit que des **commandes** depuis G1 : le passage en ligne c
 
 Elles seront posées sous forme de QCM au début du jalon concerné.
 
-### Bâtiments (§5 bis)
-1. Place dans la feuille de route : nouveau jalon avant les événements (G5 décalé) ou après ? Maquettes d'abord, comme G3 ?
-2. Valeurs de départ de chaque bâtiment : portée, dégâts, cadence et PV, en part de ceux du Sporophore.
+### G5 : Bâtiments (§5 bis)
+*Tranchées le 5 octobre 2026 : jalon G5, sans maquettes ; bâtiment endormi intouchable, réveil à pleine vie ; bâtiment coupé du Sporophore : reste actif ; obtenu sans place libre : gardé en plus (§5 bis).*
+1. Valeurs de départ de chaque bâtiment : portée, dégâts, cadence et PV, en part de ceux du Sporophore.
 3. Coût d'un bâtiment (fixe, ou qui monte avec le palier) et durée de construction.
 4. Portée des bâtiments : visent-ils seulement des cases collées à mon territoire, comme le Sporophore ? Le Mortier peut-il tirer par-dessus ?
-5. Bâtiment endormi : peut-on encore le frapper ? Avec quels PV se réveille-t-il (pleins, 25 %) ? Que se passe-t-il si la colonie qui l'obtient n'a plus de place libre ?
-6. Bâtiment dont la case est coupée du Sporophore (§12) : il tombe, il s'endort, ou il reste actif ?
-7. Peut-on démolir ou déplacer son propre bâtiment pour libérer une place ?
-8. La mutation *Hyphes longues* (portée +1) peut-elle dépasser la portée 4 du Sporophore ? S'applique-t-elle aux bâtiments ?
-9. Robots : comment placent-ils leurs bâtiments ?
+5. Peut-on démolir ou déplacer son propre bâtiment pour libérer une place ?
+6. La mutation *Hyphes longues* (portée +1) peut-elle dépasser la portée 4 du Sporophore ? S'applique-t-elle aux bâtiments ?
+7. Robots : comment placent-ils leurs bâtiments ?
 
 ### G4 : Combattre des robots
 *Questions 1 à 8 et 10 tranchées le 5 octobre 2026 (§17, « Décisions de G4 ») ; restent 9 et 11.*
@@ -633,13 +633,13 @@ Elles seront posées sous forme de QCM au début du jalon concerné.
 4. FFA contre robots : une difficulté pour tous ou une par robot (« mélange ») ? Profils choisis ou tirés au hasard ?
 5. Secteur et couleur du joueur en Duel et en FFA : choisis ou tirés au hasard ? Ordre des couleurs pour 2 et 6 colonies (daltonisme compris) ?
 6. Quitter une partie en cours : défaite enregistrée ? Confirmation demandée ?
-7. Éliminé en FFA contre robots, sans accélération possible : on attend la fin en spectateur ou on quitte avec son rang (le spectateur complet arrive en G5) ?
-8. Fin de partie minimale : quelles statistiques de base (cases, Tourelles abattues, durée de survie, pic de production) et quels boutons (rejouer, menu) ? L'écran de résultats complet arrive en G5.
+7. Éliminé en FFA contre robots, sans accélération possible : on attend la fin en spectateur ou on quitte avec son rang (le spectateur complet arrive en G6) ?
+8. Fin de partie minimale : quelles statistiques de base (cases, Tourelles abattues, durée de survie, pic de production) et quels boutons (rejouer, menu) ? L'écran de résultats complet arrive en G6.
 9. Replay en timelapse (§14.4) : dans quel jalon ?
 10. Robots dans le Bac à sable : leur ajoute-t-on une difficulté ?
 11. Panneau de simulations : ajoute-t-on d'autres mesures de combat (éliminations avant 26:00, effet des Trophées, mutations prises) ?
 
-### G6 : Habillage et bêta solo
+### G7 : Habillage et bêta solo
 1. Tutoriel : quelle forêt (« petite forêt de Duel » : rayon 5 ?) ? Faut-il d'autres étapes que les 8 du §2.7 ?
 2. Audio : style de la musique et des bruitages ; qui les produit (banques libres de droits, compositeur, autre) et sous quelle licence ?
 3. Profil et statistiques : enregistrés sur le PC (`user://`), liés au compte Steam ? Sauvegarde Steam Cloud ?
@@ -648,7 +648,7 @@ Elles seront posées sous forme de QCM au début du jalon concerné.
 6. Icône définitive et logo : qui les fait ?
 7. Numéro de version de la bêta solo.
 
-### G7 : Multijoueur
+### G8 : Multijoueur
 1. File d'attente : en Duel, au bout de combien de temps proposer un robot s'il n'y a personne ? En FFA, que faire avec moins de 4 joueurs après 2 min ?
 2. Classement du Duel (rang, classements Steam) : le fait-on ? Il dépend de la question sur la triche de l'hôte (§17).
 3. Hôte en file d'attente : le propriétaire du salon Steam, ou le joueur qui a la meilleure connexion ?

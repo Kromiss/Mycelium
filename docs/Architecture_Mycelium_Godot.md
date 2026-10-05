@@ -52,7 +52,7 @@ res://
 ├── autoload/                 Singletons (3 maximum)
 │   ├── settings.gd           Paramètres du joueur : les applique (thème, langue, fenêtre) et les enregistre
 │   ├── settings_store.gd     Valeurs des paramètres et lecture/écriture du fichier (testable seul)
-│   ├── steam_service.gd      Accès à GodotSteam (initialisation, identité, amis, salons) — jalon G6
+│   ├── steam_service.gd      Accès à GodotSteam (initialisation, identité, amis, salons) — jalon G8
 │   └── scene_router.gd       Changement d'écran (menu, partie, résultats)
 ├── sim/                      Règles du jeu, code pur (RefCounted uniquement)
 │   ├── simulation.gd         Point d'entrée : tick(commandes) -> TickResult, requêtes pour l'interface
@@ -76,7 +76,7 @@ res://
 │   │   ├── abilities.gd        Capacités actives (Salve, Mur, Nuage)
 │   │   ├── tier_system.gd      Paliers, lots d'Enzymes, choix de mutations
 │   │   ├── economy_system.gd   Production, Biomasse
-│   │   ├── event_system.gd     Floraison collective, Arbre mourant (jalon G5)
+│   │   ├── event_system.gd     Floraison collective, Arbre mourant (jalon G6)
 │   │   └── victory_system.gd   Fin de partie, classement
 │   ├── commands/             Une classe par commande + la classe de base
 │   ├── hex.gd                Coordonnées axiales, voisins, distances, anneaux
@@ -95,7 +95,7 @@ res://
 │   ├── transport.gd          Interface commune
 │   ├── local_transport.gd    Solo, tutoriel, tests
 │   ├── replay_transport.gd   Rejeu d'une partie enregistrée (Replay), en spectateur
-│   └── steam_transport.gd    En ligne : hôte ou invité (jalon G6)
+│   └── steam_transport.gd    En ligne : hôte ou invité (jalon G8)
 ├── game/
 │   ├── session.gd            Relie simulation, transport, robots et affichage
 │   ├── game_screen.tscn      Partie locale : Bac à sable, contre les robots ou spectateur (carte, colonies, gestes, caméra, HUD)
@@ -163,7 +163,7 @@ res://
 | 3 | `RegenSystem` | Régénération des cases et des Tourelles |
 | 4 | `TierSystem` | Paliers, lots d'Enzymes, choix de mutations |
 | 5 | `EconomySystem` | Production, nutriments, Biomasse |
-| 6 | `EventSystem` | Événements de la frise (jalon G5) |
+| 6 | `EventSystem` | Événements de la frise (jalon G6) |
 | 7 | `VictorySystem` | Fin de partie (dernière colonie en vie ou 30:00), classement |
 | 8 | `StateHash` | Calcule l'empreinte de l'état |
 
@@ -228,7 +228,7 @@ Fin de partie visée : ~1e6 nutriments/s, soit ~1e9 en millièmes par seconde ; 
 
 - `Transport` est une interface : `send_command(cmd)` (joué au prochain tick), `apply_now(cmd)` (ordre du joueur local, joué tout de suite si le transport le permet, signal `commands_applied(result)`), `advance()` (joue le prochain tick, en local ou chez l'hôte), signal `tick_received(result)`.
 - `LocalTransport` : la simulation tourne dans le jeu ; les commandes des robots sont jouées au prochain tick, celles du joueur local tout de suite (`apply_now()`). Il les enregistre dans un `Replay` avec l'empreinte de chaque tick. Utilisé en solo, dans le Bac à sable, le tutoriel et les tests.
-- `SteamTransport` (jalon G6) :
+- `SteamTransport` (jalon G8) :
   - **Hôte** : fait tourner la simulation, reçoit les commandes des invités par Steam Networking Sockets, envoie les différences et l'empreinte de chaque tick.
   - **Invité** : envoie ses commandes, applique les différences, **rejoue la simulation localement** à partir des commandes et compare l'empreinte ; un écart arrête la partie et la signale.
 - `ReplayTransport` : recrée la partie d'un `Replay` (secteurs compris) et lui remet à chaque tick les commandes enregistrées ; les commandes envoyées par le jeu sont ignorées (`Session.start_replay()`, en spectateur).
@@ -239,7 +239,7 @@ Fin de partie visée : ~1e6 nutriments/s, soit ~1e9 en millièmes par seconde ; 
 ## 8. Session, scènes et singletons
 
 - `Session` (`game/session.gd`) assemble une partie : crée la simulation et le transport, inscrit les robots, cadence les ticks (1 par seconde, ×2 ou ×4 en Bac à sable), met à jour `LocalViewState` et émet des **signaux** (`ticked`, `paused_changed`, `speed_changed` en G1 ; `cell_changed`, `tier_reached`, `colony_eliminated`… quand l'affichage en aura besoin). `start_local(defs, graine, colonies, time_control, secteurs)` lance une partie locale (« secteurs » : secteur de chaque colonie, vide pour les premiers) ; `add_robot(robot)` inscrit un robot, appelé par `step()` avant chaque tick sur l'état du tick précédent (ses commandes passent par le transport, donc dans le `Replay`). `stop()` arrête la partie pour le joueur (éliminé contre les robots) ; `colors` donne la couleur de chaque colonie (rangs dans `GameText.COLONY_COLORS`, tirés de la graine contre les robots). `set_spectator()` (ou `start_replay()`) : plus aucun ordre accepté, vitesses ×1, ×4, ×16, ×64 (jusqu'à 64 ticks par image), et `viewer_colony()` vaut −1 pour que chaque colonie garde le nom de sa couleur ; la pause et la vitesse ne répondent que si `time_control` est vrai (Bac à sable). `send_command()` joue l'ordre du joueur tout de suite (signal `commands_applied`, que le HUD et la carte écoutent) et renvoie faux, sans rien envoyer, pendant la pause ou une fois la partie finie ; `game_finished` est émis quand la simulation atteint sa durée maximale (`VictorySystem`, 30:00), après quoi plus aucun tick n'est joué. `production_history` garde la production de la colonie locale à chaque tick (courbe du HUD). En G1, l'affichage lit directement l'état de la simulation locale ; `LocalViewState` arrive avec le jeu en ligne. `advance_time()` joue les ticks dus (8 au plus par image) et `tick_fraction()` donne l'avancement vers le prochain tick, pour interpoler l'affichage.
-- **Singletons limités à trois** : `Settings`, `SceneRouter` et, au jalon G6, `SteamService`. `SteamService` est **facultatif** : les modes locaux (joueur et robots : Bac à sable, Duel et FFA contre robots, tutoriel) sont **isolés des modes en ligne** et fonctionnent sans Steam ni GodotSteam. Aucun code de `sim/`, `ai/`, `game/` ni des écrans des modes locaux ne dépend de `SteamService` ou de `SteamTransport` ; seuls `net/steam_transport.gd` et les écrans du multijoueur (salons, invitations, file d'attente) y touchent. L'état de la partie n'est **jamais** dans un singleton : il appartient à la `Session` en cours.
+- **Singletons limités à trois** : `Settings`, `SceneRouter` et, au jalon G8, `SteamService`. `SteamService` est **facultatif** : les modes locaux (joueur et robots : Bac à sable, Duel et FFA contre robots, tutoriel) sont **isolés des modes en ligne** et fonctionnent sans Steam ni GodotSteam. Aucun code de `sim/`, `ai/`, `game/` ni des écrans des modes locaux ne dépend de `SteamService` ou de `SteamTransport` ; seuls `net/steam_transport.gd` et les écrans du multijoueur (salons, invitations, file d'attente) y touchent. L'état de la partie n'est **jamais** dans un singleton : il appartient à la `Session` en cours.
 - Une scène par écran (`ui/menus/main_menu.tscn`, `ui/hud/hud.tscn`…), une scène par élément réutilisable (bouton de bâtiment, ligne de classement).
 
 ---
@@ -391,6 +391,7 @@ Le ressenti (rythme, plaisir des gestes, lisibilité), le rendu visuel, les perf
 | G2 | Bâtiments (`data/buildings/`), chantiers et file de construction, voisinage, Enzymes, plafond de stock, désactivation ; palette et menu rond ; robots composés (profil d'expansion + profil de bâtisseur + pourcentage) dans le panneau de simulations. Trois étapes : `sim/` et tests (**étape 1 livrée le 4 octobre 2026** : `Buildings`, `BuildCommand`, `DemolishCommand`, `data/buildings/`) ; affichage, HUD et Bac à sable (**étape 2 livrée le 4 octobre 2026** : `BuildingLayer`, `BuildingIcons`, `BuildingPalette`, `RadialMenu`, `BuildingPanel`, `BuildQueueView`, réglages des bâtiments dans `SandboxParam`) ; robots et panneau (**étape 3 livrée le 4 octobre 2026**, version 0.3.0 : `RobotSpec`, `BuilderRobot`, `ColonyRobot`, `RobotList`, `ColonyState.nutrients_lost`) ; city builder revu le même jour (places de bâtiment, effets de zone sans cumul, coût en secondes de production, plus de voisinage ni de Rosace) ; **tout ce code a été supprimé en G3 (étape 1)** |
 | G3 | Le Sporophore (refonte du 4 octobre 2026). Trois étapes : 1) `sim/` et tests (**livrée le 4 octobre 2026** : `TurretSystem`, `Targeting`, `Combat`, `RegenSystem`, `Upgrades`, `Abilities`, `ColonyStats`, `ShotStats`, `TierSystem` et `VictorySystem` réécrits, six commandes, `data/upgrades.tres`, `mutations.tres`, `abilities.tres` ; suppression de la colonisation, des bâtiments, des robots de G1 et G2, du panneau de simulations et de leur affichage ; affichage et HUD provisoires, Bac à sable avec tous les réglages) ; 2) écran des maquettes (**livrée le 4 octobre 2026** : composants de `ui/hud/`, `TurretArt`, `MapCamera.view_rect`, gestes des capacités, réglages des mutations dans le Bac à sable, `ColonyState.mutation_tiers` et `pending_tiers`, `Simulation.upgrade_values()`) ; 3) robots et panneau de simulations à plusieurs robots (**livrée le 5 octobre 2026**, version 0.4.0 : `Robot`, `RobotProfile`, `RobotCatalog`, `UpgradePlanner`, `Threats`, `ai/profiles/`, adversaires du Bac à sable, `Session.add_robot()` et spectateur, `ReplayTransport`, `SimRunner`, `SimRun`, `SimReport`, `CompositionList`, `CurvesChart`) |
 | G4 | Combattre des robots (décidé le 5 octobre 2026 ; **livré le 5 octobre 2026**, version 0.5.0) : `RobotDifficulty`, `data/robots/` (robot de jeu équilibré, Facile / Normal / Difficile), `RobotCatalog.make()`, `GameConfig` (ancien `SandboxConfig` : sorte de partie, secteur du joueur et couleurs tirés de la graine, `replay_config()`), `game_screen.tscn` (ancien `sandbox_screen.tscn`), `ui/play/play_setup.tscn` (mode et difficulté), `Session.stop()` et `colors`, HUD : abandon confirmé et fin de partie minimale ; robot de jeu au choix dans le Bac à sable |
-| G5 | `EventSystem` (Floraison collective, Arbre mourant), frise, journal et alertes complets, écran de résultats complet, spectateur après élimination ; version 0.6.0 |
-| G6 | Tutoriel, audio, traduction, profil (sans Steam) |
-| G7 | `SteamService` et GodotSteam, `SteamTransport`, salons et invitations, partie personnalisée (salon, surcharge des paramètres, préréglages ; ancien G5), vérification par empreinte, interface d'administration. **Première étape : tests entre amis avec l'App ID 480** (Spacewar) : l'App ID est lu depuis la configuration (jamais écrit en dur), les salons portent une clé de métadonnée propre au jeu et à sa version et la recherche filtre dessus (l'App ID 480 est partagé avec d'autres développeurs), et `steam_appid.txt` est réservé aux builds de test, jamais inclus dans l'export final |
+| G5 | Bâtiments (GDD §5 bis) : Essaimeur, Avant-poste, Mortier, places par palier, bâtiment endormi ; sans maquettes (décidé le 5 octobre 2026) |
+| G6 | `EventSystem` (Floraison collective, Arbre mourant), frise, journal et alertes complets, écran de résultats complet, spectateur après élimination ; version 0.6.0 |
+| G7 | Tutoriel, audio, traduction, profil (sans Steam) |
+| G8 | `SteamService` et GodotSteam, `SteamTransport`, salons et invitations, partie personnalisée (salon, surcharge des paramètres, préréglages ; ancien G5), vérification par empreinte, interface d'administration. **Première étape : tests entre amis avec l'App ID 480** (Spacewar) : l'App ID est lu depuis la configuration (jamais écrit en dur), les salons portent une clé de métadonnée propre au jeu et à sa version et la recherche filtre dessus (l'App ID 480 est partagé avec d'autres développeurs), et `steam_appid.txt` est réservé aux builds de test, jamais inclus dans l'export final |
