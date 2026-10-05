@@ -6,6 +6,7 @@ extends SceneTree
 ## game (partie de Bac à sable), game-robots (contre un robot par secteur libre), game-watch
 ## (partie de robots regardée, sans joueur), game-menu (partie avec le menu Échap ouvert),
 ## game-end (partie terminée après [secondes]), game-mutation (cartes de mutation à l'écran),
+## game-wheel (roue des bâtiments ouverte sur une case de la colonie, après [secondes]),
 ## versus (partie contre les robots, difficulté Normal), versus-quit (menu de partie avec la
 ## question « Abandonner ? »), versus-end (joueur éliminé après [secondes]), play (lancement
 ## d'une partie contre les robots ; [mode] duel ou ffa),
@@ -24,6 +25,7 @@ const SCREENS: Dictionary[String, String] = {
 	"game-menu": "res://game/game_screen.tscn",
 	"game-end": "res://game/game_screen.tscn",
 	"game-mutation": "res://game/game_screen.tscn",
+	"game-wheel": "res://game/game_screen.tscn",
 	"game-robots": "res://game/game_screen.tscn",
 	"game-watch": "res://game/game_screen.tscn",
 	"versus": "res://game/game_screen.tscn",
@@ -99,6 +101,8 @@ func _initialize() -> void:
 		scroll.scroll_vertical = 100_000 if args.size() < 4 else args[3].to_int()
 	if args[0] == "game-menu":
 		current_scene.get_node("%Hud").call("open_game_menu")
+	if args[0] == "game-wheel":
+		_open_wheel()
 	for _frame: int in range(FRAMES_BEFORE_CAPTURE):
 		await process_frame
 	var image: Image = root.get_texture().get_image()
@@ -107,8 +111,29 @@ func _initialize() -> void:
 	quit(0 if error == OK else 1)
 
 
+## Ouvre la roue des bâtiments sur la case de la colonie la plus proche de la Tourelle (hors
+## Sporophore), comme un clic droit.
+func _open_wheel() -> void:
+	var session: Session = current_scene.get_node("%Session")
+	var state: GameState = session.simulation.state
+	var colony: ColonyState = session.colony()
+	var best: int = -1
+	for cell: int in range(state.cell_count()):
+		if state.owner[cell] != colony.id or cell == colony.turret:
+			continue
+		if best < 0 or state.distance(cell, colony.turret) < state.distance(best, colony.turret):
+			best = cell
+	if best < 0:
+		return
+	var view: ForestView = current_scene.get_node("%ForestView")
+	var point: Vector2 = root.get_canvas_transform() * view.cell_center(best)
+	var input: MapInput = current_scene.get_node("%MapInput")
+	input.right_click(best, point)
+
+
 ## Joue « seconds » secondes de partie : à chaque seconde, la colonie achète l'amélioration
-## la moins chère qu'elle peut payer et, si « choose », prend la première mutation proposée.
+## la moins chère qu'elle peut payer, pose les bâtiments que poserait le robot de jeu et, si
+## « choose », prend la première mutation proposée.
 func _play(seconds: int, choose: bool) -> void:
 	var session: Session = current_scene.get_node("%Session")
 	for _second: int in range(seconds):
@@ -131,4 +156,7 @@ func _play(seconds: int, choose: bool) -> void:
 				best_cost = cost
 		if best >= 0:
 			session.send_command(BuyUpgradeCommand.new(state.defs.upgrades[best].id))
+		var building: Command = BuildPlanner.plan(state, colony, RobotCatalog.GAME_ROBOT)
+		if building != null and session.simulation.check(building) == Refusal.Code.OK:
+			session.send_command(building)
 		session.step()

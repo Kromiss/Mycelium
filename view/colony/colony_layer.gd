@@ -6,8 +6,9 @@ extends Node2D
 ## - case entamée : se remplit de la couleur de l'attaquant, comme une jauge circulaire ;
 ## - case visée par ma Tourelle : contour plein ; cible désignée au clic : contour pointillé et
 ##   halo ; case soignée par sa colonie : halo de sa couleur ;
-## - Sporophores (trois stades selon le palier), cercle de portée en pointillé, spores en arc,
-##   pas en cours (Tourelle fantôme sur la case d'arrivée et secondes restantes).
+## - Sporophores (trois stades selon le palier), cercle de portée en pointillé, spores en arc ;
+## - bâtiments (BuildingArt) et leurs spores ; portée d'un de mes bâtiments survolé, et portée
+##   du bâtiment à poser autour de la case survolée pendant le geste de construction.
 ## Ne fait que lire l'état de la partie.
 
 ## Opacité d'une case à moi hors de portée de ma Tourelle (maquette : 55 %).
@@ -28,6 +29,10 @@ var _dark: Array[Color] = []
 var _hover: int = -1
 ## Spores du dernier tick : paires (colonie, case touchée).
 var _spores := PackedInt32Array()
+## Spores des bâtiments du dernier tick : triplets (colonie, case du bâtiment, case touchée).
+var _building_spores := PackedInt32Array()
+## Bâtiment à poser (rang dans SimDefs.buildings ; −1 : aucun geste de construction).
+var _build_preview: int = -1
 ## Cases dont la bulle est peinte d'une couleur de colonie.
 var _painted := PackedInt32Array()
 ## Cases entamées par une autre colonie que la leur : case, attaquant, part des PV perdue
@@ -55,6 +60,7 @@ func refresh(result: TickResult = null) -> void:
 		return
 	if result != null:
 		_spores = result.shots.slice(0, max_spores * 2)
+		_building_spores = result.building_shots.slice(0, max_spores * 3)
 	var state: GameState = _session.simulation.state
 	for cell: int in _painted:
 		if state.owner[cell] < 0:
@@ -117,6 +123,13 @@ func refresh(result: TickResult = null) -> void:
 	queue_redraw()
 
 
+## Bâtiment à poser pendant le geste de construction (−1 : aucun).
+func set_build_preview(type: int) -> void:
+	if type != _build_preview:
+		_build_preview = type
+		queue_redraw()
+
+
 ## Case survolée par la souris (−1 : aucune).
 func set_hover(cell: int) -> void:
 	if cell != _hover:
@@ -140,10 +153,14 @@ func _draw() -> void:
 	for i: int in range(0, _healed.size(), 2):
 		_draw_healed(_healed[i], _healed[i + 1], radius)
 	_draw_local(state, radius, palette)
+	for building: BuildingState in state.buildings:
+		_draw_building(state, building, radius, palette)
 	for colony: ColonyState in state.colonies:
 		if colony.alive:
 			_draw_turret(state, colony, radius)
 	_draw_spores(state, radius)
+	_draw_building_spores(radius)
+	_draw_building_range(state)
 	if _hover >= 0:
 		var hover_color: Color = palette.text
 		hover_color.a = 0.6
@@ -227,6 +244,69 @@ func _draw_spores(state: GameState, radius: float) -> void:
 		var lift: Vector2 = Vector2(0.0, -start.distance_to(finish) * spore_arc)
 		var point: Vector2 = start.lerp(finish, progress) + lift * sin(progress * PI)
 		draw_circle(point, radius * spore_ratio * (0.7 + 0.5 * progress), _dark[colony.id])
+
+
+## Un bâtiment : pastille de sa colonie, chantier, sommeil et barre de PV (BuildingArt).
+func _draw_building(
+	state: GameState, building: BuildingState, radius: float, palette: Palette
+) -> void:
+	var def: SimBuilding = state.defs.buildings[building.type]
+	var owner: int = maxi(0, building.owner)
+	var health: float = (
+		float(building.hp) / float(maxi(1, _session.simulation.building_max_hp(building)))
+	)
+	var site: float = 1.0
+	if building.building_up(state.tick) and def.build_ticks > 0:
+		var left: float = float(building.ready_tick - state.tick) - _session.tick_fraction()
+		site = clampf(1.0 - left / float(def.build_ticks), 0.0, 1.0)
+	var sleep: float = -1.0
+	if building.asleep(state.tick):
+		var total: float = float(maxi(1, state.defs.building_sleep_ticks))
+		var left: float = float(building.asleep_until - state.tick) - _session.tick_fraction()
+		sleep = clampf(1.0 - left / total, 0.0, 1.0)
+	BuildingArt.draw(
+		self,
+		_view.cell_center(building.cell),
+		radius,
+		def.kind,
+		_main[owner],
+		_dark[owner],
+		palette,
+		health,
+		site,
+		sleep
+	)
+
+
+## Spores des bâtiments du dernier tick, en arc du bâtiment à la case touchée.
+func _draw_building_spores(radius: float) -> void:
+	var progress: float = _session.tick_fraction()
+	for i: int in range(0, _building_spores.size(), 3):
+		var colony: int = _building_spores[i]
+		var start: Vector2 = _view.cell_center(_building_spores[i + 1])
+		var finish: Vector2 = _view.cell_center(_building_spores[i + 2])
+		var lift: Vector2 = Vector2(0.0, -start.distance_to(finish) * spore_arc)
+		var point: Vector2 = start.lerp(finish, progress) + lift * sin(progress * PI)
+		draw_circle(point, radius * spore_ratio * (0.6 + 0.4 * progress), _dark[colony])
+
+
+## Portée d'un de mes bâtiments survolé, ou du bâtiment à poser autour de la case survolée.
+func _draw_building_range(state: GameState) -> void:
+	var colony: ColonyState = _session.colony()
+	if _hover < 0 or colony == null or not colony.alive:
+		return
+	var reach: int = -1
+	if _build_preview >= 0:
+		reach = ColonyStats.building_reach(state.defs, colony, _build_preview)
+	else:
+		var building: BuildingState = state.building_on(_hover)
+		if building != null and building.owner == colony.id and building.standing(state.tick):
+			reach = _session.simulation.building_reach(building)
+	if reach < 0:
+		return
+	var color: Color = _dark[colony.id]
+	color.a = 0.8
+	_draw_dashed_circle(_view.cell_center(_hover), (reach + 0.5) * _cell_spacing(), color, 3.0, 56)
 
 
 ## Part des PV max perdue par la case, en millièmes (0 : pleine vie).

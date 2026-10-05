@@ -20,6 +20,9 @@ const SOURCES: Array[String] = [
 	"res://ui/hud/hud.tscn",
 	"res://ui/hud/hud.gd",
 	"res://ui/hud/cell_tooltip.gd",
+	"res://ui/hud/hud_journal.gd",
+	"res://ui/hud/buildings_card.gd",
+	"res://ui/hud/build_wheel.gd",
 	"res://ui/sandbox/sandbox_param.gd",
 	"res://ui/sandbox/settings_form.gd",
 	"res://ui/sandbox/settings_form.tscn",
@@ -176,7 +179,7 @@ func test_content_names_are_translated() -> void:
 	for ability: SimAbility in defs.abilities:
 		keys.append(ability.name_key)
 	for building: SimBuilding in defs.buildings:
-		keys.append(building.name_key)
+		keys.append_array([building.name_key, building.name_key + "_DESC"])
 	for name: String in Refusal.Code.keys():
 		if name != "OK":
 			keys.append("REFUSAL_" + name)

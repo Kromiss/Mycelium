@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3]
+[gd_scene load_steps=12 format=3]
 
 [ext_resource type="Script" path="res://ui/hud/hud.gd" id="1_hud"]
 [ext_resource type="Script" path="res://ui/hud/timeline_card.gd" id="2_timeline"]
@@ -10,6 +10,7 @@
 [ext_resource type="Script" path="res://ui/hud/mutations_card.gd" id="8_mutations"]
 [ext_resource type="Script" path="res://ui/hud/upgrades_card.gd" id="9_upgrades"]
 [ext_resource type="Script" path="res://ui/hud/ability_bar.gd" id="10_abilities"]
+[ext_resource type="Script" path="res://ui/hud/buildings_card.gd" id="11_buildings"]
 
 [node name="Hud" type="Control"]
 anchors_preset = 15
@@ -176,6 +177,11 @@ script = ExtResource("7_turret")
 unique_name_in_owner = true
 layout_mode = 2
 script = ExtResource("8_mutations")
+
+[node name="BuildingsCard" type="PanelContainer" parent="SidePanel/Side"]
+unique_name_in_owner = true
+layout_mode = 2
+script = ExtResource("11_buildings")
 
 [node name="UpgradesCard" type="PanelContainer" parent="SidePanel/Side"]
 unique_name_in_owner = true

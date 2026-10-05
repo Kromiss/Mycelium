@@ -5,16 +5,11 @@ extends RefCounted
 
 
 ## Raison pour laquelle la pose serait refusée (OK si elle serait acceptée) : un bâtiment
-## débloqué et payable, sur une de mes cases sans Sporophore ni bâtiment, avec une place libre.
-static func check_build(
-	state: GameState, colony: ColonyState, type: int, cell: int
-) -> Refusal.Code:
-	var defs: SimDefs = state.defs
-	if type < 0 or type >= defs.buildings.size():
-		return Refusal.Code.UNKNOWN_BUILDING
-	var def: SimBuilding = defs.buildings[type]
-	if colony.tier < def.unlock_tier:
-		return Refusal.Code.TIER_LOCKED
+## débloqué et payable, avec une place libre, sur une de mes cases sans Sporophore ni bâtiment.
+static func check_build(state: GameState, colony: ColonyState, type: int, cell: int) -> Refusal.Code:
+	var code: Refusal.Code = check_type(state, colony, type)
+	if code != Refusal.Code.OK:
+		return code
 	if cell < 0:
 		return Refusal.Code.OUT_OF_MAP
 	if state.owner[cell] != colony.id:
@@ -23,6 +18,18 @@ static func check_build(
 		return Refusal.Code.TURRET_CELL
 	if state.building_at[cell] >= 0:
 		return Refusal.Code.CELL_OCCUPIED
+	return Refusal.Code.OK
+
+
+## Raison pour laquelle le bâtiment ne pourrait être posé nulle part (OK s'il le pourrait sur
+## une case convenable) : débloqué, une place libre, payable.
+static func check_type(state: GameState, colony: ColonyState, type: int) -> Refusal.Code:
+	var defs: SimDefs = state.defs
+	if type < 0 or type >= defs.buildings.size():
+		return Refusal.Code.UNKNOWN_BUILDING
+	var def: SimBuilding = defs.buildings[type]
+	if colony.tier < def.unlock_tier:
+		return Refusal.Code.TIER_LOCKED
 	if standing_count(state, colony.id) >= ColonyStats.building_slots(defs, colony):
 		return Refusal.Code.NO_BUILDING_SLOT
 	if colony.enzymes < Fixed.from_units(def.cost_enzymes):

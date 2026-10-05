@@ -66,7 +66,7 @@ HUD_PAUSED_NO_ORDERS,Paused: orders are blocked,En pause : les ordres sont bloqu
 HUD_HINT_SPECTATOR,Robot game · %s: pause · Speed: up to ×64,Partie de robots · %s : pause · Vitesse : jusqu'à ×64
 HUD_SPECTATOR_NO_ORDERS,Watching a robot game: no orders,Partie de robots regardée : aucun ordre
 HUD_TIER_BANNER,Tier %s!,Palier %s !
-HUD_HINT,Click: target this cell,Clic : viser cette case
+HUD_HINT,Click: target · Right click: build,Clic : viser · Clic droit : construire
 TIP_ZONE,Zone %d,Zone %d
 TIP_FREE,Free cell,Case libre
 TIP_OWNED,Your colony,Ta colonie
@@ -230,6 +230,21 @@ REFUSAL_BUILDING_CELL,Your Sporophore cannot heal a building,Ton Sporophore ne p
 BUILDING_SWARMER,Swarmer,Essaimeur
 BUILDING_OUTPOST,Outpost,Avant-poste
 BUILDING_MORTAR,Mortar,Mortier
+BUILDING_SWARMER_DESC,Takes the nearest free cells,Prend les cases libres les plus proches
+BUILDING_OUTPOST_DESC,Small turret: takes free and enemy cells,Petite tourelle : prend les cases libres et adverses
+BUILDING_MORTAR_DESC,"Siege: hits enemy buildings and Sporophores, even far away","Siège : frappe les bâtiments et Sporophores adverses, même loin"
+HUD_BUILDINGS,Buildings,Bâtiments
+HUD_BUILDING_SLOTS,%d / %d slots,%d / %d places
+HUD_BUILDING_COST,%d Enz.,%d Enz.
+HUD_BUILDING_LOCKED,Tier %d,Palier %d
+HUD_DEMOLISH,Demolish,Démolir
+HUD_HINT_BUILD,%s: click one of your cells · %s: cancel,%s : clique sur une de tes cases · %s : annuler
+TIP_BUILDING,%s · HP: %s / %s,%s · PV : %s / %s
+TIP_BUILDING_SITE,%s · being built: %s,%s · en chantier : %s
+TIP_BUILDING_ASLEEP,%s asleep · wakes in %s,%s endormi · réveil dans %s
+JOURNAL_BUILDING_DONE,%s ready,%s prêt
+JOURNAL_BUILDING_FELL,Your %s fell,Ton %s est tombé
+JOURNAL_BUILDING_WOKE,Building taken over: %s,Bâtiment récupéré : %s
 HUD_PROTECTION,Protection: %s,Protection : %s
 HUD_RANKING,Ranking · average production,Classement · prod. moyenne
 HUD_YOU,You,Toi

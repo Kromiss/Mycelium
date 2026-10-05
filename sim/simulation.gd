@@ -142,6 +142,17 @@ func is_target(colony_id: int, cell: int) -> bool:
 	return Targeting.check_designation(state, colony, cell) == Refusal.Code.OK
 
 
+## Raison pour laquelle la colonie ne pourrait poser ce bâtiment nulle part (OK si elle le
+## pourrait sur une case convenable) : débloqué, une place libre, payable.
+func check_building_type(colony_id: int, building: StringName) -> Refusal.Code:
+	var colony: ColonyState = state.colony(colony_id)
+	if colony == null or not colony.alive:
+		return Refusal.Code.UNKNOWN_COLONY
+	if state.finished:
+		return Refusal.Code.GAME_OVER
+	return Buildings.check_type(state, colony, state.defs.building_index(building))
+
+
 ## Places de bâtiment de la colonie : [prises, total] (GDD §5 bis).
 func building_slots(colony_id: int) -> PackedInt32Array:
 	var colony: ColonyState = state.colony(colony_id)

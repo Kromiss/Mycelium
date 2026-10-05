@@ -4,14 +4,17 @@ extends Control
 ## - sur la carte, à gauche : frise (horloge, protection ; pause, vitesse et récapitulatif en
 ##   Bac à sable), mini-classement, journal, rappel des gestes, messages, annonce des paliers,
 ##   cartes de mutation ;
-## - panneau de droite : ressources, Tourelle et priorité de tir, mutations prises,
+## - panneau de droite : ressources, Tourelle et priorité de tir, mutations prises, bâtiments,
 ##   améliorations, capacités ;
+## - roue des bâtiments au clic droit sur une de mes cases (GDD §5 bis) ;
 ## - info-bulle d'une case, menu de partie (Échap) et panneau de fin.
 ## Les ordres passent par la Session, après avoir demandé à la simulation s'ils seraient
 ## acceptés : les règles restent dans sim/.
 
 ## Le joueur a cliqué sur une capacité (le geste continue sur la carte pour le Mur et le Nuage).
 signal ability_requested(index: int)
+## Le joueur a cliqué sur un bâtiment du panneau (le geste continue sur la carte).
+signal building_requested(index: int)
 
 ## Durée d'affichage d'un message, en secondes.
 const TOAST_TIME: float = 2.6
@@ -21,6 +24,9 @@ const BANNER_TIME: float = 1.6
 const TOOLTIP_OFFSET := Vector2(22.0, 22.0)
 ## Délai minimal entre deux alertes d'attaque d'une même colonie dans le journal, en secondes.
 const ATTACK_ALERT_TICKS: int = 20
+
+## Roue des bâtiments, ouverte au clic droit sur une de mes cases (GDD §5 bis).
+var wheel: BuildWheel
 
 var _session: Session
 var _config: GameConfig
@@ -44,6 +50,7 @@ var _confirm_label: Label
 var _confirm_yes: Button
 var _confirm_no: Button
 
+@onready var buildings: BuildingsCard = %BuildingsCard
 @onready var _map_area: Control = %MapArea
 @onready var _timeline: TimelineCard = %TimelineCard
 @onready var _ranking: RankingCard = %RankingCard
@@ -88,6 +95,14 @@ func _ready() -> void:
 	_replay_button.pressed.connect(_restart)
 	_end_menu_button.pressed.connect(SceneRouter.leave_game)
 	_build_confirm()
+	wheel = BuildWheel.new()
+	add_child(wheel)
+	# Sous l'info-bulle et les menus.
+	move_child(wheel, _tooltip.get_index())
+	wheel.build_chosen.connect(_on_build_chosen)
+	wheel.demolish_chosen.connect(_on_demolish_chosen)
+	wheel.refused.connect(show_message)
+	buildings.building_pressed.connect(func(index: int) -> void: building_requested.emit(index))
 	_turret.priority_chosen.connect(_on_priority_chosen)
 	_upgrades.buy_requested.connect(_on_buy_requested)
 	_abilities.ability_pressed.connect(func(index: int) -> void: ability_requested.emit(index))
@@ -110,6 +125,8 @@ func setup(session: Session, config: GameConfig, main: Array[Color], dark: Array
 	_resources.setup(session, main[local], dark[local])
 	_turret.setup(session, dark[local])
 	_mutations.setup(session, main[local], dark[local])
+	buildings.setup(session, dark[local])
+	wheel.setup(session, dark[local])
 	_upgrades.setup(session, main[local], dark[local])
 	_abilities.setup(session, dark[local])
 	_overlay.setup(session, main[local], dark[local])
@@ -160,10 +177,14 @@ func set_tooltip_cell(cell: int) -> void:
 	_update_tooltip()
 
 
-## Geste en cours sur la carte (rappel des gestes en bas de la carte).
+## Geste en cours sur la carte (rappel des gestes en bas de la carte, bouton du bâtiment en
+## cours de pose).
 func set_input_mode(mode: MapInput.Mode, ability: int) -> void:
 	_hint_mode = mode
 	_hint_ability = ability
+	buildings.set_pending(ability if mode == MapInput.Mode.BUILD else -1)
+	if mode != MapInput.Mode.TARGET:
+		wheel.close()
 	_update_hint()
 
 
@@ -178,6 +199,7 @@ func copy_recap() -> void:
 func open_game_menu() -> void:
 	if _end_panel.visible:
 		return
+	wheel.close()
 	_menu_paused = not _session.paused
 	_show_confirm(false)
 	_game_menu.visible = true
@@ -293,6 +315,15 @@ func _on_buy_requested(upgrade: StringName, count: int) -> void:
 	_send(BuyUpgradeCommand.new(upgrade, count))
 
 
+func _on_build_chosen(index: int, cell: int) -> void:
+	var state: GameState = _session.simulation.state
+	_send(BuildCommand.new(state.defs.buildings[index].id, state.map.cells[cell]))
+
+
+func _on_demolish_chosen(cell: int) -> void:
+	_send(DemolishCommand.new(_session.simulation.state.map.cells[cell]))
+
+
 # --- Mise à jour ---
 
 
@@ -347,11 +378,13 @@ func _update_offer(result: TickResult) -> void:
 
 ## Tout ce qui ne change qu'à chaque tick.
 func _update_state() -> void:
+	wheel.refresh()
 	_timeline.refresh()
 	_ranking.refresh()
 	_resources.refresh()
 	_turret.refresh()
 	_mutations.refresh(_offer_hidden)
+	buildings.refresh()
 	_upgrades.refresh()
 	_abilities.refresh()
 	_update_tooltip()
@@ -366,6 +399,9 @@ func _update_hint() -> void:
 		MapInput.Mode.ABILITY:
 			var ability: SimAbility = _session.simulation.state.defs.abilities[_hint_ability]
 			_hint_label.text = tr("HUD_HINT_ABILITY") % [tr(ability.name_key), cancel]
+		MapInput.Mode.BUILD:
+			var building: SimBuilding = _session.simulation.state.defs.buildings[_hint_ability]
+			_hint_label.text = tr("HUD_HINT_BUILD") % [tr(building.name_key), cancel]
 		_:
 			_hint_label.text = tr("HUD_HINT")
 
@@ -421,6 +457,7 @@ func _on_speed_changed(speed: int) -> void:
 
 
 func _on_game_finished() -> void:
+	wheel.close()
 	_game_menu.visible = false
 	_overlay.visible = false
 	_paused_label.visible = false

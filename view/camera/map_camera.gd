@@ -1,9 +1,10 @@
 class_name MapCamera
 extends Camera2D
-## Caméra de la carte (GDD §13.4) :
-## - déplacement en maintenant le clic droit, ou en approchant la souris des bords de l'écran ;
+## Caméra de la carte (GDD §16.5) :
+## - déplacement en maintenant le clic du milieu (décidé le 5 octobre 2026 : le clic droit
+##   ouvre la roue des bâtiments), ou en approchant la souris des bords de l'écran ;
 ## - zoom à la molette, centré sur la position de la souris.
-## Le clic gauche n'est pas utilisé : il est réservé au jeu.
+## Les clics gauche et droit ne sont pas utilisés : ils sont réservés au jeu.
 ## La carte peut n'occuper qu'une partie de l'écran (« view_rect », écran de partie G3 : carte à
 ## gauche, panneau à droite) : la caméra centre et cadre alors dans cette partie.
 

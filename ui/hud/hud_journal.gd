@@ -2,8 +2,8 @@ class_name HudJournal
 extends RefCounted
 ## Ce que le journal retient d'un tick (maquette « Écran de partie ») : attaques contre mes
 ## cases (une alerte par colonie au plus toutes les N secondes), cases prises par une autre
-## colonie, paliers atteints, fin de la protection, éliminations. Les mutations choisies sont
-## notées par le HUD.
+## colonie, paliers atteints, fin de la protection, éliminations, et mes bâtiments (prêts,
+## tombés, récupérés au réveil). Les mutations choisies sont notées par le HUD.
 
 
 ## Ajoute au journal les faits du tick. « last_alert » : dernière alerte d'attaque de chaque
@@ -24,6 +24,7 @@ static func record(
 		# En spectateur (local à −1), pas d'alertes : seules les éliminations sont notées.
 		_record_attacks(journal, result, session, local, last_alert, alert_ticks)
 		_record_losses(journal, result, session, local)
+		_record_buildings(journal, result, session, local)
 	for i: int in range(0, result.tier_changes.size(), 3):
 		var tier: int = result.tier_changes[i + 2]
 		if result.tier_changes[i] != local or tier <= result.tier_changes[i + 1]:
@@ -79,6 +80,29 @@ static func _record_losses(
 		cut = 0
 		var name: String = GameText.colony_name(taker, local, session.colors)
 		journal.add_entry(result.tick, _t("JOURNAL_LOST") % [name, count], true)
+
+
+## Mes bâtiments : chantier fini, bâtiment tombé (alerte), bâtiment obtenu à son réveil.
+static func _record_buildings(
+	journal: JournalCard, result: TickResult, session: Session, local: int
+) -> void:
+	var state: GameState = session.simulation.state
+	for i: int in range(0, result.building_events.size(), 3):
+		var event: int = result.building_events[i]
+		var building: BuildingState = state.building_on(result.building_events[i + 1])
+		if building == null or local < 0:
+			continue
+		var name: String = _t(state.defs.buildings[building.type].name_key)
+		match event:
+			TickResult.BuildingEvent.COMPLETED:
+				if building.owner == local:
+					journal.add_entry(result.tick, _t("JOURNAL_BUILDING_DONE") % name)
+			TickResult.BuildingEvent.FELL:
+				if building.owner == local:
+					journal.add_entry(result.tick, _t("JOURNAL_BUILDING_FELL") % name, true)
+			TickResult.BuildingEvent.WOKE:
+				if result.building_events[i + 2] == local:
+					journal.add_entry(result.tick, _t("JOURNAL_BUILDING_WOKE") % name)
 
 
 static func _t(key: String) -> String:

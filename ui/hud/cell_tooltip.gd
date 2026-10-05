@@ -1,7 +1,8 @@
 class_name CellTooltip
 extends RefCounted
 ## Contenu de l'info-bulle d'une case (provisoire, G3 étape 1) : à qui elle est, sa zone, ses
-## PV, sa production si elle est à moi, et si ma Tourelle peut la viser (sinon pourquoi).
+## PV, son bâtiment (PV, chantier ou sommeil), sa production si elle est à moi, et si ma
+## Tourelle ou un de mes bâtiments peut la viser (sinon pourquoi).
 ## Les chiffres viennent de la simulation.
 
 
@@ -27,6 +28,9 @@ static func lines(session: Session, cell: int) -> PackedStringArray:
 			result.append(_t("TIP_ENEMY"))
 		var hp: String = NumberFormat.amount(state.hp[cell])
 		result.append(_t("TIP_HP") % [hp, NumberFormat.amount(simulation.cell_max_hp(cell))])
+	var building: BuildingState = state.building_on(cell)
+	if building != null:
+		result.append(_building_line(simulation, building))
 	result.append(_t("TIP_ZONE") % state.map.zones[cell])
 	if holder == colony:
 		var production: int = Fixed.mul(
@@ -42,6 +46,20 @@ static func lines(session: Session, cell: int) -> PackedStringArray:
 		elif holder != colony or code != Refusal.Code.NOT_WOUNDED:
 			result.append(MapInput.refusal_text(code))
 	return result
+
+
+## Ligne d'un bâtiment : son nom et ses PV, ou son chantier, ou son sommeil.
+static func _building_line(simulation: Simulation, building: BuildingState) -> String:
+	var state: GameState = simulation.state
+	var name: String = _t(state.defs.buildings[building.type].name_key)
+	if building.asleep(state.tick):
+		var wake: String = NumberFormat.clock(building.asleep_until - state.tick)
+		return _t("TIP_BUILDING_ASLEEP") % [name, wake]
+	if building.building_up(state.tick):
+		var ready: String = NumberFormat.clock(building.ready_tick - state.tick)
+		return _t("TIP_BUILDING_SITE") % [name, ready]
+	var maximum: String = NumberFormat.amount(simulation.building_max_hp(building))
+	return _t("TIP_BUILDING") % [name, NumberFormat.amount(building.hp), maximum]
 
 
 static func _t(key: String) -> String:
