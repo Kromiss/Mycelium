@@ -236,6 +236,35 @@ static func production_factor(state: GameState, colony: ColonyState) -> int:
 	return Fixed.mul(factor, Fixed.ONE + colony.trophies * defs.trophy_production_pm)
 
 
+## Production de chaque colonie (rang = numéro de colonie), en millièmes par seconde : même
+## résultat que colony_production() pour chacune, en un seul passage sur les cases.
+static func all_productions(state: GameState) -> PackedInt64Array:
+	var defs: SimDefs = state.defs
+	var count: int = state.colonies.size()
+	var cohesion_mods := PackedInt64Array()
+	var deep_mods := PackedInt64Array()
+	var totals := PackedInt64Array()
+	totals.resize(count)
+	for colony: ColonyState in state.colonies:
+		cohesion_mods.append(mutation_product(defs, colony, &"cohesion_pm"))
+		deep_mods.append(mutation_product(defs, colony, &"deep_production_pm"))
+	var owners: PackedInt32Array = state.owner
+	for cell: int in range(state.cell_count()):
+		var owner: int = owners[cell]
+		if owner < 0:
+			continue
+		var colony: ColonyState = state.colonies[owner]
+		if colony.alive:
+			totals[owner] += cell_production(
+				state, colony, cell, cohesion_mods[owner], deep_mods[owner]
+			)
+	for colony: ColonyState in state.colonies:
+		totals[colony.id] = (
+			Fixed.mul(totals[colony.id], production_factor(state, colony)) if colony.alive else 0
+		)
+	return totals
+
+
 ## Production totale de la colonie, en millièmes par seconde.
 static func colony_production(state: GameState, colony: ColonyState) -> int:
 	if not colony.alive:

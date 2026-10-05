@@ -473,6 +473,9 @@ Le code de G1 et G2 qui ne sert plus est supprimé dès l'étape 1, avec un affi
 ### Décisions de l'étape 2 de G3 (4 octobre 2026, QCM)
 Pas de touches pour les priorités de tir, 1 à 3 pour les cartes de mutation (§16.5) ; cartes de mutation cachées par un bouton œil et rouvertes depuis le panneau (§16.2) ; frise : horloge et fin de la protection jusqu'à G5 (§16.2) ; stades de la Tourelle liés au palier (§16.3).
 
+### Réactivité (5 octobre 2026, QCM)
+En partie locale, un ordre du joueur (achat, priorité, cible, pas, capacité, mutation) prend effet **au clic**, sans attendre le tick suivant ; les boutons d'action réagissent dès l'appui. Les à-coups de l'affichage à chaque tick sont réduits (calcul du tir et rafraîchissement du HUD plus rapides). En ligne (G7), la façon de faire sera revue.
+
 ### Décisions de G4 « Combattre des robots » (5 octobre 2026, QCM)
 Prochain jalon limité au combat contre les robots, les événements passent en G5 (§19) ; robot de jeu à part, sans profil visible, équilibré, avec trois difficultés dans `data/` (Difficile = robots actuels, Normal agit toutes les 2 s, Facile toutes les 3 s et maladroit) (§2.5) ; en FFA, une difficulté pour les 5 robots, les profils sont réservés à la simulation (§2.3) ; secteur du joueur et couleurs de toutes les colonies tirés au hasard (graine) ; écrans dans le style actuel, sans maquette ; livraison en une fois ; menu Jouer → Duel ou FFA → difficulté, graine tirée au hasard ; quitter une partie en cours demande une confirmation ; éliminé en FFA : fin tout de suite avec son rang ; fin de partie minimale : rang, cases, Tourelles abattues, durée de survie, pic de production, boutons Rejouer (nouvelle partie, mêmes choix) et Menu ; Bac à sable : profils et robot de jeu (Facile, Normal, Difficile) au choix sur chaque secteur libre.
 

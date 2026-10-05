@@ -27,6 +27,10 @@ var abilities: PackedInt32Array = PackedInt32Array()
 var tier_changes: PackedInt32Array = PackedInt32Array()
 ## Colonies qui ont reçu un nouveau choix de mutations.
 var mutation_offers: PackedInt32Array = PackedInt32Array()
+## Cases dont le propriétaire a changé, ou une de mes cases soignée, dans l'ordre (doublons
+## possibles) : les cibles possibles autour d'elles sont à recalculer (TargetCache). Ne sert
+## qu'au calcul du tick.
+var key_changes: PackedInt32Array = PackedInt32Array()
 ## Vrai si la partie s'est terminée à ce tick (ou l'était déjà).
 var finished: bool = false
 ## Empreinte de l'état à la fin du tick.

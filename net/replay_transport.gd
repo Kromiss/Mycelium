@@ -1,7 +1,8 @@
 class_name ReplayTransport
 extends Transport
 ## Transport de rejeu : il recrée la partie enregistrée et lui remet, à chaque tick, les
-## commandes enregistrées pour ce tick. Les commandes envoyées par le jeu sont ignorées.
+## commandes enregistrées pour ce tick (celles jouées au clic juste avant). Les commandes
+## envoyées par le jeu sont ignorées.
 
 var simulation: Simulation
 
@@ -19,13 +20,8 @@ func send_command(_command: Command) -> void:
 
 
 func advance() -> void:
-	var tick: int = simulation.state.tick
-	var batch: Array[Command] = []
-	var commands: Array[Dictionary] = _replay.commands
-	while _next < commands.size() and DictRead.get_int(commands[_next], "tick", -1) <= tick:
-		if DictRead.get_int(commands[_next], "tick", -1) == tick:
-			var command: Command = Command.from_dict(commands[_next])
-			if command != null:
-				batch.append(command)
-		_next += 1
-	tick_received.emit(simulation.tick(batch))
+	var batch: Replay.Batch = _replay.batch_at(simulation.state.tick, _next)
+	_next = batch.next
+	if not batch.early.is_empty():
+		simulation.apply_now(batch.early)
+	tick_received.emit(simulation.tick(batch.normal))

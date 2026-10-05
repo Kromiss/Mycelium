@@ -20,17 +20,26 @@ func run(state: GameState, result: TickResult) -> void:
 			)
 		)
 		rates.append(ColonyStats.regen_pm(defs, colony))
+	# PV de base de chaque zone, case libre et case possédée (comme ColonyStats.cell_max_hp(),
+	# calculés une fois par tick).
+	var free_hp := PackedInt64Array()
+	var owned_hp := PackedInt64Array()
+	for zone: int in range(defs.zone_count()):
+		free_hp.append(Fixed.mul(defs.cell_hp, defs.zone_free_hp_pm[zone]))
+		owned_hp.append(Fixed.mul(defs.cell_hp, defs.zone_defense_pm[zone]))
+	var owners: PackedInt32Array = state.owner
+	var zones: PackedInt32Array = state.map.zones
 	for cell: int in range(state.cell_count()):
-		var holder: int = state.owner[cell]
-		if holder >= 0 and state.colonies[holder].turret == cell:
+		var holder: int = owners[cell]
+		var zone: int = zones[cell] - 1
+		if holder < 0:
+			_regenerate(state, cell, free_hp[zone], defs.regen_pm, result)
 			continue
-		var maximum: int = (
-			ColonyStats.free_max_hp(state, cell)
-			if holder < 0
-			else ColonyStats.cell_max_hp(state, cell, factors[holder], cohesions[holder])
-		)
-		var rate: int = defs.regen_pm if holder < 0 else rates[holder]
-		_regenerate(state, cell, maximum, rate, result)
+		if state.colonies[holder].turret == cell:
+			continue
+		var neighbors: int = state.owned_neighbors(cell, holder)
+		var maximum: int = Fixed.mul(owned_hp[zone], Fixed.ONE + cohesions[holder] * neighbors)
+		_regenerate(state, cell, Fixed.mul(maximum, factors[holder]), rates[holder], result)
 	for colony: ColonyState in state.colonies:
 		if colony.alive:
 			_regenerate_turret(state, colony, rates[colony.id], result)

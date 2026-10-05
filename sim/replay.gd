@@ -4,8 +4,18 @@ extends RefCounted
 ## et toutes les commandes reçues, avec le tick où elles ont été appliquées. Rejouer ces
 ## commandes redonne la même partie, empreinte comprise (Architecture §4.4, GDD §11.4).
 
-## Version du format, à augmenter si l'enregistrement change.
-const FORMAT: int = 1
+
+## Commandes d'un tick : jouées avant le tick (au clic du joueur local), puis avec le tick.
+class Batch:
+	extends RefCounted
+	var early: Array[Command] = []
+	var normal: Array[Command] = []
+	## Rang de la commande suivante dans l'enregistrement.
+	var next: int = 0
+
+
+## Version du format, à augmenter si l'enregistrement change (2 : commandes « early »).
+const FORMAT: int = 2
 
 var defs: SimDefs
 var game_seed: int = 0
@@ -40,6 +50,36 @@ func record_tick(tick_commands: Array[Command], result: TickResult) -> void:
 	final_hash = result.state_hash
 
 
+## Enregistre des commandes jouées tout de suite, entre deux ticks (Simulation.apply_now()) :
+## elles sont rejouées avant le tick qui suit.
+func record_early(early_commands: Array[Command]) -> void:
+	for command: Command in early_commands:
+		var data: Dictionary = command.to_dict()
+		data["early"] = true
+		commands.append(data)
+
+
+## Commandes enregistrées pour un tick, lues à partir du rang « from » : celles jouées avant le
+## tick (« early ») et celles du tick, et le rang de la suivante.
+func batch_at(tick: int, from: int) -> Batch:
+	var batch := Batch.new()
+	batch.next = from
+	while batch.next < commands.size():
+		var data: Dictionary = commands[batch.next]
+		var at: int = DictRead.get_int(data, "tick", -1)
+		if at > tick:
+			break
+		batch.next += 1
+		var command: Command = Command.from_dict(data)
+		if at < tick or command == null:
+			continue
+		if data.get("early", false):
+			batch.early.append(command)
+		else:
+			batch.normal.append(command)
+	return batch
+
+
 ## Recrée la partie au départ.
 func create_simulation() -> Simulation:
 	return Simulation.new(defs.duplicate_defs(), game_seed, colony_count, sectors)
@@ -51,13 +91,11 @@ func play() -> PackedInt64Array:
 	var hashes := PackedInt64Array()
 	var next: int = 0
 	for tick: int in range(ticks):
-		var batch: Array[Command] = []
-		while next < commands.size() and DictRead.get_int(commands[next], "tick", -1) == tick:
-			var command: Command = Command.from_dict(commands[next])
-			if command != null:
-				batch.append(command)
-			next += 1
-		hashes.append(simulation.tick(batch).state_hash)
+		var batch: Batch = batch_at(tick, next)
+		next = batch.next
+		if not batch.early.is_empty():
+			simulation.apply_now(batch.early)
+		hashes.append(simulation.tick(batch.normal).state_hash)
 	return hashes
 
 

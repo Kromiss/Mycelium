@@ -8,6 +8,8 @@ extends Node
 
 ## Un tick vient d'être joué.
 signal ticked(result: TickResult)
+## Un ordre du joueur local vient d'être joué tout de suite, entre deux ticks.
+signal commands_applied(result: TickResult)
 ## La pause a été activée ou levée.
 signal paused_changed(paused: bool)
 ## La vitesse a changé.
@@ -89,6 +91,9 @@ func add_robot(robot: Robot) -> void:
 
 func _begin(time_control: bool, spectator: bool) -> void:
 	transport.tick_received.connect(_on_tick_received)
+	transport.commands_applied.connect(
+		func(result: TickResult) -> void: commands_applied.emit(result)
+	)
 	_time_control = time_control
 	_spectator = spectator
 	_speeds = SPECTATOR_SPEEDS if spectator else SPEEDS
@@ -125,13 +130,14 @@ func accepts_commands() -> bool:
 	return _running and not paused and not _spectator
 
 
-## Envoie une commande de la colonie locale, jouée au prochain tick. Refusée (faux) pendant la
-## pause ou une fois la partie terminée (décidé le 4 octobre 2026).
+## Envoie une commande de la colonie locale. En local, elle est jouée tout de suite (décidé le
+## 5 octobre 2026 : un ordre prend effet au clic) et « commands_applied » est émis. Refusée
+## (faux) pendant la pause ou une fois la partie terminée (décidé le 4 octobre 2026).
 func send_command(command: Command) -> bool:
 	if not accepts_commands():
 		return false
 	command.colony_id = local_colony
-	transport.send_command(command)
+	transport.apply_now(command)
 	return true
 
 

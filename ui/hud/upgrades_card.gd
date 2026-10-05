@@ -22,8 +22,25 @@ var _count: int = 1
 var _tabs: Array[Button] = []
 var _counts: Array[Button] = []
 var _rows: VBoxContainer
-## Bouton d'achat de chaque amélioration de l'onglet affiché, par identifiant.
-var _buy_buttons: Dictionary[StringName, Button] = {}
+## Ligne de chaque amélioration (toutes les améliorations, construites une fois), par
+## identifiant. Les lignes sont mises à jour sur place : un bouton n'est jamais recréé entre
+## l'appui et le relâchement d'un clic.
+var _lines: Dictionary[StringName, Line] = {}
+## Palette avec laquelle les lignes ont été peintes (une autre palette les repeint toutes).
+var _painted_palette: Palette
+
+
+## Une ligne du panneau et ce qui y a été affiché en dernier.
+class Line:
+	extends RefCounted
+	var upgrade: SimUpgrade
+	var wrapper: HBoxContainer
+	var badge: Label
+	var effect: Label
+	var button: Button
+	## État peint en dernier (« locked », « payable », « idle ») : on ne repeint qu'au changement.
+	var badge_state: String = ""
+	var button_state: String = ""
 
 
 func _init() -> void:
@@ -88,82 +105,72 @@ func buy_count() -> int:
 
 ## Bouton d'achat d'une amélioration de l'onglet affiché (null sinon), pour les tests.
 func buy_button(upgrade: StringName) -> Button:
-	return _buy_buttons.get(upgrade, null)
+	var line: Line = _lines.get(upgrade, null)
+	if line == null or line.upgrade.tab != _tab:
+		return null
+	return line.button
 
 
-## Reconstruit les lignes de l'onglet affiché.
+## Met à jour l'onglet affiché : niveaux, effets, coûts et boutons (sans recréer les lignes).
 func refresh() -> void:
 	if _session == null:
 		return
 	var palette: Palette = Settings.palette()
+	var repaint: bool = palette != _painted_palette
+	_painted_palette = palette
 	for index: int in range(_tabs.size()):
 		_paint_toggle(_tabs[index], index == _tab, palette, true)
 	for index: int in range(_counts.size()):
 		_paint_toggle(_counts[index], COUNTS[index] == _count, palette, false)
-	for child: Node in _rows.get_children():
-		child.queue_free()
-	_buy_buttons.clear()
-	var defs: SimDefs = _session.simulation.state.defs
-	for upgrade: SimUpgrade in defs.upgrades:
-		if upgrade.tab == _tab:
-			_rows.add_child(_row(upgrade, palette))
+	if _lines.is_empty():
+		for upgrade: SimUpgrade in _session.simulation.state.defs.upgrades:
+			var line: Line = _new_line(upgrade)
+			_lines[upgrade.id] = line
+			_rows.add_child(line.wrapper)
+	for line: Line in _lines.values():
+		line.wrapper.visible = line.upgrade.tab == _tab
+		if repaint:
+			line.badge_state = ""
+			line.button_state = ""
+			line.wrapper.queue_redraw()
+		if line.wrapper.visible:
+			_update_line(line, palette)
 
 
-func _row(upgrade: SimUpgrade, palette: Palette) -> HBoxContainer:
-	var simulation: Simulation = _session.simulation
-	var colony: ColonyState = _session.colony()
-	var index: int = simulation.state.defs.upgrade_index(upgrade.id)
-	var level: int = colony.upgrade_levels[index]
-	var locked: bool = colony.tier < upgrade.unlock_tier
+func _new_line(upgrade: SimUpgrade) -> Line:
+	var line := Line.new()
+	line.upgrade = upgrade
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override(&"separation", 15)
 	row.custom_minimum_size = Vector2(0.0, 69.0)
-	var badge := Label.new()
-	badge.text = "—" if locked else str(level)
-	badge.custom_minimum_size = Vector2(51.0, 51.0)
-	badge.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	badge.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	badge.add_theme_font_override(&"font", ThemeFactory.bold_font())
-	badge.add_theme_font_size_override(&"font_size", ThemeFactory.BODY_SIZE)
-	badge.add_theme_color_override(&"font_color", palette.text_secondary if locked else _dark)
-	badge.add_theme_stylebox_override(
-		&"normal",
-		HudStyle.pill(
-			palette.line if locked else HudStyle.pale(_main, palette), palette.line, 0, 0, 0
-		)
-	)
-	row.add_child(badge)
+	line.badge = Label.new()
+	line.badge.custom_minimum_size = Vector2(51.0, 51.0)
+	line.badge.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	line.badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	line.badge.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	line.badge.add_theme_font_override(&"font", ThemeFactory.bold_font())
+	line.badge.add_theme_font_size_override(&"font_size", ThemeFactory.BODY_SIZE)
+	row.add_child(line.badge)
 	var texts := VBoxContainer.new()
 	texts.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	texts.alignment = BoxContainer.ALIGNMENT_CENTER
 	texts.add_theme_constant_override(&"separation", 0)
 	texts.add_child(HudStyle.label(&"BoldLabel", upgrade.name_key))
-	var effect: Label = HudStyle.label(&"TinyHintLabel", _effect_text(upgrade, colony, locked))
-	effect.clip_text = true
-	effect.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	texts.add_child(effect)
+	line.effect = HudStyle.label(&"TinyHintLabel", "")
+	line.effect.clip_text = true
+	line.effect.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	texts.add_child(line.effect)
 	row.add_child(texts)
-	var button := Button.new()
-	button.focus_mode = Control.FOCUS_NONE
-	button.custom_minimum_size = Vector2(132.0, 54.0)
-	button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	button.add_theme_font_override(&"font", ThemeFactory.bold_font())
-	button.add_theme_font_size_override(&"font_size", ThemeFactory.BODY_SIZE)
-	var preview: PackedInt64Array = simulation.upgrade_preview(colony.id, upgrade.id, _count)
-	var payable: bool = not locked and preview[0] > 0
-	button.text = _cost_text(upgrade, colony, locked, preview)
-	button.disabled = not payable
-	HudStyle.paint_button(
-		button,
-		_dark if payable else palette.card,
-		_dark if payable else palette.line,
-		Color.WHITE if payable else palette.text_secondary,
-		12
-	)
-	button.pressed.connect(func() -> void: buy_requested.emit(upgrade.id, _count))
-	row.add_child(button)
-	_buy_buttons[upgrade.id] = button
+	line.button = Button.new()
+	# Réagit dès l'appui (pas au relâchement) : l'achat part tout de suite.
+	line.button.action_mode = BaseButton.ACTION_MODE_BUTTON_PRESS
+	line.button.focus_mode = Control.FOCUS_NONE
+	line.button.custom_minimum_size = Vector2(132.0, 54.0)
+	line.button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	line.button.add_theme_font_override(&"font", ThemeFactory.bold_font())
+	line.button.add_theme_font_size_override(&"font_size", ThemeFactory.BODY_SIZE)
+	line.button.pressed.connect(func() -> void: buy_requested.emit(upgrade.id, _count))
+	row.add_child(line.button)
 	var wrapper := HBoxContainer.new()
 	wrapper.add_child(row)
 	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -171,9 +178,48 @@ func _row(upgrade: SimUpgrade, palette: Palette) -> HBoxContainer:
 	# Filet au-dessus de chaque ligne, comme sur la maquette.
 	wrapper.draw.connect(
 		func() -> void:
-			wrapper.draw_line(Vector2.ZERO, Vector2(wrapper.size.x, 0.0), palette.line, 2.0)
+			var color: Color = Settings.palette().line
+			wrapper.draw_line(Vector2.ZERO, Vector2(wrapper.size.x, 0.0), color, 2.0)
 	)
-	return wrapper
+	line.wrapper = wrapper
+	return line
+
+
+## Met une ligne à jour ; ses couleurs ne sont repeintes que si son état a changé.
+func _update_line(line: Line, palette: Palette) -> void:
+	var simulation: Simulation = _session.simulation
+	var colony: ColonyState = _session.colony()
+	var upgrade: SimUpgrade = line.upgrade
+	var index: int = simulation.state.defs.upgrade_index(upgrade.id)
+	var locked: bool = colony.tier < upgrade.unlock_tier
+	line.badge.text = "—" if locked else str(colony.upgrade_levels[index])
+	var badge_state: String = "locked" if locked else "open"
+	if badge_state != line.badge_state:
+		line.badge_state = badge_state
+		line.badge.add_theme_color_override(
+			&"font_color", palette.text_secondary if locked else _dark
+		)
+		line.badge.add_theme_stylebox_override(
+			&"normal",
+			HudStyle.pill(
+				palette.line if locked else HudStyle.pale(_main, palette), palette.line, 0, 0, 0
+			)
+		)
+	line.effect.text = _effect_text(upgrade, colony, locked)
+	var preview: PackedInt64Array = simulation.upgrade_preview(colony.id, upgrade.id, _count)
+	var payable: bool = not locked and preview[0] > 0
+	line.button.text = _cost_text(upgrade, colony, locked, preview)
+	line.button.disabled = not payable
+	var button_state: String = "payable" if payable else "idle"
+	if button_state != line.button_state:
+		line.button_state = button_state
+		HudStyle.paint_button(
+			line.button,
+			_dark if payable else palette.card,
+			_dark if payable else palette.line,
+			Color.WHITE if payable else palette.text_secondary,
+			12
+		)
 
 
 ## Effet affiché : palier requis si verrouillée, sinon effet d'un niveau et avant → après

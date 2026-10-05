@@ -129,3 +129,31 @@ func test_each_spore_takes_a_different_target() -> void:
 func test_untargetable_clicks_are_refused() -> void:
 	var result: TickResult = _sim.tick([TargetCommand.new(Vector2i(5, 0), 0)])
 	assert_eq(result.refused_codes, PackedInt32Array([Refusal.Code.OUT_OF_RANGE]))
+
+
+func test_kept_candidates_follow_captures_like_a_new_search() -> void:
+	# Les cases visables gardées pendant les tirs d'un tick (TargetCache) doivent donner
+	# exactement ce que donnerait une nouvelle recherche après chaque prise ou soin.
+	for priority: int in ColonyState.Priority.values():
+		var sim: Simulation = Fixture.duel(2, false)
+		sim.state.tick = sim.state.defs.protection_ticks
+		Fixture.give(sim, 1, [Vector2i(8, 1), Vector2i(8, 0), Vector2i(9, -1)])
+		var colony: ColonyState = sim.state.colonies[0]
+		colony.priority = priority
+		var reach: int = ColonyStats.turret_range(sim.state.defs, colony) + 3
+		var result := TickResult.new()
+		var cache := TargetCache.new(sim.state, colony, reach, result)
+		for round: int in range(12):
+			var fresh: PackedInt32Array = TargetCache.new(sim.state, colony, reach).best(
+				3, PackedInt32Array()
+			)
+			assert_eq(
+				cache.best(3, PackedInt32Array()), fresh, "priorité %d, tour %d" % [priority, round]
+			)
+			if fresh.is_empty():
+				break
+			var cell: int = fresh[0]
+			if sim.state.owner[cell] == colony.id:
+				Combat.heal(sim.state, cell, 1_000_000, result)
+			else:
+				Combat.deal(sim.state, colony, cell, 1_000_000_000, result, 0)

@@ -23,6 +23,8 @@ var last_hitter: PackedInt32Array = PackedInt32Array()
 var no_regen_until: PackedInt32Array = PackedInt32Array()
 ## Rang de chaque case dans un ordre tiré de la graine, pour départager les cases à égalité.
 var cell_rank: PackedInt32Array = PackedInt32Array()
+## Case de chaque rang (inverse de cell_rank, pour retrouver vite une case à partir de son rang).
+var cell_by_rank: PackedInt32Array = PackedInt32Array()
 ## Nombre de colonies au départ.
 var start_colonies: int = 0
 ## Classement final (numéros de colonie, la meilleure en premier), rempli à la fin de la partie.

@@ -6,10 +6,11 @@ extends RefCounted
 
 
 func run(state: GameState, result: TickResult) -> void:
+	var productions: PackedInt64Array = ColonyStats.all_productions(state)
 	for colony: ColonyState in state.colonies:
 		if not colony.alive:
 			continue
-		var produced: int = ColonyStats.colony_production(state, colony)
+		var produced: int = productions[colony.id]
 		colony.production = produced
 		colony.peak_production = maxi(colony.peak_production, produced)
 		colony.nutrients += produced

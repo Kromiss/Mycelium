@@ -16,6 +16,9 @@ var splash_pm: int = 0
 var bounce: int = 0
 ## Secondes sans régénération infligées aux cases touchées (Toxique).
 var toxic_ticks: int = 0
+## Multiplicateur des PV de mes cases et bonus de Cohésion par voisine (ColonyStats.cell_max_hp).
+var hp_factor: int = 0
+var cohesion_hp: int = 0
 
 
 ## Chiffres de tir actuels de la colonie.
@@ -34,6 +37,10 @@ static func of(defs: SimDefs, colony: ColonyState) -> ShotStats:
 	stats.splash_pm = ColonyStats.splash_pm(defs, colony)
 	stats.bounce = ColonyStats.bounce(defs, colony)
 	stats.toxic_ticks = ColonyStats.toxic_ticks(defs, colony)
+	stats.hp_factor = ColonyStats.cell_hp_factor(defs, colony)
+	stats.cohesion_hp = Fixed.mul(
+		defs.cohesion_hp_pm, ColonyStats.mutation_product(defs, colony, &"cohesion_pm")
+	)
 	return stats
 
 

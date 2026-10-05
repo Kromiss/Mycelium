@@ -70,8 +70,10 @@ func _fire(state: GameState, colony: ColonyState, result: TickResult) -> void:
 	var spores: int = ColonyStats.spores(state.defs, colony)
 	var reach: int = ColonyStats.turret_range(state.defs, colony)
 	var stats: ShotStats = ShotStats.of(state.defs, colony) if shots > 0 else null
+	# Cases visables gardées pendant les tirs de ce tick (construites au premier besoin).
+	var cache := TargetCache.new(state, colony, reach, result)
 	for shot: int in range(shots):
-		Targeting.refresh(state, colony, reach)
+		Targeting.refresh(state, colony, reach, cache)
 		var cells: PackedInt32Array = Targeting.shot_targets(colony)
 		if cells.is_empty():
 			return
@@ -90,7 +92,7 @@ func _hit(
 ) -> void:
 	result.shots.append_array(PackedInt32Array([colony.id, cell]))
 	if state.owner[cell] == colony.id:
-		Combat.heal(state, cell, stats.heal, result)
+		Combat.heal(state, cell, stats.heal, result, stats.hp_factor, stats.cohesion_hp)
 		return
 	var amount: int = stats.damage_on(state, cell)
 	if stats.crit_pm > 0 and state.rng.range_int(Fixed.ONE) < stats.crit_pm:

@@ -37,6 +37,9 @@ var _painted := PackedInt32Array()
 var _hits := PackedInt32Array()
 ## Cases soignées par leur colonie (cible de soin) : paires (case, colonie).
 var _healed := PackedInt32Array()
+## Couleur envoyée à chaque bulle de case possédée (transparent : bulle de case libre).
+var _colors := PackedColorArray()
+var _colors_palette: Palette
 
 
 ## Prépare l'affichage pour une partie et les couleurs de ses colonies.
@@ -58,20 +61,57 @@ func refresh(result: TickResult = null) -> void:
 	for cell: int in _painted:
 		if state.owner[cell] < 0:
 			_view.reset_bubble_color(cell)
+			_colors[cell] = Color(0, 0, 0, 0)
 	_painted = PackedInt32Array()
 	_hits = PackedInt32Array()
 	_healed = PackedInt32Array()
 	var local: ColonyState = _session.colony()
+	# Chiffres de chaque colonie calculés une fois (PV max des cases, couleur pâlie), et portée
+	# de ma Tourelle : la boucle sur les cases reste légère.
+	var defs: SimDefs = state.defs
+	var palette: Palette = Settings.palette()
+	var factors := PackedInt64Array()
+	var cohesions := PackedInt64Array()
+	var pales: Array[Color] = []
+	for colony: ColonyState in state.colonies:
+		factors.append(ColonyStats.cell_hp_factor(defs, colony))
+		cohesions.append(
+			Fixed.mul(
+				defs.cohesion_hp_pm, ColonyStats.mutation_product(defs, colony, &"cohesion_pm")
+			)
+		)
+		pales.append(HudStyle.pale(_main[colony.id], palette))
+	var reach: int = -1
+	if local.alive and local.turret >= 0:
+		reach = ColonyStats.turret_range(defs, local)
+	if _colors.size() != state.cell_count() or palette != _colors_palette:
+		# Nouvelle palette : la carte a repeint ses bulles, tout est à renvoyer.
+		_colors.resize(state.cell_count())
+		_colors.fill(Color(0, 0, 0, 0))
+		_colors_palette = palette
+	var owners: PackedInt32Array = state.owner
 	for cell: int in range(state.cell_count()):
-		var missing: int = _missing_pm(state, cell)
+		var owner: int = owners[cell]
+		var maximum: int = (
+			ColonyStats.free_max_hp(state, cell)
+			if owner < 0
+			else ColonyStats.cell_max_hp(state, cell, factors[owner], cohesions[owner])
+		)
+		var missing: int = _missing_pm(state, cell, maximum)
 		var hitter: int = state.last_hitter[cell]
-		if hitter >= 0 and hitter != state.owner[cell] and missing > 0:
+		if hitter >= 0 and hitter != owner and missing > 0:
 			_hits.append_array(PackedInt32Array([cell, hitter, missing]))
-		var holder: ColonyState = state.owner_of(cell)
-		if holder == null:
+		if owner < 0:
+			_colors[cell] = Color(0, 0, 0, 0)
 			continue
 		_painted.append(cell)
-		_view.set_bubble_color(cell, _cell_color(state, holder, local, cell, missing))
+		var color: Color = _main[owner].lerp(pales[owner], float(missing) / 1000.0)
+		if owner == local.id and reach >= 0 and state.distance(local.turret, cell) > reach:
+			color = _view.base_bubble_color(cell).lerp(color, out_of_range_alpha)
+		# La couleur n'est envoyée à l'affichage que si elle a changé.
+		if color != _colors[cell]:
+			_colors[cell] = color
+			_view.set_bubble_color(cell, color)
 	for colony: ColonyState in state.colonies:
 		for cell: int in Targeting.shot_targets(colony):
 			if state.owner[cell] == colony.id:
@@ -89,18 +129,6 @@ func set_hover(cell: int) -> void:
 func _process(_delta: float) -> void:
 	if _session != null:
 		queue_redraw()
-
-
-## Couleur de la bulle d'une case possédée : la Tourelle garde la couleur de la case (elle est
-## dessinée par-dessus), une case blessée pâlit, une case à moi hors de portée est atténuée.
-func _cell_color(
-	state: GameState, holder: ColonyState, local: ColonyState, cell: int, missing: int
-) -> Color:
-	var main: Color = _main[holder.id]
-	var color: Color = main.lerp(HudStyle.pale(main, Settings.palette()), float(missing) / 1000.0)
-	if holder == local and holder.alive and not Targeting.in_range(state, holder, cell):
-		color = _view.base_bubble_color(cell).lerp(color, out_of_range_alpha)
-	return color
 
 
 func _draw() -> void:
@@ -129,7 +157,11 @@ func _draw() -> void:
 func _draw_hit(cell: int, attacker: int, missing: float, state: GameState, radius: float) -> void:
 	var center: Vector2 = _view.cell_center(cell)
 	if missing >= 0.02:
-		draw_colored_polygon(_sector(center, radius, missing), _main[attacker])
+		if missing >= 0.99:
+			# Disque presque plein : un cercle (un secteur fermé sur lui-même ne se dessine pas).
+			draw_circle(center, radius, _main[attacker])
+		else:
+			draw_colored_polygon(_sector(center, radius, missing), _main[attacker])
 	if state.owner[cell] >= 0:
 		var inner: float = radius - outline_width * 0.5
 		draw_arc(center, inner, 0.0, TAU, 40, _dark[attacker], outline_width, true)
@@ -225,11 +257,10 @@ func _draw_spores(state: GameState, radius: float) -> void:
 
 
 ## Part des PV max perdue par la case, en millièmes (0 : pleine vie).
-func _missing_pm(state: GameState, cell: int) -> int:
+func _missing_pm(state: GameState, cell: int, maximum: int) -> int:
 	if state.is_turret_cell(cell):
 		return 0
-	var maximum: int = maxi(1, ColonyStats.cell_max_hp(state, cell))
-	return clampi(1000 - Fixed.div_round(state.hp[cell] * 1000, maximum), 0, 1000)
+	return clampi(1000 - Fixed.div_round(state.hp[cell] * 1000, maxi(1, maximum)), 0, 1000)
 
 
 ## Secteur de disque (jauge circulaire) depuis le haut, sur la fraction « part » du tour.

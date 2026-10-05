@@ -17,6 +17,9 @@ var _bar: ProgressBar
 var _stats: Array[Label] = []
 var _priorities: Array[Button] = []
 var _dark: Color = Color.BLACK
+## Priorité et palette peintes en dernier : les boutons ne sont repeints qu'au changement.
+var _painted_priority: int = -1
+var _painted_palette: Palette
 
 
 func _init() -> void:
@@ -53,6 +56,8 @@ func _init() -> void:
 	column.add_child(buttons)
 	for index: int in range(PRIORITY_KEYS.size()):
 		var button := Button.new()
+		# Réagit dès l'appui (pas au relâchement) : l'ordre part tout de suite.
+		button.action_mode = BaseButton.ACTION_MODE_BUTTON_PRESS
 		button.text = PRIORITY_KEYS[index]
 		button.focus_mode = Control.FOCUS_NONE
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -96,6 +101,10 @@ func refresh() -> void:
 	_stats[2].text = str(ColonyStats.turret_range(defs, colony))
 	_stats[3].text = tr("HUD_SPORES_VALUE") % ColonyStats.spores(defs, colony)
 	var palette: Palette = Settings.palette()
+	if colony.priority == _painted_priority and palette == _painted_palette:
+		return
+	_painted_priority = colony.priority
+	_painted_palette = palette
 	for index: int in range(_priorities.size()):
 		var chosen: bool = index == colony.priority
 		HudStyle.paint_button(

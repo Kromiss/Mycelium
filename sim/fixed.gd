@@ -14,7 +14,12 @@ const POW_CAP: int = 1_000_000_000_000
 
 ## Produit d'une valeur par un multiplicateur en pour-mille, arrondi au plus proche.
 static func mul(value: int, per_mille: int) -> int:
-	return div_round(value * per_mille, ONE)
+	var product: int = value * per_mille
+	if product >= 0:
+		# Cas le plus fréquent, calculé sur place (même résultat que div_round()).
+		@warning_ignore("integer_division")
+		return (2 * product + ONE) / (2 * ONE)
+	return div_round(product, ONE)
 
 
 ## Division entière arrondie au plus proche (la moitié s'éloigne de zéro).

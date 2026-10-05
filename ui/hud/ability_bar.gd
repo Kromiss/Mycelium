@@ -36,6 +36,8 @@ func setup(session: Session, dark: Color) -> void:
 		item.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		item.add_theme_constant_override(&"separation", 12)
 		var button := AbilityButton.new()
+		# Réagit dès l'appui (pas au relâchement) : l'ordre part tout de suite.
+		button.action_mode = BaseButton.ACTION_MODE_BUTTON_PRESS
 		button.kind = defs.abilities[index].kind
 		button.pressed.connect(func() -> void: ability_pressed.emit(index))
 		item.add_child(button)

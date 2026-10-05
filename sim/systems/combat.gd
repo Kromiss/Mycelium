@@ -17,27 +17,28 @@ static func deal(
 	result: TickResult,
 	toxic: int = -1,
 ) -> int:
-	var victim: ColonyState = state.owner_of(cell)
-	if victim == attacker or amount <= 0:
+	var owner: int = state.owner[cell]
+	if owner == attacker.id or amount <= 0:
 		return 0
+	var victim: ColonyState = state.colonies[owner] if owner >= 0 else null
 	if victim != null and (not state.protection_over() or is_walled(state, victim, cell)):
 		return 0
 	if toxic < 0:
 		toxic = ColonyStats.toxic_ticks(state.defs, attacker)
 	if toxic > 0:
 		state.no_regen_until[cell] = maxi(state.no_regen_until[cell], state.tick + toxic)
-	var reachable: bool = state.touches_colony(cell, attacker.id)
 	result.cell_changed(cell)
+	# « Collée à mon territoire » n'est regardé que si la case (ou la Tourelle) tomberait.
 	if victim != null and victim.turret == cell:
 		result.colony_changed(victim.id)
 		var left: int = victim.turret_hp - amount
-		if left <= 0 and reachable:
+		if left <= 0 and state.touches_colony(cell, attacker.id):
 			eliminate(state, victim, attacker, result)
 		else:
 			victim.turret_hp = maxi(left, 1)
 		return 0
 	var before: int = state.hp[cell]
-	if before - amount <= 0 and reachable:
+	if before - amount <= 0 and state.touches_colony(cell, attacker.id):
 		capture(state, cell, attacker, result)
 		return amount - before
 	state.hp[cell] = maxi(before - amount, 1)
@@ -46,9 +47,18 @@ static func deal(
 
 
 ## Rend « amount » millièmes de PV à une de mes cases (sans dépasser ses PV max).
-static func heal(state: GameState, cell: int, amount: int, result: TickResult) -> void:
-	var maximum: int = ColonyStats.cell_max_hp(state, cell)
+## « factor » et « cohesion » : chiffres de la colonie déjà calculés (−1 : les calculer).
+static func heal(
+	state: GameState,
+	cell: int,
+	amount: int,
+	result: TickResult,
+	factor: int = -1,
+	cohesion: int = -1
+) -> void:
+	var maximum: int = ColonyStats.cell_max_hp(state, cell, factor, cohesion)
 	state.hp[cell] = mini(state.hp[cell] + amount, maximum)
+	result.key_changes.append(cell)
 	if state.hp[cell] >= maximum:
 		state.last_hitter[cell] = -1
 	result.cell_changed(cell)
@@ -67,6 +77,7 @@ static func is_walled(state: GameState, colony: ColonyState, cell: int) -> bool:
 static func capture(state: GameState, cell: int, attacker: ColonyState, result: TickResult) -> void:
 	var previous: ColonyState = state.owner_of(cell)
 	state.owner[cell] = attacker.id
+	result.key_changes.append(cell)
 	var maximum: int = ColonyStats.cell_max_hp(state, cell)
 	state.hp[cell] = maximum if previous == null else Fixed.mul(maximum, state.defs.captured_hp_pm)
 	state.last_hitter[cell] = -1
@@ -109,6 +120,8 @@ static func may_split(state: GameState, cell: int, colony_id: int) -> bool:
 static func cut_off(state: GameState, colony: ColonyState, result: TickResult) -> void:
 	if colony.turret < 0:
 		return
+	var owners: PackedInt32Array = state.owner
+	var table: PackedInt32Array = state.map.neighbor_table
 	var linked := PackedByteArray()
 	linked.resize(state.cell_count())
 	linked[colony.turret] = 1
@@ -117,13 +130,16 @@ static func cut_off(state: GameState, colony: ColonyState, result: TickResult) -
 	while next < frontier.size():
 		var cell: int = frontier[next]
 		next += 1
-		for direction: int in range(6):
-			var other: int = state.map.neighbor_index(cell, direction)
-			if other >= 0 and linked[other] == 0 and state.owner[other] == colony.id:
+		for slot: int in range(cell * 6, cell * 6 + 6):
+			var other: int = table[slot]
+			if other >= 0 and linked[other] == 0 and owners[other] == colony.id:
 				linked[other] = 1
 				frontier.append(other)
+	# Toutes les cases de la colonie sont encore reliées : rien à libérer.
+	if frontier.size() >= colony.cell_count:
+		return
 	for cell: int in range(state.cell_count()):
-		if state.owner[cell] == colony.id and linked[cell] == 0:
+		if owners[cell] == colony.id and linked[cell] == 0:
 			free_cell(state, cell, result)
 			colony.cell_count -= 1
 			result.cells_lost.append_array(PackedInt32Array([colony.id, cell]))
@@ -158,6 +174,7 @@ static func eliminate(
 ## Rend une case libre, avec les PV d'une case libre de sa zone.
 static func free_cell(state: GameState, cell: int, result: TickResult) -> void:
 	state.owner[cell] = -1
+	result.key_changes.append(cell)
 	state.hp[cell] = ColonyStats.free_max_hp(state, cell)
 	state.last_hitter[cell] = -1
 	result.cell_changed(cell)

@@ -14,6 +14,15 @@ var _session: Session
 var _list: HFlowContainer
 var _main: Color = Color.WHITE
 var _empty: Label
+## Nombre de mutations et palette des pastilles affichées.
+var _shown_count: int = -1
+var _shown_palette: Palette
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_TRANSLATION_CHANGED:
+		# Les infobulles des pastilles sont traduites : à refaire au prochain rafraîchissement.
+		_shown_count = -1
 
 
 func _init() -> void:
@@ -52,9 +61,15 @@ func refresh(offer_hidden: bool) -> void:
 	var waiting: int = colony.pending_choice_count(defs.mutation_choices)
 	reopen_button.visible = offer_hidden and waiting > 0
 	reopen_button.text = tr("HUD_CHOOSE_MUTATION") % waiting
+	_empty.visible = colony.mutations.is_empty()
+	# Les pastilles ne sont refaites que si une mutation a été prise (ou la palette changée).
+	var palette: Palette = Settings.palette()
+	if colony.mutations.size() == _shown_count and palette == _shown_palette:
+		return
+	_shown_count = colony.mutations.size()
+	_shown_palette = palette
 	for child: Node in _list.get_children():
 		child.queue_free()
-	_empty.visible = colony.mutations.is_empty()
 	for i: int in range(colony.mutations.size()):
 		var mutation: SimMutation = defs.mutations[colony.mutations[i]]
 		var tier: int = colony.mutation_tiers[i] if i < colony.mutation_tiers.size() else 0
@@ -63,7 +78,7 @@ func refresh(offer_hidden: bool) -> void:
 		pill.tooltip_text = (
 			tr("HUD_MUTATION_ENTRY") % [tier, tr(mutation.name_key), tr(mutation.desc_key)]
 		)
-		var pale: Color = HudStyle.pale(_main, Settings.palette())
+		var pale: Color = HudStyle.pale(_main, palette)
 		pill.add_theme_stylebox_override(&"normal", HudStyle.pill(pale, pale, 0, 15, 4))
 		_list.add_child(pill)
 

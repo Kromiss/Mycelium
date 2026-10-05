@@ -59,11 +59,12 @@ func test_upgrade_buttons_buy_one_ten_or_the_maximum() -> void:
 	var card: UpgradesCard = _hud.upgrades_card()
 	card.refresh()
 	card.buy_button(&"damage").pressed.emit()
-	_session.step()
+	# L'achat est fait au clic, sans attendre le tick.
 	assert_eq(_colony().upgrade_levels[0], 1)
 	card.select_count(10)
 	assert_string_starts_with(card.buy_button(&"damage").text, "+10 · ")
 	card.buy_button(&"damage").pressed.emit()
+	assert_eq(_colony().upgrade_levels[0], 11)
 	_session.step()
 	assert_eq(_colony().upgrade_levels[0], 11)
 

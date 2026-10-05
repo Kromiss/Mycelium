@@ -62,6 +62,7 @@ func _ready() -> void:
 	_camera.view_rect = _hud.map_rect()
 	_camera.frame(_forest_view.bounds())
 	_session.ticked.connect(_on_ticked)
+	_session.commands_applied.connect(_colony_layer.refresh)
 	_session.game_finished.connect(func() -> void: _input.cancel())
 	_input.hovered.connect(_on_hovered)
 	_input.message.connect(_hud.show_message)

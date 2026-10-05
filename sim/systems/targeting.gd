@@ -49,7 +49,10 @@ static func is_target(state: GameState, colony: ColonyState, cell: int, reach: i
 ## Remet à jour la cible désignée et les cibles gardées : celles qui ne sont plus visables
 ## (prises, soignées, hors de portée) sont lâchées, puis les places libres sont remplies
 ## dans l'ordre de la priorité. Une cible n'est jamais remplacée tant qu'elle reste visable.
-static func refresh(state: GameState, colony: ColonyState, reach: int = -1) -> void:
+## « cache » : cases visables gardées pendant les tirs du tick (null : un nouveau passage).
+static func refresh(
+	state: GameState, colony: ColonyState, reach: int = -1, cache: TargetCache = null
+) -> void:
 	if reach < 0:
 		reach = ColonyStats.turret_range(state.defs, colony)
 	if colony.designated >= 0 and not is_target(state, colony, colony.designated, reach):
@@ -66,7 +69,9 @@ static func refresh(state: GameState, colony: ColonyState, reach: int = -1) -> v
 	if kept.size() < wanted:
 		var excluded := kept.duplicate()
 		excluded.append(colony.designated)
-		kept.append_array(best_candidates(state, colony, wanted - kept.size(), excluded, reach))
+		if cache == null:
+			cache = TargetCache.new(state, colony, reach)
+		kept.append_array(cache.best(wanted - kept.size(), excluded))
 	elif kept.size() > wanted:
 		kept.resize(maxi(0, wanted))
 	colony.targets = kept
@@ -91,56 +96,48 @@ static func best_candidates(
 ) -> PackedInt32Array:
 	if reach < 0:
 		reach = ColonyStats.turret_range(state.defs, colony)
-	# Les « count » meilleures clés, gardées triées (count est petit : 5 spores au plus).
-	var keys := PackedInt64Array()
-	var cells := PackedInt32Array()
-	var heal_first: bool = colony.priority == ColonyState.Priority.HEAL_FIRST
-	for cell: int in state.map.disk(colony.turret, reach):
-		# Tri rapide (même résultat que _key) : mes cases ne comptent qu'en « Soigner
-		# d'abord », les autres doivent toucher mon territoire.
-		if state.owner[cell] == colony.id:
-			if not heal_first:
-				continue
-		elif not state.touches_colony(cell, colony.id):
-			continue
-		if excluded.has(cell):
-			continue
-		var key: int = _key(state, colony, cell)
-		if key < 0 or (keys.size() >= count and key >= keys[keys.size() - 1]):
-			continue
-		var position: int = keys.bsearch(key)
-		keys.insert(position, key)
-		cells.insert(position, cell)
-		if keys.size() > count:
-			keys.resize(count)
-			cells.resize(count)
-	return cells
+	return TargetCache.new(state, colony, reach).best(count, excluded)
 
 
-## Clé de tri d'une case du disque de portée (plus petite = visée d'abord), ou −1 si la
-## priorité ne la retient pas : groupe, critère, distance, puis rang tiré de la graine (unique,
-## donc deux cases n'ont jamais la même clé). Mes cases blessées ne sont visées que par
-## « Soigner d'abord ».
-static func _key(state: GameState, colony: ColonyState, cell: int) -> int:
-	var own: bool = state.owner[cell] == colony.id
+## Clé de tri d'une case du disque de portée (plus petite = visée d'abord), ou −1 si elle ne
+## peut pas être choisie : groupe, critère, distance, puis rang tiré de la graine (unique, donc
+## deux cases n'ont jamais la même clé). Mes cases blessées ne sont visées qu'en « Soigner
+## d'abord » ; les autres doivent toucher mon territoire (et pas de case adverse pendant la
+## protection de départ). Appelée très souvent : les tableaux de l'état sont lus directement.
+static func candidate_key(state: GameState, colony: ColonyState, cell: int) -> int:
+	var owners: PackedInt32Array = state.owner
+	var me: int = colony.id
+	var owner: int = owners[cell]
+	var own: bool = owner == me
+	var priority: int = colony.priority
 	if own:
-		if colony.priority != ColonyState.Priority.HEAL_FIRST or cell == colony.turret:
+		if priority != ColonyState.Priority.HEAL_FIRST or cell == colony.turret:
 			return -1
 		if state.hp[cell] >= ColonyStats.cell_max_hp(state, cell):
 			return -1
-	elif not state.touches_colony(cell, colony.id):
-		return -1
-	elif state.owner[cell] >= 0 and not state.protection_over():
-		return -1
+	else:
+		if owner >= 0 and not state.protection_over():
+			return -1
+		var table: PackedInt32Array = state.map.neighbor_table
+		var touches: bool = false
+		for slot: int in range(cell * 6, cell * 6 + 6):
+			var other: int = table[slot]
+			if other >= 0 and owners[other] == me:
+				touches = true
+				break
+		if not touches:
+			return -1
 	var group: int = 0
 	var criterion: int = 0
-	match colony.priority:
+	match priority:
 		ColonyState.Priority.RICHEST:
 			criterion = MAX_ZONES - state.map.zones[cell]
 		ColonyState.Priority.HEAL_FIRST:
 			group = 0 if own else 1
 		ColonyState.Priority.ENEMIES_FIRST:
-			group = 0 if state.owner[cell] >= 0 else 1
-	var distance: int = state.distance(colony.turret, cell)
+			group = 0 if owner >= 0 else 1
+	var delta: Vector2i = state.map.cells[cell] - state.map.cells[colony.turret]
+	@warning_ignore("integer_division")
+	var distance: int = (absi(delta.x) + absi(delta.y) + absi(delta.x + delta.y)) / 2
 	var rank: int = (group * MAX_ZONES + criterion) * MAX_DISTANCE + distance
 	return rank * MAX_CELLS + state.cell_rank[cell]

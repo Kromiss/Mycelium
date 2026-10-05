@@ -43,6 +43,9 @@ func _init(
 	state.last_hitter.fill(-1)
 	state.no_regen_until.resize(size)
 	state.cell_rank = _shuffled_ranks(size)
+	state.cell_by_rank.resize(size)
+	for cell: int in range(size):
+		state.cell_by_rank[state.cell_rank[cell]] = cell
 	for cell: int in range(size):
 		state.hp[cell] = ColonyStats.free_max_hp(state, cell)
 	for index: int in range(count):
@@ -76,6 +79,23 @@ func tick(commands: Array[Command] = []) -> TickResult:
 	_economy.run(state, result)
 	_victory.run(state, state.tick + 1, result)
 	state.tick += 1
+	result.state_hash = StateHash.compute(state)
+	return result
+
+
+## Joue tout de suite, entre deux ticks, des commandes du joueur local (décidé le 5 octobre
+## 2026 : en partie locale, un ordre prend effet au clic). Seule l'étape des commandes est jouée
+## (pas de tir, de production…) ; le tick suivant se déroule ensuite normalement. Le rejeu
+## rejoue ces commandes au même moment (Replay.record_early()).
+func apply_now(commands: Array[Command]) -> TickResult:
+	var result := TickResult.new()
+	result.tick = state.tick
+	if state.finished:
+		for command: Command in commands:
+			result.refuse(command, Refusal.Code.GAME_OVER)
+		result.finished = true
+	else:
+		_commands.run(state, commands, result)
 	result.state_hash = StateHash.compute(state)
 	return result
 

@@ -6,6 +6,23 @@ L'historique de l'ancienne version web est dans la branche `archive/web`.
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-10-05
+
+Correctif — réactivité en partie.
+
+### Modifié
+- Les ordres du joueur (achat, priorité, cible, pas, capacité, mutation) prennent effet au clic,
+  sans attendre la seconde suivante ; les boutons d'achat, de priorité et de capacité réagissent
+  dès l'appui. Les rejeux gardent ces ordres à leur place (format d'enregistrement 2).
+- Calcul d'un tick bien plus rapide, pour le même résultat (FFA : ~20 ms au lieu de ~35 ms en
+  moyenne, ~60 ms au pire au lieu de ~155 ms ; Duel : ~5 ms au lieu de ~22 ms en comptant le HUD).
+
+### Corrigé
+- Le bouton d'achat était recréé à chaque seconde : un clic à cheval sur un tick pouvait être
+  perdu. Les lignes d'améliorations, le classement et les mutations sont maintenant mis à jour
+  sur place.
+- Erreurs « triangulation failed » quand une case était presque entièrement entamée.
+
 ## [0.5.0] - 2026-10-05
 
 G4 — Combattre des robots.

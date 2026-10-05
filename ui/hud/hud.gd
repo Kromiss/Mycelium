@@ -115,6 +115,7 @@ func setup(session: Session, config: GameConfig, main: Array[Color], dark: Array
 	_overlay.setup(session, main[local], dark[local])
 	_mutation_count = session.colony().mutations.size()
 	_session.ticked.connect(_on_ticked)
+	_session.commands_applied.connect(_on_commands_applied)
 	_session.paused_changed.connect(_on_paused_changed)
 	_session.speed_changed.connect(_on_speed_changed)
 	_session.game_finished.connect(_on_game_finished)
@@ -301,13 +302,26 @@ func _on_ticked(result: TickResult) -> void:
 		var new_tier: int = result.tier_changes[i + 2]
 		if result.tier_changes[i] == colony_id and new_tier > result.tier_changes[i + 1]:
 			announce_tier(new_tier)
-	for i: int in range(result.refused.size()):
-		if result.refused[i].colony_id == colony_id:
-			show_message(MapInput.refusal_text(result.refused_codes[i] as Refusal.Code))
+	_show_refusals(result)
 	HudJournal.record(_journal, result, _session, _last_alert, ATTACK_ALERT_TICKS)
 	_note_mutation_choice(result.tick)
 	_update_offer(result)
 	_update_state()
+
+
+## Un ordre vient d'être joué au clic : l'interface suit tout de suite (refus, mutation
+## choisie, panneaux).
+func _on_commands_applied(result: TickResult) -> void:
+	_show_refusals(result)
+	_note_mutation_choice(result.tick)
+	_update_offer(result)
+	_update_state()
+
+
+func _show_refusals(result: TickResult) -> void:
+	for i: int in range(result.refused.size()):
+		if result.refused[i].colony_id == _session.local_colony:
+			show_message(MapInput.refusal_text(result.refused_codes[i] as Refusal.Code))
 
 
 ## Note dans le journal les mutations choisies depuis le dernier tick.
