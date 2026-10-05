@@ -196,22 +196,35 @@ Un **clic gauche** sur une case visable en fait la **cible prioritaire** : la To
 
 ---
 
-## 5 bis. Les bâtiments *(en cours de définition, décisions du 5 octobre 2026)*
+## 5 bis. Les bâtiments *(décidé le 5 octobre 2026, QCM ; jalon G5)*
 
 La Tourelle est fixe et porte loin seulement à 4 cases : **ce sont les bâtiments qui font gagner du terrain et vont attaquer les autres colonies**. Il y en a **3** :
 
-| Bâtiment | Rôle | Cible (fixe, pas de réglage) | Débloqué au palier |
-|---|---|---|---|
-| **Essaimeur** | Prend seul les **cases libres** autour de lui, rien contre l'adversaire | cases libres seulement | 1 |
-| **Avant-poste** | Petite tourelle **polyvalente** qui tire seule | la case visable la plus proche | 2 |
-| **Mortier** | **Longue portée**, très lent, gros dégâts : pour **assiéger** | bâtiments et Sporophore adverses d'abord | 3 |
+| Bâtiment | Rôle | Cible (fixe par type) | Palier | Prix | Chantier | Portée | Dégâts | Cadence | PV |
+|---|---|---|---|---|---|---|---|---|---|
+| **Essaimeur** | Prend les **cases libres** en tirant des spores ; rien contre l'adversaire | la case libre **la plus proche de lui**, collée à mon territoire | 1 | **10 Enzymes** | 5 s | 2 | ×1 | ×1 | 120 |
+| **Avant-poste** | Petite tourelle **polyvalente** | la case visable la plus proche (libre ou adverse), collée à mon territoire | 2 | **20 Enzymes** | 15 s | 2 | ×1 | ×1 | 200 |
+| **Mortier** | Arme de **siège** | **uniquement** bâtiments et Sporophores adverses à portée, **même loin de mon territoire** ; il ne prend pas de case ; sans cible, il **attend** | 3 | **40 Enzymes** | 30 s | 5 | ×4 | ÷4 | 120 |
 
-- **Construction** : sur **une de mes cases** ; le nombre total de bâtiments est limité par des **places** : **1 place au palier 1, +1 par palier**.
-- **Puissance** : les **améliorations du panneau** (Dégâts, Cadence, Critique…) s'appliquent aussi aux bâtiments, chacun avec ses propres coefficients (par exemple Mortier : dégâts ×4, cadence ÷4 ; valeurs à fixer).
-- **Défense** : un bâtiment a **ses propres PV**, comme le Sporophore ; la case sous lui ne peut être prise qu'une fois le bâtiment tombé.
+Dégâts et cadence sont donnés en multiple de ceux du Sporophore (5 dégâts, 0,2 tir/s au départ) : un Essaimeur tire donc 5 dégâts toutes les 5 s au départ. Valeurs de départ, à équilibrer plus tard (« Petits bâtiments »).
+
+- **Places** : le nombre total de bâtiments est limité : **1 place au palier 1, +1 par palier**.
+- **Où** : sur **n'importe laquelle de mes cases**, sauf celle du Sporophore et une case qui a déjà un bâtiment.
+- **Chantier** : pendant sa durée, le bâtiment ne fait rien et **peut être frappé** ; ses PV montent jusqu'au maximum à la fin du chantier.
+- **Gestes** :
+  - **clic droit sur une de mes cases** : une **roue** s'affiche pour choisir le bâtiment (ceux qui ne sont pas débloqués ou payables sont grisés) ; clic droit sur un de mes bâtiments : la roue propose **Démolir** ;
+  - ou **bouton** du bâtiment dans le panneau de droite, puis **clic** sur une de mes cases ;
+  - **Échap** ou un **clic droit hors de mes cases** annule ou ferme la roue ;
+  - la carte **glisse au clic du milieu** (maintenu) et par les bords de l'écran ; le clic droit ne la fait plus glisser.
+- **Puissance** : les **améliorations de tir** du panneau s'appliquent aussi aux bâtiments : **Dégâts, Cadence, Critique, Éclaboussure, Rebond, Spores par tir**. Pas la Portée ni l'Écorce (Sporophore seul). La mutation **Hyphes longues** donne **+1 portée à tous mes bâtiments** et plus au Sporophore.
+- **Cible au clic** : la case désignée au clic gauche (§5.4) est aussi visée en priorité par les bâtiments **qui peuvent la frapper** (le Mortier seulement si c'est un bâtiment ou un Sporophore).
+- **Défense** : un bâtiment a **ses propres PV** ; la case sous lui ne peut être prise qu'une fois le bâtiment tombé. Il **se régénère** comme une case, mais le Sporophore **ne peut pas le soigner**.
 - **Bâtiment tombé** : il devient **endormi pendant 60 s** (il ne fait rien et **ne peut pas être frappé** : on se bat pour la case dessous). Au bout des 60 s, **la colonie qui tient alors la case sous lui l'obtient** : l'attaquant s'il a pris la case entre-temps, sinon son propriétaire le récupère. Il se **réveille à pleine vie**. La colonie qui l'obtient le **garde même sans place libre** (les places ne comptent que pour construire). (Le propriétaire ne doit pas le récupérer « en l'état » trop facilement : c'est ce délai qui laisse une chance aux deux camps.)
 - **Bâtiment coupé du Sporophore** : il **reste actif** et garde sa case, même isolé (exception à la règle des cases coupées, §12).
-- **Questions encore ouvertes** : voir §20, « Bâtiments ».
+- **Démolir** : par la roue ; le bâtiment disparaît et sa **place est rendue**, sans remboursement.
+- **Aspect** : un **pictogramme simple** par type dans une pastille à la couleur de la colonie, avec barre de PV ; l'habillage viendra en G7.
+- **Robots** : ils construisent **selon leur profil** : Conquérant, Mortiers et Avant-postes vers l'ennemi ; Bâtisseur, Essaimeurs vers les cases libres riches ; Canonnier, Avant-postes ; robot de jeu, un peu de tout. Toujours sur le front.
+- **Livraison** : **en une fois**, version **0.6.0**.
 
 ---
 
@@ -471,7 +484,7 @@ Un réglage **Thème : Clair / Sombre / Système** dans les **Paramètres** (app
 Les couleurs de colonie sont **éclaircies si besoin** en mode sombre pour garder le contraste (Indigo et Prune en particulier), à vérifier y compris pour le daltonisme. Le choix est enregistré dans la configuration locale du joueur.
 
 ### 16.5 Caméra et commandes
-- **Déplacement** : clic droit maintenu et souris contre les **bords de l'écran** ; **zoom** à la molette, centré sur la souris.
+- **Déplacement** : **clic du milieu** maintenu (clic droit jusqu'à la 0.5.2 ; le clic droit sert aux bâtiments en G5, §5 bis) et souris contre les **bords de l'écran** ; **zoom** à la molette, centré sur la souris.
 - **Clic gauche** : désigne une case comme cible prioritaire (§5.4).
 - **Raccourcis par défaut** : **Espace** recentre sur la Tourelle ; **P** pause (Bac à sable) ; **Échap** annule le geste en cours ou ouvre le menu de partie ; **Q, W, E** capacités ; **1 à 3** choisissent une mutation quand les cartes sont affichées. **Pas de touches pour les priorités de tir** (souris seulement, décidé le 4 octobre 2026). Tous modifiables dans les Paramètres ; une touche ne sert qu'à une action ; un bouton remet les touches par défaut.
 
@@ -526,7 +539,7 @@ Points de règle que l'étape 1 a dû trancher pour écrire le code, sans questi
 11. Onglets du panneau : Attaque (Dégâts, Cadence, Portée, Spores, Éclaboussure, Critique, Rebond), Défense (Régénération, Soin, PV des cases, Écorce), Économie (Rendement).
 
 ### Réglages du Sporophore et bâtiments (5 octobre 2026, QCM)
-Sporophore **fixe** : plus de déplacement, de touche D, de mutation *Rapide* (14 mutations) ni de pas des robots (§5.5) ; portée **2**, amélioration Portée limitée à **2 niveaux** (portée 4) ; **0,2 tir/s et 5 dégâts** (§6.3), sans compenser la régénération : prendre une case adverse demande des améliorations ou des bâtiments ; cadre « Mes mutations » réduit à **une ligne d'icônes** et lignes d'améliorations **compactes** (§16.2). **Bâtiments** (jalon G5, sans maquettes) : Essaimeur, Avant-poste, Mortier ; places par palier ; améliorations partagées ; cibles fixes par type ; PV propres ; bâtiment tombé endormi 60 s (intouchable) puis à la colonie qui tient sa case, réveillé à pleine vie et gardé même sans place ; bâtiment coupé du Sporophore : reste actif (§5 bis).
+Sporophore **fixe** : plus de déplacement, de touche D, de mutation *Rapide* (14 mutations) ni de pas des robots (§5.5) ; portée **2**, amélioration Portée limitée à **2 niveaux** (portée 4) ; **0,2 tir/s et 5 dégâts** (§6.3), sans compenser la régénération : prendre une case adverse demande des améliorations ou des bâtiments ; cadre « Mes mutations » réduit à **une ligne d'icônes** et lignes d'améliorations **compactes** (§16.2). **Bâtiments** (jalon G5, sans maquettes) : Essaimeur, Avant-poste, Mortier ; places par palier ; améliorations partagées ; cibles fixes par type ; PV propres ; bâtiment tombé endormi 60 s (intouchable) puis à la colonie qui tient sa case, réveillé à pleine vie et gardé même sans place ; bâtiment coupé du Sporophore : reste actif (§5 bis). Ensuite : Essaimeur qui tire sur les cases libres les plus proches ; pose par roue au clic droit ou bouton puis clic, glisser la carte au clic du milieu ; prix 10 / 20 / 40 Enzymes ; chantier 5 / 15 / 30 s ; « petits bâtiments » ; Mortier par-dessus le territoire, contre bâtiments et Sporophores seulement ; démolition (place rendue) ; Hyphes longues pour les bâtiments seulement ; améliorations de tir partagées ; régénération sans soin ; cible au clic partagée ; robots selon leur profil ; pictogrammes ; livraison en une fois (0.6.0).
 
 ### Questions ouvertes
 - **Triche de l'hôte** : la vérification par empreinte suffit-elle pour un classement du Duel ?
@@ -617,13 +630,7 @@ Le 5 octobre 2026, les **bâtiments** deviennent **G5** ; les jalons suivants so
 Elles seront posées sous forme de QCM au début du jalon concerné.
 
 ### G5 : Bâtiments (§5 bis)
-*Tranchées le 5 octobre 2026 : jalon G5, sans maquettes ; bâtiment endormi intouchable, réveil à pleine vie ; bâtiment coupé du Sporophore : reste actif ; obtenu sans place libre : gardé en plus (§5 bis).*
-1. Valeurs de départ de chaque bâtiment : portée, dégâts, cadence et PV, en part de ceux du Sporophore.
-3. Coût d'un bâtiment (fixe, ou qui monte avec le palier) et durée de construction.
-4. Portée des bâtiments : visent-ils seulement des cases collées à mon territoire, comme le Sporophore ? Le Mortier peut-il tirer par-dessus ?
-5. Peut-on démolir ou déplacer son propre bâtiment pour libérer une place ?
-6. La mutation *Hyphes longues* (portée +1) peut-elle dépasser la portée 4 du Sporophore ? S'applique-t-elle aux bâtiments ?
-7. Robots : comment placent-ils leurs bâtiments ?
+*Toutes tranchées le 5 octobre 2026 (QCM), voir §5 bis.*
 
 ### G4 : Combattre des robots
 *Questions 1 à 8 et 10 tranchées le 5 octobre 2026 (§17, « Décisions de G4 ») ; restent 9 et 11.*
