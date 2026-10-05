@@ -1,6 +1,6 @@
 extends GutTest
 ## Robots (GDD §2.5, Architecture §6) : achats d'améliorations, mutations, priorité de tir,
-## cible, pas de la Tourelle et capacités. Les robots ne font que proposer des commandes, que
+## cible, bâtiments et capacités. Les robots ne font que proposer des commandes, que
 ## la simulation accepte comme celles d'un joueur.
 
 const Fixture = preload("res://tests/fixtures/sim_fixture.gd")
@@ -235,6 +235,8 @@ func test_profiles_follow_the_gdd() -> void:
 			assert_gte(_sim.state.defs.mutation_index(id), 0, "%s : %s" % [profile.id, id])
 		for id: StringName in profile.abilities:
 			assert_gte(_sim.state.defs.ability_index(id), 0, "%s : %s" % [profile.id, id])
+		for id: StringName in profile.building_weights:
+			assert_gte(_sim.state.defs.building_index(id), 0, "%s : %s" % [profile.id, id])
 	assert_eq(ids, [&"gunner", &"builder", &"conqueror"] as Array[StringName])
 	assert_eq(RobotCatalog.find(&"builder"), RobotCatalog.BUILDER)
 	assert_null(RobotCatalog.find(&""))
@@ -244,6 +246,20 @@ func test_profiles_follow_the_gdd() -> void:
 	assert_eq(_heaviest(RobotCatalog.BUILDER), [&"yield"] as Array[StringName])
 	assert_eq(_heaviest(RobotCatalog.CONQUEROR), [&"range"] as Array[StringName])
 	assert_eq(RobotCatalog.CONQUEROR.priority, ColonyState.Priority.ENEMIES_FIRST)
+	# Bâtiments (GDD §5 bis) : Conquérant, Mortiers et Avant-postes ; Bâtisseur, Essaimeurs ;
+	# Canonnier, Avant-postes ; robot de jeu, un peu de tout.
+	assert_eq(_heaviest_building(RobotCatalog.CONQUEROR), &"mortar")
+	assert_eq(_heaviest_building(RobotCatalog.BUILDER), &"swarmer")
+	assert_eq(_heaviest_building(RobotCatalog.GUNNER), &"outpost")
+	assert_eq(RobotCatalog.GAME_ROBOT.building_weights.size(), 3)
+
+
+func _heaviest_building(profile: RobotProfile) -> StringName:
+	var best: StringName = &""
+	for id: StringName in profile.building_weights:
+		if best == &"" or profile.building_weights[id] > profile.building_weights[best]:
+			best = id
+	return best
 
 
 func _heaviest(profile: RobotProfile) -> Array[StringName]:

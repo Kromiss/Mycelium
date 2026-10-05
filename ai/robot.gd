@@ -6,8 +6,9 @@ extends RefCounted
 ## - mutation : la plus lourde des cartes proposées (tirage à graine en cas d'égalité) ;
 ## - priorité de tir : celle du profil, ou sa priorité de défense quand ses cases sont visées ;
 ## - cible : la Tourelle adverse dès qu'il peut la viser, s'il chasse les Tourelles ;
-## - pas : vers le centre de la forêt, derrière son territoire, s'il déplace sa Tourelle ;
-## - capacités : Salve quand il tire, Mur sur une case attaquée, Nuage sur les cases adverses ;
+## - bâtiments : selon son profil, toujours sur le front (BuildPlanner) ;
+## - capacités : Salve quand il tire, Mur sur une case attaquée, Nuage sur les cases adverses
+##   (avec les Enzymes qui ne sont pas gardées pour le prochain bâtiment) ;
 ## - améliorations : meilleur rapport poids / coût (UpgradePlanner).
 ## Une difficulté (RobotDifficulty, robots de jeu) règle son rythme et ses erreurs : il n'agit
 ## qu'une seconde sur N, fait des achats ou prend des mutations au hasard, se prive de
@@ -52,7 +53,13 @@ func decide(simulation: Simulation) -> Array[Command]:
 	_add(simulation, commands, _mutation_command(state, colony))
 	_add(simulation, commands, _priority_command(state, colony, attacked))
 	_add(simulation, commands, _target_command(simulation, colony))
-	for command: Command in _ability_commands(state, colony, attacked):
+	var building: Command = BuildPlanner.plan(state, colony, profile)
+	_add(simulation, commands, building)
+	# Les capacités n'utilisent que les Enzymes qui ne sont pas gardées pour un bâtiment.
+	var kept: int = BuildPlanner.reserve(state, colony, profile) if building == null else 0
+	if building is BuildCommand:
+		kept = BuildPlanner.cost_of(state, building as BuildCommand)
+	for command: Command in _ability_commands(state, colony, attacked, kept):
 		_add(simulation, commands, command)
 	var random_one_in: int = difficulty.random_upgrade_one_in if difficulty != null else 0
 	var plan: Dictionary[int, int] = UpgradePlanner.plan(
@@ -143,12 +150,12 @@ func _target_command(simulation: Simulation, colony: ColonyState) -> Command:
 
 ## Capacités prêtes et payables (Enzymes partagées entre elles), chacune sur sa case.
 func _ability_commands(
-	state: GameState, colony: ColonyState, attacked: PackedInt32Array
+	state: GameState, colony: ColonyState, attacked: PackedInt32Array, kept: int
 ) -> Array[Command]:
 	var commands: Array[Command] = []
 	if colony.turret < 0:
 		return commands
-	var enzymes: int = colony.enzymes
+	var enzymes: int = colony.enzymes - kept
 	for id: StringName in profile.abilities:
 		if difficulty != null and not difficulty.abilities.has(id):
 			continue
