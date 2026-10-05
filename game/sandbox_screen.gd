@@ -1,7 +1,9 @@
 extends Node2D
 ## Écran d'une partie de Bac à sable (GDD §2.1 bis, maquettes G3) : la carte à gauche, le
-## panneau à droite. Le joueur est seul sur une forêt de Duel ou de FFA, avec la couleur
-## Menthe. Relie la session, la carte, les colonies, les gestes, la caméra et le HUD.
+## panneau à droite. Le joueur est sur une forêt de Duel ou de FFA, avec la couleur Menthe,
+## seul ou contre des robots (un profil par secteur). En spectateur, on regarde une partie de
+## robots du panneau de simulations, sans joueur. Relie la session, les robots, la carte, les
+## colonies, les gestes, la caméra et le HUD.
 ## Touches : P pause, Espace recentre sur la Tourelle, D puis clic fait faire un pas, Q W E
 ## lancent les capacités, 1 à 3 choisissent une mutation quand les cartes sont affichées,
 ## Échap annule le geste en cours ou ouvre le menu de partie.
@@ -28,7 +30,17 @@ func _ready() -> void:
 	_config = SceneRouter.sandbox_config
 	if _config == null:
 		_config = SandboxConfig.defaults(SceneRouter.MODES[&"duel"], 1)
-	_session.start_local(_config.defs.duplicate_defs(), _config.game_seed, 1, true)
+	var sectors: PackedInt32Array = _config.colony_sectors()
+	_session.start_local(
+		_config.defs.duplicate_defs(), _config.game_seed, sectors.size(), true, sectors
+	)
+	var profiles: Array[StringName] = _config.colony_profiles()
+	for colony_id: int in range(profiles.size()):
+		var profile: RobotProfile = RobotCatalog.find(profiles[colony_id])
+		if profile != null:
+			_session.add_robot(Robot.new(profile, colony_id, _config.game_seed))
+	if _config.spectator:
+		_session.set_spectator()
 	var map: ForestMap = _session.simulation.state.map
 	_forest_view.setup(map, Settings.palette())
 	var main: Array[Color] = []
@@ -52,6 +64,8 @@ func _ready() -> void:
 	get_viewport().size_changed.connect(_on_viewport_resized)
 	Settings.palette_changed.connect(_on_palette_changed)
 	recenter()
+	if not _config.title.is_empty():
+		_hud.show_message(_config.title)
 
 
 ## Ramène la caméra sur la Tourelle de la colonie.

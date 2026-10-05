@@ -29,7 +29,7 @@ MENU_DUEL_SOON,Duel (soon),Duel (bientôt)
 MENU_FFA_SOON,FFA (soon),FFA (bientôt)
 MENU_SANDBOX,Sandbox,Bac à sable
 SANDBOX_TITLE,Sandbox,Bac à sable
-SANDBOX_INTRO,"Alone on the forest, every number can be changed. Games last 30 minutes.","Seul sur la forêt, tous les chiffres sont modifiables. Une partie dure 30 minutes."
+SANDBOX_INTRO,"Alone or against robots, every number can be changed. Games last 30 minutes.","Seul ou contre des robots, tous les chiffres sont modifiables. Une partie dure 30 minutes."
 SANDBOX_FOREST,Forest,Forêt
 SANDBOX_SEED,Seed,Graine
 SANDBOX_NEW_SEED,New seed,Nouvelle graine
@@ -65,6 +65,8 @@ HUD_RECAP,Copy summary,Copier le récapitulatif
 HUD_COPIED,Summary copied to the clipboard,Récapitulatif copié dans le presse-papiers
 HUD_PAUSED,Paused,En pause
 HUD_PAUSED_NO_ORDERS,Paused: orders are blocked,En pause : les ordres sont bloqués
+HUD_HINT_SPECTATOR,Robot game · %s: pause · Speed: up to ×64,Partie de robots · %s : pause · Vitesse : jusqu'à ×64
+HUD_SPECTATOR_NO_ORDERS,Watching a robot game: no orders,Partie de robots regardée : aucun ordre
 HUD_TIER_BANNER,Tier %s!,Palier %s !
 HUD_HINT,Click: target this cell · %s: move the Sporophore,Clic : viser cette case · %s : déplacer le Sporophore
 TIP_ZONE,Zone %d,Zone %d
@@ -315,3 +317,77 @@ SANDBOX_MUT_STEP,Step duration (s),Durée d'un pas (s)
 SANDBOX_MUT_TURRET_HP,Sporophore HP ×,PV du Sporophore ×
 SANDBOX_MUT_TOXIC,No regeneration (s),Sans régénération (s)
 SANDBOX_MUT_COST,Upgrade cost ×,Coût des améliorations ×
+SANDBOX_OPPONENTS,Robot opponents,Adversaires robots
+SANDBOX_SECTOR,Sector %d,Secteur %d
+ROBOT_NONE,None,Aucun
+ROBOT_GUNNER,Gunner,Canonnier
+ROBOT_BUILDER,Builder,Bâtisseur
+ROBOT_CONQUEROR,Conqueror,Conquérant
+RECAP_OPPONENTS,Opponents: %s,Adversaires : %s
+RECAP_OPPONENT,%s (%s): %d cells · tier %d · %s,%s (%s) : %d cases · palier %d · %s
+RECAP_ALIVE,alive,en vie
+RECAP_ELIMINATED,eliminated at %s,éliminé à %s
+MENU_SIMULATIONS,Simulations (development),Simulations (développement)
+SIM_TITLE,Simulations,Simulations
+SIM_BACK,Back,Retour
+SIM_TAB_SETTINGS,Settings,Réglages
+SIM_TAB_LAUNCH,Launch,Lancement
+SIM_TAB_RESULTS,Results,Résultats
+SIM_COMPOSITIONS,Forest compositions (robot of each sector),Compositions de forêt (robot de chaque secteur)
+SIM_ADD_COMPOSITION,Add a composition,Ajouter une composition
+SIM_REMOVE_COMPOSITION,Remove,Retirer
+SIM_RUNS,Games per composition,Parties par composition
+SIM_DURATION,Simulated duration (min),Durée simulée (min)
+SIM_MODE,Launch,Lancement
+SIM_MODE_SIMPLE,Simple,Simple
+SIM_MODE_SWEEP,Sweep,Balayage
+SIM_SWEEP_VALUE,Swept value,Valeur balayée
+SIM_SWEEP_MIN,Minimum,Minimum
+SIM_SWEEP_MAX,Maximum,Maximum
+SIM_SWEEP_STEP,Step,Pas
+SIM_START,Run the simulations,Lancer les simulations
+SIM_RUNNING,%d / %d games,%d / %d parties
+SIM_DONE,Done: %d games in %s s,Terminé : %d parties en %s s
+SIM_NO_COMPOSITION,Add a composition with at least one robot,Ajoute une composition avec au moins un robot
+SIM_EXPORT,Export CSV,Exporter en CSV
+SIM_EXPORTED,Saved: %s,Enregistré : %s
+SIM_OPEN_FOLDER,Open the folder,Ouvrir le dossier
+SIM_WATCH,Watch on the map,Regarder sur la carte
+SIM_WATCH_RUN,Game ,Partie 
+SIM_WATCH_TITLE,"Robot game: %s, game %d","Partie de robots : %s, partie %d"
+SIM_NO_RESULTS,No results yet: run simulations from the Launch tab.,Pas encore de résultats : lance des simulations depuis l'onglet Lancement.
+SIM_CURVE_PRODUCTION,"Production per minute (average, log scale)","Production par minute (moyenne, échelle log)"
+SIM_CURVE_CELLS,Cells at the end of each minute (average),Cases à la fin de chaque minute (moyenne)
+SIM_SECTOR_SHORT,S%d · %s,S%d · %s
+SIM_M_ELIMINATIONS,Eliminations,Éliminations
+SIM_M_FIRST_ELIMINATION,First elimination (min),Première élimination (min)
+SIM_M_ENDED_AT_TIME,Games ended at time (%),Parties finies au temps (%)
+SIM_M_END,End of the game (min),Fin de la partie (min)
+SIM_M_WINS,Wins (%),Victoires (%)
+SIM_M_RANK,Final rank,Rang final
+SIM_M_ELIMINATED,Eliminated (%),Éliminée (%)
+SIM_M_ELIMINATED_AT,Eliminated at (min),Éliminée à (min)
+SIM_M_TROPHIES,Trophies,Trophées
+SIM_M_CELLS,Cells at the end,Cases à la fin
+SIM_M_CAPTURED,Cells captured,Cases prises
+SIM_M_CAPTURED_PER_MINUTE,Cells captured per minute,Cases prises par minute
+SIM_M_FINAL_TIER,Tier at the end,Palier à la fin
+SIM_M_PRODUCTION,Production at the end (/s),Production à la fin (/s)
+SIM_M_PEAK,Peak production (/s),Record de production (/s)
+SIM_M_BIOMASS,Biomass,Biomasse
+SIM_M_ZONE,Arrival in zone %d (min),Arrivée en zone %d (min)
+SIM_M_TIER,Tier %d reached (min),Palier %d atteint (min)
+SIM_M_LEVEL,Level: %s,Niveau : %s
+SIM_M_MINUTE,Production in minute %d (/s),Production à la minute %d (/s)
+SIM_M_MINUTE_CELLS,Cells at minute %d,Cases à la minute %d
+SIM_CSV_SERIES,Series,Série
+SIM_CSV_SECTOR,Sector,Secteur
+SIM_CSV_PROFILE,Robot,Robot
+SIM_CSV_MEASURE,Measure,Mesure
+SIM_STAT_MEAN,mean,moyenne
+SIM_STAT_MIN,min,min
+SIM_STAT_MAX,max,max
+SIM_STAT_STD,std dev,écart type
+SIM_STAT_COUNT,games,parties
+SIM_CELL_STATS,"%s (%s – %s, σ %s)","%s (%s – %s, σ %s)"
+SIM_NEVER,—,—

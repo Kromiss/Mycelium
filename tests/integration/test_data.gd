@@ -30,6 +30,10 @@ const SOURCES: Array[String] = [
 	"res://data/colors.tres",
 	"res://data/modes/duel.tres",
 	"res://data/modes/ffa.tres",
+	"res://ai/robot_catalog.gd",
+	"res://ai/profiles/gunner.tres",
+	"res://ai/profiles/builder.tres",
+	"res://ai/profiles/conqueror.tres",
 ]
 
 

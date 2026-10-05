@@ -16,12 +16,14 @@ static func record(
 	alert_ticks: int
 ) -> void:
 	var state: GameState = session.simulation.state
-	var local: int = session.local_colony
+	var local: int = session.viewer_colony()
 	var tick: int = result.tick
 	if tick + 1 == state.defs.protection_ticks:
 		journal.add_entry(tick, _t("JOURNAL_PROTECTION"))
-	_record_attacks(journal, result, state, local, last_alert, alert_ticks)
-	_record_losses(journal, result, local)
+	if local >= 0:
+		# En spectateur (local à −1), pas d'alertes : seules les éliminations sont notées.
+		_record_attacks(journal, result, state, local, last_alert, alert_ticks)
+		_record_losses(journal, result, local)
 	for i: int in range(0, result.tier_changes.size(), 3):
 		var tier: int = result.tier_changes[i + 2]
 		if result.tier_changes[i] != local or tier <= result.tier_changes[i + 1]:

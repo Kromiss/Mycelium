@@ -81,6 +81,51 @@ func test_game_starts_alone_on_the_chosen_forest() -> void:
 	assert_true(session.has_time_control())
 
 
+func test_one_opponent_line_per_free_sector() -> void:
+	SceneRouter.sandbox_config = null
+	var setup: Node = SETUP.instantiate()
+	add_child_autofree(setup)
+	var config: SandboxConfig = setup.call("config")
+	var grid: GridContainer = setup.get_node("%SettingsForm/%OpponentsGrid")
+	assert_eq(config.profiles, [&"", &""] as Array[StringName])
+	assert_eq(grid.get_child_count(), 2)
+	setup.call("_on_forest_selected", 1)
+	assert_eq(config.opponent_count(), 5)
+	assert_eq(grid.get_child_count(), 10)
+	var form: SettingsForm = setup.get_node("%SettingsForm")
+	form.set_opponent(2, &"conqueror")
+	var option: OptionButton = grid.get_child(5)
+	assert_eq(option.get_item_text(option.selected), "Conqueror")
+	option.select(1)
+	option.item_selected.emit(1)
+	assert_eq(config.opponent(2), &"gunner")
+	assert_eq(config.colony_sectors(), PackedInt32Array([0, 3]))
+	assert_eq(config.colony_profiles(), [&"", &"gunner"] as Array[StringName])
+	assert_eq(config.duplicate_config().profiles, config.profiles)
+
+
+func test_game_against_robots_puts_them_on_their_sectors() -> void:
+	var config: SandboxConfig = SandboxConfig.defaults(preload("res://data/modes/ffa.tres"), 7)
+	config.profiles[2] = &"builder"
+	config.profiles[4] = &"conqueror"
+	SceneRouter.sandbox_config = config
+	var screen: Node = _game()
+	var session: Session = screen.get_node("%Session")
+	var state: GameState = session.simulation.state
+	assert_eq(state.colonies.size(), 3)
+	assert_eq(state.colonies[1].sector, 2)
+	assert_eq(state.colonies[2].sector, 4)
+	assert_eq(session.robots.size(), 2)
+	assert_eq(session.robots[0].profile, RobotCatalog.BUILDER)
+	assert_eq(session.robots[1].colony_id, 2)
+	session.step()
+	assert_gt(session.replay.commands.size(), 0)
+	var text: String = SandboxRecap.build(config, state, session.colony())
+	assert_string_contains(text, "Opponents: Sector 2: None, Sector 3: Builder")
+	assert_string_contains(text, "Coral (Builder): 3 cells · tier 0 · alive")
+	assert_string_contains(text, "Sky (Conqueror)")
+
+
 func test_click_targets_a_cell_and_refusals_show_a_message() -> void:
 	var screen: Node = _game()
 	var session: Session = screen.get_node("%Session")
@@ -157,6 +202,7 @@ func test_recap_lists_settings_and_results() -> void:
 	var text: String = SandboxRecap.build(config, simulation.state, simulation.state.colonies[0])
 	for expected: String in [
 		"Sandbox",
+		"Opponents: Sector 2: None",
 		"Duel forest (radius 11) · seed 42",
 		"U: cost unit of upgrades: 30",
 		"Sporophore: damage per spore: 10",

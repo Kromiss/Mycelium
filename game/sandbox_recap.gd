@@ -22,11 +22,43 @@ static func build(config: SandboxConfig, state: GameState, colony: ColonyState) 
 			)
 		)
 	)
+	lines.append("- " + tr_key("RECAP_OPPONENTS") % _opponents_text(config))
 	lines.append_array(_settings_lines(defs))
 	lines.append("")
 	lines.append(tr_key("RECAP_RESULTS") % NumberFormat.clock(state.tick))
 	lines.append_array(_result_lines(state, colony))
+	lines.append_array(_opponent_lines(config, state, colony))
 	return "\n".join(lines)
+
+
+## Profil de chaque secteur libre (« Secteur 2 : Canonnier, Secteur 3 : Aucun »).
+static func _opponents_text(config: SandboxConfig) -> String:
+	var parts := PackedStringArray()
+	for index: int in range(config.opponent_count()):
+		var sector: String = tr_key("SANDBOX_SECTOR") % (index + 2)
+		parts.append(tr_key("RECAP_PAIR") % [sector, RobotCatalog.label(config.opponent(index))])
+	return tr_key("RECAP_NONE") if parts.is_empty() else ", ".join(parts)
+
+
+## Une ligne par robot : couleur, profil, cases, palier, en vie ou éliminé.
+static func _opponent_lines(
+	config: SandboxConfig, state: GameState, colony: ColonyState
+) -> PackedStringArray:
+	var lines := PackedStringArray()
+	var profiles: Array[StringName] = config.colony_profiles()
+	for other: ColonyState in state.colonies:
+		if other.id == colony.id:
+			continue
+		var profile: StringName = profiles[other.id] if other.id < profiles.size() else &""
+		var status: String = tr_key("RECAP_ALIVE")
+		if not other.alive:
+			status = tr_key("RECAP_ELIMINATED") % NumberFormat.clock(other.eliminated_tick)
+		var name: String = GameText.colony_name(other.id, colony.id)
+		var values: Array = [
+			name, RobotCatalog.label(profile), other.cell_count, other.tier, status
+		]
+		lines.append("- " + tr_key("RECAP_OPPONENT") % values)
+	return lines
 
 
 ## Traduction d'une clé (le récapitulatif est construit hors de l'arbre de scène).
@@ -45,7 +77,7 @@ static func _settings_lines(defs: SimDefs) -> PackedStringArray:
 		if param.group == SandboxParam.Group.GENERAL:
 			general.append(text)
 			continue
-		var name: String = _row_name(defs, param)
+		var name: String = param.row_name(defs)
 		if name != row_name and not row.is_empty():
 			lines.append("- %s — %s" % [row_name, ", ".join(row)])
 			row = PackedStringArray()
@@ -108,21 +140,6 @@ static func _result_lines(state: GameState, colony: ColonyState) -> PackedString
 static func _value(param: SandboxParam, defs: SimDefs) -> String:
 	var value: float = param.read(defs)
 	return NumberFormat.decimal(roundi(value * 1000.0))
-
-
-static func _row_name(defs: SimDefs, param: SandboxParam) -> String:
-	match param.group:
-		SandboxParam.Group.ZONES:
-			return "%s %d" % [tr_key("SANDBOX_ZONE"), param.index + 1]
-		SandboxParam.Group.TIERS:
-			return "%s %d" % [tr_key("SANDBOX_TIER"), param.index + 1]
-		SandboxParam.Group.UPGRADES:
-			return tr_key(defs.upgrades[param.index].name_key)
-		SandboxParam.Group.ABILITIES:
-			return tr_key(defs.abilities[param.index].name_key)
-		SandboxParam.Group.MUTATIONS:
-			return tr_key(defs.mutations[param.index].name_key)
-	return ""
 
 
 ## Niveaux des améliorations achetées (« Dégâts 4, Cadence 2 »).

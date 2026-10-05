@@ -33,7 +33,7 @@ formatage et style avec gdtoolkit 4.5.0. Le détail de l'arborescence est dans
 | `ui/` | écrans et thème de l'interface |
 | `game/` | assemblage d'une partie (`Session`) |
 | `net/` | transport des commandes (local ; Steam au G7) |
-| `ai/` | robots (recréés à l'étape 3 de G3) |
+| `ai/` | robots Canonnier, Bâtisseur et Conquérant (profils dans `ai/profiles/`) |
 | `autoload/` | singletons `Settings` et `SceneRouter` |
 | `tests/` | tests GUT (`unit/`, `integration/`) |
 | `tools/` | outils de développement, exclus de l'export (captures d'écran, simulations…) |

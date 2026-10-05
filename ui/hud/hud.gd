@@ -265,10 +265,7 @@ func _notification(what: int) -> void:
 ## Envoie un ordre de la colonie du joueur, ou montre pourquoi il serait refusé.
 func _send(command: Command) -> void:
 	if not _session.accepts_commands():
-		var paused: bool = _session.is_running()
-		show_message(
-			tr("HUD_PAUSED_NO_ORDERS") if paused else MapInput.refusal_text(Refusal.Code.GAME_OVER)
-		)
+		show_message(MapInput.blocked_text(_session))
 		return
 	command.colony_id = _session.local_colony
 	var code: Refusal.Code = _session.simulation.check(command)
@@ -339,6 +336,9 @@ func _update_state() -> void:
 
 func _update_hint() -> void:
 	var cancel: String = ControlsText.action_key("back_to_menu")
+	if _session.is_spectator():
+		_hint_label.text = tr("HUD_HINT_SPECTATOR") % ControlsText.action_key("toggle_pause")
+		return
 	match _hint_mode:
 		MapInput.Mode.MOVE:
 			_hint_label.text = tr("HUD_HINT_MOVE") % cancel
@@ -441,4 +441,4 @@ func _restart() -> void:
 
 
 func _quit() -> void:
-	SceneRouter.goto_main_menu()
+	SceneRouter.leave_game()

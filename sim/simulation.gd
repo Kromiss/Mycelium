@@ -17,11 +17,16 @@ var _victory := VictorySystem.new()
 
 ## Crée une partie : forêt de « defs », « colony_count » colonies (une par secteur, dans
 ## l'ordre des secteurs ; moins de colonies que de secteurs en Bac à sable), Tourelles sur
-## les coins de la forêt.
-func _init(defs: SimDefs, game_seed: int, colony_count: int = -1) -> void:
+## les coins de la forêt. « sector_list » : secteur de chaque colonie, dans l'ordre des
+## colonies (vide : les premiers secteurs ; il fixe alors le nombre de colonies).
+func _init(
+	defs: SimDefs, game_seed: int, colony_count: int = -1, sector_list := PackedInt32Array()
+) -> void:
 	var problems: PackedStringArray = defs.validate()
 	assert(problems.is_empty(), "Définitions invalides : %s" % ", ".join(problems))
 	var count: int = defs.sectors if colony_count < 0 else colony_count
+	if not sector_list.is_empty():
+		count = sector_list.size()
 	assert(count >= 1 and count <= defs.sectors, "Nombre de colonies hors limites.")
 	defs.prepare()
 	state = GameState.new()
@@ -40,7 +45,9 @@ func _init(defs: SimDefs, game_seed: int, colony_count: int = -1) -> void:
 	state.cell_rank = _shuffled_ranks(size)
 	for cell: int in range(size):
 		state.hp[cell] = ColonyStats.free_max_hp(state, cell)
-	for sector: int in range(count):
+	for index: int in range(count):
+		var sector: int = sector_list[index] if not sector_list.is_empty() else index
+		assert(sector >= 0 and sector < defs.sectors, "Secteur hors de la forêt.")
 		_place_colony(sector)
 	# Les PV des cases de départ dépendent de leurs voisines : calculés une fois tout placé.
 	for colony: ColonyState in state.colonies:

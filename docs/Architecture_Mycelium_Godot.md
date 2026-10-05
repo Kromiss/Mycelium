@@ -84,19 +84,21 @@ res://
 │   ├── fixed.gd              Calcul en entiers à virgule fixe
 │   ├── sim_rng.gd            Aléatoire à graine, propre à la simulation
 │   └── state_hash.gd         Empreinte de l'état (vérification de l'hôte, tests)
-├── ai/                       Robots (vide depuis G3 étape 1 : Canonnier, Bâtisseur et Conquérant à l'étape 3)
-│   ├── robot.gd              Lit l'état, produit des commandes
-│   ├── evaluators/           Évaluation par utilité (améliorations, priorités, cibles, déplacements, capacités)
-│   └── profiles/             Profils et difficultés (.tres)
+├── ai/                       Robots Canonnier, Bâtisseur et Conquérant (G3, étape 3)
+│   ├── robot.gd              Lit l'état, produit des commandes (mutation, priorité, cible, pas, capacités, achats)
+│   ├── robot_profile.gd      Profil d'un robot (poids des améliorations et des mutations, priorités, pas, capacités)
+│   ├── robot_catalog.gd      Les trois profils, dans l'ordre d'affichage
+│   ├── evaluators/           upgrade_planner.gd (achats au meilleur rapport poids / coût), threats.gd (mes cases visées)
+│   └── profiles/             gunner.tres, builder.tres, conqueror.tres (difficultés au jalon G5)
 ├── net/                      Transport des commandes et des différences
 │   ├── transport.gd          Interface commune
 │   ├── local_transport.gd    Solo, tutoriel, tests
-│   ├── replay_transport.gd   Rejeu d'une partie enregistrée (panneau de simulations, replays) — à recréer à l'étape 3 de G3
+│   ├── replay_transport.gd   Rejeu d'une partie enregistrée (Replay), en spectateur
 │   └── steam_transport.gd    En ligne : hôte ou invité (jalon G6)
 ├── game/
 │   ├── session.gd            Relie simulation, transport, robots et affichage
 │   ├── sandbox_screen.tscn   Partie de Bac à sable (carte, colonie, gestes, caméra, HUD)
-│   ├── sandbox_config.gd     Réglages d'une partie de Bac à sable (mode, graine, SimDefs)
+│   ├── sandbox_config.gd     Réglages d'une partie de Bac à sable (mode, graine, SimDefs, robot de chaque secteur, spectateur)
 │   ├── sandbox_recap.gd      Texte du récapitulatif copiable
 │   ├── local_view_state.gd   Copie de l'état côté affichage (mise à jour par différences)
 │   └── tutorial_director.gd  Étapes du tutoriel
@@ -128,9 +130,9 @@ res://
 │   └── translations.csv      Textes FR et EN
 ├── tools/
 │   ├── capture.gd            Captures d'écran d'un écran du jeu (menus, Bac à sable, partie jouée N secondes, menu de partie, fin), pour validation visuelle
-│   ├── sim_runner.gd         Lots de parties de robots (simples ou balayages), en parallèle — supprimé en G3 étape 1, recréé à l'étape 3
-│   ├── simulation/           Une partie mesurée (sim_run), ses mesures, statistiques, tableau et CSV — idem
-│   └── simulation_panel/     Panneau de simulations (éditeur seulement) — idem
+│   ├── sim_runner.gd         Lots de parties de robots (compositions de forêt, simples ou balayages), en parallèle
+│   ├── simulation/           Une partie mesurée (sim_run), ses mesures (partie, puis chaque secteur), statistiques, tableaux et CSV
+│   └── simulation_panel/     Panneau de simulations (éditeur seulement) : compositions, résultats, courbes
 ├── tests/
 │   ├── unit/                 Un fichier de test par système
 │   ├── integration/          Parties complètes, déterminisme, scènes
@@ -203,10 +205,10 @@ Fin de partie visée : ~1e6 nutriments/s, soit ~1e9 en millièmes par seconde ; 
 ## 6. Les robots (`ai/`)
 
 - Un robot reçoit l'état (en lecture seule) et renvoie une liste de commandes, **à la même fréquence et avec les mêmes limites qu'un joueur**.
-- Décision par **utilité** : chaque évaluateur note les actions possibles (acheter telle amélioration, changer de priorité, désigner une cible, déplacer la Tourelle, choisir une mutation, lancer une capacité) ; le robot choisit les meilleures.
-- **Difficulté** = délai de réaction, part d'erreurs, profondeur d'évaluation, qualité des choix. **Profil** = poids des évaluateurs : Canonnier, Bâtisseur, Conquérant (GDD §2.5).
-- Les robots utilisent leur propre `SimRng` dérivé de la graine : une partie de robots est donc **rejouable à l'identique**.
-- Les robots de G1 (colonisation) et de G2 (bâtisseurs) ont été supprimés avec la refonte (G3, étape 1) ; les robots Canonnier, Bâtisseur et Conquérant arrivent à l'étape 3 de G3. Leurs estimations passeront par `ColonyStats` et `Targeting`, pour que les règles restent dans `sim/`.
+- `Robot.decide(simulation)` (G3, étape 3) renvoie les commandes du prochain tick ; chacune est d'abord vérifiée par `Simulation.check()`, si bien qu'un robot n'envoie que des commandes acceptées. Ordre : choix de mutation (la plus lourde du profil), priorité de tir (habituelle, ou de défense tant que `Threats.attacked_cells()` trouve des cases visées, gardée `defense_hold_ticks`), cible désignée (Tourelle adverse visable), pas vers le centre (Conquérant), capacités (Enzymes partagées entre elles), achats (`UpgradePlanner.plan()` : meilleur rapport poids / coût du prochain niveau, en entiers, économie pour la meilleure si elle n'est pas payable).
+- **Profil** (`RobotProfile`, `ai/profiles/*.tres`) = poids des améliorations et des mutations, priorités, chasse des Tourelles, pas, capacités : Canonnier, Bâtisseur, Conquérant (GDD §2.5). **Difficulté** (G5) = délai de réaction, part d'erreurs, profondeur d'évaluation, qualité des choix.
+- Les robots utilisent leur propre `SimRng` dérivé de la graine (`derive(7001 + colonie)`, pour départager les mutations) et ne lisent ni l'heure ni l'aléatoire global : une partie de robots est donc **rejouable à l'identique** (même graine, mêmes réglages).
+- Les estimations passent par `ColonyStats`, `Targeting` et les requêtes de `Simulation` : les règles restent dans `sim/`.
 
 ---
 
@@ -217,13 +219,14 @@ Fin de partie visée : ~1e6 nutriments/s, soit ~1e9 en millièmes par seconde ; 
 - `SteamTransport` (jalon G6) :
   - **Hôte** : fait tourner la simulation, reçoit les commandes des invités par Steam Networking Sockets, envoie les différences et l'empreinte de chaque tick.
   - **Invité** : envoie ses commandes, applique les différences, **rejoue la simulation localement** à partir des commandes et compare l'empreinte ; un écart arrête la partie et la signale.
+- `ReplayTransport` : recrée la partie d'un `Replay` (secteurs compris) et lui remet à chaque tick les commandes enregistrées ; les commandes envoyées par le jeu sont ignorées (`Session.start_replay()`, en spectateur).
 - Le reste du jeu (`game/`, `view/`, `ui/`) ne sait pas quel transport est utilisé.
 
 ---
 
 ## 8. Session, scènes et singletons
 
-- `Session` (`game/session.gd`) assemble une partie : crée la simulation et le transport, inscrit les robots, cadence les ticks (1 par seconde, ×2 ou ×4 en Bac à sable), met à jour `LocalViewState` et émet des **signaux** (`ticked`, `paused_changed`, `speed_changed` en G1 ; `cell_changed`, `tier_reached`, `colony_eliminated`… quand l'affichage en aura besoin). `start_local(defs, graine, colonies, time_control)` lance une partie locale ; la pause et la vitesse ne répondent que si `time_control` est vrai (Bac à sable). `send_command()` renvoie faux, sans rien envoyer, pendant la pause ou une fois la partie finie ; `game_finished` est émis quand la simulation atteint sa durée maximale (`VictorySystem`, 30:00), après quoi plus aucun tick n'est joué. `production_history` garde la production de la colonie locale à chaque tick (courbe du HUD). En G1, l'affichage lit directement l'état de la simulation locale ; `LocalViewState` arrive avec le jeu en ligne. `advance_time()` joue les ticks dus (8 au plus par image) et `tick_fraction()` donne l'avancement vers le prochain tick, pour interpoler l'affichage.
+- `Session` (`game/session.gd`) assemble une partie : crée la simulation et le transport, inscrit les robots, cadence les ticks (1 par seconde, ×2 ou ×4 en Bac à sable), met à jour `LocalViewState` et émet des **signaux** (`ticked`, `paused_changed`, `speed_changed` en G1 ; `cell_changed`, `tier_reached`, `colony_eliminated`… quand l'affichage en aura besoin). `start_local(defs, graine, colonies, time_control, secteurs)` lance une partie locale (« secteurs » : secteur de chaque colonie, vide pour les premiers) ; `add_robot(robot)` inscrit un robot, appelé par `step()` avant chaque tick sur l'état du tick précédent (ses commandes passent par le transport, donc dans le `Replay`). `set_spectator()` (ou `start_replay()`) : plus aucun ordre accepté, vitesses ×1, ×4, ×16, ×64 (jusqu'à 64 ticks par image), et `viewer_colony()` vaut −1 pour que chaque colonie garde le nom de sa couleur ; la pause et la vitesse ne répondent que si `time_control` est vrai (Bac à sable). `send_command()` renvoie faux, sans rien envoyer, pendant la pause ou une fois la partie finie ; `game_finished` est émis quand la simulation atteint sa durée maximale (`VictorySystem`, 30:00), après quoi plus aucun tick n'est joué. `production_history` garde la production de la colonie locale à chaque tick (courbe du HUD). En G1, l'affichage lit directement l'état de la simulation locale ; `LocalViewState` arrive avec le jeu en ligne. `advance_time()` joue les ticks dus (8 au plus par image) et `tick_fraction()` donne l'avancement vers le prochain tick, pour interpoler l'affichage.
 - **Singletons limités à trois** : `Settings`, `SceneRouter` et, au jalon G6, `SteamService`. `SteamService` est **facultatif** : les modes locaux (joueur et robots : Bac à sable, Duel et FFA contre robots, tutoriel) sont **isolés des modes en ligne** et fonctionnent sans Steam ni GodotSteam. Aucun code de `sim/`, `ai/`, `game/` ni des écrans des modes locaux ne dépend de `SteamService` ou de `SteamTransport` ; seuls `net/steam_transport.gd` et les écrans du multijoueur (salons, invitations, file d'attente) y touchent. L'état de la partie n'est **jamais** dans un singleton : il appartient à la `Session` en cours.
 - Une scène par écran (`ui/menus/main_menu.tscn`, `ui/hud/hud.tscn`…), une scène par élément réutilisable (bouton de bâtiment, ligne de classement).
 
@@ -325,9 +328,12 @@ func _colony_production(state: GameState, colony: ColonyState) -> int:
 | **Données** | Cohérence des `.tres` | Chaque bâtiment a un palier existant ; aucun coût nul ; chaque texte a sa traduction FR et EN |
 
 ### 11.3 Simulations d'équilibrage (`tools/sim_runner.gd`)
-Dès G1, le `sim_runner` est piloté par le **panneau de simulations** (GDD §14.5), une scène de `tools/simulation_panel/` ouverte depuis le menu principal seulement quand `OS.has_feature("editor")` est vrai. Le dossier `tools/` est exclu de l'export (`export_presets.cfg`) : le panneau, le `sim_runner` et ses mesures n'existent dans aucun `.exe`. Rien dans les dossiers exportés ne les nomme comme type : le menu ne connaît que le chemin de la scène, et `SceneRouter` garde l'état du panneau dans une variable non typée. Les parties d'un lot tournent sur les fils de travail de Godot (`WorkerThreadPool`), chacune avec ses propres définitions et sa propre simulation ; une partie de 30 min prend quelques secondes. Chaque partie garde son enregistrement (`Replay`), que `ReplayTransport` rejoue sur la carte. Les simulations tournent sans affichage, avec une barre de progression ; les résultats (moyenne, min, max, écart type) s'exportent en CSV dans `user://`.
+Le `sim_runner` est piloté par le **panneau de simulations** (GDD §18.5), une scène de `tools/simulation_panel/` ouverte depuis le menu principal seulement quand `OS.has_feature("editor")` est vrai (`SceneRouter.has_simulation_panel()`). Le dossier `tools/` est exclu de l'export (`export_presets.cfg`) : le panneau, le `sim_runner` et ses mesures n'existent dans aucun `.exe`. Rien dans les dossiers exportés ne les nomme comme type : le menu ne connaît que le chemin de la scène, et `SceneRouter` garde l'état du panneau dans une variable non typée.
+- G3 (étape 3) : une **série** (`SimRunner.Series`) = une composition de forêt (profil du robot de chaque secteur, liste gardée par `CompositionList` dans `user://simulation_compositions.cfg`, une par forêt) et des réglages (valeur balayée). `SimRun` joue une partie avec un `Robot` par secteur occupé et mesure la partie (`SimRunResult`) puis chaque secteur (`SimColonyResult`, dont la production et les cases de chaque minute) ; `SimReport` en tire les tableaux (mesures de la partie, puis une colonne par secteur), les courbes et le CSV (une ligne par série, secteur et mesure).
+- Les parties d'un lot tournent sur les fils de travail de Godot (`WorkerThreadPool`), chacune avec ses propres définitions et sa propre simulation (une partie de Duel de 30 min prend une vingtaine de secondes, une partie de FFA environ deux minutes) ; les tests les jouent à la suite (`run_all()`).
+- Aucun enregistrement n'est gardé (plusieurs Mo par partie) : pour **regarder** une partie, le panneau relance l'écran de partie en spectateur avec la même graine, les mêmes réglages et les mêmes robots (`SandboxConfig.spectator`), ce qui redonne la même partie ; « Quitter » ramène au panneau (`SceneRouter.leave_game()`).
 
-Lance des centaines de parties de robots sans affichage et en temps accéléré, puis écrit un rapport (CSV) : minute d'arrivée dans chaque zone, courbe de production, nombre d'éliminations avant 26:00, parties finies au temps, efficacité des fronts, effet du butin. C'est l'outil qui répond aux questions « À simuler » du GDD.
+C'est l'outil qui répond aux questions « À simuler » du GDD.
 
 ### 11.4 Ce qui n'est pas couvert par les tests automatiques
 Le ressenti (rythme, plaisir des gestes, lisibilité), le rendu visuel, les performances sur un vrai PC, l'exécutable Windows et tout ce qui passe par Steam : ces points se vérifient **en jouant** (G5 et G6).
@@ -371,7 +377,7 @@ Le ressenti (rythme, plaisir des gestes, lisibilité), le rendu visuel, les perf
 | G0 | Transformation du dépôt, arborescence, autoloads, thèmes, traductions, `hex.gd`, `map_generator.gd` (zones uniquement), rendu de la carte, caméra, menu principal, écran Paramètres, GUT et workflows |
 | G1 | `GameState`, `Simulation`, commandes de colonisation, `GrowthSystem`, `EconomySystem`, `TierSystem`, `fixed.gd`, `sim_rng.gd`, `state_hash.gd`, `LocalTransport`, `Session` ; positions de départ dans `map_generator.gd` ; écran Bac à sable (réglages, valeurs par défaut, récapitulatif copiable), HUD, effets de palier, section Commandes des Paramètres ; enregistrement des commandes et test de rejeu ; robots d'économie (`ai/`), `tools/sim_runner.gd` et panneau de simulations (éditeur seulement). Livré en trois étapes : `sim/` et tests (**étape 1 livrée le 4 octobre 2026**) ; affichage, HUD et Bac à sable (**étape 2 livrée le 4 octobre 2026**) ; robots, simulations et panneau (**étape 3 livrée le 4 octobre 2026**, version 0.2.0) |
 | G2 | Bâtiments (`data/buildings/`), chantiers et file de construction, voisinage, Enzymes, plafond de stock, désactivation ; palette et menu rond ; robots composés (profil d'expansion + profil de bâtisseur + pourcentage) dans le panneau de simulations. Trois étapes : `sim/` et tests (**étape 1 livrée le 4 octobre 2026** : `Buildings`, `BuildCommand`, `DemolishCommand`, `data/buildings/`) ; affichage, HUD et Bac à sable (**étape 2 livrée le 4 octobre 2026** : `BuildingLayer`, `BuildingIcons`, `BuildingPalette`, `RadialMenu`, `BuildingPanel`, `BuildQueueView`, réglages des bâtiments dans `SandboxParam`) ; robots et panneau (**étape 3 livrée le 4 octobre 2026**, version 0.3.0 : `RobotSpec`, `BuilderRobot`, `ColonyRobot`, `RobotList`, `ColonyState.nutrients_lost`) ; city builder revu le même jour (places de bâtiment, effets de zone sans cumul, coût en secondes de production, plus de voisinage ni de Rosace) ; **tout ce code a été supprimé en G3 (étape 1)** |
-| G3 | Le Sporophore (refonte du 4 octobre 2026). Trois étapes : 1) `sim/` et tests (**livrée le 4 octobre 2026** : `TurretSystem`, `Targeting`, `Combat`, `RegenSystem`, `Upgrades`, `Abilities`, `ColonyStats`, `ShotStats`, `TierSystem` et `VictorySystem` réécrits, six commandes, `data/upgrades.tres`, `mutations.tres`, `abilities.tres` ; suppression de la colonisation, des bâtiments, des robots de G1 et G2, du panneau de simulations et de leur affichage ; affichage et HUD provisoires, Bac à sable avec tous les réglages) ; 2) écran des maquettes (**livrée le 4 octobre 2026** : composants de `ui/hud/`, `TurretArt`, `MapCamera.view_rect`, gestes des capacités, réglages des mutations dans le Bac à sable, `ColonyState.mutation_tiers` et `pending_tiers`, `Simulation.upgrade_values()`) ; 3) robots Canonnier, Bâtisseur, Conquérant et panneau de simulations à plusieurs robots ; version 0.4.0 |
+| G3 | Le Sporophore (refonte du 4 octobre 2026). Trois étapes : 1) `sim/` et tests (**livrée le 4 octobre 2026** : `TurretSystem`, `Targeting`, `Combat`, `RegenSystem`, `Upgrades`, `Abilities`, `ColonyStats`, `ShotStats`, `TierSystem` et `VictorySystem` réécrits, six commandes, `data/upgrades.tres`, `mutations.tres`, `abilities.tres` ; suppression de la colonisation, des bâtiments, des robots de G1 et G2, du panneau de simulations et de leur affichage ; affichage et HUD provisoires, Bac à sable avec tous les réglages) ; 2) écran des maquettes (**livrée le 4 octobre 2026** : composants de `ui/hud/`, `TurretArt`, `MapCamera.view_rect`, gestes des capacités, réglages des mutations dans le Bac à sable, `ColonyState.mutation_tiers` et `pending_tiers`, `Simulation.upgrade_values()`) ; 3) robots et panneau de simulations à plusieurs robots (**livrée le 5 octobre 2026**, version 0.4.0 : `Robot`, `RobotProfile`, `RobotCatalog`, `UpgradePlanner`, `Threats`, `ai/profiles/`, adversaires du Bac à sable, `Session.add_robot()` et spectateur, `ReplayTransport`, `SimRunner`, `SimRun`, `SimReport`, `CompositionList`, `CurvesChart`) |
 | G4 | `ai/` (robots complets), `tools/sim_runner.gd` étendu, menus, résultats |
 | G5 | Tutoriel, audio, traduction, profil (sans Steam) |
 | G6 | `SteamService` et GodotSteam, `SteamTransport`, salons et invitations, partie personnalisée (salon, surcharge des paramètres, préréglages ; ancien G5), vérification par empreinte, interface d'administration. **Première étape : tests entre amis avec l'App ID 480** (Spacewar) : l'App ID est lu depuis la configuration (jamais écrit en dur), les salons portent une clé de métadonnée propre au jeu et à sa version et la recherche filtre dessus (l'App ID 480 est partagé avec d'autres développeurs), et `steam_appid.txt` est réservé aux builds de test, jamais inclus dans l'export final |

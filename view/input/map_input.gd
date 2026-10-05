@@ -166,11 +166,18 @@ func _set_mode(value: Mode, ability: int) -> void:
 func _can_order() -> bool:
 	if _session.accepts_commands():
 		return true
-	if _session.is_running():
-		message.emit(TranslationServer.translate("HUD_PAUSED_NO_ORDERS"))
-	else:
-		message.emit(refusal_text(Refusal.Code.GAME_OVER))
+	message.emit(blocked_text(_session))
 	return false
+
+
+## Texte traduit de la raison pour laquelle aucun ordre n'est accepté : spectateur, pause ou
+## partie terminée.
+static func blocked_text(session: Session) -> String:
+	if session.is_spectator():
+		return TranslationServer.translate("HUD_SPECTATOR_NO_ORDERS")
+	if session.is_running():
+		return TranslationServer.translate("HUD_PAUSED_NO_ORDERS")
+	return refusal_text(Refusal.Code.GAME_OVER)
 
 
 func _update_hover() -> void:

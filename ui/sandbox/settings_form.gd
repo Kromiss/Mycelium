@@ -1,7 +1,11 @@
 class_name SettingsForm
 extends VBoxContainer
-## Formulaire des réglages du Bac à sable (GDD §2.1 bis) : forêt, graine, réglages généraux
-## (économie, cases, Tourelle, partie), zones, paliers, améliorations et capacités.
+## Formulaire des réglages du Bac à sable (GDD §2.1 bis) : forêt, graine, adversaires (un
+## profil de robot par secteur libre), réglages généraux (économie, cases, Tourelle, partie),
+## zones, paliers, améliorations, capacités et mutations.
+
+## La forêt (Duel ou FFA) a changé.
+signal forest_changed
 
 const FOREST_MODES: Array[StringName] = [&"duel", &"ffa"]
 const FIELD_WIDTH: float = 140.0
@@ -32,6 +36,7 @@ var _config: SandboxConfig
 ## Rafraîchisseurs des champs : chacun remet son champ à la valeur actuelle des réglages.
 var _refreshers: Array[Callable] = []
 var _built: bool = false
+var _opponents_visible: bool = true
 
 @onready var _forest_option: OptionButton = %ForestOption
 @onready var _seed_edit: LineEdit = %SeedEdit
@@ -41,12 +46,15 @@ var _built: bool = false
 @onready var _tiers_grid: GridContainer = %TiersGrid
 @onready var _upgrades_grid: GridContainer = %UpgradesGrid
 @onready var _abilities_grid: GridContainer = %AbilitiesGrid
+@onready var _opponents_grid: GridContainer = %OpponentsGrid
+@onready var _opponents_title: Label = %OpponentsTitle
 
 
 func _ready() -> void:
 	_forest_option.item_selected.connect(_on_forest_selected)
 	_seed_button.pressed.connect(_on_new_seed)
 	_seed_edit.text_changed.connect(_on_seed_edited)
+	show_opponents(_opponents_visible)
 	if _config != null:
 		_show_config()
 
@@ -54,6 +62,7 @@ func _ready() -> void:
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_TRANSLATION_CHANGED and is_node_ready() and _config != null:
 		_fill_forests()
+		_build_opponents()
 
 
 ## Réglages affichés et modifiés par le formulaire (le formulaire les modifie en place).
@@ -83,6 +92,42 @@ func refresh() -> void:
 	_seed_edit.text = str(_config.game_seed)
 	for refresh_field: Callable in _refreshers:
 		refresh_field.call()
+	_build_opponents()
+
+
+## Montre ou cache les adversaires (le panneau de simulations a ses propres compositions).
+func show_opponents(visible_rows: bool) -> void:
+	_opponents_visible = visible_rows
+	if is_node_ready():
+		_opponents_title.visible = visible_rows
+		_opponents_grid.visible = visible_rows
+
+
+## Profil choisi pour un secteur libre (rang 0 : deuxième secteur), pour les tests.
+func set_opponent(index: int, profile: StringName) -> void:
+	_config.profiles[index + 1] = profile
+	_build_opponents()
+
+
+## Lignes des adversaires : une par secteur libre, avec la liste Aucun puis les profils.
+func _build_opponents() -> void:
+	for child: Node in _opponents_grid.get_children():
+		# Libéré tout de suite : aucun signal de ces lignes n'est en cours.
+		child.free()
+	var ids: Array[StringName] = [&""]
+	for profile: RobotProfile in RobotCatalog.profiles():
+		ids.append(profile.id)
+	for index: int in range(_config.opponent_count()):
+		_add_row_label(_opponents_grid, tr("SANDBOX_SECTOR") % (index + 2))
+		var option := OptionButton.new()
+		option.custom_minimum_size = Vector2(260.0, 0.0)
+		for id: StringName in ids:
+			option.add_item(RobotCatalog.label(id))
+		option.select(maxi(0, ids.find(_config.opponent(index))))
+		option.item_selected.connect(
+			func(item: int) -> void: _config.profiles[index + 1] = ids[item]
+		)
+		_opponents_grid.add_child(option)
 
 
 ## Texte des problèmes des réglages (vide si tout va bien), déjà traduit.
@@ -236,6 +281,9 @@ func _on_forest_selected(index: int) -> void:
 	_config.defs.mode_id = mode.id
 	_config.defs.sectors = mode.colonies
 	_config.defs.rings_per_zone = mode.rings_per_zone
+	_config.fit_profiles()
+	_build_opponents()
+	forest_changed.emit()
 
 
 func _on_new_seed() -> void:

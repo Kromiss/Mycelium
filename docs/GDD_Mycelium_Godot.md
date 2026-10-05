@@ -1,4 +1,4 @@
-# MYCÉLIUM : LAST COLONY — Document de conception, portage Godot (v0.3 : le Sporophore)
+# MYCÉLIUM : LAST COLONY — Document de conception, portage Godot (v0.4 : le Sporophore)
 
 > Jeu incrémental compétitif en parties de **30 minutes maximum**. Chaque joueur incarne une colonie de champignons dont le **cœur est une tourelle** : elle lance des spores qui colorent les cases d'une carte d'hexagones. Plus la colonie a de cases, plus elle produit ; ce qu'elle produit sert à **améliorer sa tourelle** (dégâts, cadence, portée…), qui prend alors encore plus de cases. Le centre de la forêt est le plus riche et le plus disputé : **le but est d'être la dernière colonie vivante.** Trois façons de jouer : **Duel**, **FFA** (jusqu'à 6 colonies) et **Partie personnalisée**. Cible : un **projet Godot exporté en .exe (Windows), distribué sur Steam**.
 
@@ -32,7 +32,7 @@
 ### 2.1 bis Bac à sable
 - Entrée du menu principal, **visible par tous les joueurs**. Il n'y a **que le joueur et des robots** ; la partie personnalisée sert à jouer avec ses amis. Il sert notamment aux tests d'équilibrage du propriétaire.
 - **Purement local** : fonctionne **sans Steam ni GodotSteam**.
-- Le joueur est sur une forêt de **Duel ou de FFA, au choix**, avec la couleur **Menthe**, seul ou avec des **adversaires robots** (dès qu'ils existent, §19).
+- Le joueur est sur une forêt de **Duel ou de FFA, au choix**, avec la couleur **Menthe**, seul ou avec des **adversaires robots** : l'écran de réglages propose, pour **chaque secteur libre** (1 en Duel, 5 en FFA), un robot **Canonnier**, **Bâtisseur** ou **Conquérant**, ou **Aucun** (par défaut) ; le récapitulatif liste les adversaires et leur résultat (décidé le 4 octobre 2026, étape 3 de G3).
 - **Pause et vitesse uniquement en Bac à sable** : pause par la touche **P** ou un bouton du HUD ; vitesse par un **bouton du HUD** qui passe de ×1 à ×2 puis ×4.
 - **Le plus paramétrable possible** : un écran de réglages avant de lancer (forêt et graine, adversaires, et **tous les chiffres** du jeu : tourelle de départ, PV des cases, régénération, améliorations, paliers, Enzymes, capacités, événements, protection de départ, Trophée). Un bouton **remet les valeurs par défaut** ; les réglages **ne sont pas gardés** d'une partie à l'autre.
 - **Récapitulatif à tout moment** : un bouton copie dans le presse-papiers un texte lisible avec les **réglages** et les **résultats** de la partie.
@@ -69,7 +69,8 @@ Permet de créer **tout type de partie** : le type (Duel ou FFA), les joueurs, l
 
 ### 2.5 Robots
 - Les robots jouent **avec les mêmes règles et les mêmes commandes que les joueurs** : pas de triche. Ils choisissent leurs **améliorations**, leur **priorité de tir**, leurs **mutations**, leurs **capacités** et les **déplacements** de leur tourelle.
-- **Profils** : *Canonnier* (dégâts et cadence d'abord), *Bâtisseur* (rendement et défense d'abord), *Conquérant* (portée et ennemis d'abord). **Difficultés** : à définir au jalon G5.
+- **Profils** : *Canonnier* (dégâts et cadence d'abord), *Bâtisseur* (rendement et défense d'abord), *Conquérant* (portée et ennemis d'abord). **Seul le Conquérant déplace sa Tourelle**, vers le centre de la forêt (décidé le 4 octobre 2026). **Difficultés** : à définir au jalon G5.
+- **Comportement (G3, étape 3)** : à chaque seconde, un robot prend la mutation la plus lourde pour son profil, garde sa priorité de tir habituelle ou passe à sa priorité de défense quand ses cases sont visées, désigne la Tourelle adverse dès qu'il peut la viser (Canonnier et Conquérant), lance la Salve quand il tire, le Mur sur une case attaquée et le Nuage sur les cases adverses, et achète l'amélioration au meilleur rapport poids / coût (en économisant pour elle si elle n'est pas encore payable). Les poids de chaque profil sont dans `ai/profiles/` (voir « Choix de l'étape 3 de G3, à confirmer », §17).
 - Ils servent aussi à compléter les salons, à remplacer un joueur déconnecté et à équilibrer les valeurs par simulation (§18.5).
 
 ### 2.6 Règles communes
@@ -467,6 +468,19 @@ Le code de G1 et G2 qui ne sert plus est supprimé dès l'étape 1, avec un affi
 ### Décisions de l'étape 2 de G3 (4 octobre 2026, QCM)
 Pas de touches pour les priorités de tir, 1 à 3 pour les cartes de mutation (§16.5) ; cartes de mutation cachées par un bouton œil et rouvertes depuis le panneau (§16.2) ; frise : horloge et fin de la protection jusqu'à G4 (§16.2) ; stades de la Tourelle liés au palier (§16.3).
 
+### Décisions de l'étape 3 de G3 (4 octobre 2026, QCM)
+Bac à sable : un profil de robot par secteur libre (§2.1 bis) ; seul le Conquérant déplace sa Tourelle (§2.5) ; panneau de simulations : une série = une composition de forêt (un robot par secteur), mesures par secteur (§18.5).
+
+### Choix de l'étape 3 de G3, à confirmer
+Points de comportement des robots et du panneau tranchés pour écrire le code, sans question dédiée (tous réglables dans `ai/profiles/` ou faciles à changer) :
+1. Priorités de tir : Canonnier *Plus riche*, puis *Ennemis d'abord* quand ses cases sont visées ; Bâtisseur *Plus riche*, puis *Soigner d'abord* quand ses cases sont visées ; Conquérant toujours *Ennemis d'abord*. La priorité de défense est gardée au moins 10 s.
+2. Canonnier et Conquérant désignent la Tourelle adverse la plus proche dès qu'elle est visable ; le Bâtisseur ne désigne jamais de cible.
+3. Le Conquérant ne fait un pas que vers une de ses cases plus proche du centre, entourée d'au moins 4 de ses cases, avec 20 s d'attente entre deux pas.
+4. Capacités, pour les trois profils : Salve dès qu'elle est prête et que la Tourelle a une cible ; Mur sur la case attaquée la plus proche de la Tourelle ; Nuage sur la case adverse à portée dont la zone touche une Tourelle adverse, sinon le plus de cases adverses (jamais sur des cases libres).
+5. Améliorations : poids par amélioration (Canonnier : Dégâts et Cadence 10 ; Bâtisseur : Rendement 10, défense 5–6 ; Conquérant : Portée 10, Dégâts et Cadence 6) ; mutations : poids par mutation (par exemple Spores lourdes et légères pour le Canonnier, Cohésion pour le Bâtisseur, Hyphes longues et Prédateur pour le Conquérant).
+6. Bac à sable : aucun adversaire par défaut.
+7. Panneau : la partie est regardée sur la carte en rejouant les robots (même graine, mêmes réglages : la partie est identique), sans enregistrement gardé en mémoire ; en spectateur, pas de « Toi » : chaque colonie garde le nom de sa couleur.
+
 ### Choix de l'étape 1 de G3, à confirmer
 Points de règle que l'étape 1 a dû trancher pour écrire le code, sans question dédiée :
 1. S'il y a moins de cibles visables que de spores, les spores en trop frappent la première cible.
@@ -536,7 +550,10 @@ Autres terrains et souches, pactes, mode par équipes, forêts thématiques, cla
 Aucune action de modification (pas d'arrêt de partie, pas de ressources, pas de sauts de temps). Pour **équilibrer** le jeu, les simulations accélérées passent par le **panneau de simulations** (§18.5), pas par cette interface.
 
 ### 18.5 Panneau de simulations (développement)
-Outil d'équilibrage disponible **uniquement quand le jeu est lancé depuis l'éditeur Godot** : il n'existe dans aucun `.exe` livré. Il lance des lots de parties de robots sans affichage, en temps accéléré (lancement simple ou **balayage** d'une valeur), avec les **réglages du Bac à sable**, et mesure : minute d'arrivée dans chaque zone et à chaque palier, cases par minute, production par minute, niveaux d'amélioration atteints, éliminations et minute de la première, parties finies au temps. Résultats en tableaux et courbes, export **CSV**, et **rejeu** d'une simulation sur la carte (×1, ×4, ×16, ×64, pause). Ses robots sont **Canonnier**, **Bâtisseur** et **Conquérant** (§2.5), qui servent aussi d'adversaires dans le Bac à sable ; le panneau joue des parties à **plusieurs robots** sur la même forêt.
+Outil d'équilibrage disponible **uniquement quand le jeu est lancé depuis l'éditeur Godot** : il n'existe dans aucun `.exe` livré. Il lance des lots de parties de robots sans affichage, en temps accéléré (lancement simple ou **balayage** d'une valeur), avec les **réglages du Bac à sable**. Ses robots sont **Canonnier**, **Bâtisseur** et **Conquérant** (§2.5), qui servent aussi d'adversaires dans le Bac à sable ; le panneau joue des parties à **plusieurs robots** sur la même forêt.
+- **Séries** *(décidé le 4 octobre 2026)* : une série = une **composition de forêt** (le robot de chaque secteur, ou aucun), jouée N fois avec des graines qui se suivent ; un balayage fait une série par valeur et par composition. Les compositions sont gardées d'une session à l'autre, une liste pour le Duel et une pour le FFA.
+- **Mesures** *(par secteur, décidé le 4 octobre 2026)* : pour la partie, éliminations, minute de la première, parties finies au temps et minute de fin ; pour **chaque secteur**, victoires, rang final, élimination et sa minute, Trophées, cases à la fin, cases prises (au total et par minute), palier, production finale et record, Biomasse, minute d'arrivée dans chaque zone et à chaque palier, niveau de chaque amélioration. Chaque case donne moyenne, minimum, maximum et écart type.
+- **Résultats** : un tableau par série (une colonne par secteur), courbes par minute (production en échelle log, ou cases), export **CSV** (une ligne par série, secteur et mesure, avec la production et les cases de chaque minute), et une partie **regardée sur la carte** en spectateur (×1, ×4, ×16, ×64, pause), puis retour au panneau.
 
 ---
 
@@ -547,7 +564,7 @@ Outil d'équilibrage disponible **uniquement quand le jeu est lancé depuis l'é
 | **G0 : Fondations** *(livré, 0.1.0)* | Dépôt Godot, vérification automatique, versions GitHub ; carte hex (6 zones) en Duel et FFA, rendu, caméra ; menu principal ; Paramètres |
 | **G1 : Solo économie** *(livré, 0.2.0)* | Production, Cohésion, paliers, retours visuels, Bac à sable (réglages, récapitulatif, pause, vitesse), HUD, rejeu, panneau de simulations |
 | **G2** *(livré, 0.3.0)* | Remplacé par G3 |
-| **G3 : Le Sporophore et l'affrontement** *(étapes 1 et 2 livrées le 4 octobre 2026)* | **Suppression** du code de G1 et G2 qui ne sert plus ; Tourelle (tir automatique, portée, priorités, cible au clic, déplacement pas à pas) ; PV, régénération et soin ; panneau d'améliorations à droite ; paliers avec Enzymes et mutations ; capacités ; Armillaire ; **affrontement entre Tourelles, élimination et Trophée** ; écran carte + panneau ; Bac à sable avec adversaires robots. Maquettes **validées le 4 octobre 2026**. Livré en **trois étapes** : 1) simulation et tests ; 2) affichage, panneau et Bac à sable ; 3) robots Canonnier, Bâtisseur et Conquérant (adversaires du Bac à sable et panneau de simulations à plusieurs robots) ; version **0.4.0** |
+| **G3 : Le Sporophore et l'affrontement** *(livré, 0.4.0 : étapes 1 et 2 le 4 octobre 2026, étape 3 le 5 octobre 2026)* | **Suppression** du code de G1 et G2 qui ne sert plus ; Tourelle (tir automatique, portée, priorités, cible au clic, déplacement pas à pas) ; PV, régénération et soin ; panneau d'améliorations à droite ; paliers avec Enzymes et mutations ; capacités ; Armillaire ; **affrontement entre Tourelles, élimination et Trophée** ; écran carte + panneau ; Bac à sable avec adversaires robots. Maquettes **validées le 4 octobre 2026**. Livré en **trois étapes** : 1) simulation et tests ; 2) affichage, panneau et Bac à sable ; 3) robots Canonnier, Bâtisseur et Conquérant (adversaires du Bac à sable et panneau de simulations à plusieurs robots) ; version **0.4.0** |
 | **G4 : Événements et fin de partie** | Floraison collective et Arbre mourant, frise, journal et alertes complets, écran de résultats, spectateur après élimination ; version **0.5.0** |
 | **G5 : Duel et FFA contre robots** | Menus, robots de jeu (3 difficultés, profils), résultats |
 | **G6 : Habillage et bêta solo** | Tutoriel (8 étapes, §2.7), audio, profil et statistiques, traduction, essais avec de vrais joueurs (sans Steam) |
@@ -574,7 +591,7 @@ Elles seront posées sous forme de QCM au début du jalon concerné.
 8. Écran de résultats : contenu exact (rang, statistiques, courbe de production, graine publiée) et boutons (rejouer, menu, revoir la partie).
 9. Replay en timelapse (§14.4) : dans quel jalon ?
 10. Robots dans le Bac à sable : leur ajoute-t-on une difficulté ?
-11. Panneau de simulations : ajoute-t-on les mesures de combat (éliminations avant 26:00, parties finies au temps, cases prises par minute, effet des Trophées) ?
+11. Panneau de simulations : ajoute-t-on d'autres mesures de combat (éliminations avant 26:00, effet des Trophées, mutations prises) ?
 
 ### G6 : Habillage et bêta solo
 1. Tutoriel : quelle forêt (« petite forêt de Duel » : rayon 5 ?) ? Faut-il d'autres étapes que les 8 du §2.7 ?

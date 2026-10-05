@@ -6,6 +6,8 @@ L'historique de l'ancienne version web est dans la branche `archive/web`.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-05
+
 G3 — Le Sporophore et l'affrontement.
 
 ### Ajouté
@@ -28,14 +30,29 @@ G3 — Le Sporophore et l'affrontement.
   palier ; états des cases des maquettes (entamée, visée, cible désignée, blessée, soignée, hors
   de portée). Mur et Nuage : touche ou bouton puis clic sur une case. Touches Q, W, E et 1 à 3
   modifiables. Réglages des mutations dans le Bac à sable.
+- G3, étape 3 — Robots Canonnier (dégâts et cadence d'abord), Bâtisseur (rendement et défense
+  d'abord) et Conquérant (portée et ennemis d'abord, seul à déplacer sa Tourelle, vers le centre) :
+  mêmes règles et mêmes commandes qu'un joueur (améliorations, mutations, priorité de tir et de
+  défense, Tourelle adverse désignée, capacités), profils dans `ai/profiles/`, aléatoire dérivé de
+  la graine (parties rejouables à l'identique).
+- Bac à sable : un robot au choix (Aucun, Canonnier, Bâtisseur, Conquérant) pour chaque secteur
+  libre ; adversaires dans le récapitulatif.
+- Panneau de simulations (éditeur seulement) : compositions de forêt (un robot par secteur)
+  jouées N fois, lancement simple ou balayage d'un réglage, mesures de la partie (éliminations,
+  première élimination, parties finies au temps) et de chaque secteur (victoires, rang,
+  élimination, Trophées, cases, cases prises par minute, palier, production, zones et paliers
+  atteints, niveaux d'amélioration), courbes par minute (production ou cases), export CSV, et
+  partie regardée sur la carte en spectateur (×1 à ×64, pause).
 
 ### Modifié
 - Partie : clic pour viser, D puis clic pour déplacer la Tourelle. La courbe de production
   n'est plus affichée pendant la partie (absente des maquettes).
 
+- Tir des Tourelles un peu plus rapide à calculer (même résultat).
+
 ### Supprimé
-- Colonisation au clic et file d'expansion, bâtiments et city builder, robots de G1 et G2,
-  panneau de simulations (recréé à l'étape 3).
+- Colonisation au clic et file d'expansion, bâtiments et city builder, robots de G1 et G2 (les
+  robots et le panneau de simulations sont recréés à l'étape 3).
 
 ## [0.3.0] - 2026-10-04
 

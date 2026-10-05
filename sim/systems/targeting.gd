@@ -94,7 +94,15 @@ static func best_candidates(
 	# Les « count » meilleures clés, gardées triées (count est petit : 5 spores au plus).
 	var keys := PackedInt64Array()
 	var cells := PackedInt32Array()
+	var heal_first: bool = colony.priority == ColonyState.Priority.HEAL_FIRST
 	for cell: int in state.map.disk(colony.turret, reach):
+		# Tri rapide (même résultat que _key) : mes cases ne comptent qu'en « Soigner
+		# d'abord », les autres doivent toucher mon territoire.
+		if state.owner[cell] == colony.id:
+			if not heal_first:
+				continue
+		elif not state.touches_colony(cell, colony.id):
+			continue
 		if excluded.has(cell):
 			continue
 		var key: int = _key(state, colony, cell)

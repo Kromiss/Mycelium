@@ -63,9 +63,11 @@ func is_turret_cell(cell: int) -> bool:
 
 ## Nombre de voisines de la case qui appartiennent à la colonie (0 à 6).
 func owned_neighbors(cell: int, colony_id: int) -> int:
+	# Lecture directe de la table des voisines : appelée très souvent (tirs, PV, production).
+	var table: PackedInt32Array = map.neighbor_table
 	var total: int = 0
-	for direction: int in range(6):
-		var other: int = map.neighbor_index(cell, direction)
+	for slot: int in range(cell * 6, cell * 6 + 6):
+		var other: int = table[slot]
 		if other >= 0 and owner[other] == colony_id:
 			total += 1
 	return total
@@ -73,8 +75,9 @@ func owned_neighbors(cell: int, colony_id: int) -> int:
 
 ## Vrai si une voisine de la case appartient à la colonie.
 func touches_colony(cell: int, colony_id: int) -> bool:
-	for direction: int in range(6):
-		var other: int = map.neighbor_index(cell, direction)
+	var table: PackedInt32Array = map.neighbor_table
+	for slot: int in range(cell * 6, cell * 6 + 6):
+		var other: int = table[slot]
 		if other >= 0 and owner[other] == colony_id:
 			return true
 	return false

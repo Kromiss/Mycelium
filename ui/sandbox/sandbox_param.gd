@@ -147,6 +147,31 @@ static func columns(group: Group) -> Array[String]:
 	return keys
 
 
+## Nom traduit de la ligne du réglage (zone, palier, amélioration, capacité ou mutation ;
+## vide pour un réglage général).
+func row_name(defs: SimDefs) -> String:
+	match group:
+		Group.ZONES:
+			return "%s %d" % [_t("SANDBOX_ZONE"), index + 1]
+		Group.TIERS:
+			return "%s %d" % [_t("SANDBOX_TIER"), index + 1]
+		Group.UPGRADES:
+			return _t(defs.upgrades[index].name_key)
+		Group.ABILITIES:
+			return _t(defs.abilities[index].name_key)
+		Group.MUTATIONS:
+			return _t(defs.mutations[index].name_key)
+	return ""
+
+
+## Libellé complet traduit (« Zone 2 · Richesse × », « Unité de coût… »).
+func full_label(defs: SimDefs) -> String:
+	var row: String = row_name(defs)
+	if row.is_empty():
+		return _t(label_key)
+	return "%s · %s" % [row, _t(label_key)]
+
+
 ## Valeur affichée du réglage.
 func read(defs: SimDefs) -> float:
 	var target: Object = _target(defs)
@@ -203,3 +228,7 @@ static func _make(field: Array, field_group: Group, row: int) -> SandboxParam:
 	param.index = row
 	param.id = name
 	return param
+
+
+static func _t(key: String) -> String:
+	return TranslationServer.translate(key)
