@@ -69,7 +69,7 @@ Permet de créer **tout type de partie** : le type (Duel ou FFA), les joueurs, l
 
 ### 2.5 Robots
 - Les robots jouent **avec les mêmes règles et les mêmes commandes que les joueurs** : pas de triche. Ils choisissent leurs **améliorations**, leur **priorité de tir**, leurs **mutations**, leurs **capacités** et les **déplacements** de leur tourelle.
-- **Profils** : *Canonnier* (dégâts et cadence d'abord), *Bâtisseur* (rendement et défense d'abord), *Conquérant* (portée et ennemis d'abord). **Seul le Conquérant déplace sa Tourelle**, vers le centre de la forêt (décidé le 4 octobre 2026). **Difficultés** : à définir au jalon G5.
+- **Profils** : *Canonnier* (dégâts et cadence d'abord), *Bâtisseur* (rendement et défense d'abord), *Conquérant* (portée et ennemis d'abord). **Seul le Conquérant déplace sa Tourelle**, vers le centre de la forêt (décidé le 4 octobre 2026). **Difficultés** : à définir au jalon G4.
 - **Comportement (G3, étape 3)** : à chaque seconde, un robot prend la mutation la plus lourde pour son profil, garde sa priorité de tir habituelle ou passe à sa priorité de défense quand ses cases sont visées, désigne la Tourelle adverse dès qu'il peut la viser (Canonnier et Conquérant), lance la Salve quand il tire, le Mur sur une case attaquée et le Nuage sur les cases adverses, et achète l'amélioration au meilleur rapport poids / coût (en économisant pour elle si elle n'est pas encore payable). Les poids de chaque profil sont dans `ai/profiles/` (voir « Choix de l'étape 3 de G3, à confirmer », §17).
 - Ils servent aussi à compléter les salons, à remplacer un joueur déconnecté et à équilibrer les valeurs par simulation (§18.5).
 
@@ -262,7 +262,7 @@ Cible : **~10 nutriments/s au départ → 1e5 à 1e6 nutriments/s en fin de part
 ### 8.5 Retour visuel (le « boum »)
 - La Tourelle **pulse à chaque tir** ; les spores volent jusqu'à leur case ; une case prise **éclot** à la couleur de la colonie.
 - Au franchissement d'un **palier** : message « Palier ×2 ! », la Tourelle grossit un instant, puis la carte des mutations s'ouvre.
-- Les **compteurs défilent**. La **courbe de production**, absente des maquettes validées, n'est plus affichée dans le panneau depuis l'étape 2 de G3 (place des améliorations) : elle reviendra sur l'écran de résultats (G4), à confirmer.
+- Les **compteurs défilent**. La **courbe de production**, absente des maquettes validées, n'est plus affichée dans le panneau depuis l'étape 2 de G3 (place des améliorations) : elle reviendra sur l'écran de résultats (G5), à confirmer.
 - La Tourelle **change d'aspect** avec ses améliorations (plus grande, plus de chapeaux, plus de spores), pour que sa puissance se lise sur la carte.
 
 ---
@@ -352,7 +352,7 @@ Boutons à **recharge**, payés en **Enzymes**, débloqués par les paliers (§8
 *Décidé le 4 octobre 2026 : seulement les deux événements scriptés ; les événements aléatoires sont des idées pour plus tard (§17).* Ils sont annoncés **20 s avant** et figurent sur la frise. Chacun peut être activé ou non dans une partie personnalisée et dans le Bac à sable.
 
 - **Floraison collective** (8:00, 16:00, 24:00) : production **×2** pendant 30 s pour toutes les colonies.
-- **Arbre mourant** (12:00 et 20:00) : 7 cases libres d'un tenant dans la zone du moment, avec **beaucoup de PV** (valeur à fixer en G4) ; chaque colonie qui le vise y inflige ses dégâts. Quand il tombe, récompense en nutriments (≈ 2 min de production moyenne) et 100 Enzymes **au prorata des dégâts**, +25 % au meilleur ; ses 7 cases redeviennent libres. Disparaît au bout de 3 min.
+- **Arbre mourant** (12:00 et 20:00) : 7 cases libres d'un tenant dans la zone du moment, avec **beaucoup de PV** (valeur à fixer en G5) ; chaque colonie qui le vise y inflige ses dégâts. Quand il tombe, récompense en nutriments (≈ 2 min de production moyenne) et 100 Enzymes **au prorata des dégâts**, +25 % au meilleur ; ses 7 cases redeviennent libres. Disparaît au bout de 3 min.
 
 **Zone du moment** : pour chaque colonie, sa zone la plus au centre ; on prend la plus fréquente (à égalité, la plus centrale) ; seul en Bac à sable, sa zone la plus avancée.
 
@@ -403,7 +403,7 @@ Chiffres décidés le 4 octobre 2026, comme points de départ à simuler.
 Menu principal, **mode Duel**, **mode FFA**, **salon de partie personnalisée**, **partie** (carte à gauche, panneau à droite), spectateur, résultats, profil, **paramètres**, et l'**interface d'administration** cachée (§18.4).
 
 ### 16.2 Écran de partie *(maquettes validées le 4 octobre 2026 : canevas « Mycélium — maquettes de la Tourelle (G3) »)*
-- **Carte (à gauche, ~62 % de la largeur)** : la forêt, le cercle de portée de ma Tourelle (pointillé), les spores en vol, la cible en cours ; en haut à gauche, la **frise** (horloge, prochains événements ; jusqu'à G4, horloge et fin de la protection de départ seulement, décidé le 4 octobre 2026 ; en Bac à sable, boutons pause, vitesse et récapitulatif) ; en haut à droite, le **mini-classement** (colonies en vie, cases, éliminations, production moyenne) ; en bas à gauche, le **journal et les alertes**, avec un rappel des gestes (clic : viser, D : déplacer).
+- **Carte (à gauche, ~62 % de la largeur)** : la forêt, le cercle de portée de ma Tourelle (pointillé), les spores en vol, la cible en cours ; en haut à gauche, la **frise** (horloge, prochains événements ; jusqu'à G5, horloge et fin de la protection de départ seulement, décidé le 4 octobre 2026 ; en Bac à sable, boutons pause, vitesse et récapitulatif) ; en haut à droite, le **mini-classement** (colonies en vie, cases, éliminations, production moyenne) ; en bas à gauche, le **journal et les alertes**, avec un rappel des gestes (clic : viser, D : déplacer).
 - **Panneau (à droite, ~38 %)**, de haut en bas :
   1. **Ressources** : nutriments (qui défilent) et production, Enzymes, Biomasse, barre du prochain palier ;
   2. **Tourelle** : PV, dégâts, cadence, portée, spores par tir, et les 4 boutons de **priorité de tir** ;
@@ -466,7 +466,7 @@ Deux petits points repris du brouillon sans question dédiée, à signaler si be
 Le code de G1 et G2 qui ne sert plus est supprimé dès l'étape 1, avec un affichage provisoire du Bac à sable jusqu'à l'étape 2 ; cases coupées de la Tourelle : libres (§12) ; case libre prise : pleine vie (§6.1) ; la Tourelle finit sa prise avant de changer de cible (§5.3) ; spores en plus : d'autres cases (§9.2) ; pendant un pas, la Tourelle est visée sur sa case de départ (§5.5) ; choix de mutations empilés (§10) ; PV de la Tourelle : 400 fixes (§7.4).
 
 ### Décisions de l'étape 2 de G3 (4 octobre 2026, QCM)
-Pas de touches pour les priorités de tir, 1 à 3 pour les cartes de mutation (§16.5) ; cartes de mutation cachées par un bouton œil et rouvertes depuis le panneau (§16.2) ; frise : horloge et fin de la protection jusqu'à G4 (§16.2) ; stades de la Tourelle liés au palier (§16.3).
+Pas de touches pour les priorités de tir, 1 à 3 pour les cartes de mutation (§16.5) ; cartes de mutation cachées par un bouton œil et rouvertes depuis le panneau (§16.2) ; frise : horloge et fin de la protection jusqu'à G5 (§16.2) ; stades de la Tourelle liés au palier (§16.3).
 
 ### Décisions de l'étape 3 de G3 (4 octobre 2026, QCM)
 Bac à sable : un profil de robot par secteur libre (§2.1 bis) ; seul le Conquérant déplace sa Tourelle (§2.5) ; panneau de simulations : une série = une composition de forêt (un robot par secteur), mesures par secteur (§18.5).
@@ -565,8 +565,8 @@ Outil d'équilibrage disponible **uniquement quand le jeu est lancé depuis l'é
 | **G1 : Solo économie** *(livré, 0.2.0)* | Production, Cohésion, paliers, retours visuels, Bac à sable (réglages, récapitulatif, pause, vitesse), HUD, rejeu, panneau de simulations |
 | **G2** *(livré, 0.3.0)* | Remplacé par G3 |
 | **G3 : Le Sporophore et l'affrontement** *(livré, 0.4.0 : étapes 1 et 2 le 4 octobre 2026, étape 3 le 5 octobre 2026)* | **Suppression** du code de G1 et G2 qui ne sert plus ; Tourelle (tir automatique, portée, priorités, cible au clic, déplacement pas à pas) ; PV, régénération et soin ; panneau d'améliorations à droite ; paliers avec Enzymes et mutations ; capacités ; Armillaire ; **affrontement entre Tourelles, élimination et Trophée** ; écran carte + panneau ; Bac à sable avec adversaires robots. Maquettes **validées le 4 octobre 2026**. Livré en **trois étapes** : 1) simulation et tests ; 2) affichage, panneau et Bac à sable ; 3) robots Canonnier, Bâtisseur et Conquérant (adversaires du Bac à sable et panneau de simulations à plusieurs robots) ; version **0.4.0** |
-| **G4 : Événements et fin de partie** | Floraison collective et Arbre mourant, frise, journal et alertes complets, écran de résultats, spectateur après élimination ; version **0.5.0** |
-| **G5 : Duel et FFA contre robots** | Menus, robots de jeu (3 difficultés, profils), résultats |
+| **G4 : Combattre des robots** *(décidé le 5 octobre 2026 : uniquement le combat contre les robots)* | Duel et FFA contre robots : menus Jouer, robots de jeu (3 difficultés, profils), **fin de partie minimale** (rang, statistiques de base, retour au menu) ; version **0.5.0** |
+| **G5 : Événements et fin de partie** | Floraison collective et Arbre mourant, frise, journal et alertes complets, écran de résultats complet, spectateur après élimination ; version **0.6.0** |
 | **G6 : Habillage et bêta solo** | Tutoriel (8 étapes, §2.7), audio, profil et statistiques, traduction, essais avec de vrais joueurs (sans Steam) |
 | **G7 : Multijoueur** | Étape 1 : tests entre amis avec l'App ID 480 (Steam, salons, invitations, relais, hébergement par un joueur, empreinte, déconnexion). Étape 2 : file d'attente, FFA et Duel entre joueurs, partie personnalisée complète, chat, interface d'administration |
 
@@ -580,15 +580,15 @@ La simulation ne reçoit que des **commandes** depuis G1 : le passage en ligne c
 
 Elles seront posées sous forme de QCM au début du jalon concerné.
 
-### G5 : Duel et FFA contre robots
+### G4 : Combattre des robots
 1. Profils des robots : les robots de jeu reprennent-ils les profils Canonnier, Bâtisseur et Conquérant du panneau de simulations (§2.5, §18.5) ?
 2. Valeurs des difficultés Facile, Normal, Difficile (délai de réaction, part d'erreurs, profondeur d'évaluation, qualité du choix des améliorations, des priorités et des cibles).
 3. « Mêmes limites qu'un joueur » : nombre maximal de commandes par seconde pour un robot ?
 4. FFA contre robots : une difficulté pour tous ou une par robot (« mélange ») ? Profils choisis ou tirés au hasard ?
 5. Secteur et couleur du joueur en Duel et en FFA : choisis ou tirés au hasard ? Ordre des couleurs pour 2 et 6 colonies (daltonisme compris) ?
 6. Quitter une partie en cours : défaite enregistrée ? Confirmation demandée ?
-7. Éliminé en FFA contre robots, sans accélération possible : on attend la fin en spectateur ou on quitte avec son rang ?
-8. Écran de résultats : contenu exact (rang, statistiques, courbe de production, graine publiée) et boutons (rejouer, menu, revoir la partie).
+7. Éliminé en FFA contre robots, sans accélération possible : on attend la fin en spectateur ou on quitte avec son rang (le spectateur complet arrive en G5) ?
+8. Fin de partie minimale : quelles statistiques de base (cases, Tourelles abattues, durée de survie, pic de production) et quels boutons (rejouer, menu) ? L'écran de résultats complet arrive en G5.
 9. Replay en timelapse (§14.4) : dans quel jalon ?
 10. Robots dans le Bac à sable : leur ajoute-t-on une difficulté ?
 11. Panneau de simulations : ajoute-t-on d'autres mesures de combat (éliminations avant 26:00, effet des Trophées, mutations prises) ?
@@ -633,4 +633,4 @@ Elles seront posées sous forme de QCM au début du jalon concerné.
 ### Questions communes à plusieurs jalons
 1. Peut-on quitter une partie solo et la reprendre plus tard (sauvegarde de partie en cours) ?
 2. Les robots de jeu et ceux du panneau de simulations sont-ils les mêmes (même code, mêmes profils) ?
-3. Le panneau de simulations doit-il pouvoir comparer des robots de difficultés différentes à partir de G5 ?
+3. Le panneau de simulations doit-il pouvoir comparer des robots de difficultés différentes à partir de G4 ?

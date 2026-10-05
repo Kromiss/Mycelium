@@ -76,7 +76,7 @@ res://
 │   │   ├── abilities.gd        Capacités actives (Salve, Mur, Nuage)
 │   │   ├── tier_system.gd      Paliers, lots d'Enzymes, choix de mutations
 │   │   ├── economy_system.gd   Production, Biomasse
-│   │   ├── event_system.gd     Floraison collective, Arbre mourant (jalon G4)
+│   │   ├── event_system.gd     Floraison collective, Arbre mourant (jalon G5)
 │   │   └── victory_system.gd   Fin de partie, classement
 │   ├── commands/             Une classe par commande + la classe de base
 │   ├── hex.gd                Coordonnées axiales, voisins, distances, anneaux
@@ -89,7 +89,7 @@ res://
 │   ├── robot_profile.gd      Profil d'un robot (poids des améliorations et des mutations, priorités, pas, capacités)
 │   ├── robot_catalog.gd      Les trois profils, dans l'ordre d'affichage
 │   ├── evaluators/           upgrade_planner.gd (achats au meilleur rapport poids / coût), threats.gd (mes cases visées)
-│   └── profiles/             gunner.tres, builder.tres, conqueror.tres (difficultés au jalon G5)
+│   └── profiles/             gunner.tres, builder.tres, conqueror.tres (difficultés au jalon G4)
 ├── net/                      Transport des commandes et des différences
 │   ├── transport.gd          Interface commune
 │   ├── local_transport.gd    Solo, tutoriel, tests
@@ -160,7 +160,7 @@ res://
 | 3 | `RegenSystem` | Régénération des cases et des Tourelles |
 | 4 | `TierSystem` | Paliers, lots d'Enzymes, choix de mutations |
 | 5 | `EconomySystem` | Production, nutriments, Biomasse |
-| 6 | `EventSystem` | Événements de la frise (jalon G4) |
+| 6 | `EventSystem` | Événements de la frise (jalon G5) |
 | 7 | `VictorySystem` | Fin de partie (dernière colonie en vie ou 30:00), classement |
 | 8 | `StateHash` | Calcule l'empreinte de l'état |
 
@@ -206,7 +206,7 @@ Fin de partie visée : ~1e6 nutriments/s, soit ~1e9 en millièmes par seconde ; 
 
 - Un robot reçoit l'état (en lecture seule) et renvoie une liste de commandes, **à la même fréquence et avec les mêmes limites qu'un joueur**.
 - `Robot.decide(simulation)` (G3, étape 3) renvoie les commandes du prochain tick ; chacune est d'abord vérifiée par `Simulation.check()`, si bien qu'un robot n'envoie que des commandes acceptées. Ordre : choix de mutation (la plus lourde du profil), priorité de tir (habituelle, ou de défense tant que `Threats.attacked_cells()` trouve des cases visées, gardée `defense_hold_ticks`), cible désignée (Tourelle adverse visable), pas vers le centre (Conquérant), capacités (Enzymes partagées entre elles), achats (`UpgradePlanner.plan()` : meilleur rapport poids / coût du prochain niveau, en entiers, économie pour la meilleure si elle n'est pas payable).
-- **Profil** (`RobotProfile`, `ai/profiles/*.tres`) = poids des améliorations et des mutations, priorités, chasse des Tourelles, pas, capacités : Canonnier, Bâtisseur, Conquérant (GDD §2.5). **Difficulté** (G5) = délai de réaction, part d'erreurs, profondeur d'évaluation, qualité des choix.
+- **Profil** (`RobotProfile`, `ai/profiles/*.tres`) = poids des améliorations et des mutations, priorités, chasse des Tourelles, pas, capacités : Canonnier, Bâtisseur, Conquérant (GDD §2.5). **Difficulté** (G4) = délai de réaction, part d'erreurs, profondeur d'évaluation, qualité des choix.
 - Les robots utilisent leur propre `SimRng` dérivé de la graine (`derive(7001 + colonie)`, pour départager les mutations) et ne lisent ni l'heure ni l'aléatoire global : une partie de robots est donc **rejouable à l'identique** (même graine, mêmes réglages).
 - Les estimations passent par `ColonyStats`, `Targeting` et les requêtes de `Simulation` : les règles restent dans `sim/`.
 
@@ -378,6 +378,7 @@ Le ressenti (rythme, plaisir des gestes, lisibilité), le rendu visuel, les perf
 | G1 | `GameState`, `Simulation`, commandes de colonisation, `GrowthSystem`, `EconomySystem`, `TierSystem`, `fixed.gd`, `sim_rng.gd`, `state_hash.gd`, `LocalTransport`, `Session` ; positions de départ dans `map_generator.gd` ; écran Bac à sable (réglages, valeurs par défaut, récapitulatif copiable), HUD, effets de palier, section Commandes des Paramètres ; enregistrement des commandes et test de rejeu ; robots d'économie (`ai/`), `tools/sim_runner.gd` et panneau de simulations (éditeur seulement). Livré en trois étapes : `sim/` et tests (**étape 1 livrée le 4 octobre 2026**) ; affichage, HUD et Bac à sable (**étape 2 livrée le 4 octobre 2026**) ; robots, simulations et panneau (**étape 3 livrée le 4 octobre 2026**, version 0.2.0) |
 | G2 | Bâtiments (`data/buildings/`), chantiers et file de construction, voisinage, Enzymes, plafond de stock, désactivation ; palette et menu rond ; robots composés (profil d'expansion + profil de bâtisseur + pourcentage) dans le panneau de simulations. Trois étapes : `sim/` et tests (**étape 1 livrée le 4 octobre 2026** : `Buildings`, `BuildCommand`, `DemolishCommand`, `data/buildings/`) ; affichage, HUD et Bac à sable (**étape 2 livrée le 4 octobre 2026** : `BuildingLayer`, `BuildingIcons`, `BuildingPalette`, `RadialMenu`, `BuildingPanel`, `BuildQueueView`, réglages des bâtiments dans `SandboxParam`) ; robots et panneau (**étape 3 livrée le 4 octobre 2026**, version 0.3.0 : `RobotSpec`, `BuilderRobot`, `ColonyRobot`, `RobotList`, `ColonyState.nutrients_lost`) ; city builder revu le même jour (places de bâtiment, effets de zone sans cumul, coût en secondes de production, plus de voisinage ni de Rosace) ; **tout ce code a été supprimé en G3 (étape 1)** |
 | G3 | Le Sporophore (refonte du 4 octobre 2026). Trois étapes : 1) `sim/` et tests (**livrée le 4 octobre 2026** : `TurretSystem`, `Targeting`, `Combat`, `RegenSystem`, `Upgrades`, `Abilities`, `ColonyStats`, `ShotStats`, `TierSystem` et `VictorySystem` réécrits, six commandes, `data/upgrades.tres`, `mutations.tres`, `abilities.tres` ; suppression de la colonisation, des bâtiments, des robots de G1 et G2, du panneau de simulations et de leur affichage ; affichage et HUD provisoires, Bac à sable avec tous les réglages) ; 2) écran des maquettes (**livrée le 4 octobre 2026** : composants de `ui/hud/`, `TurretArt`, `MapCamera.view_rect`, gestes des capacités, réglages des mutations dans le Bac à sable, `ColonyState.mutation_tiers` et `pending_tiers`, `Simulation.upgrade_values()`) ; 3) robots et panneau de simulations à plusieurs robots (**livrée le 5 octobre 2026**, version 0.4.0 : `Robot`, `RobotProfile`, `RobotCatalog`, `UpgradePlanner`, `Threats`, `ai/profiles/`, adversaires du Bac à sable, `Session.add_robot()` et spectateur, `ReplayTransport`, `SimRunner`, `SimRun`, `SimReport`, `CompositionList`, `CurvesChart`) |
-| G4 | `ai/` (robots complets), `tools/sim_runner.gd` étendu, menus, résultats |
-| G5 | Tutoriel, audio, traduction, profil (sans Steam) |
-| G6 | `SteamService` et GodotSteam, `SteamTransport`, salons et invitations, partie personnalisée (salon, surcharge des paramètres, préréglages ; ancien G5), vérification par empreinte, interface d'administration. **Première étape : tests entre amis avec l'App ID 480** (Spacewar) : l'App ID est lu depuis la configuration (jamais écrit en dur), les salons portent une clé de métadonnée propre au jeu et à sa version et la recherche filtre dessus (l'App ID 480 est partagé avec d'autres développeurs), et `steam_appid.txt` est réservé aux builds de test, jamais inclus dans l'export final |
+| G4 | Combattre des robots (décidé le 5 octobre 2026) : `ai/` (robots de jeu, difficultés), menus Jouer (Duel et FFA contre robots), fin de partie minimale ; version 0.5.0 |
+| G5 | `EventSystem` (Floraison collective, Arbre mourant), frise, journal et alertes complets, écran de résultats complet, spectateur après élimination ; version 0.6.0 |
+| G6 | Tutoriel, audio, traduction, profil (sans Steam) |
+| G7 | `SteamService` et GodotSteam, `SteamTransport`, salons et invitations, partie personnalisée (salon, surcharge des paramètres, préréglages ; ancien G5), vérification par empreinte, interface d'administration. **Première étape : tests entre amis avec l'App ID 480** (Spacewar) : l'App ID est lu depuis la configuration (jamais écrit en dur), les salons portent une clé de métadonnée propre au jeu et à sa version et la recherche filtre dessus (l'App ID 480 est partagé avec d'autres développeurs), et `steam_appid.txt` est réservé aux builds de test, jamais inclus dans l'export final |
