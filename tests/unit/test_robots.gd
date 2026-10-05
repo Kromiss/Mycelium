@@ -290,3 +290,96 @@ func _heaviest(profile: RobotProfile) -> Array[StringName]:
 		if profile.upgrade_weights[id] == best:
 			ids.append(id)
 	return ids
+
+
+# --- Robot de jeu et difficultés (G4) ---
+
+
+func test_difficulties_set_the_pace() -> void:
+	var hard: Robot = RobotCatalog.make(&"game_hard", 0, 1)
+	var normal: Robot = RobotCatalog.make(&"game_normal", 1, 1)
+	var easy: Robot = RobotCatalog.make(&"game_easy", 0, 1)
+	for tick: int in range(6):
+		assert_true(hard.acts_at(tick))
+	assert_eq([normal.acts_at(0), normal.acts_at(1), normal.acts_at(2)], [false, true, false])
+	assert_eq([easy.acts_at(0), easy.acts_at(1), easy.acts_at(3)], [true, false, true])
+	assert_true(Robot.new(RobotCatalog.GUNNER, 0, 1).acts_at(1))
+	# Un robot qui n'agit pas à ce tick n'envoie rien.
+	_colony(1).nutrients = 1_000_000
+	_sim.state.tick = 2
+	assert_true(normal.decide(_sim).is_empty())
+	_sim.state.tick = 3
+	assert_false(normal.decide(_sim).is_empty())
+
+
+func test_easy_robot_never_hunts_walls_or_clouds() -> void:
+	var easy: Robot = RobotCatalog.make(&"game_easy", 0, 1)
+	var hard: Robot = RobotCatalog.make(&"game_hard", 0, 1)
+	_ready_for_abilities()
+	var spot: int = _turret_next_to_enemy()
+	_colony(1).designated = spot
+	_colony().targets = PackedInt32Array([_colony(1).turret])
+	var hard_commands: Array[Command] = hard.decide(_sim)
+	assert_eq(_commands_of(hard_commands, Command.Type.TARGET).size(), 1)
+	assert_eq(_commands_of(hard_commands, Command.Type.USE_ABILITY).size(), 3)
+	assert_true(easy.acts_at(_sim.state.tick))
+	var easy_commands: Array[Command] = easy.decide(_sim)
+	assert_true(_commands_of(easy_commands, Command.Type.TARGET).is_empty())
+	var uses: Array[Command] = _commands_of(easy_commands, Command.Type.USE_ABILITY)
+	assert_eq(uses.size(), 1)
+	assert_eq((uses[0] as UseAbilityCommand).ability, &"salvo")
+
+
+func test_easy_robot_takes_mutations_at_random() -> void:
+	var defs: SimDefs = _sim.state.defs
+	var picks: Dictionary[int, bool] = {}
+	for game_seed: int in range(12):
+		_colony().pending_offers = PackedInt32Array([0, 1, 2])
+		_colony().pending_tiers = PackedInt32Array([1])
+		var easy: Robot = RobotCatalog.make(&"game_easy", 0, game_seed)
+		_sim.state.tick = 0
+		for command: Command in _commands_of(easy.decide(_sim), Command.Type.CHOOSE_MUTATION):
+			picks[(command as ChooseMutationCommand).choice] = true
+	assert_gt(picks.size(), 1)
+	assert_eq(defs.mutation_choices, 3)
+
+
+func test_random_purchases_stay_affordable_and_accepted() -> void:
+	var profile: RobotProfile = _profile()
+	profile.upgrade_weights = {&"damage": 1}
+	_colony().nutrients = 40 * _sim.upgrade_cost(0, &"damage")
+	var plan: Dictionary[int, int] = UpgradePlanner.plan(
+		_sim.state, _colony(), profile, SimRng.new(3), 1
+	)
+	assert_gt(plan.size(), 1, "achats au hasard sur plusieurs améliorations")
+	var commands: Array[Command] = []
+	for index: int in plan:
+		commands.append(BuyUpgradeCommand.new(_sim.state.defs.upgrades[index].id, plan[index]))
+	var result: TickResult = _sim.tick(commands)
+	assert_eq(result.refused.size(), 0)
+
+
+func test_catalog_names_profiles_and_game_robots() -> void:
+	var locale: String = TranslationServer.get_locale()
+	TranslationServer.set_locale("en")
+	assert_eq(
+		RobotCatalog.sandbox_choices(),
+		(
+			[&"", &"gunner", &"builder", &"conqueror", &"game_easy", &"game_normal", &"game_hard"]
+			as Array[StringName]
+		)
+	)
+	assert_eq(RobotCatalog.label(&"game_normal"), "Game robot · Normal")
+	assert_eq(RobotCatalog.label(&"conqueror"), "Conqueror")
+	assert_eq(RobotCatalog.label(&"game_nope"), "None")
+	assert_null(RobotCatalog.make(&"", 0, 1))
+	assert_null(RobotCatalog.make(&"game_nope", 0, 1))
+	var robot: Robot = RobotCatalog.make(&"game_easy", 2, 1)
+	assert_eq(robot.profile, RobotCatalog.GAME_ROBOT)
+	assert_eq(robot.difficulty, RobotCatalog.EASY)
+	assert_eq(robot.colony_id, 2)
+	assert_true(RobotCatalog.GAME_ROBOT.moves_turret)
+	assert_eq(RobotCatalog.HARD.act_every_ticks, 1)
+	assert_eq(RobotCatalog.NORMAL.act_every_ticks, 2)
+	assert_eq(RobotCatalog.EASY.act_every_ticks, 3)
+	TranslationServer.set_locale(locale)

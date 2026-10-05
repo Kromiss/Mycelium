@@ -23,7 +23,7 @@ const TOOLTIP_OFFSET := Vector2(22.0, 22.0)
 const ATTACK_ALERT_TICKS: int = 20
 
 var _session: Session
-var _config: SandboxConfig
+var _config: GameConfig
 var _main: Array[Color] = []
 var _dark: Array[Color] = []
 var _toast_left: float = 0.0
@@ -38,6 +38,11 @@ var _mutation_count: int = 0
 var _last_alert: Dictionary[int, int] = {}
 var _hint_mode: MapInput.Mode = MapInput.Mode.TARGET
 var _hint_ability: int = -1
+
+## Confirmation de l'abandon (contre les robots), construite en code dans le menu de partie.
+var _confirm_label: Label
+var _confirm_yes: Button
+var _confirm_no: Button
 
 @onready var _map_area: Control = %MapArea
 @onready var _timeline: TimelineCard = %TimelineCard
@@ -60,6 +65,7 @@ var _hint_ability: int = -1
 @onready var _menu_dim: ColorRect = %MenuDim
 @onready var _end_panel: Control = %EndPanel
 @onready var _end_dim: ColorRect = %EndDim
+@onready var _end_title: Label = %EndTitle
 @onready var _end_summary: Label = %EndSummary
 @onready var _resume_button: Button = %ResumeButton
 @onready var _menu_recap_button: Button = %MenuRecapButton
@@ -80,7 +86,8 @@ func _ready() -> void:
 	_quit_button.pressed.connect(_quit)
 	_end_recap_button.pressed.connect(copy_recap)
 	_replay_button.pressed.connect(_restart)
-	_end_menu_button.pressed.connect(_quit)
+	_end_menu_button.pressed.connect(SceneRouter.leave_game)
+	_build_confirm()
 	_turret.priority_chosen.connect(_on_priority_chosen)
 	_upgrades.buy_requested.connect(_on_buy_requested)
 	_abilities.ability_pressed.connect(func(index: int) -> void: ability_requested.emit(index))
@@ -92,7 +99,7 @@ func _ready() -> void:
 
 ## Branche l'interface sur une partie, avec les couleurs de chaque colonie (principale et
 ## foncée, par numéro de colonie).
-func setup(session: Session, config: SandboxConfig, main: Array[Color], dark: Array[Color]) -> void:
+func setup(session: Session, config: GameConfig, main: Array[Color], dark: Array[Color]) -> void:
 	_session = session
 	_config = config
 	_main = main
@@ -112,6 +119,7 @@ func setup(session: Session, config: SandboxConfig, main: Array[Color], dark: Ar
 	_session.speed_changed.connect(_on_speed_changed)
 	_session.game_finished.connect(_on_game_finished)
 	_on_speed_changed(_session.speed)
+	_apply_kind()
 	_apply_palette(Settings.palette())
 	_update_hint()
 	_update_state()
@@ -170,6 +178,7 @@ func open_game_menu() -> void:
 	if _end_panel.visible:
 		return
 	_menu_paused = not _session.paused
+	_show_confirm(false)
 	_game_menu.visible = true
 	_session.set_paused(true)
 	_paused_label.visible = false
@@ -405,6 +414,11 @@ func _on_game_finished() -> void:
 	_paused_label.visible = false
 	_timeline.pause_button.disabled = true
 	_timeline.speed_button.disabled = true
+	if _config.is_versus():
+		_show_versus_end()
+		_end_panel.visible = true
+		_replay_button.grab_focus()
+		return
 	var state: GameState = _session.simulation.state
 	var colony: ColonyState = _session.colony()
 	var defs: SimDefs = state.defs
@@ -437,8 +451,80 @@ func _on_game_finished() -> void:
 
 
 func _restart() -> void:
-	SceneRouter.start_sandbox(_config.duplicate_config())
+	SceneRouter.start_game(_config.replay_config())
 
 
+## Quitter depuis le menu de partie : contre les robots, une partie en cours demande une
+## confirmation (« Abandonner ? », décidé le 5 octobre 2026).
 func _quit() -> void:
+	if _config.is_versus() and _session.is_running():
+		_show_confirm(true)
+		return
 	SceneRouter.leave_game()
+
+
+## Contre les robots : pas de récapitulatif ni de « Recommencer » ; « Quitter » devient
+## « Abandonner », et « Rejouer » lance une nouvelle partie.
+func _apply_kind() -> void:
+	var versus: bool = _config.is_versus()
+	_menu_recap_button.visible = not versus
+	_restart_button.visible = not versus
+	_end_recap_button.visible = not versus
+	_quit_button.text = "GAME_MENU_ABANDON" if versus else "GAME_MENU_QUIT"
+	_replay_button.text = "END_PLAY_AGAIN" if versus else "END_REPLAY"
+
+
+func _build_confirm() -> void:
+	var column: Node = _resume_button.get_parent()
+	_confirm_label = HudStyle.label(&"BodyLabel", "GAME_MENU_ABANDON_CONFIRM")
+	_confirm_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	column.add_child(_confirm_label)
+	_confirm_yes = Button.new()
+	_confirm_yes.text = "GAME_MENU_ABANDON_YES"
+	_confirm_yes.pressed.connect(SceneRouter.leave_game)
+	column.add_child(_confirm_yes)
+	_confirm_no = Button.new()
+	_confirm_no.text = "GAME_MENU_ABANDON_NO"
+	_confirm_no.pressed.connect(func() -> void: _show_confirm(false))
+	column.add_child(_confirm_no)
+	_show_confirm(false)
+
+
+## Montre la question « Abandonner ? » à la place des boutons du menu de partie.
+func _show_confirm(asking: bool) -> void:
+	for button: Button in [_resume_button, _quit_button]:
+		button.visible = not asking
+	if not asking and _config != null:
+		_apply_kind()
+	elif asking:
+		_menu_recap_button.visible = false
+		_restart_button.visible = false
+	_confirm_label.visible = asking
+	_confirm_yes.visible = asking
+	_confirm_no.visible = asking
+	if asking:
+		_confirm_no.grab_focus()
+
+
+## Fin de partie minimale contre les robots (GDD §2.6, décidé le 5 octobre 2026) : rang, cases
+## prises, Tourelles abattues, durée de survie, pic de production.
+func _show_versus_end() -> void:
+	var state: GameState = _session.simulation.state
+	var colony: ColonyState = _session.colony()
+	var rank: int = VictorySystem.ranking(state).find(colony.id) + 1
+	if rank == 1:
+		_end_title.text = tr("END_VICTORY")
+	else:
+		_end_title.text = tr("END_RANK") % [rank, state.colonies.size()]
+	var survival: int = state.tick if colony.alive else colony.eliminated_tick + 1
+	_end_summary.text = (
+		"\n"
+		. join(
+			[
+				tr("END_STAT_CELLS") % colony.cells_captured,
+				tr("END_STAT_TROPHIES") % colony.trophies,
+				tr("END_STAT_SURVIVAL") % NumberFormat.clock(survival),
+				tr("END_STAT_PEAK") % NumberFormat.rate(colony.peak_production),
+			]
+		)
+	)

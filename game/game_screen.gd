@@ -1,12 +1,14 @@
 extends Node2D
-## Écran d'une partie de Bac à sable (GDD §2.1 bis, maquettes G3) : la carte à gauche, le
-## panneau à droite. Le joueur est sur une forêt de Duel ou de FFA, avec la couleur Menthe,
-## seul ou contre des robots (un profil par secteur). En spectateur, on regarde une partie de
-## robots du panneau de simulations, sans joueur. Relie la session, les robots, la carte, les
-## colonies, les gestes, la caméra et le HUD.
-## Touches : P pause, Espace recentre sur la Tourelle, D puis clic fait faire un pas, Q W E
-## lancent les capacités, 1 à 3 choisissent une mutation quand les cartes sont affichées,
-## Échap annule le geste en cours ou ouvre le menu de partie.
+## Écran d'une partie locale (maquettes G3) : la carte à gauche, le panneau à droite.
+## - Bac à sable (GDD §2.1 bis) : le joueur en Menthe sur le premier secteur, seul ou contre des
+##   robots (un par secteur), avec pause et vitesse ;
+## - contre les robots (Duel et FFA, G4) : secteur et couleurs tirés de la graine, robots de
+##   jeu sur tous les autres secteurs, ni pause ni vitesse ; éliminé, le joueur a fini ;
+## - spectateur : une partie de robots du panneau de simulations, sans joueur.
+## Relie la session, les robots, la carte, les colonies, les gestes, la caméra et le HUD.
+## Touches : P pause (Bac à sable), Espace recentre sur la Tourelle, D puis clic fait faire un
+## pas, Q W E lancent les capacités, 1 à 3 choisissent une mutation quand les cartes sont
+## affichées, Échap annule le geste en cours ou ouvre le menu de partie.
 
 ## Actions des capacités et des cartes de mutation, dans l'ordre.
 const ABILITY_ACTIONS: Array[StringName] = [&"ability_1", &"ability_2", &"ability_3"]
@@ -16,7 +18,7 @@ const TURRET_ZOOM_FACTOR: float = 1.6
 ## La Tourelle part du bord de la forêt : on vise un peu vers le centre pour voir où avancer.
 const TURRET_FOCUS_TOWARD_CENTER: float = 0.3
 
-var _config: SandboxConfig
+var _config: GameConfig
 
 @onready var _session: Session = %Session
 @onready var _forest_view: ForestView = %ForestView
@@ -27,18 +29,22 @@ var _config: SandboxConfig
 
 
 func _ready() -> void:
-	_config = SceneRouter.sandbox_config
+	_config = SceneRouter.game_config
 	if _config == null:
-		_config = SandboxConfig.defaults(SceneRouter.MODES[&"duel"], 1)
+		_config = GameConfig.defaults(SceneRouter.MODES[&"duel"], 1)
 	var sectors: PackedInt32Array = _config.colony_sectors()
+	# Pause et vitesse : seulement en Bac à sable (GDD §2.6).
+	var time_control: bool = not _config.is_versus()
 	_session.start_local(
-		_config.defs.duplicate_defs(), _config.game_seed, sectors.size(), true, sectors
+		_config.defs.duplicate_defs(), _config.game_seed, sectors.size(), time_control, sectors
 	)
+	_session.local_colony = _config.player_colony()
+	_session.colors = _config.colors
 	var profiles: Array[StringName] = _config.colony_profiles()
 	for colony_id: int in range(profiles.size()):
-		var profile: RobotProfile = RobotCatalog.find(profiles[colony_id])
-		if profile != null:
-			_session.add_robot(Robot.new(profile, colony_id, _config.game_seed))
+		var robot: Robot = RobotCatalog.make(profiles[colony_id], colony_id, _config.game_seed)
+		if robot != null:
+			_session.add_robot(robot)
 	if _config.spectator:
 		_session.set_spectator()
 	var map: ForestMap = _session.simulation.state.map
@@ -46,7 +52,7 @@ func _ready() -> void:
 	var main: Array[Color] = []
 	var dark: Array[Color] = []
 	for colony: ColonyState in _session.simulation.state.colonies:
-		var color: int = GameText.color_index(colony.id)
+		var color: int = GameText.color_index(colony.id, _config.colors)
 		main.append(GameText.COLORS.main[color])
 		dark.append(GameText.COLORS.dark[color])
 	_colony_layer.setup(_forest_view, _session, main, dark)
@@ -115,6 +121,10 @@ func _shortcut(event: InputEvent) -> bool:
 
 func _on_ticked(result: TickResult) -> void:
 	_colony_layer.refresh(result)
+	# Contre les robots, le joueur éliminé termine sa partie tout de suite, avec son rang
+	# (décidé le 5 octobre 2026).
+	if _config.is_versus() and _session.is_running() and not _session.colony().alive:
+		_session.stop()
 
 
 func _on_hovered(cell: int) -> void:

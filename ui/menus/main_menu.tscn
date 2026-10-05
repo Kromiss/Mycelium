@@ -41,14 +41,14 @@ text = "MENU_PLAY"
 horizontal_alignment = 1
 
 [node name="DuelButton" type="Button" parent="Center/Column"]
+unique_name_in_owner = true
 layout_mode = 2
-disabled = true
-text = "MENU_DUEL_SOON"
+text = "MENU_DUEL"
 
 [node name="FfaButton" type="Button" parent="Center/Column"]
+unique_name_in_owner = true
 layout_mode = 2
-disabled = true
-text = "MENU_FFA_SOON"
+text = "MENU_FFA"
 
 [node name="SandboxButton" type="Button" parent="Center/Column"]
 unique_name_in_owner = true

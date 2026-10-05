@@ -9,12 +9,17 @@ extends RefCounted
 ## - pas : vers le centre de la forêt, derrière son territoire, s'il déplace sa Tourelle ;
 ## - capacités : Salve quand il tire, Mur sur une case attaquée, Nuage sur les cases adverses ;
 ## - améliorations : meilleur rapport poids / coût (UpgradePlanner).
+## Une difficulté (RobotDifficulty, robots de jeu) règle son rythme et ses erreurs : il n'agit
+## qu'une seconde sur N, fait des achats ou prend des mutations au hasard, se prive de
+## capacités ou de la chasse aux Tourelles.
 ## Son aléatoire est un SimRng dérivé de la graine : une partie de robots se rejoue à l'identique.
 
 ## Décalage du sel de l'aléatoire des robots (distinct des autres tirages de la partie).
 const RNG_SALT: int = 7_001
 
 var profile: RobotProfile
+## Difficulté (null : aucune, le robot agit chaque seconde sans erreur).
+var difficulty: RobotDifficulty
 var colony_id: int = 0
 
 var _rng: SimRng
@@ -24,8 +29,14 @@ var _defense_until: int = 0
 var _next_step_tick: int = 0
 
 
-func _init(robot_profile: RobotProfile, colony: int, game_seed: int) -> void:
+func _init(
+	robot_profile: RobotProfile,
+	colony: int,
+	game_seed: int,
+	robot_difficulty: RobotDifficulty = null
+) -> void:
 	profile = robot_profile
+	difficulty = robot_difficulty
 	colony_id = colony
 	_rng = SimRng.new(game_seed).derive(RNG_SALT + colony)
 
@@ -37,6 +48,8 @@ func decide(simulation: Simulation) -> Array[Command]:
 	var colony: ColonyState = state.colony(colony_id)
 	if colony == null or not colony.alive or state.finished:
 		return commands
+	if not acts_at(state.tick):
+		return commands
 	var attacked: PackedInt32Array = Threats.attacked_cells(state, colony)
 	_add(simulation, commands, _mutation_command(state, colony))
 	_add(simulation, commands, _priority_command(state, colony, attacked))
@@ -44,11 +57,22 @@ func decide(simulation: Simulation) -> Array[Command]:
 	_add(simulation, commands, _step_command(state, colony))
 	for command: Command in _ability_commands(state, colony, attacked):
 		_add(simulation, commands, command)
-	var plan: Dictionary[int, int] = UpgradePlanner.plan(state, colony, profile)
+	var random_one_in: int = difficulty.random_upgrade_one_in if difficulty != null else 0
+	var plan: Dictionary[int, int] = UpgradePlanner.plan(
+		state, colony, profile, _rng, random_one_in
+	)
 	for index: int in plan:
 		var id: StringName = state.defs.upgrades[index].id
 		commands.append(BuyUpgradeCommand.new(id, plan[index], colony_id))
 	return commands
+
+
+## Vrai si le robot agit à ce tick : chaque seconde sans difficulté, sinon une seconde sur N
+## (décalée selon la colonie, pour que les robots n'agissent pas tous ensemble).
+func acts_at(tick: int) -> bool:
+	if difficulty == null or difficulty.act_every_ticks <= 1:
+		return true
+	return (tick + colony_id) % difficulty.act_every_ticks == 0
 
 
 ## Ajoute la commande si elle serait acceptée maintenant.
@@ -68,6 +92,9 @@ func _mutation_command(state: GameState, colony: ColonyState) -> Command:
 		if mutation < 0:
 			continue
 		var weight: int = profile.mutation_weight(state.defs.mutations[mutation].id)
+		if difficulty != null and difficulty.random_mutation:
+			# Mutation au hasard : toutes les cartes se valent.
+			weight = 0
 		if weight > best_weight:
 			best = PackedInt32Array([choice])
 			best_weight = weight
@@ -96,7 +123,7 @@ func _priority_command(
 
 ## Désigne la Tourelle adverse visable la plus proche, s'il chasse les Tourelles.
 func _target_command(simulation: Simulation, colony: ColonyState) -> Command:
-	if not profile.hunts_turrets:
+	if not profile.hunts_turrets or (difficulty != null and not difficulty.hunts_turrets):
 		return null
 	var state: GameState = simulation.state
 	if colony.designated >= 0 and state.is_turret_cell(colony.designated):
@@ -155,6 +182,8 @@ func _ability_commands(
 		return commands
 	var enzymes: int = colony.enzymes
 	for id: StringName in profile.abilities:
+		if difficulty != null and not difficulty.abilities.has(id):
+			continue
 		var index: int = state.defs.ability_index(id)
 		if index < 0:
 			continue

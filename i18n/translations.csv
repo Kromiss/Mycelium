@@ -25,8 +25,6 @@ SETTINGS_RESOLUTION,Window size,Taille de la fenêtre
 SETTINGS_BACK,Back,Retour
 FOREST_MODE_DUEL,Duel forest,Forêt de Duel
 FOREST_MODE_FFA,FFA forest,Forêt de FFA
-MENU_DUEL_SOON,Duel (soon),Duel (bientôt)
-MENU_FFA_SOON,FFA (soon),FFA (bientôt)
 MENU_SANDBOX,Sandbox,Bac à sable
 SANDBOX_TITLE,Sandbox,Bac à sable
 SANDBOX_INTRO,"Alone or against robots, every number can be changed. Games last 30 minutes.","Seul ou contre des robots, tous les chiffres sont modifiables. Une partie dure 30 minutes."
@@ -391,3 +389,28 @@ SIM_STAT_STD,std dev,écart type
 SIM_STAT_COUNT,games,parties
 SIM_CELL_STATS,"%s (%s – %s, σ %s)","%s (%s – %s, σ %s)"
 SIM_NEVER,—,—
+ROBOT_GAME,Game robot,Robot de jeu
+ROBOT_GAME_LABEL,Game robot · %s,Robot de jeu · %s
+DIFFICULTY_EASY,Easy,Facile
+DIFFICULTY_NORMAL,Normal,Normal
+DIFFICULTY_HARD,Hard,Difficile
+GAME_MENU_ABANDON,Give up the game,Abandonner la partie
+GAME_MENU_ABANDON_CONFIRM,Give up this game?,Abandonner cette partie ?
+GAME_MENU_ABANDON_YES,"Yes, give up","Oui, abandonner"
+GAME_MENU_ABANDON_NO,"No, keep playing","Non, continuer"
+END_PLAY_AGAIN,Play again,Rejouer
+END_VICTORY,Victory!,Victoire !
+END_RANK,Rank %d of %d,Rang %d sur %d
+END_STAT_CELLS,Cells captured: %d,Cases prises : %d
+END_STAT_TROPHIES,Sporophores destroyed: %d,Sporophores abattus : %d
+END_STAT_SURVIVAL,Survival: %s,Durée de survie : %s
+END_STAT_PEAK,Peak production: %s/s,Pic de production : %s/s
+PLAY_DUEL_TITLE,Duel against a robot,Duel contre un robot
+PLAY_DUEL_INTRO,"Bring down the robot's Sporophore, or be ahead at 30:00. Your sector and colours are drawn at random.","Abats le Sporophore du robot, ou sois devant à 30:00. Ton secteur et les couleurs sont tirés au hasard."
+PLAY_FFA_TITLE,FFA against 5 robots,FFA contre 5 robots
+PLAY_FFA_INTRO,"Be the last colony alive, or the best at 30:00. Your sector and colours are drawn at random.","Sois la dernière colonie en vie, ou la meilleure à 30:00. Ton secteur et les couleurs sont tirés au hasard."
+PLAY_DIFFICULTY,Robot difficulty,Difficulté des robots
+PLAY_LAUNCH,Start,Lancer
+PLAY_EASY_HINT,"Acts every 3 seconds, sometimes buys at random, never uses the wall or the cloud and does not aim at your Sporophore.","Agit toutes les 3 secondes, achète parfois au hasard, ne lance ni Mur ni Nuage et ne vise pas ton Sporophore."
+PLAY_NORMAL_HINT,Acts every 2 seconds and makes no mistakes.,Agit toutes les 2 secondes et ne se trompe pas.
+PLAY_HARD_HINT,Acts every second and makes no mistakes.,Agit chaque seconde et ne se trompe pas.

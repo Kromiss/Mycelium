@@ -32,7 +32,7 @@ const PROBLEM_KEYS: Dictionary[String, String] = {
 	"abilities": "SANDBOX_ABILITIES",
 }
 
-var _config: SandboxConfig
+var _config: GameConfig
 ## Rafraîchisseurs des champs : chacun remet son champ à la valeur actuelle des réglages.
 var _refreshers: Array[Callable] = []
 var _built: bool = false
@@ -67,7 +67,7 @@ func _notification(what: int) -> void:
 
 ## Réglages affichés et modifiés par le formulaire (le formulaire les modifie en place).
 ## Peut être appelé avant l'entrée dans l'arbre : l'affichage suit alors à _ready().
-func set_config(config: SandboxConfig) -> void:
+func set_config(config: GameConfig) -> void:
 	_config = config
 	if is_node_ready():
 		_show_config()
@@ -82,7 +82,7 @@ func _show_config() -> void:
 
 
 ## Réglages actuels.
-func config() -> SandboxConfig:
+func config() -> GameConfig:
 	return _config
 
 
@@ -109,14 +109,13 @@ func set_opponent(index: int, profile: StringName) -> void:
 	_build_opponents()
 
 
-## Lignes des adversaires : une par secteur libre, avec la liste Aucun puis les profils.
+## Lignes des adversaires : une par secteur libre, avec la liste Aucun, les profils, puis le
+## robot de jeu dans chaque difficulté.
 func _build_opponents() -> void:
 	for child: Node in _opponents_grid.get_children():
 		# Libéré tout de suite : aucun signal de ces lignes n'est en cours.
 		child.free()
-	var ids: Array[StringName] = [&""]
-	for profile: RobotProfile in RobotCatalog.profiles():
-		ids.append(profile.id)
+	var ids: Array[StringName] = RobotCatalog.sandbox_choices()
 	for index: int in range(_config.opponent_count()):
 		_add_row_label(_opponents_grid, tr("SANDBOX_SECTOR") % (index + 2))
 		var option := OptionButton.new()

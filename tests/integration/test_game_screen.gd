@@ -3,7 +3,7 @@ extends GutTest
 ## capacités, et carte limitée à la partie gauche de l'écran.
 
 const DUEL: ModeDef = preload("res://data/modes/duel.tres")
-const GAME: PackedScene = preload("res://game/sandbox_screen.tscn")
+const GAME: PackedScene = preload("res://game/game_screen.tscn")
 const Fixture = preload("res://tests/fixtures/sim_fixture.gd")
 
 var _locale: String
@@ -16,7 +16,7 @@ var _input: MapInput
 func before_each() -> void:
 	_locale = TranslationServer.get_locale()
 	TranslationServer.set_locale("en")
-	SceneRouter.sandbox_config = SandboxConfig.defaults(DUEL, 7)
+	SceneRouter.game_config = GameConfig.defaults(DUEL, 7)
 	_screen = GAME.instantiate()
 	add_child_autofree(_screen)
 	_session = _screen.get_node("%Session")
@@ -27,7 +27,7 @@ func before_each() -> void:
 
 func after_each() -> void:
 	TranslationServer.set_locale(_locale)
-	SceneRouter.sandbox_config = null
+	SceneRouter.game_config = null
 
 
 func _colony() -> ColonyState:

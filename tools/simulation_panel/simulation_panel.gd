@@ -134,7 +134,7 @@ func _settings_tab() -> Control:
 	center.add_child(box)
 	_form = FORM_SCENE.instantiate()
 	box.add_child(_form)
-	_form.set_config(SandboxConfig.defaults(DUEL, 1))
+	_form.set_config(GameConfig.defaults(DUEL, 1))
 	_form.show_opponents(false)
 	_form.forest_changed.connect(_on_forest_changed)
 	var defaults := Button.new()
@@ -290,7 +290,7 @@ func _spin(low: float, high: float, step: float, value: float) -> SpinBox:
 
 
 func _on_forest_changed() -> void:
-	var config: SandboxConfig = _form.config()
+	var config: GameConfig = _form.config()
 	_compositions.set_forest(config.mode.id, config.defs.sectors)
 	_fill_sweep_params()
 
@@ -331,7 +331,7 @@ func start(threaded: bool = true) -> void:
 	if not problems.is_empty():
 		_status.text = problems
 		return
-	var config: SandboxConfig = _form.config()
+	var config: GameConfig = _form.config()
 	_runner = SimRunner.new()
 	var duration: int = roundi(_minutes_spin.value) * SECONDS_PER_MINUTE
 	var runs: int = roundi(_runs_spin.value)
@@ -371,8 +371,8 @@ func _on_start() -> void:
 
 
 func _on_defaults() -> void:
-	var config: SandboxConfig = _form.config()
-	_form.set_config(SandboxConfig.defaults(config.mode, config.game_seed))
+	var config: GameConfig = _form.config()
+	_form.set_config(GameConfig.defaults(config.mode, config.game_seed))
 	_on_forest_changed()
 
 
@@ -491,9 +491,9 @@ func _on_export() -> void:
 
 ## Réglages de la partie choisie, à regarder sur la carte (les robots la rejouent à
 ## l'identique : même graine, même composition, mêmes réglages).
-func watch_config(series_index: int, run: int) -> SandboxConfig:
+func watch_config(series_index: int, run: int) -> GameConfig:
 	var one: SimRunner.Series = _runner.series[series_index]
-	var config := SandboxConfig.new()
+	var config := GameConfig.new()
 	config.mode = _form.config().mode
 	config.game_seed = _runner.run_seed(run)
 	config.defs = one.defs.duplicate_defs()
@@ -507,9 +507,9 @@ func watch_config(series_index: int, run: int) -> SandboxConfig:
 func _on_watch() -> void:
 	if not _has_results() or _watch_series.selected < 0:
 		return
-	var config: SandboxConfig = watch_config(_watch_series.selected, roundi(_watch_run.value) - 1)
+	var config: GameConfig = watch_config(_watch_series.selected, roundi(_watch_run.value) - 1)
 	_save()
-	SceneRouter.start_sandbox(config)
+	SceneRouter.start_game(config)
 
 
 # --- État gardé quand on part regarder une partie ---
@@ -536,7 +536,7 @@ func _restore() -> void:
 	if not saved is Dictionary:
 		return
 	var state: Dictionary = saved
-	var config: SandboxConfig = state.get("config")
+	var config: GameConfig = state.get("config")
 	if config != null:
 		_form.set_config(config)
 		_on_forest_changed()

@@ -5,7 +5,7 @@ extends GutTest
 const DUEL: ModeDef = preload("res://data/modes/duel.tres")
 const FFA: ModeDef = preload("res://data/modes/ffa.tres")
 const PANEL: PackedScene = preload("res://tools/simulation_panel/simulation_panel.tscn")
-const GAME: PackedScene = preload("res://game/sandbox_screen.tscn")
+const GAME: PackedScene = preload("res://game/game_screen.tscn")
 const COMPOSITIONS_PATH: String = "user://test_simulation_compositions.cfg"
 ## Durée courte : assez pour passer la protection de départ.
 const TICKS: int = 180
@@ -22,7 +22,7 @@ func before_each() -> void:
 func after_each() -> void:
 	TranslationServer.set_locale(_locale)
 	SceneRouter.simulation_panel_state = null
-	SceneRouter.sandbox_config = null
+	SceneRouter.game_config = null
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(COMPOSITIONS_PATH))
 
 
@@ -152,14 +152,14 @@ func test_panel_runs_shows_results_and_opens_a_robot_game() -> void:
 	assert_eq(runner.duration_ticks, 60)
 	var tables: VBoxContainer = panel.get("_tables")
 	assert_eq(tables.get_child_count(), 1)
-	var config: SandboxConfig = panel.call("watch_config", 0, 0)
+	var config: GameConfig = panel.call("watch_config", 0, 0)
 	assert_true(config.spectator)
 	assert_eq(config.profiles, [&"gunner", &"builder"] as Array[StringName])
 	assert_eq(config.defs.match_ticks, 60)
 	assert_eq(config.colony_profiles(), [&"gunner", &"builder"] as Array[StringName])
 	assert_string_contains(config.title, "Robot game: Gunner · Builder, game 1")
 	# La partie regardée : deux robots, aucun ordre, vitesses du spectateur.
-	SceneRouter.sandbox_config = config
+	SceneRouter.game_config = config
 	var screen: Node = GAME.instantiate()
 	add_child_autofree(screen)
 	var session: Session = screen.get_node("%Session")

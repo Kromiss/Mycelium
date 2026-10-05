@@ -40,7 +40,7 @@ func run() -> SimRunResult:
 	var robots: Array[Robot] = []
 	for colony: ColonyState in state.colonies:
 		var profile: StringName = _profiles[colony.sector]
-		robots.append(Robot.new(RobotCatalog.find(profile), colony.id, _seed))
+		robots.append(RobotCatalog.make(profile, colony.id, _seed))
 		var measures := SimColonyResult.new()
 		measures.sector = colony.sector
 		measures.profile = profile

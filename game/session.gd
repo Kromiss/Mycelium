@@ -32,6 +32,8 @@ var replay: Replay
 var local_colony: int = 0
 ## Robots des autres colonies, appelés avant chaque tick.
 var robots: Array[Robot] = []
+## Couleur de chaque colonie, en rangs dans GameText.COLONY_COLORS (vide : l'ordre habituel).
+var colors: PackedInt32Array = PackedInt32Array()
 ## Vitesse du temps (×1, ×2 ou ×4).
 var speed: int = 1
 ## Vrai si le temps est arrêté.
@@ -182,6 +184,15 @@ func advance_time(seconds: float) -> void:
 		played += 1
 	if played == limit:
 		_accumulator = minf(_accumulator, 1.0)
+
+
+## Arrête la partie pour le joueur (éliminé contre les robots) : plus aucun tick, et
+## « game_finished » est émis.
+func stop() -> void:
+	if not _running:
+		return
+	_running = false
+	game_finished.emit()
 
 
 ## Joue un tick tout de suite (sans effet une fois la partie terminée) : les robots décident

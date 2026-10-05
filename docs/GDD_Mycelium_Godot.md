@@ -1,4 +1,4 @@
-# MYCÉLIUM : LAST COLONY — Document de conception, portage Godot (v0.4 : le Sporophore)
+# MYCÉLIUM : LAST COLONY — Document de conception, portage Godot (v0.5 : combattre des robots)
 
 > Jeu incrémental compétitif en parties de **30 minutes maximum**. Chaque joueur incarne une colonie de champignons dont le **cœur est une tourelle** : elle lance des spores qui colorent les cases d'une carte d'hexagones. Plus la colonie a de cases, plus elle produit ; ce qu'elle produit sert à **améliorer sa tourelle** (dégâts, cadence, portée…), qui prend alors encore plus de cases. Le centre de la forêt est le plus riche et le plus disputé : **le but est d'être la dernière colonie vivante.** Trois façons de jouer : **Duel**, **FFA** (jusqu'à 6 colonies) et **Partie personnalisée**. Cible : un **projet Godot exporté en .exe (Windows), distribué sur Steam**.
 
@@ -27,12 +27,12 @@
 ## 2. Modes de jeu
 
 ### 2.1 Menu principal
-**Jouer** (Duel, FFA), **Bac à sable** (§2.1 bis), **Partie personnalisée**, **Tutoriel**, **Profil**, **Paramètres**, **Quitter**.
+**Jouer** (Duel, FFA : chacun ouvre le choix de la difficulté des robots, puis la partie, G4), **Bac à sable** (§2.1 bis), **Partie personnalisée**, **Tutoriel**, **Profil**, **Paramètres**, **Quitter**.
 
 ### 2.1 bis Bac à sable
 - Entrée du menu principal, **visible par tous les joueurs**. Il n'y a **que le joueur et des robots** ; la partie personnalisée sert à jouer avec ses amis. Il sert notamment aux tests d'équilibrage du propriétaire.
 - **Purement local** : fonctionne **sans Steam ni GodotSteam**.
-- Le joueur est sur une forêt de **Duel ou de FFA, au choix**, avec la couleur **Menthe**, seul ou avec des **adversaires robots** : l'écran de réglages propose, pour **chaque secteur libre** (1 en Duel, 5 en FFA), un robot **Canonnier**, **Bâtisseur** ou **Conquérant**, ou **Aucun** (par défaut) ; le récapitulatif liste les adversaires et leur résultat (décidé le 4 octobre 2026, étape 3 de G3).
+- Le joueur est sur une forêt de **Duel ou de FFA, au choix**, avec la couleur **Menthe**, seul ou avec des **adversaires robots** : l'écran de réglages propose, pour **chaque secteur libre** (1 en Duel, 5 en FFA), un robot **Canonnier**, **Bâtisseur** ou **Conquérant**, le **robot de jeu** en **Facile**, **Normal** ou **Difficile** (G4), ou **Aucun** (par défaut) ; le récapitulatif liste les adversaires et leur résultat (décidé le 4 octobre 2026, étape 3 de G3).
 - **Pause et vitesse uniquement en Bac à sable** : pause par la touche **P** ou un bouton du HUD ; vitesse par un **bouton du HUD** qui passe de ×1 à ×2 puis ×4.
 - **Le plus paramétrable possible** : un écran de réglages avant de lancer (forêt et graine, adversaires, et **tous les chiffres** du jeu : tourelle de départ, PV des cases, régénération, améliorations, paliers, Enzymes, capacités, événements, protection de départ, Trophée). Un bouton **remet les valeurs par défaut** ; les réglages **ne sont pas gardés** d'une partie à l'autre.
 - **Récapitulatif à tout moment** : un bouton copie dans le presse-papiers un texte lisible avec les **réglages** et les **résultats** de la partie.
@@ -40,13 +40,13 @@
 - Éliminé en Bac à sable : **spectateur** (vitesse et pause possibles), avec un bouton vers l'écran de fin.
 
 ### 2.2 Duel (1 contre 1)
-- **Contre un robot** : choix de la difficulté (Facile, Normal, Difficile).
+- **Contre un robot** : choix de la difficulté (Facile, Normal, Difficile) ; le robot de jeu n'a pas de profil visible (§2.5). Graine, secteur du joueur et couleurs des colonies sont tirés au hasard ; ni pause ni vitesse ; **Échap** ouvre le menu de partie (Reprendre, **Abandonner** avec confirmation), sans arrêter le temps. **Fin de partie minimale** (G4) : « Victoire ! » ou « Rang N sur M », cases prises, Sporophores abattus, durée de survie, pic de production ; **Rejouer** (nouvelle partie, même mode et même difficulté) et **Menu**.
 - **Contre un joueur** : d'abord par invitation d'un ami Steam, puis par file d'attente (§19, dernier jalon).
 - **Forêt** : deux secteurs symétriques (symétrie centrale), rayon **11** (397 cases, ~198 par joueur).
 - **Victoire** : abattre la Tourelle adverse. À 30:00, départage par les **éliminations**, puis la **production moyenne sur toute la partie** (§3.3).
 
 ### 2.3 FFA (jusqu'à 6 colonies sur la même forêt)
-- **Contre des robots** : 1 joueur + 5 robots.
+- **Contre des robots** : 1 joueur + 5 robots, **une seule difficulté pour tous**, choisie par le joueur (décidé le 5 octobre 2026). Comme en Duel contre un robot ; **éliminé**, le joueur voit tout de suite la fin de partie avec son rang.
 - **Entre joueurs** : jusqu'à 6 joueurs en ligne. La partie démarre à 6, ou après 2 min d'attente avec au moins 4 joueurs ; les places libres sont **complétées par des robots signalés comme tels**.
 - **Forêt** : six secteurs identiques, rayon **17** (919 cases, ~153 par colonie).
 - **Victoire** : dernier vivant ; à 30:00, départage par les **éliminations**, puis la **production moyenne sur toute la partie** (§3.3).
@@ -71,6 +71,11 @@ Permet de créer **tout type de partie** : le type (Duel ou FFA), les joueurs, l
 - Les robots jouent **avec les mêmes règles et les mêmes commandes que les joueurs** : pas de triche. Ils choisissent leurs **améliorations**, leur **priorité de tir**, leurs **mutations**, leurs **capacités** et les **déplacements** de leur tourelle.
 - **Profils** : *Canonnier* (dégâts et cadence d'abord), *Bâtisseur* (rendement et défense d'abord), *Conquérant* (portée et ennemis d'abord). **Seul le Conquérant déplace sa Tourelle**, vers le centre de la forêt (décidé le 4 octobre 2026). **Difficultés** : à définir au jalon G4.
 - **Comportement (G3, étape 3)** : à chaque seconde, un robot prend la mutation la plus lourde pour son profil, garde sa priorité de tir habituelle ou passe à sa priorité de défense quand ses cases sont visées, désigne la Tourelle adverse dès qu'il peut la viser (Canonnier et Conquérant), lance la Salve quand il tire, le Mur sur une case attaquée et le Nuage sur les cases adverses, et achète l'amélioration au meilleur rapport poids / coût (en économisant pour elle si elle n'est pas encore payable). Les poids de chaque profil sont dans `ai/profiles/` (voir « Choix de l'étape 3 de G3, à confirmer », §17).
+- **Robot de jeu** *(G4, décidé le 5 octobre 2026)* : en Duel et en FFA, les adversaires sont des **robots de jeu**, sans profil visible : un réglage interne **équilibré** (dégâts, rendement et portée à parts égales ; il déplace sa Tourelle). Les **profils** (Canonnier, Bâtisseur, Conquérant) restent réservés au panneau de simulations et au Bac à sable. Trois difficultés, dont les valeurs sont dans `data/` :
+  - **Difficile** : le comportement actuel (il agit chaque seconde, sans erreur) ;
+  - **Normal** : le même, mais il n'agit que toutes les **2 s** ;
+  - **Facile** : il agit toutes les **3 s**, fait **1 achat sur 4 au hasard**, prend sa **mutation au hasard**, ne lance **jamais le Mur ni le Nuage** et **ne vise pas la Tourelle adverse**.
+  Le nombre d'ordres d'un robot dépend donc de sa difficulté (« mêmes limites qu'un joueur »).
 - Ils servent aussi à compléter les salons, à remplacer un joueur déconnecté et à équilibrer les valeurs par simulation (§18.5).
 
 ### 2.6 Règles communes
@@ -468,6 +473,9 @@ Le code de G1 et G2 qui ne sert plus est supprimé dès l'étape 1, avec un affi
 ### Décisions de l'étape 2 de G3 (4 octobre 2026, QCM)
 Pas de touches pour les priorités de tir, 1 à 3 pour les cartes de mutation (§16.5) ; cartes de mutation cachées par un bouton œil et rouvertes depuis le panneau (§16.2) ; frise : horloge et fin de la protection jusqu'à G5 (§16.2) ; stades de la Tourelle liés au palier (§16.3).
 
+### Décisions de G4 « Combattre des robots » (5 octobre 2026, QCM)
+Prochain jalon limité au combat contre les robots, les événements passent en G5 (§19) ; robot de jeu à part, sans profil visible, équilibré, avec trois difficultés dans `data/` (Difficile = robots actuels, Normal agit toutes les 2 s, Facile toutes les 3 s et maladroit) (§2.5) ; en FFA, une difficulté pour les 5 robots, les profils sont réservés à la simulation (§2.3) ; secteur du joueur et couleurs de toutes les colonies tirés au hasard (graine) ; écrans dans le style actuel, sans maquette ; livraison en une fois ; menu Jouer → Duel ou FFA → difficulté, graine tirée au hasard ; quitter une partie en cours demande une confirmation ; éliminé en FFA : fin tout de suite avec son rang ; fin de partie minimale : rang, cases, Tourelles abattues, durée de survie, pic de production, boutons Rejouer (nouvelle partie, mêmes choix) et Menu ; Bac à sable : profils et robot de jeu (Facile, Normal, Difficile) au choix sur chaque secteur libre.
+
 ### Décisions de l'étape 3 de G3 (4 octobre 2026, QCM)
 Bac à sable : un profil de robot par secteur libre (§2.1 bis) ; seul le Conquérant déplace sa Tourelle (§2.5) ; panneau de simulations : une série = une composition de forêt (un robot par secteur), mesures par secteur (§18.5).
 
@@ -565,7 +573,7 @@ Outil d'équilibrage disponible **uniquement quand le jeu est lancé depuis l'é
 | **G1 : Solo économie** *(livré, 0.2.0)* | Production, Cohésion, paliers, retours visuels, Bac à sable (réglages, récapitulatif, pause, vitesse), HUD, rejeu, panneau de simulations |
 | **G2** *(livré, 0.3.0)* | Remplacé par G3 |
 | **G3 : Le Sporophore et l'affrontement** *(livré, 0.4.0 : étapes 1 et 2 le 4 octobre 2026, étape 3 le 5 octobre 2026)* | **Suppression** du code de G1 et G2 qui ne sert plus ; Tourelle (tir automatique, portée, priorités, cible au clic, déplacement pas à pas) ; PV, régénération et soin ; panneau d'améliorations à droite ; paliers avec Enzymes et mutations ; capacités ; Armillaire ; **affrontement entre Tourelles, élimination et Trophée** ; écran carte + panneau ; Bac à sable avec adversaires robots. Maquettes **validées le 4 octobre 2026**. Livré en **trois étapes** : 1) simulation et tests ; 2) affichage, panneau et Bac à sable ; 3) robots Canonnier, Bâtisseur et Conquérant (adversaires du Bac à sable et panneau de simulations à plusieurs robots) ; version **0.4.0** |
-| **G4 : Combattre des robots** *(décidé le 5 octobre 2026 : uniquement le combat contre les robots)* | Duel et FFA contre robots : menus Jouer, robots de jeu (3 difficultés, profils), **fin de partie minimale** (rang, statistiques de base, retour au menu) ; version **0.5.0** |
+| **G4 : Combattre des robots** *(décidé le 5 octobre 2026 : uniquement le combat contre les robots ; livré le 5 octobre 2026, 0.5.0)* | Duel et FFA contre robots : menus Jouer, robots de jeu (3 difficultés, profils), **fin de partie minimale** (rang, statistiques de base, retour au menu) ; version **0.5.0** |
 | **G5 : Événements et fin de partie** | Floraison collective et Arbre mourant, frise, journal et alertes complets, écran de résultats complet, spectateur après élimination ; version **0.6.0** |
 | **G6 : Habillage et bêta solo** | Tutoriel (8 étapes, §2.7), audio, profil et statistiques, traduction, essais avec de vrais joueurs (sans Steam) |
 | **G7 : Multijoueur** | Étape 1 : tests entre amis avec l'App ID 480 (Steam, salons, invitations, relais, hébergement par un joueur, empreinte, déconnexion). Étape 2 : file d'attente, FFA et Duel entre joueurs, partie personnalisée complète, chat, interface d'administration |
@@ -581,6 +589,7 @@ La simulation ne reçoit que des **commandes** depuis G1 : le passage en ligne c
 Elles seront posées sous forme de QCM au début du jalon concerné.
 
 ### G4 : Combattre des robots
+*Questions 1 à 8 et 10 tranchées le 5 octobre 2026 (§17, « Décisions de G4 ») ; restent 9 et 11.*
 1. Profils des robots : les robots de jeu reprennent-ils les profils Canonnier, Bâtisseur et Conquérant du panneau de simulations (§2.5, §18.5) ?
 2. Valeurs des difficultés Facile, Normal, Difficile (délai de réaction, part d'erreurs, profondeur d'évaluation, qualité du choix des améliorations, des priorités et des cibles).
 3. « Mêmes limites qu'un joueur » : nombre maximal de commandes par seconde pour un robot ?

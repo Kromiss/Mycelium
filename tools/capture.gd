@@ -6,6 +6,9 @@ extends SceneTree
 ## game (partie de Bac à sable), game-robots (contre un robot par secteur libre), game-watch
 ## (partie de robots regardée, sans joueur), game-menu (partie avec le menu Échap ouvert),
 ## game-end (partie terminée après [secondes]), game-mutation (cartes de mutation à l'écran),
+## versus (partie contre les robots, difficulté Normal), versus-quit (menu de partie avec la
+## question « Abandonner ? »), versus-end (joueur éliminé après [secondes]), play (lancement
+## d'une partie contre les robots ; [mode] duel ou ffa),
 ## simulations (panneau de simulations ; [mode] « launch » : onglet Lancement, « results » :
 ## un petit lot joué, onglet Résultats) ;
 ## <thème> : light ou dark ; [mode] : duel ou ffa (pour sandbox-bottom : défilement en pixels) ;
@@ -17,12 +20,16 @@ const SCREENS: Dictionary[String, String] = {
 	"settings": "res://ui/settings/settings_screen.tscn",
 	"sandbox": "res://ui/sandbox/sandbox_setup.tscn",
 	"sandbox-bottom": "res://ui/sandbox/sandbox_setup.tscn",
-	"game": "res://game/sandbox_screen.tscn",
-	"game-menu": "res://game/sandbox_screen.tscn",
-	"game-end": "res://game/sandbox_screen.tscn",
-	"game-mutation": "res://game/sandbox_screen.tscn",
-	"game-robots": "res://game/sandbox_screen.tscn",
-	"game-watch": "res://game/sandbox_screen.tscn",
+	"game": "res://game/game_screen.tscn",
+	"game-menu": "res://game/game_screen.tscn",
+	"game-end": "res://game/game_screen.tscn",
+	"game-mutation": "res://game/game_screen.tscn",
+	"game-robots": "res://game/game_screen.tscn",
+	"game-watch": "res://game/game_screen.tscn",
+	"versus": "res://game/game_screen.tscn",
+	"versus-quit": "res://game/game_screen.tscn",
+	"versus-end": "res://game/game_screen.tscn",
+	"play": "res://ui/play/play_setup.tscn",
 	"simulations": "res://tools/simulation_panel/simulation_panel.tscn",
 }
 const FRAMES_BEFORE_CAPTURE: int = 10
@@ -43,7 +50,7 @@ func _initialize() -> void:
 	settings.call("set_theme_mode", theme_mode)
 	if args.size() > 3 and args[0].begins_with("game"):
 		var mode: ModeDef = load("res://data/modes/%s.tres" % args[3])
-		var config: SandboxConfig = SandboxConfig.defaults(mode, 1)
+		var config: GameConfig = GameConfig.defaults(mode, 1)
 		if args[0] == "game-end" and args.size() > 4:
 			config.defs.match_ticks = args[4].to_int()
 		if args[0] == "game-robots" or args[0] == "game-watch":
@@ -52,14 +59,31 @@ func _initialize() -> void:
 			for sector: int in range(first, config.profiles.size()):
 				config.profiles[sector] = profiles[sector % profiles.size()].id
 			config.spectator = args[0] == "game-watch"
-		root.get_node("SceneRouter").set("sandbox_config", config)
+		root.get_node("SceneRouter").set("game_config", config)
+	if args.size() > 3 and args[0].begins_with("versus"):
+		var versus_mode: ModeDef = load("res://data/modes/%s.tres" % args[3])
+		root.get_node("SceneRouter").set(
+			"game_config", GameConfig.versus(versus_mode, 1, &"normal")
+		)
+	if args.size() > 3 and args[0] == "play":
+		root.get_node("SceneRouter").set("play_mode", StringName(args[3]))
 	var error: Error = change_scene_to_file(SCREENS[args[0]])
 	if error != OK:
 		quit(1)
 		return
 	await process_frame
-	if args.size() > 4 and args[0].begins_with("game"):
+	if args.size() > 4 and (args[0].begins_with("game") or args[0].begins_with("versus")):
 		_play(args[4].to_int(), args[0] != "game-mutation")
+	if args[0] == "versus-end":
+		var session: Session = current_scene.get_node("%Session")
+		var state: GameState = session.simulation.state
+		var killer: ColonyState = state.colonies[(session.local_colony + 1) % state.colonies.size()]
+		Combat.eliminate(state, session.colony(), killer, TickResult.new())
+		session.step()
+	if args[0] == "versus-quit":
+		var hud: Node = current_scene.get_node("%Hud")
+		hud.call("open_game_menu")
+		hud.call("_quit")
 	if args[0] == "simulations" and args.size() > 3 and args[3] == "results":
 		var runs: SpinBox = current_scene.get("_runs_spin")
 		var minutes: SpinBox = current_scene.get("_minutes_spin")

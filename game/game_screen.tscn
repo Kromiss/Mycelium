@@ -1,6 +1,6 @@
 [gd_scene load_steps=8 format=3]
 
-[ext_resource type="Script" path="res://game/sandbox_screen.gd" id="1_screen"]
+[ext_resource type="Script" path="res://game/game_screen.gd" id="1_screen"]
 [ext_resource type="Script" path="res://game/session.gd" id="2_session"]
 [ext_resource type="PackedScene" path="res://view/map/forest_view.tscn" id="3_view"]
 [ext_resource type="Script" path="res://view/colony/colony_layer.gd" id="4_colony"]

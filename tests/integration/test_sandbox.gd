@@ -4,7 +4,7 @@ extends GutTest
 
 const DUEL: ModeDef = preload("res://data/modes/duel.tres")
 const SETUP: PackedScene = preload("res://ui/sandbox/sandbox_setup.tscn")
-const GAME: PackedScene = preload("res://game/sandbox_screen.tscn")
+const GAME: PackedScene = preload("res://game/game_screen.tscn")
 ## Cases de la colonie en Duel (rayon 11) : une case libre collée au territoire de départ,
 ## une case qui ne le touche pas, et la case de départ vers le centre.
 const ABOVE := Vector2i(10, -1)
@@ -17,12 +17,12 @@ var _locale: String
 func before_each() -> void:
 	_locale = TranslationServer.get_locale()
 	TranslationServer.set_locale("en")
-	SceneRouter.sandbox_config = SandboxConfig.defaults(DUEL, 7)
+	SceneRouter.game_config = GameConfig.defaults(DUEL, 7)
 
 
 func after_each() -> void:
 	TranslationServer.set_locale(_locale)
-	SceneRouter.sandbox_config = null
+	SceneRouter.game_config = null
 
 
 func _game() -> Node:
@@ -38,10 +38,10 @@ func _index(session: Session, cell: Vector2i) -> int:
 
 
 func test_setup_starts_from_defaults_and_resets() -> void:
-	SceneRouter.sandbox_config = null
+	SceneRouter.game_config = null
 	var setup: Node = SETUP.instantiate()
 	add_child_autofree(setup)
-	var config: SandboxConfig = setup.call("config")
+	var config: GameConfig = setup.call("config")
 	assert_eq(config.defs.to_dict(), SimDefs.from_mode(DUEL).to_dict())
 	config.defs.unit_cost = 1
 	setup.call("_on_defaults")
@@ -50,10 +50,10 @@ func test_setup_starts_from_defaults_and_resets() -> void:
 
 
 func test_setup_switches_forest_and_keeps_edits() -> void:
-	SceneRouter.sandbox_config = null
+	SceneRouter.game_config = null
 	var setup: Node = SETUP.instantiate()
 	add_child_autofree(setup)
-	var config: SandboxConfig = setup.call("config")
+	var config: GameConfig = setup.call("config")
 	config.defs.cell_yield = 5_000
 	setup.call("_on_forest_selected", 1)
 	assert_eq(config.mode.id, &"ffa")
@@ -63,10 +63,10 @@ func test_setup_switches_forest_and_keeps_edits() -> void:
 
 
 func test_setup_refuses_invalid_settings() -> void:
-	SceneRouter.sandbox_config = null
+	SceneRouter.game_config = null
 	var setup: Node = SETUP.instantiate()
 	add_child_autofree(setup)
-	var config: SandboxConfig = setup.call("config")
+	var config: GameConfig = setup.call("config")
 	config.defs.turret_range = 0
 	setup.call("_on_launch")
 	var error: Label = setup.get_node("%ErrorLabel")
@@ -82,10 +82,10 @@ func test_game_starts_alone_on_the_chosen_forest() -> void:
 
 
 func test_one_opponent_line_per_free_sector() -> void:
-	SceneRouter.sandbox_config = null
+	SceneRouter.game_config = null
 	var setup: Node = SETUP.instantiate()
 	add_child_autofree(setup)
-	var config: SandboxConfig = setup.call("config")
+	var config: GameConfig = setup.call("config")
 	var grid: GridContainer = setup.get_node("%SettingsForm/%OpponentsGrid")
 	assert_eq(config.profiles, [&"", &""] as Array[StringName])
 	assert_eq(grid.get_child_count(), 2)
@@ -105,10 +105,10 @@ func test_one_opponent_line_per_free_sector() -> void:
 
 
 func test_game_against_robots_puts_them_on_their_sectors() -> void:
-	var config: SandboxConfig = SandboxConfig.defaults(preload("res://data/modes/ffa.tres"), 7)
+	var config: GameConfig = GameConfig.defaults(preload("res://data/modes/ffa.tres"), 7)
 	config.profiles[2] = &"builder"
 	config.profiles[4] = &"conqueror"
-	SceneRouter.sandbox_config = config
+	SceneRouter.game_config = config
 	var screen: Node = _game()
 	var session: Session = screen.get_node("%Session")
 	var state: GameState = session.simulation.state
@@ -182,7 +182,7 @@ func test_game_menu_pauses_and_resumes() -> void:
 
 
 func test_game_ends_at_the_time_limit_with_the_end_panel() -> void:
-	SceneRouter.sandbox_config.defs.match_ticks = 3
+	SceneRouter.game_config.defs.match_ticks = 3
 	var screen: Node = _game()
 	var session: Session = screen.get_node("%Session")
 	for i: int in range(5):
@@ -195,7 +195,7 @@ func test_game_ends_at_the_time_limit_with_the_end_panel() -> void:
 
 
 func test_recap_lists_settings_and_results() -> void:
-	var config: SandboxConfig = SandboxConfig.defaults(DUEL, 42)
+	var config: GameConfig = GameConfig.defaults(DUEL, 42)
 	var simulation := Simulation.new(config.defs.duplicate_defs(), 42, 1)
 	for i: int in range(5):
 		simulation.tick()

@@ -24,7 +24,7 @@ const SOURCES: Array[String] = [
 	"res://ui/sandbox/settings_form.gd",
 	"res://ui/sandbox/settings_form.tscn",
 	"res://game/sandbox_recap.gd",
-	"res://game/sandbox_screen.gd",
+	"res://game/game_screen.gd",
 	"res://view/input/map_input.gd",
 	"res://autoload/settings_store.gd",
 	"res://data/colors.tres",
@@ -34,6 +34,12 @@ const SOURCES: Array[String] = [
 	"res://ai/profiles/gunner.tres",
 	"res://ai/profiles/builder.tres",
 	"res://ai/profiles/conqueror.tres",
+	"res://data/robots/game_robot.tres",
+	"res://data/robots/easy.tres",
+	"res://data/robots/normal.tres",
+	"res://data/robots/hard.tres",
+	"res://ui/play/play_setup.gd",
+	"res://ui/play/play_setup.tscn",
 ]
 
 

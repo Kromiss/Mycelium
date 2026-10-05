@@ -53,7 +53,7 @@ func _row(state: GameState, colony: ColonyState) -> HBoxContainer:
 	var local: bool = colony.id == _session.viewer_colony()
 	var name: Label = HudStyle.label(
 		&"BoldLabel" if local else &"BodyLabel",
-		GameText.colony_name(colony.id, _session.viewer_colony())
+		GameText.colony_name(colony.id, _session.viewer_colony(), _session.colors)
 	)
 	name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(name)

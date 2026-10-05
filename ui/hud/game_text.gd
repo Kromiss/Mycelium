@@ -11,16 +11,18 @@ const COLONY_COLORS: Array[String] = [
 ]
 
 
-## Rang de la couleur d'une colonie dans data/colors.tres.
-static func color_index(colony_id: int) -> int:
-	return COLORS.index_of(COLONY_COLORS[colony_id % COLONY_COLORS.size()])
+## Rang de la couleur d'une colonie dans data/colors.tres. « colors » : couleur de chaque
+## colonie, en rangs dans COLONY_COLORS (vide : l'ordre habituel ; GameConfig.colors).
+static func color_index(colony_id: int, colors := PackedInt32Array()) -> int:
+	var slot: int = colors[colony_id] if colony_id < colors.size() else colony_id
+	return COLORS.index_of(COLONY_COLORS[slot % COLONY_COLORS.size()])
 
 
 ## Nom d'une colonie pour le joueur : « Toi » pour la sienne, sinon le nom de sa couleur.
-static func colony_name(colony_id: int, local_colony: int) -> String:
+static func colony_name(colony_id: int, local_colony: int, colors := PackedInt32Array()) -> String:
 	if colony_id == local_colony:
 		return _t("HUD_YOU")
-	return _t(COLORS.names[color_index(colony_id)])
+	return _t(COLORS.names[color_index(colony_id, colors)])
 
 
 ## Effet d'une amélioration : effet d'un niveau et valeur avant → après (« +25 % par niveau ·

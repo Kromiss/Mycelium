@@ -11,8 +11,8 @@ extends Control
 
 
 func _ready() -> void:
-	var existing: SandboxConfig = SceneRouter.sandbox_config
-	var config: SandboxConfig = (
+	var existing: GameConfig = SceneRouter.game_config
+	var config: GameConfig = (
 		existing.duplicate_config() if existing != null else _default_config(&"duel")
 	)
 	_form.set_config(config)
@@ -28,12 +28,12 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 ## Réglages actuellement affichés (lus par les tests).
-func config() -> SandboxConfig:
+func config() -> GameConfig:
 	return _form.config()
 
 
-func _default_config(mode_id: StringName) -> SandboxConfig:
-	return SandboxConfig.defaults(SceneRouter.MODES[mode_id], SettingsForm.random_seed())
+func _default_config(mode_id: StringName) -> GameConfig:
+	return GameConfig.defaults(SceneRouter.MODES[mode_id], SettingsForm.random_seed())
 
 
 func _on_forest_selected(index: int) -> void:
@@ -49,4 +49,4 @@ func _on_launch() -> void:
 	var problems: String = _form.problems_text()
 	_error_label.text = problems
 	if problems.is_empty():
-		SceneRouter.start_sandbox(_form.config().duplicate_config())
+		SceneRouter.start_game(_form.config().duplicate_config())

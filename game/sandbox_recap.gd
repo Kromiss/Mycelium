@@ -6,7 +6,7 @@ extends RefCounted
 
 
 ## Texte complet du récapitulatif.
-static func build(config: SandboxConfig, state: GameState, colony: ColonyState) -> String:
+static func build(config: GameConfig, state: GameState, colony: ColonyState) -> String:
 	var defs: SimDefs = config.defs
 	var lines := PackedStringArray()
 	var version: String = ProjectSettings.get_setting("application/config/version", "")
@@ -32,7 +32,7 @@ static func build(config: SandboxConfig, state: GameState, colony: ColonyState) 
 
 
 ## Profil de chaque secteur libre (« Secteur 2 : Canonnier, Secteur 3 : Aucun »).
-static func _opponents_text(config: SandboxConfig) -> String:
+static func _opponents_text(config: GameConfig) -> String:
 	var parts := PackedStringArray()
 	for index: int in range(config.opponent_count()):
 		var sector: String = tr_key("SANDBOX_SECTOR") % (index + 2)
@@ -42,7 +42,7 @@ static func _opponents_text(config: SandboxConfig) -> String:
 
 ## Une ligne par robot : couleur, profil, cases, palier, en vie ou éliminé.
 static func _opponent_lines(
-	config: SandboxConfig, state: GameState, colony: ColonyState
+	config: GameConfig, state: GameState, colony: ColonyState
 ) -> PackedStringArray:
 	var lines := PackedStringArray()
 	var profiles: Array[StringName] = config.colony_profiles()
@@ -53,7 +53,7 @@ static func _opponent_lines(
 		var status: String = tr_key("RECAP_ALIVE")
 		if not other.alive:
 			status = tr_key("RECAP_ELIMINATED") % NumberFormat.clock(other.eliminated_tick)
-		var name: String = GameText.colony_name(other.id, colony.id)
+		var name: String = GameText.colony_name(other.id, colony.id, config.colors)
 		var values: Array = [
 			name, RobotCatalog.label(profile), other.cell_count, other.tier, status
 		]

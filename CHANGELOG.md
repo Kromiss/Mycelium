@@ -6,6 +6,30 @@ L'historique de l'ancienne version web est dans la branche `archive/web`.
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-05
+
+G4 — Combattre des robots.
+
+### Ajouté
+- Duel contre un robot et FFA contre 5 robots : menu Jouer → Duel ou FFA → difficulté (Facile,
+  Normal, Difficile, une pour tous les robots) → Lancer ; graine, secteur du joueur et couleurs
+  des colonies tirés au hasard ; ni pause ni vitesse.
+- Robot de jeu équilibré (dégâts, rendement et portée à parts égales, il déplace sa Tourelle) et
+  ses trois difficultés dans `data/robots/` : Difficile agit chaque seconde sans erreur, Normal
+  toutes les 2 s, Facile toutes les 3 s avec un achat sur 4 et sa mutation au hasard, sans Mur ni
+  Nuage et sans viser la Tourelle adverse.
+- Menu de partie contre les robots : Abandonner, avec confirmation. Éliminé, le joueur voit tout
+  de suite la fin de partie.
+- Fin de partie minimale : « Victoire ! » ou « Rang N sur M », cases prises, Sporophores
+  abattus, durée de survie, pic de production ; Rejouer (nouvelle partie) et Menu.
+- Bac à sable : le robot de jeu (Facile, Normal, Difficile) au choix sur chaque secteur libre.
+
+### Modifié
+- Feuille de route : G4 devient « Combattre des robots » ; les événements et la fin de partie
+  complète passent en G5.
+- Code : `SandboxConfig` devient `GameConfig` et l'écran de partie `game_screen.tscn` (Bac à
+  sable, contre les robots, spectateur).
+
 ## [0.4.0] - 2026-10-05
 
 G3 — Le Sporophore et l'affrontement.
