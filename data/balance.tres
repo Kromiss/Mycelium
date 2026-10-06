@@ -31,3 +31,5 @@ mutation_choices = 3
 building_slots_per_tier = 1
 building_start_hp_pm = 100
 building_sleep_ticks = 60
+enzyme_income = 1
+enzyme_income_ticks = 10

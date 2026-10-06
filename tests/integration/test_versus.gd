@@ -84,7 +84,8 @@ func test_versus_game_has_robots_everywhere_and_no_time_control() -> void:
 	assert_false(_shown(hud, "%RestartButton"))
 	var quit: Button = hud.get_node("%QuitButton")
 	assert_eq(quit.text, "GAME_MENU_ABANDON")
-	session.step()
+	for second: int in range(20):
+		session.step()
 	assert_gt(session.replay.commands.size(), 0)
 
 

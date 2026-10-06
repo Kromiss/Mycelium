@@ -4,7 +4,12 @@ extends SceneTree
 ## mesurer les cibles d'équilibrage. Outil de développement, exclu de l'export.
 ##
 ## godot --headless -s res://tools/balance_report.gd -- <duel|ffa> <parties> <robot,robot…> [graine]
+##   [réglage=valeur…]
 ## Exemple : -- duel 20 game_hard,game_hard 1   (un robot par secteur, dans l'ordre)
+## Réglages (essais sans toucher aux fichiers de data/) : « cell_hp=60000 » (constante de
+## BalanceDef), « zone_free_hp_pm=1000,1400,… » (tableau des zones ou des paliers),
+## « upgrade.damage.base_cost_units=2 », « building.swarmer.damage_pm=500 »,
+## « mutation.pioneer.free_damage_pm=1200 », « ability.salvo.rate_pm=3000 ».
 
 const MODES: Dictionary[String, String] = {
 	"duel": "res://data/modes/duel.tres",
@@ -24,13 +29,65 @@ func _initialize() -> void:
 	var games: int = args[1].to_int()
 	var robots: PackedStringArray = args[2].split(",")
 	var first_seed: int = args[3].to_int() if args.size() > 3 else 1
+	var defs: SimDefs = SimDefs.from_mode(mode)
+	for i: int in range(4, args.size()):
+		if not _override(defs, args[i]):
+			printerr("Réglage inconnu : %s" % args[i])
+			quit(1)
+			return
+	var problems: PackedStringArray = defs.validate()
+	if not problems.is_empty():
+		printerr("Réglages invalides : %s" % ", ".join(problems))
+		quit(1)
+		return
 	for game: int in range(games):
-		print(JSON.stringify(_play(mode, first_seed + game, robots)))
+		print(JSON.stringify(_play(defs.duplicate_defs(), mode, first_seed + game, robots)))
 	quit(0)
 
 
-func _play(mode: ModeDef, game_seed: int, robots: PackedStringArray) -> Dictionary:
-	var defs: SimDefs = SimDefs.from_mode(mode)
+## Applique un réglage « nom=valeur » aux définitions. Faux s'il est inconnu.
+func _override(defs: SimDefs, setting: String) -> bool:
+	var parts: PackedStringArray = setting.split("=")
+	if parts.size() != 2:
+		return false
+	var path: PackedStringArray = parts[0].split(".")
+	if path.size() == 1:
+		return _override_field(defs, path[0], parts[1])
+	if path.size() != 3:
+		return false
+	var records: Array = []
+	match path[0]:
+		"upgrade":
+			records = defs.upgrades
+		"building":
+			records = defs.buildings
+		"mutation":
+			records = defs.mutations
+		"ability":
+			records = defs.abilities
+	for record: SimRecord in records:
+		if str(record.get("id")) == path[1] and record.get(path[2]) is int:
+			record.set(path[2], parts[1].to_int())
+			return true
+	return false
+
+
+## Constante (entier) ou tableau des zones ou des paliers (« 1000,1400,… »).
+func _override_field(defs: SimDefs, field: String, value: String) -> bool:
+	var current: Variant = defs.get(field)
+	if current is PackedInt32Array:
+		var values := PackedInt32Array()
+		for part: String in value.split(","):
+			values.append(part.to_int())
+		defs.set(field, values)
+	elif current is int:
+		defs.set(field, value.to_int())
+	else:
+		return false
+	return true
+
+
+func _play(defs: SimDefs, mode: ModeDef, game_seed: int, robots: PackedStringArray) -> Dictionary:
 	var simulation := Simulation.new(defs, game_seed, robots.size())
 	var state: GameState = simulation.state
 	var players: Array[Robot] = []

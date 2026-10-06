@@ -6,7 +6,9 @@ extends RefCounted
 
 ## Raison pour laquelle la pose serait refusée (OK si elle serait acceptée) : un bâtiment
 ## débloqué et payable, avec une place libre, sur une de mes cases sans Sporophore ni bâtiment.
-static func check_build(state: GameState, colony: ColonyState, type: int, cell: int) -> Refusal.Code:
+static func check_build(
+	state: GameState, colony: ColonyState, type: int, cell: int
+) -> Refusal.Code:
 	var code: Refusal.Code = check_type(state, colony, type)
 	if code != Refusal.Code.OK:
 		return code

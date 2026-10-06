@@ -4,44 +4,60 @@ extends RefCounted
 ## toujours sur le front. Le type voulu est celui de plus fort poids rapporté au nombre déjà
 ## posé (poids / (1 + nombre)), parmi les types débloqués ; la case est celle d'où le bâtiment
 ## aura le plus à faire (RobotProfile : valeur des cases libres, des zones riches, des cases
-## adverses, des bâtiments et Sporophores adverses). Places prises : un Essaimeur ou un
-## Avant-poste qui n'a plus rien à viser est démoli pour reconstruire plus loin.
+## adverses, des bâtiments et Sporophores adverses). Places prises : un bâtiment qui n'a plus
+## rien à viser est démoli pour reconstruire là où il sert.
 
+## Nombre de déplacements du bâtiment le plus cher que le robot garde de quoi payer, toutes
+## places prises.
+const RELOCATIONS: int = 2
 ## Score d'un Mortier sans cible à portée : il se rapproche du Sporophore adverse le plus proche.
 const MORTAR_FALLBACK: int = 1_000
 
 
-## Rang du type de bâtiment que le robot veut poser ensuite (−1 : aucun débloqué ou voulu).
-static func wanted_type(state: GameState, colony: ColonyState, profile: RobotProfile) -> int:
+## Rangs des types de bâtiment que le robot veut poser, du plus voulu au moins voulu : poids
+## rapporté au nombre déjà posé (poids / (1 + nombre)), parmi les types débloqués.
+static func wanted_types(
+	state: GameState, colony: ColonyState, profile: RobotProfile
+) -> PackedInt32Array:
 	var counts := PackedInt32Array()
 	counts.resize(state.defs.buildings.size())
 	for building: BuildingState in Buildings.of_colony(state, colony.id):
 		counts[building.type] += 1
-	var best: int = -1
-	var best_score: int = 0
+	var ranked: Array[Vector2i] = []
 	for type: int in range(state.defs.buildings.size()):
 		var def: SimBuilding = state.defs.buildings[type]
 		var weight: int = profile.building_weight(def.id)
 		if weight <= 0 or colony.tier < def.unlock_tier:
 			continue
 		@warning_ignore("integer_division")
-		var score: int = weight * 1000 / (1 + counts[type])
-		if score > best_score:
-			best = type
-			best_score = score
-	return best
+		ranked.append(Vector2i(-weight * 1000 / (1 + counts[type]), type))
+	ranked.sort()
+	var types := PackedInt32Array()
+	for entry: Vector2i in ranked:
+		types.append(entry.y)
+	return types
 
 
-## Enzymes que le robot garde pour son prochain bâtiment (0 : aucune place libre ni démolition
-## prévue). Les capacités n'utilisent que le reste.
+## Rang du type de bâtiment que le robot veut poser ensuite (−1 : aucun débloqué ou voulu).
+static func wanted_type(state: GameState, colony: ColonyState, profile: RobotProfile) -> int:
+	var types: PackedInt32Array = wanted_types(state, colony, profile)
+	return types[0] if not types.is_empty() else -1
+
+
+## Enzymes que le robot garde pour ses bâtiments : le prix du prochain s'il reste une place,
+## sinon de quoi déplacer le plus cher (démolir puis reconstruire sur le front) ; les Enzymes ne
+## reviennent qu'avec les paliers et les Trophées. Les capacités n'utilisent que le reste.
 static func reserve(state: GameState, colony: ColonyState, profile: RobotProfile) -> int:
-	var type: int = wanted_type(state, colony, profile)
-	if type < 0:
+	var types: PackedInt32Array = wanted_types(state, colony, profile)
+	if types.is_empty():
 		return 0
 	var slots: int = ColonyStats.building_slots(state.defs, colony)
-	if Buildings.standing_count(state, colony.id) >= slots and _idle(state, colony) == null:
-		return 0
-	return Fixed.from_units(state.defs.buildings[type].cost_enzymes)
+	if Buildings.standing_count(state, colony.id) < slots:
+		return Fixed.from_units(state.defs.buildings[types[0]].cost_enzymes)
+	var most: int = 0
+	for type: int in types:
+		most = maxi(most, state.defs.buildings[type].cost_enzymes)
+	return Fixed.from_units(most * RELOCATIONS)
 
 
 ## Prix d'une pose, en millièmes d'Enzymes.
@@ -50,27 +66,30 @@ static func cost_of(state: GameState, command: BuildCommand) -> int:
 	return Fixed.from_units(state.defs.buildings[type].cost_enzymes) if type >= 0 else 0
 
 
-## Commande de bâtiment du robot à ce tick (null : rien à faire) : une pose, ou la démolition
-## d'un bâtiment inutile quand toutes les places sont prises et que le suivant est payable.
+## Commande de bâtiment du robot à ce tick (null : rien à faire) : la pose du type le plus voulu
+## qui a une case utile, ou la démolition d'un bâtiment inutile quand toutes les places sont
+## prises et qu'un autre bâtiment serait payable et utile.
 static func plan(state: GameState, colony: ColonyState, profile: RobotProfile) -> Command:
 	if colony.turret < 0:
 		return null
-	var type: int = wanted_type(state, colony, profile)
-	if type < 0:
+	var full: bool = (
+		Buildings.standing_count(state, colony.id) >= ColonyStats.building_slots(state.defs, colony)
+	)
+	var idle: BuildingState = _idle(state, colony, profile) if full else null
+	if full and idle == null:
 		return null
-	var def: SimBuilding = state.defs.buildings[type]
-	if colony.enzymes < Fixed.from_units(def.cost_enzymes):
-		return null
-	var slots: int = ColonyStats.building_slots(state.defs, colony)
-	if Buildings.standing_count(state, colony.id) >= slots:
-		var idle: BuildingState = _idle(state, colony)
-		if idle == null:
+	for type: int in wanted_types(state, colony, profile):
+		var def: SimBuilding = state.defs.buildings[type]
+		if colony.enzymes < Fixed.from_units(def.cost_enzymes):
+			# On attend le type le plus voulu plutôt que de poser un bâtiment moins voulu.
 			return null
-		return DemolishCommand.new(state.map.cells[idle.cell], colony.id)
-	var cell: int = best_cell(state, colony, profile, type)
-	if cell < 0:
-		return null
-	return BuildCommand.new(def.id, state.map.cells[cell], colony.id)
+		var cell: int = best_cell(state, colony, profile, type)
+		if cell < 0:
+			continue
+		if full:
+			return DemolishCommand.new(state.map.cells[idle.cell], colony.id)
+		return BuildCommand.new(def.id, state.map.cells[cell], colony.id)
+	return null
 
 
 ## Meilleure case pour poser un bâtiment du type (−1 : aucune case utile).
@@ -154,19 +173,24 @@ static func _mortar_score(
 	return maxi(1, MORTAR_FALLBACK - nearest) if nearest >= 0 else 0
 
 
-## Premier Essaimeur ou Avant-poste actif qui n'a plus aucune case à viser (null : aucun).
-static func _idle(state: GameState, colony: ColonyState) -> BuildingState:
-	for building: BuildingState in Buildings.of_colony(state, colony.id):
-		if not building.active(state.tick):
-			continue
-		if state.defs.buildings[building.type].kind == BuildingDef.Kind.MORTAR:
-			continue
-		var reach: int = ColonyStats.building_reach(state.defs, colony, building.type)
-		var useful: bool = false
-		for cell: int in state.map.disk(building.cell, reach):
-			if BuildingTargeting.can_target(state, colony, building, cell, reach):
-				useful = true
-				break
-		if not useful:
-			return building
+## Bâtiment actif qui n'a plus rien à viser à portée (null : aucun), du type le moins voulu
+## d'abord : un Mortier sans cible à portée compte aussi.
+static func _idle(state: GameState, colony: ColonyState, profile: RobotProfile) -> BuildingState:
+	var order: PackedInt32Array = wanted_types(state, colony, profile)
+	order.reverse()
+	for type: int in range(state.defs.buildings.size()):
+		if not order.has(type):
+			order.insert(0, type)
+	for type: int in order:
+		for building: BuildingState in Buildings.of_colony(state, colony.id):
+			if building.type != type or not building.active(state.tick):
+				continue
+			var reach: int = ColonyStats.building_reach(state.defs, colony, building.type)
+			var useful: bool = false
+			for cell: int in state.map.disk(building.cell, reach):
+				if BuildingTargeting.can_target(state, colony, building, cell, reach):
+					useful = true
+					break
+			if not useful:
+				return building
 	return null

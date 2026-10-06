@@ -65,3 +65,7 @@ extends Resource
 @export var building_start_hp_pm: int = 100
 ## Durée du sommeil d'un bâtiment tombé, en secondes (60).
 @export var building_sleep_ticks: int = 60
+## Revenu lent d'Enzymes (décidé le 6 octobre 2026) : chaque colonie en vie reçoit
+## « enzyme_income » Enzymes entières toutes les « enzyme_income_ticks » secondes (0 : aucun).
+@export var enzyme_income: int = 1
+@export var enzyme_income_ticks: int = 10

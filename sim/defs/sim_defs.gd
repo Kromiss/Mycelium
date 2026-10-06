@@ -41,6 +41,8 @@ const BALANCE_FIELDS: PackedStringArray = [
 	"building_slots_per_tier",
 	"building_start_hp_pm",
 	"building_sleep_ticks",
+	"enzyme_income",
+	"enzyme_income_ticks",
 ]
 ## Champs des zones et des paliers (tableaux, index 0 = zone 1 ou palier 1).
 const ZONE_FIELDS: PackedStringArray = ["zone_richness_pm", "zone_free_hp_pm", "zone_defense_pm"]
@@ -94,6 +96,8 @@ var mutation_choices: int = 0
 var building_slots_per_tier: int = 0
 var building_start_hp_pm: int = 0
 var building_sleep_ticks: int = 0
+var enzyme_income: int = 0
+var enzyme_income_ticks: int = 0
 
 # --- Contenu ---
 ## Améliorations, dans l'ordre du panneau ; une amélioration est désignée par son rang ici.
@@ -260,6 +264,8 @@ func validate() -> PackedStringArray:
 			problems.append("abilities")
 	if building_slots_per_tier < 0 or building_sleep_ticks < 0:
 		problems.append("building_rules")
+	if enzyme_income < 0 or enzyme_income_ticks < 0:
+		problems.append("enzyme_income")
 	if building_start_hp_pm < 0 or building_start_hp_pm > Fixed.ONE:
 		problems.append("building_rules")
 	for building: SimBuilding in buildings:
