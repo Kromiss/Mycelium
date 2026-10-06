@@ -15,8 +15,9 @@ class Batch:
 
 
 ## Version du format, à augmenter si l'enregistrement change (2 : commandes « early » ; 3 : plus de
-## commande de pas, les numéros des types de commande ont changé).
-const FORMAT: int = 3
+## commande de pas, les numéros des types de commande ont changé ; 4 : bâtiments, dans les
+## définitions et dans l'empreinte).
+const FORMAT: int = 4
 
 var defs: SimDefs
 var game_seed: int = 0

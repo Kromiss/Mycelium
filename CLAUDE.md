@@ -10,12 +10,12 @@ Lis ce fichier en entier avant d'agir, puis le document de `docs/` qui correspon
 chaque colonie de champignons a pour cœur une tourelle, le Sporophore, qui lance des spores et prend
 les cases d'une carte d'hexagones ; la production des cases paie les améliorations de la tourelle, et
 le but est d'être la dernière colonie vivante (refonte du 4 octobre 2026 : plus de colonisation au
-clic ; depuis le 5 octobre 2026, le Sporophore est fixe et trois bâtiments sont en préparation, GDD §5 bis). Modes Duel, FFA (jusqu'à 6) et Partie personnalisée, contre
+clic ; depuis le 5 octobre 2026, le Sporophore est fixe ; trois bâtiments — Essaimeur, Avant-poste, Mortier — font avancer le front depuis la 0.6.0, GDD §5 bis). Modes Duel, FFA (jusqu'à 6) et Partie personnalisée, contre
 des robots puis en ligne. Cible : un exécutable Windows, distribué sur Steam.
 
 Les détails de game design se décident avec le propriétaire (Kromiss) : **ne jamais inventer de règle
 de jeu, et poser la question au moindre doute**. La référence est `docs/GDD_Mycelium_Godot.md` (aussi
-dans les documents du projet Claude « Jeu incremental ») ; les jalons sont dans son §19 (G5 : bâtiments).
+dans les documents du projet Claude « Jeu incremental ») ; les jalons sont dans son §19 (prochain : G6, événements et fin de partie).
 
 L'ancienne version web est archivée dans la branche `archive/web` : ne pas la modifier.
 

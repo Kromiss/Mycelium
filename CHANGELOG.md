@@ -6,6 +6,37 @@ L'historique de l'ancienne version web est dans la branche `archive/web`.
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-06
+
+G5 — Bâtiments, et premier équilibrage du jeu.
+
+### Ajouté
+- Trois bâtiments, posés sur ses cases et payés en Enzymes : **Essaimeur** (prend les cases
+  libres), **Avant-poste** (attaque les cases adverses) et **Mortier** (siège : frappe les
+  bâtiments et Sporophores adverses jusqu'à 5 cases, même loin du territoire). Une place par
+  palier, chantier, PV propres et régénération, améliorations et mutations de tir partagées
+  (sans la Salve), Hyphes longues pour les bâtiments, cible désignée au clic partagée.
+- Bâtiment tombé : endormi 60 s, puis à la colonie qui tient sa case. Un bâtiment coupé du
+  Sporophore reste actif et tient son îlot. Démolition (place rendue, sans remboursement).
+- Clic droit sur une de ses cases : roue des bâtiments (Démolir sur un de ses bâtiments) ;
+  carte « Bâtiments » dans le panneau (places, prix, palier), bouton puis clic sur une case.
+  Bâtiments dessinés sur la carte (pictogramme, chantier, sommeil, barre de PV), portée affichée
+  au survol ; journal et info-bulle.
+- Revenu lent d'Enzymes : 1 toutes les 3 s pour chaque colonie en vie.
+- Les robots construisent selon leur profil, sur le front, et déplacent leurs bâtiments inutiles.
+- Outil d'équilibrage en ligne de commande (`tools/balance_report.gd`).
+
+### Modifié
+- La carte glisse au **clic du milieu** (le clic droit sert aux bâtiments).
+- Équilibrage (GDD §5 ter) : améliorations ×1,35 par niveau, cases libres bien plus dures vers
+  le centre, défense des zones ×1,5, paliers ×1,3 à ×4,8 (au lieu de ×2 à ×64), lots d'Enzymes
+  doublés, niveaux maximaux pour Régénération (3), Soin (8), PV des cases (10), Écorce (10),
+  Éclaboussure (5) et Rebond (3). Duel : élimination vers 13 min ; FFA : un seul survivant
+  dans 9 parties sur 10.
+- Robot de jeu en priorité « Plus proche » ; Facile attend 30 s entre deux bâtiments.
+- Mutation *Hyphes longues* : +1 portée aux bâtiments (plus au Sporophore).
+- Format d'enregistrement des rejeux : 4 (les rejeux plus anciens ne se relisent plus).
+
 ## [0.5.2] - 2026-10-05
 
 Réglages du Sporophore et du panneau, avant l'arrivée des bâtiments.

@@ -1,4 +1,4 @@
-# MYCÉLIUM : LAST COLONY — Document de conception, portage Godot (v0.5.2 : Sporophore fixe, bâtiments en préparation)
+# MYCÉLIUM : LAST COLONY — Document de conception, portage Godot (v0.6.0 : bâtiments et équilibrage)
 
 > Jeu incrémental compétitif en parties de **30 minutes maximum**. Chaque joueur incarne une colonie de champignons dont le **cœur est une tourelle** : elle lance des spores qui colorent les cases d'une carte d'hexagones. Plus la colonie a de cases, plus elle produit ; ce qu'elle produit sert à **améliorer sa tourelle** (dégâts, cadence, portée…), qui prend alors encore plus de cases. Le centre de la forêt est le plus riche et le plus disputé : **le but est d'être la dernière colonie vivante.** Trois façons de jouer : **Duel**, **FFA** (jusqu'à 6 colonies) et **Partie personnalisée**. Cible : un **projet Godot exporté en .exe (Windows), distribué sur Steam**.
 
@@ -150,12 +150,14 @@ Six anneaux concentriques de **même épaisseur** : **2 anneaux d'hexagones par 
 
 | Zone | Richesse | PV d'une case libre | Défense d'une case possédée |
 |---|---|---|---|
-| 1 (bord) | ×1,0 | ×1,0 | ×1,0 |
-| 2 | ×1,5 | ×1,4 | ×1,2 |
-| 3 | ×2,0 | ×2,0 | ×1,5 |
-| 4 | ×2,6 | ×2,8 | ×1,8 |
-| 5 | ×3,3 | ×3,8 | ×2,1 |
-| 6 (Clairière) | ×4,0 | ×5,0 | ×2,5 |
+| 1 (bord) | ×1,0 | ×1 | ×1,5 |
+| 2 | ×1,5 | ×5 | ×1,8 |
+| 3 | ×2,0 | ×25 | ×2,25 |
+| 4 | ×2,6 | ×100 | ×2,7 |
+| 5 | ×3,3 | ×350 | ×3,15 |
+| 6 (Clairière) | ×4,0 | ×1 000 | ×3,75 |
+
+*(PV des cases libres et défense des zones changés à l'équilibrage du 6 octobre 2026, §5 ter : avant, ×1 à ×5 et ×1 à ×2,5.)*
 
 Cible : une colonie moyenne atteint la zone N vers la minute 3,5 × N.
 
@@ -202,28 +204,30 @@ La Tourelle est fixe et porte loin seulement à 4 cases : **ce sont les bâtimen
 
 | Bâtiment | Rôle | Cible (fixe par type) | Palier | Prix | Chantier | Portée | Dégâts | Cadence | PV |
 |---|---|---|---|---|---|---|---|---|---|
-| **Essaimeur** | Prend les **cases libres** en tirant des spores ; rien contre l'adversaire | la case libre **la plus proche de lui**, collée à mon territoire | 1 | **10 Enzymes** | 5 s | 2 | ×1 | ×1 | 120 |
-| **Avant-poste** | Petite tourelle **polyvalente** | la case visable la plus proche (libre ou adverse), collée à mon territoire | 2 | **20 Enzymes** | 15 s | 2 | ×1 | ×1 | 200 |
-| **Mortier** | Arme de **siège** | **uniquement** bâtiments et Sporophores adverses à portée, **même loin de mon territoire** ; il ne prend pas de case ; sans cible, il **attend** | 3 | **40 Enzymes** | 30 s | 5 | ×4 | ÷4 | 120 |
+| **Essaimeur** | Prend les **cases libres** en tirant des spores ; rien contre l'adversaire | la case libre **la plus proche de lui**, collée à mon territoire | 1 | **5 Enzymes** | 5 s | 2 | ×1 | ×1 | 120 |
+| **Avant-poste** | Petite tourelle **d'attaque** | la case **adverse** la plus proche, collée à mon territoire (**plus de cases libres**, décidé le 6 octobre 2026) | 2 | **10 Enzymes** | 15 s | 2 | ×1 | ×1 | 200 |
+| **Mortier** | Arme de **siège** | **uniquement** bâtiments et Sporophores adverses à portée, **même loin de mon territoire** ; il ne prend pas de case ; sans cible, il **attend** | 3 | **20 Enzymes** | 30 s | 5 | ×4 | ÷4 | 120 |
 
-Dégâts et cadence sont donnés en multiple de ceux du Sporophore (5 dégâts, 0,2 tir/s au départ) : un Essaimeur tire donc 5 dégâts toutes les 5 s au départ. Valeurs de départ, à équilibrer plus tard (« Petits bâtiments »).
+Dégâts et cadence sont donnés en multiple de ceux du Sporophore (5 dégâts, 0,2 tir/s au départ, cadence **sans la Salve**) : un Essaimeur tire donc 5 dégâts toutes les 5 s au départ. Prix divisés par deux à l'équilibrage du 6 octobre 2026 (§5 ter).
 
 - **Places** : le nombre total de bâtiments est limité : **1 place au palier 1, +1 par palier**.
 - **Où** : sur **n'importe laquelle de mes cases**, sauf celle du Sporophore et une case qui a déjà un bâtiment.
-- **Chantier** : pendant sa durée, le bâtiment ne fait rien et **peut être frappé** ; ses PV montent jusqu'au maximum à la fin du chantier.
+- **Chantier** : pendant sa durée, le bâtiment ne fait rien et **peut être frappé** ; ses PV partent de **10 %** de leur maximum et montent jusqu'au maximum à la fin du chantier (décidé le 6 octobre 2026).
 - **Gestes** :
   - **clic droit sur une de mes cases** : une **roue** s'affiche pour choisir le bâtiment (ceux qui ne sont pas débloqués ou payables sont grisés) ; clic droit sur un de mes bâtiments : la roue propose **Démolir** ;
   - ou **bouton** du bâtiment dans le panneau de droite, puis **clic** sur une de mes cases ;
   - **Échap** ou un **clic droit hors de mes cases** annule ou ferme la roue ;
   - la carte **glisse au clic du milieu** (maintenu) et par les bords de l'écran ; le clic droit ne la fait plus glisser.
-- **Puissance** : les **améliorations de tir** du panneau s'appliquent aussi aux bâtiments : **Dégâts, Cadence, Critique, Éclaboussure, Rebond, Spores par tir**. Pas la Portée ni l'Écorce (Sporophore seul). La mutation **Hyphes longues** donne **+1 portée à tous mes bâtiments** et plus au Sporophore.
+- **Puissance** : les **améliorations de tir** du panneau s'appliquent aussi aux bâtiments : **Dégâts, Cadence, Critique, Éclaboussure, Rebond, Spores par tir**. Pas la Portée ni l'Écorce (Sporophore seul). Les **mutations de tir** aussi (Spores lourdes et légères, Pionnier, Prédateur, Sporée, Toxique), mais **pas la Salve** (décidé le 6 octobre 2026). Le **Mortier n'a ni Éclaboussure ni Rebond** (décidé le 6 octobre 2026). La mutation **Hyphes longues** donne **+1 portée à tous mes bâtiments** et plus au Sporophore.
 - **Cible au clic** : la case désignée au clic gauche (§5.4) est aussi visée en priorité par les bâtiments **qui peuvent la frapper** (le Mortier seulement si c'est un bâtiment ou un Sporophore).
-- **Défense** : un bâtiment a **ses propres PV** ; la case sous lui ne peut être prise qu'une fois le bâtiment tombé. Il **se régénère** comme une case, mais le Sporophore **ne peut pas le soigner**.
+- **Défense** : un bâtiment a **ses propres PV**, multipliés par l'amélioration **PV des cases** (décidé le 6 octobre 2026) ; la case sous lui ne peut être prise qu'une fois le bâtiment tombé. Il **se régénère** comme une case, mais le Sporophore **ne peut pas le soigner**.
+- **Mortier et Sporophores** : le Mortier **peut abattre** un Sporophore ou un bâtiment **même loin de mon territoire** (décidé le 6 octobre 2026 ; les autres tirs laissent une Tourelle qui ne touche pas mon territoire à 1 PV au moins).
 - **Bâtiment tombé** : il devient **endormi pendant 60 s** (il ne fait rien et **ne peut pas être frappé** : on se bat pour la case dessous). Au bout des 60 s, **la colonie qui tient alors la case sous lui l'obtient** : l'attaquant s'il a pris la case entre-temps, sinon son propriétaire le récupère. Il se **réveille à pleine vie**. La colonie qui l'obtient le **garde même sans place libre** (les places ne comptent que pour construire). (Le propriétaire ne doit pas le récupérer « en l'état » trop facilement : c'est ce délai qui laisse une chance aux deux camps.)
-- **Bâtiment coupé du Sporophore** : il **reste actif** et garde sa case, même isolé (exception à la règle des cases coupées, §12).
+- **Bâtiment coupé du Sporophore** : il **reste actif** et garde sa case, même isolé (exception à la règle des cases coupées, §12). **Îlot qui grandit** (décidé le 6 octobre 2026) : les cases qu'il prend autour de lui restent à moi et produisent ; toutes les cases reliées à un de mes bâtiments (en chantier ou actif) restent à moi, même si une prise les coupe à nouveau du Sporophore. Quand ce bâtiment tombe ou est démoli, les cases qui ne sont plus reliées ni au Sporophore ni à un bâtiment redeviennent libres.
+- **Colonie éliminée** : ses bâtiments **s'endorment 60 s**, puis vont à la colonie qui tient alors leur case ; sur une case libre, ils disparaissent (décidé le 6 octobre 2026).
 - **Démolir** : par la roue ; le bâtiment disparaît et sa **place est rendue**, sans remboursement.
 - **Aspect** : un **pictogramme simple** par type dans une pastille à la couleur de la colonie, avec barre de PV ; l'habillage viendra en G7.
-- **Robots** : ils construisent **selon leur profil** : Conquérant, Mortiers et Avant-postes vers l'ennemi ; Bâtisseur, Essaimeurs vers les cases libres riches ; Canonnier, Avant-postes ; robot de jeu, un peu de tout. Toujours sur le front.
+- **Robots** : ils construisent **selon leur profil** : Conquérant, Mortiers et Avant-postes vers l'ennemi ; Bâtisseur, Essaimeurs vers les cases libres riches ; Canonnier, Avant-postes ; robot de jeu, un peu de tout (poids Essaimeur 4, Avant-poste 3, Mortier 2). Toujours sur le front : un bâtiment est posé là où il aura le plus de cases à viser (un Mortier seulement s'il a une cible à portée) ; toutes places prises, un bâtiment qui n'a plus rien à viser est démoli pour reconstruire là où il sert, et le robot garde de quoi payer deux déplacements. Facile attend 30 s entre deux ordres de bâtiment.
 - **Livraison** : **en une fois**, version **0.6.0**.
 
 ### 5 ter. Équilibrage de G5 *(attendus décidés le 5 octobre 2026, QCM)*
@@ -242,6 +246,44 @@ G5 inclut un **équilibrage** du jeu (le choix du 4 octobre de ne pas équilibre
   6. **Rythme** : zone N atteinte vers **3,5 × N min** ; production ×10 000 à ×100 000 sur la partie (~10 → 1e5-1e6 nutriments/s).
   7. **Actions** : **8 à 10 actions par minute** pour un joueur actif (achats, bâtiments, capacités, cibles).
 - **Rendu** : les nouvelles valeurs appliquées dans `data/`, et dans le GDD un tableau **avant / après** avec les **mesures pour chaque cible**.
+
+#### Résultat de l'équilibrage *(6 octobre 2026, version 0.6.0)*
+
+Mesures avec `tools/balance_report.gd` (robot de jeu, graines 1 à 20 ; 1 tick = 1 s, sans affichage). « Avant » = valeurs du 5 octobre avec les bâtiments ; « après » = valeurs livrées.
+
+**Règles décidées pendant l'équilibrage (QCM du 6 octobre 2026)** : revenu lent d'Enzymes ; l'Avant-poste ne vise plus que les cases adverses ; ~30 % de FFA à un seul survivant aurait été accepté (le résultat final est bien meilleur).
+
+| Valeur (`data/`) | Avant | Après |
+|---|---|---|
+| Facteur de coût des améliorations | ×1,15 | **×1,35** |
+| PV des cases libres, zones 1 → 6 | ×1 ; 1,4 ; 2 ; 2,8 ; 3,8 ; 5 | **×1 ; 5 ; 25 ; 100 ; 350 ; 1 000** |
+| Défense des cases possédées, zones 1 → 6 | ×1 ; 1,2 ; 1,5 ; 1,8 ; 2,1 ; 2,5 | **×1,5 ; 1,8 ; 2,25 ; 2,7 ; 3,15 ; 3,75** |
+| Production des paliers 1 → 6 | ×2 ; 4 ; 8 ; 16 ; 32 ; 64 | **×1,3 ; 1,7 ; 2,2 ; 2,85 ; 3,7 ; 4,8** |
+| Lots d'Enzymes des paliers 1 → 6 | 20 ; 40 ; 60 ; 80 ; 100 ; 120 | **40 ; 80 ; 120 ; 160 ; 200 ; 240** |
+| Revenu d'Enzymes | aucun | **1 toutes les 3 s** |
+| Prix Essaimeur / Avant-poste / Mortier | 10 / 20 / 40 Enz. | **5 / 10 / 20 Enz.** |
+| Niveaux max : Régénération, Soin, PV des cases, Écorce, Éclaboussure, Rebond | sans limite | **3, 8, 10, 10, 5, 3** |
+| Robot de jeu : priorité, poids des bâtiments | Plus riche ; — | **Plus proche ; Essaimeur 4, Avant-poste 3, Mortier 2** |
+| Robot Facile : délai entre deux ordres de bâtiment | — | **30 s** |
+
+Inchangés : Sporophore (5 dégâts, 0,2 tir/s, portée 2, 400 PV), protection 2:00, capacités, mutations, Trophée, chantiers, portées, dégâts et PV des bâtiments.
+
+| Cible | Mesure avant | Mesure après | |
+|---|---|---|---|
+| 1. Duel Difficile : élimination entre 12 et 20 min | 1 partie sur 10 ; 4 éliminations sur 10 (3 avant 5:15), sinon blocage jusqu'à 30:00 | **12 sur 20** (médiane 13:00 ; toutes finies par élimination, de 8:12 à 16:36) | atteinte de justesse |
+| 1 bis. Duel Normal | 0 sur 10 | **12 sur 20** (médiane 13:42) | atteinte de justesse |
+| 2. FFA (6) : 1re élimination 8-12 min | aucune élimination (4 parties) | **5:48** en médiane (4:48 à 7:42) | **trop tôt** |
+| 2 bis. FFA : un seul survivant avant 30:00 | 0 sur 4 (6 survivants) | **18 sur 20** (médiane 16:06) | atteinte |
+| 3. Premier bâtiment vers 1:00 | 1:03 | **0:59** | atteinte |
+| 4. Une colonie à un seul type perd | non mesuré | Essaimeurs seuls 0/40, Avant-postes seuls 1/40, Mortiers seuls 0/40 victoires | atteinte |
+| 4 bis. Chaque type ≥ 20 % des bâtiments des gagnants | Mortier 4 % | Duel : Essaimeur 46 %, Avant-poste 34 %, Mortier 20 % ; FFA : 35 / 43 / 23 % | atteinte (Mortier à la limite en Duel) |
+| 5. Le meneur à 10:00 gagne 80-90 % | 7/7 | Duel Difficile : 79 % (production), 89 % (cases) ; Normal : 63 % / 74 % ; FFA : 65 % / 80 % | à peu près |
+| 6. Zone N vers 3,5 × N min | zone 6 à 2:36 | zones 2 à 6 : 2:00, 4:00, 7:12, 10:06, 14:06 (Duel) | trop rapide au début, proche ensuite |
+| 6 bis. Production ×10 000 à ×100 000 | pic 1,4e6/s | pic médian **3,5e4/s** (×3 500), max 1,2e5/s | un peu bas |
+| 7. 8 à 10 actions par minute | 27 | robots : **20** ordres par minute (un achat = un niveau) | non mesurable sur un joueur ; à vérifier en jouant |
+| Facile perd contre Normal ≥ 80 % | non mesuré | **95 %** (38 sur 40) | atteinte |
+
+À reprendre plus tard : la 1re élimination trop tôt en FFA (les Écorce, PV de la Tourelle et paliers du Mortier n'y changent presque rien), le rythme des zones 2 et 3, et la production de fin de partie.
 
 ---
 
@@ -285,27 +327,27 @@ PV de la Tourelle = **400** (10 × les PV de base d'une case, 40) : seules l'am�
 | Ressource | Rôle | Source |
 |---|---|---|
 | **Nutriments** | Achat des améliorations | Toutes mes cases |
-| **Enzymes** | Capacités actives (§11) | **Paliers de colonie** (un lot à chaque palier atteint, décidé le 4 octobre 2026) |
+| **Enzymes** | Capacités actives (§11) et bâtiments (§5 bis) | **Paliers de colonie** (un lot à chaque palier atteint, décidé le 4 octobre 2026), **Trophées**, et un **revenu lent** : 1 Enzyme toutes les 3 s pour chaque colonie en vie (décidé le 6 octobre 2026 ; valeurs de l'équilibrage) |
 | **Biomasse** | Total des nutriments produits : départage à 30:00 et statistiques | Production |
 
 - **Pas de plafond de stock** : tout se dépense en améliorations.
-- Lots d'Enzymes : 20 au palier 1, puis 40, 60, 80, 100 et 120. Un palier perdu puis retrouvé ne redonne pas son lot.
+- Lots d'Enzymes : 40 au palier 1, puis 80, 120, 160, 200 et 240 (doublés à l'équilibrage du 6 octobre 2026). Un palier perdu puis retrouvé ne redonne pas son lot.
 
 ### 8.2 Production
 Une case de zone 1 rapporte **≈ 3,33 nutriments/s**, multipliée par la **richesse de sa zone**, la **Cohésion** (+5 % par voisine possédée, +30 % au plus), les **paliers**, l'**Armillaire** (×1,00 → ×1,25 sur 30 min) et les événements. Les multiplicateurs se **multiplient** entre eux.
 
 ### 8.3 Paliers de colonie
-Quand le **nombre de cases** franchit un seuil, **la production de la colonie double**, la colonie reçoit son **lot d'Enzymes** et le joueur **choisit une mutation** (§10) :
+Quand le **nombre de cases** franchit un seuil, **la production de la colonie monte** (×2 par palier avant l'équilibrage du 6 octobre 2026, désormais ×1,3 environ), la colonie reçoit son **lot d'Enzymes**, **une place de bâtiment** et le joueur **choisit une mutation** (§10) :
 
 | Palier | Cases | Production | Débloque |
 |---|---|---|---|
 | Départ | 3 | ×1 | Dégâts, Cadence, Portée, Rendement |
-| 1 | 5 | ×2 | Régénération, Soin, capacité **Salve** |
-| 2 | 10 | ×4 | Spores par tir, PV des cases |
-| 3 | 20 | ×8 | Éclaboussure, capacité **Mur de mycélium** |
-| 4 | 40 | ×16 | Critique, Écorce du Sporophore |
-| 5 | 80 | ×32 | Rebond, capacité **Nuage toxique** |
-| 6 | 160 | ×64 | (le prestige du conquérant) |
+| 1 | 5 | ×1,3 | Régénération, Soin, capacité **Salve**, **Essaimeur** |
+| 2 | 10 | ×1,7 | Spores par tir, PV des cases, **Avant-poste** |
+| 3 | 20 | ×2,2 | Éclaboussure, capacité **Mur de mycélium**, **Mortier** |
+| 4 | 40 | ×2,85 | Critique, Écorce du Sporophore |
+| 5 | 80 | ×3,7 | Rebond, capacité **Nuage toxique** |
+| 6 | 160 | ×4,8 | (le prestige du conquérant) |
 
 - Seules les cases possédées comptent, Tourelle comprise.
 - Le multiplicateur suit le **nombre de cases actuel** : perdre des cases peut faire perdre un palier. Les niveaux déjà achetés d'une amélioration dont le palier est perdu **restent actifs** ; on ne peut simplement plus en acheter avant de retrouver le palier.
@@ -326,7 +368,7 @@ Cible : **~10 nutriments/s au départ → 1e5 à 1e6 nutriments/s en fin de part
 ### 9.1 Principe
 - Le côté incrémental est un **panneau à droite de l'écran** ; la **carte est à gauche**.
 - On y achète des **améliorations à niveaux** avec les nutriments : dégâts de la tourelle, vitesse d'attaque, etc.
-- Coût d'un niveau = coût de base × **1,15 ^ niveau** ; chaque niveau ajoute le même effet (pas de jalons tous les 25 niveaux, idée non retenue). Bouton **×1 / ×10 / Max** pour acheter plusieurs niveaux d'un coup.
+- Coût d'un niveau = coût de base × **1,35 ^ niveau** (1,15 avant l'équilibrage du 6 octobre 2026) ; chaque niveau ajoute le même effet (pas de jalons tous les 25 niveaux, idée non retenue). Bouton **×1 / ×10 / Max** pour acheter plusieurs niveaux d'un coup.
 
 ### 9.2 Catalogue
 
@@ -336,14 +378,14 @@ Cible : **~10 nutriments/s au départ → 1e5 à 1e6 nutriments/s en fin de part
 | **Cadence** | +10 % de tirs par seconde | 2 U | Départ |
 | **Portée** | +1 case de rayon (**2 niveaux au plus** : portée 4, décidé le 5 octobre 2026) | 10 U, ×3 par niveau | Départ |
 | **Rendement** | +10 % de production de mes cases | 2 U | Départ |
-| **Régénération** | +1 % des PV max par seconde | 5 U | 1 |
-| **Soin** | +25 % de soin par spore | 5 U | 1 |
+| **Régénération** | +1 % des PV max par seconde (**3 niveaux au plus**, 6 octobre 2026) | 5 U | 1 |
+| **Soin** | +25 % de soin par spore (**8 niveaux au plus**) | 5 U | 1 |
 | **Spores par tir** | +1 cible visée à chaque tir (5 au plus) : les spores en plus visent **d'autres cases**, dans l'ordre de la priorité, chacune gardée jusqu'à sa prise (décidé le 4 octobre 2026) | 50 U, ×4 par niveau | 2 |
-| **PV des cases** | +20 % des PV max de mes cases | 20 U | 2 |
-| **Éclaboussure** | +10 % des dégâts aussi infligés aux voisines de la case touchée | 100 U | 3 |
+| **PV des cases** | +20 % des PV max de mes cases et de mes bâtiments (**10 niveaux au plus**) | 20 U | 2 |
+| **Éclaboussure** | +10 % des dégâts aussi infligés aux voisines de la case touchée (**5 niveaux au plus**) | 100 U | 3 |
 | **Critique** | +5 % de chance de dégâts ×3 (50 % au plus) | 300 U | 4 |
-| **Écorce du Sporophore** | +25 % des PV de la Tourelle | 300 U | 4 |
-| **Rebond** | quand une spore prend une case, +1 case voisine touchée avec le reste des dégâts | 1 000 U | 5 |
+| **Écorce du Sporophore** | +25 % des PV de la Tourelle (**10 niveaux au plus**) | 300 U | 4 |
+| **Rebond** | quand une spore prend une case, +1 case voisine touchée avec le reste des dégâts (**3 niveaux au plus**) | 1 000 U | 5 |
 
 U = 30 nutriments, comme avant.
 
@@ -356,7 +398,7 @@ U = 30 nutriments, comme avant.
 Liste (14 mutations ; *Rapide* supprimée le 5 octobre 2026 avec le déplacement ; les 3 proposées sont tirées sans remise parmi celles pas encore prises). **La partie continue pendant le choix**, sans limite de temps. Si un nouveau palier arrive avant le choix, **les choix s'empilent** : on choisit le premier, puis les 3 cartes du suivant s'affichent (décidé le 4 octobre 2026).
 - *Spores lourdes* : dégâts ×1,5, cadence ×0,8.
 - *Spores légères* : cadence ×1,4, dégâts ×0,8.
-- *Hyphes longues* : portée +1.
+- *Hyphes longues* : portée +1 de **tous mes bâtiments** (plus du Sporophore, décidé le 5 octobre 2026).
 - *Cohésion* : la Cohésion compte double (production et PV).
 - *Mycélium tenace* : régénération ×2.
 - *Racines profondes* : production des zones 4 à 6 ×1,3.
@@ -435,7 +477,7 @@ Cosmétiques gagnés en jouant (titres, couleurs de réseau, apparences de Toure
 
 ```
 production_case    = rendement × richesse_zone × (1 + 0,05 × voisines) × modif_événement
-production_totale  = Σ production_case (cases reliées) × 2 ^ paliers × bonus_souche(t)
+production_totale  = Σ production_case (cases reliées) × mult_palier × bonus_souche(t)
                      × (1 + 0,10 × niveau_Rendement) × (1 + 0,25 × trophées) × mutations
 bonus_souche(t)    = 1,00 + 0,25 × t / 30 min
 pv_case_libre      = 40 × pv_zone
@@ -444,7 +486,7 @@ régénération       = pv_max × (2 % + 1 % × niveau_Régénération) par seco
 dégâts_tir         = 10 × (1 + 0,25 × niveau_Dégâts) × mutations (× 3 si critique)
 tirs_par_seconde   = 1 × (1 + 0,10 × niveau_Cadence) × mutations
 soin_tir           = dégâts_tir × 50 % × (1 + 0,25 × niveau_Soin)
-coût_niveau        = coût_base × 1,15 ^ niveau
+coût_niveau        = coût_base × 1,35 ^ niveau   (1,15 avant le 6 octobre 2026)
 ```
 Chiffres décidés le 4 octobre 2026, comme points de départ à simuler.
 
@@ -502,8 +544,9 @@ Les couleurs de colonie sont **éclaircies si besoin** en mode sombre pour garde
 
 ### 16.5 Caméra et commandes
 - **Déplacement** : **clic du milieu** maintenu (clic droit jusqu'à la 0.5.2 ; le clic droit sert aux bâtiments en G5, §5 bis) et souris contre les **bords de l'écran** ; **zoom** à la molette, centré sur la souris.
-- **Clic gauche** : désigne une case comme cible prioritaire (§5.4).
-- **Raccourcis par défaut** : **Espace** recentre sur la Tourelle ; **P** pause (Bac à sable) ; **Échap** annule le geste en cours ou ouvre le menu de partie ; **Q, W, E** capacités ; **1 à 3** choisissent une mutation quand les cartes sont affichées. **Pas de touches pour les priorités de tir** (souris seulement, décidé le 4 octobre 2026). Tous modifiables dans les Paramètres ; une touche ne sert qu'à une action ; un bouton remet les touches par défaut.
+- **Clic gauche** : désigne une case comme cible prioritaire (§5.4), du Sporophore et des bâtiments qui peuvent la frapper.
+- **Clic droit** sur une de mes cases : roue des bâtiments (§5 bis) ; ailleurs, il annule le geste en cours et ferme la roue.
+- **Raccourcis par défaut** : **Espace** recentre sur la Tourelle ; **P** pause (Bac à sable) ; **Échap** ferme la roue des bâtiments, annule le geste en cours ou ouvre le menu de partie ; **Q, W, E** capacités ; **1 à 3** choisissent une mutation quand les cartes sont affichées. **Pas de touches pour les priorités de tir** (souris seulement, décidé le 4 octobre 2026). Tous modifiables dans les Paramètres ; une touche ne sert qu'à une action ; un bouton remet les touches par défaut.
 
 ### 16.6 Paramètres
 Affichage (plein écran, fenêtré, résolution, **thème clair / sombre / système**), audio, langue (français et anglais), commandes (raccourcis modifiables), accessibilité (taille de l'interface, palette adaptée au daltonisme).
@@ -557,6 +600,9 @@ Points de règle que l'étape 1 a dû trancher pour écrire le code, sans questi
 
 ### Réglages du Sporophore et bâtiments (5 octobre 2026, QCM)
 Sporophore **fixe** : plus de déplacement, de touche D, de mutation *Rapide* (14 mutations) ni de pas des robots (§5.5) ; portée **2**, amélioration Portée limitée à **2 niveaux** (portée 4) ; **0,2 tir/s et 5 dégâts** (§6.3), sans compenser la régénération : prendre une case adverse demande des améliorations ou des bâtiments ; cadre « Mes mutations » réduit à **une ligne d'icônes** et lignes d'améliorations **compactes** (§16.2). **Bâtiments** (jalon G5, sans maquettes) : Essaimeur, Avant-poste, Mortier ; places par palier ; améliorations partagées ; cibles fixes par type ; PV propres ; bâtiment tombé endormi 60 s (intouchable) puis à la colonie qui tient sa case, réveillé à pleine vie et gardé même sans place ; bâtiment coupé du Sporophore : reste actif (§5 bis). Ensuite : Essaimeur qui tire sur les cases libres les plus proches ; pose par roue au clic droit ou bouton puis clic, glisser la carte au clic du milieu ; prix 10 / 20 / 40 Enzymes ; chantier 5 / 15 / 30 s ; « petits bâtiments » ; Mortier par-dessus le territoire, contre bâtiments et Sporophores seulement ; démolition (place rendue) ; Hyphes longues pour les bâtiments seulement ; améliorations de tir partagées ; régénération sans soin ; cible au clic partagée ; robots selon leur profil ; pictogrammes ; livraison en une fois (0.6.0).
+
+### Décisions de G5 (6 octobre 2026, QCM)
+Le Mortier peut abattre de loin un Sporophore ou un bâtiment ; un bâtiment coupé du Sporophore tient son îlot, qui grandit et reste à moi tant qu'il est relié à un de mes bâtiments ; les bâtiments d'une colonie éliminée s'endorment 60 s ; mutations de tir pour les bâtiments, sans la Salve ; chantier à 10 % de ses PV ; PV des bâtiments × amélioration PV des cases ; Mortier sans Éclaboussure ni Rebond ; revenu lent d'Enzymes ; Avant-poste sur les cases adverses seulement ; FFA à 2-3 survivants accepté (§5 bis, §5 ter, §8.1).
 
 ### Questions ouvertes
 - **Triche de l'hôte** : la vérification par empreinte suffit-elle pour un classement du Duel ?
@@ -629,7 +675,7 @@ Outil d'équilibrage disponible **uniquement quand le jeu est lancé depuis l'é
 | **G2** *(livré, 0.3.0)* | Remplacé par G3 |
 | **G3 : Le Sporophore et l'affrontement** *(livré, 0.4.0 : étapes 1 et 2 le 4 octobre 2026, étape 3 le 5 octobre 2026)* | **Suppression** du code de G1 et G2 qui ne sert plus ; Tourelle (tir automatique, portée, priorités, cible au clic, déplacement pas à pas) ; PV, régénération et soin ; panneau d'améliorations à droite ; paliers avec Enzymes et mutations ; capacités ; Armillaire ; **affrontement entre Tourelles, élimination et Trophée** ; écran carte + panneau ; Bac à sable avec adversaires robots. Maquettes **validées le 4 octobre 2026**. Livré en **trois étapes** : 1) simulation et tests ; 2) affichage, panneau et Bac à sable ; 3) robots Canonnier, Bâtisseur et Conquérant (adversaires du Bac à sable et panneau de simulations à plusieurs robots) ; version **0.4.0** |
 | **G4 : Combattre des robots** *(décidé le 5 octobre 2026 : uniquement le combat contre les robots ; livré le 5 octobre 2026, 0.5.0)* | Duel et FFA contre robots : menus Jouer, robots de jeu (3 difficultés, profils), **fin de partie minimale** (rang, statistiques de base, retour au menu) ; version **0.5.0** |
-| **G5 : Bâtiments** *(décidé le 5 octobre 2026, sans maquettes)* | Essaimeur, Avant-poste, Mortier (§5 bis) : simulation et tests, affichage et gestes de construction dans le style actuel, robots qui construisent ; version **0.6.0** |
+| **G5 : Bâtiments** *(décidé le 5 octobre 2026, sans maquettes ; livré le 6 octobre 2026, 0.6.0)* | Essaimeur, Avant-poste, Mortier (§5 bis) : simulation et tests, affichage et gestes de construction dans le style actuel, robots qui construisent ; version **0.6.0** |
 | **G6 : Événements et fin de partie** | Floraison collective et Arbre mourant, frise, journal et alertes complets, écran de résultats complet, spectateur après élimination ; version **0.7.0** |
 | **G7 : Habillage et bêta solo** | Tutoriel (8 étapes, §2.7), audio, profil et statistiques, traduction, essais avec de vrais joueurs (sans Steam) |
 | **G8 : Multijoueur** | Étape 1 : tests entre amis avec l'App ID 480 (Steam, salons, invitations, relais, hébergement par un joueur, empreinte, déconnexion). Étape 2 : file d'attente, FFA et Duel entre joueurs, partie personnalisée complète, chat, interface d'administration |
@@ -647,7 +693,7 @@ Le 5 octobre 2026, les **bâtiments** deviennent **G5** ; les jalons suivants so
 Elles seront posées sous forme de QCM au début du jalon concerné.
 
 ### G5 : Bâtiments (§5 bis)
-*Toutes tranchées le 5 octobre 2026 (QCM), voir §5 bis.*
+*Toutes tranchées le 5 et le 6 octobre 2026 (QCM), voir §5 bis et §5 ter.* Pas encore fait : les réglages des bâtiments (prix, PV, portée…) dans le Bac à sable ; les constantes (places, chantier, sommeil, revenu d'Enzymes) y sont.
 
 ### G4 : Combattre des robots
 *Questions 1 à 8 et 10 tranchées le 5 octobre 2026 (§17, « Décisions de G4 ») ; restent 9 et 11.*
