@@ -63,7 +63,8 @@ func test_deep_roots_only_boost_central_zones() -> void:
 
 func test_production_follows_the_tier_multiplier() -> void:
 	_colony().tier = 3
-	assert_eq(ColonyStats.production_factor(_sim.state, _colony()), 8_000)
+	var expected: int = _sim.state.defs.tier_production_pm[2]
+	assert_eq(ColonyStats.production_factor(_sim.state, _colony()), expected)
 
 
 func test_colonies_get_a_slow_enzyme_income() -> void:

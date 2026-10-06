@@ -132,6 +132,11 @@ SANDBOX_CRIT_DAMAGE,Critical hit damage (×),Dégâts d'un coup critique (×)
 SANDBOX_PROTECTION,Starting protection (s),Protection de départ (s)
 SANDBOX_TROPHY_PRODUCTION,Trophy: production bonus (%),Trophée : bonus de production (%)
 SANDBOX_TROPHY_ENZYMES,Trophy: Enzymes,Trophée : Enzymes
+SANDBOX_ENZYME_INCOME,Enzyme income (per lot),Revenu d'Enzymes (par lot)
+SANDBOX_ENZYME_INCOME_TICKS,Enzyme income: seconds between two lots (0: none),Revenu d'Enzymes : secondes entre deux lots (0 : aucun)
+SANDBOX_BUILDING_SLOTS,Building slots per tier,Places de bâtiment par palier
+SANDBOX_BUILDING_START_HP,Building site: starting HP (% of max),Chantier : PV de départ (% du max)
+SANDBOX_BUILDING_SLEEP,Fallen building: sleep (s),Bâtiment tombé : sommeil (s)
 SANDBOX_ZONE_FREE_HP,Free cell HP ×,PV d'une case libre ×
 SANDBOX_ZONE_DEFENSE,Owned cell HP ×,PV d'une case possédée ×
 SANDBOX_TIER_ENZYMES,Enzymes,Enzymes

@@ -11,13 +11,21 @@ const EDGE_0 := Vector2i(11, -1)
 
 
 ## Définitions de Duel, sans régénération si « regen » est faux (calculs de PV plus simples).
-## La Tourelle garde des valeurs fixes (10 dégâts, 1 tir/s, portée 3) : les tests de mécanique
-## ne dépendent pas de l'équilibrage de data/balance.tres.
+## La Tourelle, les PV des zones, les lots d'Enzymes, le facteur de coût et les prix des
+## bâtiments gardent des valeurs fixes (10 dégâts, 1 tir/s, portée 3…), sans revenu d'Enzymes :
+## les tests de mécanique ne dépendent pas de l'équilibrage de data/.
 static func duel_defs(regen: bool = true) -> SimDefs:
 	var defs: SimDefs = SimDefs.from_mode(DUEL)
 	defs.turret_damage = 10_000
 	defs.turret_rate_pm = 1000
 	defs.turret_range = 3
+	defs.zone_free_hp_pm = PackedInt32Array([1000, 1400, 2000, 2800, 3800, 5000])
+	defs.zone_defense_pm = PackedInt32Array([1000, 1200, 1500, 1800, 2100, 2500])
+	defs.tier_enzymes = PackedInt32Array([20, 40, 60, 80, 100, 120])
+	defs.upgrade_cost_growth_pm = 1150
+	defs.enzyme_income_ticks = 0
+	for building: SimBuilding in defs.buildings:
+		building.cost_enzymes = [10, 20, 40][defs.buildings.find(building)]
 	if not regen:
 		defs.regen_pm = 0
 	return defs

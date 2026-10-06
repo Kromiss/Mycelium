@@ -174,7 +174,8 @@ func test_the_journal_notes_tiers_mutations_and_the_end_of_protection() -> void:
 	_session.step()
 	var texts: PackedStringArray = _hud.journal().texts()
 	assert_string_contains(texts[0], "Mutation chosen: ")
-	assert_eq(texts[1], "00:00 · Tier 1 reached: +20 Enzymes")
+	var lot: int = _session.simulation.state.defs.tier_enzymes[0]
+	assert_eq(texts[1], "00:00 · Tier 1 reached: +%d Enzymes" % lot)
 	_session.simulation.state.tick = _session.simulation.state.defs.protection_ticks - 1
 	_session.step()
 	assert_string_contains(_hud.journal().texts()[0], "Starting protection over")

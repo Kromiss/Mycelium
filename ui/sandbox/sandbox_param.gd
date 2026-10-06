@@ -29,6 +29,11 @@ const GENERAL_FIELDS: Array[Array] = [
 	["protection_ticks", "SANDBOX_PROTECTION", 1.0, 0.0, 1800.0, 1.0],
 	["trophy_production_pm", "SANDBOX_TROPHY_PRODUCTION", 10.0, 0.0, 1000.0, 0.1],
 	["trophy_enzymes", "SANDBOX_TROPHY_ENZYMES", 1.0, 0.0, 100_000.0, 1.0],
+	["enzyme_income", "SANDBOX_ENZYME_INCOME", 1.0, 0.0, 10_000.0, 1.0],
+	["enzyme_income_ticks", "SANDBOX_ENZYME_INCOME_TICKS", 1.0, 0.0, 1800.0, 1.0],
+	["building_slots_per_tier", "SANDBOX_BUILDING_SLOTS", 1.0, 0.0, 100.0, 1.0],
+	["building_start_hp_pm", "SANDBOX_BUILDING_START_HP", 10.0, 0.0, 100.0, 0.1],
+	["building_sleep_ticks", "SANDBOX_BUILDING_SLEEP", 1.0, 0.0, 1800.0, 1.0],
 ]
 ## Colonnes des zones et des paliers : champ (tableau de SimDefs), clé, unités, min, max, pas.
 const ZONE_FIELDS: Array[Array] = [

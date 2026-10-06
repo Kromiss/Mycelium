@@ -39,10 +39,10 @@ func _inner() -> int:
 	return _session.simulation.cell_index(Fixture.INNER_0)
 
 
-## Palier 1 et de quoi payer un Essaimeur.
+## Palier 1 et de quoi payer un Essaimeur, tout juste.
 func _ready_to_build() -> void:
 	_colony().tier = 1
-	_colony().enzymes = Fixed.from_units(10)
+	_colony().enzymes = Fixed.from_units(_session.simulation.state.defs.buildings[0].cost_enzymes)
 	_hud.buildings.refresh()
 
 

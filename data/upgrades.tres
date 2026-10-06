@@ -60,7 +60,7 @@ stat = 4
 effect = 10
 base_cost_units = 5
 cost_growth_pm = 0
-max_level = 0
+max_level = 3
 unlock_tier = 1
 
 [sub_resource type="Resource" id="upgrade_6"]
@@ -72,7 +72,7 @@ stat = 5
 effect = 250
 base_cost_units = 5
 cost_growth_pm = 0
-max_level = 0
+max_level = 8
 unlock_tier = 1
 
 [sub_resource type="Resource" id="upgrade_7"]
@@ -96,7 +96,7 @@ stat = 7
 effect = 200
 base_cost_units = 20
 cost_growth_pm = 0
-max_level = 0
+max_level = 10
 unlock_tier = 2
 
 [sub_resource type="Resource" id="upgrade_9"]
@@ -108,7 +108,7 @@ stat = 8
 effect = 100
 base_cost_units = 100
 cost_growth_pm = 0
-max_level = 0
+max_level = 5
 unlock_tier = 3
 
 [sub_resource type="Resource" id="upgrade_10"]
@@ -132,7 +132,7 @@ stat = 10
 effect = 250
 base_cost_units = 300
 cost_growth_pm = 0
-max_level = 0
+max_level = 10
 unlock_tier = 4
 
 [sub_resource type="Resource" id="upgrade_12"]
@@ -144,7 +144,7 @@ stat = 11
 effect = 1
 base_cost_units = 1000
 cost_growth_pm = 0
-max_level = 0
+max_level = 3
 unlock_tier = 5
 
 [resource]

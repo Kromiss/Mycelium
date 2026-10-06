@@ -195,7 +195,7 @@ func test_recap_lists_settings_and_results() -> void:
 		"U: cost unit of upgrades: 30",
 		"Sporophore: damage per spore: 5",
 		"Sporophore: range (cells): 2",
-		"Zone 2 — Richness ×: 1.5, Free cell HP ×: 1.4, Owned cell HP ×: 1.2",
+		"Zone 2 — Richness ×: 1.5, Free cell HP ×: 5, Owned cell HP ×: 1.8",
 		"Damage — Effect per level: 250",
 		"Salvo — Enzymes: 20",
 		"Results at 00:05",
