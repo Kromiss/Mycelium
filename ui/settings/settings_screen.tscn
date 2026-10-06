@@ -24,7 +24,7 @@ layout_mode = 2
 
 [node name="Column" type="VBoxContainer" parent="Center/Card"]
 layout_mode = 2
-theme_override_constants/separation = 28
+theme_override_constants/separation = 20
 
 [node name="Title" type="Label" parent="Center/Card/Column"]
 layout_mode = 2
@@ -39,6 +39,7 @@ theme_override_constants/v_separation = 18
 columns = 2
 
 [node name="ThemeLabel" type="Label" parent="Center/Card/Column/Grid"]
+custom_minimum_size = Vector2(360, 0)
 layout_mode = 2
 text = "SETTINGS_THEME"
 
@@ -70,6 +71,33 @@ text = "SETTINGS_RESOLUTION"
 [node name="ResolutionOption" type="OptionButton" parent="Center/Card/Column/Grid"]
 unique_name_in_owner = true
 layout_mode = 2
+
+[node name="ControlsTitle" type="Label" parent="Center/Card/Column"]
+layout_mode = 2
+theme_type_variation = &"HeaderLabel"
+text = "SETTINGS_CONTROLS"
+horizontal_alignment = 1
+
+[node name="ControlsGrid" type="GridContainer" parent="Center/Card/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/h_separation = 40
+theme_override_constants/v_separation = 12
+columns = 2
+
+[node name="ControlsMessage" type="Label" parent="Center/Card/Column"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_type_variation = &"HintLabel"
+horizontal_alignment = 1
+
+[node name="ResetControlsButton" type="Button" parent="Center/Card/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 4
+theme_type_variation = &"SmallButton"
+text = "CONTROLS_RESET"
 
 [node name="BackButton" type="Button" parent="Center/Card/Column"]
 unique_name_in_owner = true

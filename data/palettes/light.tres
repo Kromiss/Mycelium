@@ -15,3 +15,7 @@ zone_center = Color(0.878431, 0.780392, 0.682353, 1)
 bubble_from_zone = true
 bubble_darken = 0.12
 zone_line = Color(0.168627, 0.141176, 0.188235, 1)
+panel = Color(0.964706, 0.933333, 0.886275, 1)
+pill = Color(0.952941, 0.917647, 0.87451, 1)
+scrim = Color(0.231373, 0.2, 0.25098, 0.58)
+scrim_text = Color(1, 0.992157, 0.972549, 1)

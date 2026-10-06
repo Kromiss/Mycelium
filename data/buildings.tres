@@ -1,0 +1,47 @@
+[gd_resource type="Resource" script_class="BuildingTable" load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://sim/defs/building_def.gd" id="1_item"]
+[ext_resource type="Script" path="res://sim/defs/building_table.gd" id="2_table"]
+
+[sub_resource type="Resource" id="building_1"]
+script = ExtResource("1_item")
+id = &"swarmer"
+name_key = "BUILDING_SWARMER"
+kind = 0
+unlock_tier = 1
+cost_enzymes = 5
+build_ticks = 5
+reach = 2
+damage_pm = 1000
+rate_pm = 1000
+hp = 120000
+
+[sub_resource type="Resource" id="building_2"]
+script = ExtResource("1_item")
+id = &"outpost"
+name_key = "BUILDING_OUTPOST"
+kind = 1
+unlock_tier = 2
+cost_enzymes = 10
+build_ticks = 15
+reach = 2
+damage_pm = 1000
+rate_pm = 1000
+hp = 200000
+
+[sub_resource type="Resource" id="building_3"]
+script = ExtResource("1_item")
+id = &"mortar"
+name_key = "BUILDING_MORTAR"
+kind = 2
+unlock_tier = 3
+cost_enzymes = 20
+build_ticks = 30
+reach = 5
+damage_pm = 4000
+rate_pm = 250
+hp = 120000
+
+[resource]
+script = ExtResource("2_table")
+buildings = Array[ExtResource("1_item")]([SubResource("building_1"), SubResource("building_2"), SubResource("building_3")])

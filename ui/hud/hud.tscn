@@ -1,0 +1,332 @@
+[gd_scene load_steps=12 format=3]
+
+[ext_resource type="Script" path="res://ui/hud/hud.gd" id="1_hud"]
+[ext_resource type="Script" path="res://ui/hud/timeline_card.gd" id="2_timeline"]
+[ext_resource type="Script" path="res://ui/hud/ranking_card.gd" id="3_ranking"]
+[ext_resource type="Script" path="res://ui/hud/journal_card.gd" id="4_journal"]
+[ext_resource type="Script" path="res://ui/hud/mutation_overlay.gd" id="5_overlay"]
+[ext_resource type="Script" path="res://ui/hud/resources_card.gd" id="6_resources"]
+[ext_resource type="Script" path="res://ui/hud/turret_card.gd" id="7_turret"]
+[ext_resource type="Script" path="res://ui/hud/mutations_card.gd" id="8_mutations"]
+[ext_resource type="Script" path="res://ui/hud/upgrades_card.gd" id="9_upgrades"]
+[ext_resource type="Script" path="res://ui/hud/ability_bar.gd" id="10_abilities"]
+[ext_resource type="Script" path="res://ui/hud/buildings_card.gd" id="11_buildings"]
+
+[node name="Hud" type="Control"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+layout_mode = 3
+mouse_filter = 2
+script = ExtResource("1_hud")
+
+[node name="MapArea" type="Control" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 9
+anchor_right = 0.6172
+anchor_bottom = 1.0
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="TimelineCard" type="PanelContainer" parent="MapArea"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 24.0
+offset_top = 21.0
+offset_right = 729.0
+offset_bottom = 120.0
+script = ExtResource("2_timeline")
+
+[node name="RankingCard" type="PanelContainer" parent="MapArea"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -339.0
+offset_top = 21.0
+offset_right = -24.0
+offset_bottom = 120.0
+grow_horizontal = 0
+script = ExtResource("3_ranking")
+
+[node name="JournalCard" type="PanelContainer" parent="MapArea"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = -180.0
+offset_right = 519.0
+offset_bottom = -21.0
+grow_vertical = 0
+script = ExtResource("4_journal")
+
+[node name="HintPanel" type="PanelContainer" parent="MapArea"]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 543.0
+offset_top = -78.0
+offset_right = 600.0
+offset_bottom = -21.0
+grow_vertical = 0
+mouse_filter = 2
+theme_type_variation = &"TipPanel"
+
+[node name="HintLabel" type="Label" parent="MapArea/HintPanel"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"BodyHintLabel"
+
+[node name="ToastCenter" type="CenterContainer" parent="MapArea"]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_top = 200.0
+offset_bottom = 260.0
+grow_horizontal = 2
+mouse_filter = 2
+
+[node name="Toast" type="PanelContainer" parent="MapArea/ToastCenter"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"TipPanel"
+
+[node name="ToastLabel" type="Label" parent="MapArea/ToastCenter/Toast"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="PausedLabel" type="Label" parent="MapArea"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -200.0
+offset_top = 270.0
+offset_right = 200.0
+offset_bottom = 310.0
+grow_horizontal = 2
+theme_type_variation = &"HintLabel"
+text = "HUD_PAUSED"
+horizontal_alignment = 1
+
+[node name="Banner" type="Label" parent="MapArea"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -500.0
+offset_top = 330.0
+offset_right = 500.0
+offset_bottom = 440.0
+grow_horizontal = 2
+pivot_offset = Vector2(500, 55)
+mouse_filter = 2
+theme_type_variation = &"BannerLabel"
+horizontal_alignment = 1
+
+[node name="MutationOverlay" type="Control" parent="MapArea"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("5_overlay")
+
+[node name="SidePanel" type="PanelContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 11
+anchor_left = 0.6172
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 0
+grow_vertical = 2
+theme_type_variation = &"GamePanel"
+
+[node name="Side" type="VBoxContainer" parent="SidePanel"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="ResourcesCard" type="PanelContainer" parent="SidePanel/Side"]
+unique_name_in_owner = true
+layout_mode = 2
+script = ExtResource("6_resources")
+
+[node name="TurretCard" type="PanelContainer" parent="SidePanel/Side"]
+unique_name_in_owner = true
+layout_mode = 2
+script = ExtResource("7_turret")
+
+[node name="MutationsCard" type="PanelContainer" parent="SidePanel/Side"]
+unique_name_in_owner = true
+layout_mode = 2
+script = ExtResource("8_mutations")
+
+[node name="BuildingsCard" type="PanelContainer" parent="SidePanel/Side"]
+unique_name_in_owner = true
+layout_mode = 2
+script = ExtResource("11_buildings")
+
+[node name="UpgradesCard" type="PanelContainer" parent="SidePanel/Side"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+script = ExtResource("9_upgrades")
+
+[node name="AbilityBar" type="PanelContainer" parent="SidePanel/Side"]
+unique_name_in_owner = true
+layout_mode = 2
+script = ExtResource("10_abilities")
+
+[node name="Tooltip" type="PanelContainer" parent="."]
+unique_name_in_owner = true
+visible = false
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 40.0
+mouse_filter = 2
+theme_type_variation = &"TipPanel"
+
+[node name="TooltipLabel" type="Label" parent="Tooltip"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"SmallLabel"
+
+[node name="GameMenu" type="Control" parent="."]
+unique_name_in_owner = true
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+visible = false
+layout_mode = 1
+
+[node name="MenuDim" type="ColorRect" parent="GameMenu"]
+unique_name_in_owner = true
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+layout_mode = 1
+
+[node name="MenuCenter" type="CenterContainer" parent="GameMenu"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+layout_mode = 1
+
+[node name="MenuCard" type="PanelContainer" parent="GameMenu/MenuCenter"]
+layout_mode = 2
+
+[node name="MenuColumn" type="VBoxContainer" parent="GameMenu/MenuCenter/MenuCard"]
+custom_minimum_size = Vector2(460, 0)
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="MenuTitle" type="Label" parent="GameMenu/MenuCenter/MenuCard/MenuColumn"]
+layout_mode = 2
+theme_type_variation = &"HeaderLabel"
+text = "GAME_MENU_TITLE"
+horizontal_alignment = 1
+
+[node name="ResumeButton" type="Button" parent="GameMenu/MenuCenter/MenuCard/MenuColumn"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "GAME_MENU_RESUME"
+
+[node name="MenuRecapButton" type="Button" parent="GameMenu/MenuCenter/MenuCard/MenuColumn"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "HUD_RECAP"
+
+[node name="RestartButton" type="Button" parent="GameMenu/MenuCenter/MenuCard/MenuColumn"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "GAME_MENU_RESTART"
+
+[node name="QuitButton" type="Button" parent="GameMenu/MenuCenter/MenuCard/MenuColumn"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "GAME_MENU_QUIT"
+
+[node name="EndPanel" type="Control" parent="."]
+unique_name_in_owner = true
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+visible = false
+layout_mode = 1
+
+[node name="EndDim" type="ColorRect" parent="EndPanel"]
+unique_name_in_owner = true
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+layout_mode = 1
+
+[node name="EndCenter" type="CenterContainer" parent="EndPanel"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+layout_mode = 1
+
+[node name="EndCard" type="PanelContainer" parent="EndPanel/EndCenter"]
+layout_mode = 2
+
+[node name="EndColumn" type="VBoxContainer" parent="EndPanel/EndCenter/EndCard"]
+custom_minimum_size = Vector2(640, 0)
+layout_mode = 2
+theme_override_constants/separation = 18
+
+[node name="EndTitle" type="Label" parent="EndPanel/EndCenter/EndCard/EndColumn"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"HeaderLabel"
+text = "END_TITLE"
+horizontal_alignment = 1
+
+[node name="EndSummary" type="Label" parent="EndPanel/EndCenter/EndCard/EndColumn"]
+unique_name_in_owner = true
+layout_mode = 2
+horizontal_alignment = 1
+
+[node name="EndRecapButton" type="Button" parent="EndPanel/EndCenter/EndCard/EndColumn"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "HUD_RECAP"
+
+[node name="ReplayButton" type="Button" parent="EndPanel/EndCenter/EndCard/EndColumn"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "END_REPLAY"
+
+[node name="EndMenuButton" type="Button" parent="EndPanel/EndCenter/EndCard/EndColumn"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "END_MENU"

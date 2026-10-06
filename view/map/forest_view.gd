@@ -10,6 +10,7 @@ extends Node2D
 @export_range(0.3, 0.74) var bubble_ratio: float = 0.62
 
 var _map: ForestMap
+var _palette: Palette
 var _outlines: Array[PackedVector2Array] = []
 
 @onready var _zone_fill: ZoneLayer = %ZoneFill
@@ -31,6 +32,7 @@ func setup(map: ForestMap, palette: Palette) -> void:
 func apply_palette(palette: Palette) -> void:
 	if _map == null:
 		return
+	_palette = palette
 	var fills: Array[Color] = []
 	var lines: Array[Color] = []
 	for zone: int in range(1, _map.zone_count + 1):
@@ -43,6 +45,43 @@ func apply_palette(palette: Palette) -> void:
 		multimesh.set_instance_color(
 			index, palette.bubble_color(_map.zones[index], _map.zone_count)
 		)
+
+
+## Carte affichée.
+func map() -> ForestMap:
+	return _map
+
+
+## Rayon d'une bulle, en pixels de carte.
+func bubble_radius() -> float:
+	return hex_size * bubble_ratio
+
+
+## Couleur d'une bulle libre (selon sa zone et le thème).
+func base_bubble_color(index: int) -> Color:
+	return _palette.bubble_color(_map.zones[index], _map.zone_count)
+
+
+## Change la couleur d'une bulle (cases d'une colonie, effets).
+func set_bubble_color(index: int, color: Color) -> void:
+	_bubbles.multimesh.set_instance_color(index, color)
+
+
+## Rend à une bulle sa couleur de case libre.
+func reset_bubble_color(index: int) -> void:
+	set_bubble_color(index, base_bubble_color(index))
+
+
+## Case de la carte sous un point (en pixels de carte), ou −1 hors de la forêt.
+func cell_at(point: Vector2) -> int:
+	if _map == null:
+		return -1
+	return _map.index_of(Hex.from_pixel(point - position, hex_size))
+
+
+## Centre d'une case, en pixels de carte.
+func cell_center(index: int) -> Vector2:
+	return position + Hex.to_pixel(_map.cells[index], hex_size)
 
 
 ## Rectangle qui contient toute la forêt, en pixels de carte.

@@ -50,6 +50,11 @@ unique_name_in_owner = true
 layout_mode = 2
 text = "MENU_FFA"
 
+[node name="SandboxButton" type="Button" parent="Center/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "MENU_SANDBOX"
+
 [node name="CustomButton" type="Button" parent="Center/Column"]
 layout_mode = 2
 disabled = true
@@ -64,6 +69,12 @@ text = "MENU_TUTORIAL_SOON"
 layout_mode = 2
 disabled = true
 text = "MENU_PROFILE_SOON"
+
+[node name="SimulationsButton" type="Button" parent="Center/Column"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+text = "MENU_SIMULATIONS"
 
 [node name="SettingsButton" type="Button" parent="Center/Column"]
 unique_name_in_owner = true

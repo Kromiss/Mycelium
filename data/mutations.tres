@@ -1,0 +1,108 @@
+[gd_resource type="Resource" script_class="MutationTable" load_steps=17 format=3]
+
+[ext_resource type="Script" path="res://sim/defs/mutation_def.gd" id="1_item"]
+[ext_resource type="Script" path="res://sim/defs/mutation_table.gd" id="2_table"]
+
+[sub_resource type="Resource" id="mutation_1"]
+script = ExtResource("1_item")
+id = &"heavy_spores"
+name_key = "MUTATION_HEAVY_SPORES"
+desc_key = "MUTATION_HEAVY_SPORES_DESC"
+damage_pm = 1500
+rate_pm = 800
+
+[sub_resource type="Resource" id="mutation_2"]
+script = ExtResource("1_item")
+id = &"light_spores"
+name_key = "MUTATION_LIGHT_SPORES"
+desc_key = "MUTATION_LIGHT_SPORES_DESC"
+rate_pm = 1400
+damage_pm = 800
+
+[sub_resource type="Resource" id="mutation_3"]
+script = ExtResource("1_item")
+id = &"long_hyphae"
+name_key = "MUTATION_LONG_HYPHAE"
+desc_key = "MUTATION_LONG_HYPHAE_DESC"
+building_range_add = 1
+
+[sub_resource type="Resource" id="mutation_4"]
+script = ExtResource("1_item")
+id = &"cohesion"
+name_key = "MUTATION_COHESION"
+desc_key = "MUTATION_COHESION_DESC"
+cohesion_pm = 2000
+
+[sub_resource type="Resource" id="mutation_5"]
+script = ExtResource("1_item")
+id = &"tenacious"
+name_key = "MUTATION_TENACIOUS"
+desc_key = "MUTATION_TENACIOUS_DESC"
+regen_pm = 2000
+
+[sub_resource type="Resource" id="mutation_6"]
+script = ExtResource("1_item")
+id = &"deep_roots"
+name_key = "MUTATION_DEEP_ROOTS"
+desc_key = "MUTATION_DEEP_ROOTS_DESC"
+deep_production_pm = 1300
+
+[sub_resource type="Resource" id="mutation_7"]
+script = ExtResource("1_item")
+id = &"pioneer"
+name_key = "MUTATION_PIONEER"
+desc_key = "MUTATION_PIONEER_DESC"
+free_damage_pm = 1500
+
+[sub_resource type="Resource" id="mutation_8"]
+script = ExtResource("1_item")
+id = &"predator"
+name_key = "MUTATION_PREDATOR"
+desc_key = "MUTATION_PREDATOR_DESC"
+enemy_damage_pm = 1300
+
+[sub_resource type="Resource" id="mutation_9"]
+script = ExtResource("1_item")
+id = &"healer"
+name_key = "MUTATION_HEALER"
+desc_key = "MUTATION_HEALER_DESC"
+heal_pm = 2000
+
+[sub_resource type="Resource" id="mutation_10"]
+script = ExtResource("1_item")
+id = &"spore_burst"
+name_key = "MUTATION_SPORE_BURST"
+desc_key = "MUTATION_SPORE_BURST_DESC"
+spores_add = 1
+
+[sub_resource type="Resource" id="mutation_11"]
+script = ExtResource("1_item")
+id = &"gland"
+name_key = "MUTATION_GLAND"
+desc_key = "MUTATION_GLAND_DESC"
+enzymes_pm = 1500
+
+[sub_resource type="Resource" id="mutation_13"]
+script = ExtResource("1_item")
+id = &"armored"
+name_key = "MUTATION_ARMORED"
+desc_key = "MUTATION_ARMORED_DESC"
+turret_hp_pm = 2000
+
+[sub_resource type="Resource" id="mutation_14"]
+script = ExtResource("1_item")
+id = &"toxic"
+name_key = "MUTATION_TOXIC"
+desc_key = "MUTATION_TOXIC_DESC"
+toxic_ticks = 5
+
+[sub_resource type="Resource" id="mutation_15"]
+script = ExtResource("1_item")
+id = &"miser"
+name_key = "MUTATION_MISER"
+desc_key = "MUTATION_MISER_DESC"
+cost_pm = 850
+
+[resource]
+script = ExtResource("2_table")
+mutations = Array[ExtResource("1_item")]([SubResource("mutation_1"), SubResource("mutation_2"), SubResource("mutation_3"), SubResource("mutation_4"), SubResource("mutation_5"), SubResource("mutation_6"), SubResource("mutation_7"), SubResource("mutation_8"), SubResource("mutation_9"), SubResource("mutation_10"), SubResource("mutation_11"), SubResource("mutation_13"), SubResource("mutation_14"), SubResource("mutation_15")])

@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="RobotProfile" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://ai/robot_profile.gd" id="1_profile"]
+
+[resource]
+script = ExtResource("1_profile")
+id = &"gunner"
+name_key = "ROBOT_GUNNER"
+upgrade_weights = Dictionary[StringName, int]({&"damage": 10, &"rate": 10, &"crit": 5, &"spores": 4, &"splash": 3, &"bounce": 3, &"range": 3, &"yield": 4, &"regen": 1, &"heal": 1, &"cell_hp": 1, &"turret_hp": 2})
+mutation_weights = Dictionary[StringName, int]({&"heavy_spores": 8, &"light_spores": 8, &"spore_burst": 7, &"pioneer": 6, &"predator": 5, &"long_hyphae": 5, &"miser": 5, &"toxic": 4, &"gland": 3, &"cohesion": 3, &"deep_roots": 3, &"armored": 3, &"tenacious": 2, &"healer": 2})
+priority = 1
+defense_priority = 3
+defense_hold_ticks = 10
+hunts_turrets = true
+abilities = Array[StringName]([&"salvo", &"wall", &"cloud"])
+building_weights = Dictionary[StringName, int]({&"outpost": 6, &"swarmer": 2, &"mortar": 2})
+free_cell_value = 10
+rich_zone_value = 0
+enemy_cell_value = 20
+enemy_turret_value = 50
+enemy_building_value = 20

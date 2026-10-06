@@ -6,14 +6,16 @@ Lis ce fichier en entier avant d'agir, puis le document de `docs/` qui correspon
 
 ## Le projet
 
-**Mycelium : Last Colony** est un city builder incrémental compétitif, en parties de 30 minutes
-maximum : chaque joueur fait grandir une colonie de champignons sur une carte d'hexagones, et le but
-est d'être la dernière colonie vivante. Modes Duel, FFA (jusqu'à 6) et Partie personnalisée, contre
+**Mycelium : Last Colony** est un jeu incrémental compétitif, en parties de 30 minutes maximum :
+chaque colonie de champignons a pour cœur une tourelle, le Sporophore, qui lance des spores et prend
+les cases d'une carte d'hexagones ; la production des cases paie les améliorations de la tourelle, et
+le but est d'être la dernière colonie vivante (refonte du 4 octobre 2026 : plus de colonisation au
+clic ; depuis le 5 octobre 2026, le Sporophore est fixe ; trois bâtiments — Essaimeur, Avant-poste, Mortier — font avancer le front depuis la 0.6.0, GDD §5 bis). Modes Duel, FFA (jusqu'à 6) et Partie personnalisée, contre
 des robots puis en ligne. Cible : un exécutable Windows, distribué sur Steam.
 
 Les détails de game design se décident avec le propriétaire (Kromiss) : **ne jamais inventer de règle
 de jeu, et poser la question au moindre doute**. La référence est `docs/GDD_Mycelium_Godot.md` (aussi
-dans les documents du projet Claude « Jeu incremental ») ; les jalons sont dans son §15.
+dans les documents du projet Claude « Jeu incremental ») ; les jalons sont dans son §19 (prochain : G6, événements et fin de partie).
 
 L'ancienne version web est archivée dans la branche `archive/web` : ne pas la modifier.
 
@@ -29,10 +31,12 @@ formatage et style avec gdtoolkit 4.5.0. Le détail de l'arborescence est dans
 | `data/` | équilibrage et contenu (ressources `.tres`) |
 | `view/` | affichage de la carte (lecture seule) |
 | `ui/` | écrans et thème de l'interface |
-| `game/` | assemblage d'une partie |
+| `game/` | assemblage d'une partie (`Session`) |
+| `net/` | transport des commandes (local ; Steam au G8) |
+| `ai/` | robots Canonnier, Bâtisseur et Conquérant (profils dans `ai/profiles/`) |
 | `autoload/` | singletons `Settings` et `SceneRouter` |
 | `tests/` | tests GUT (`unit/`, `integration/`) |
-| `tools/` | outils de développement (captures d'écran…) |
+| `tools/` | outils de développement, exclus de l'export (captures d'écran, simulations…) |
 | `.github/workflows/` | CI, build de main, Release |
 
 Commandes (avec `godot` = l'exécutable Godot 4.6.3) :
@@ -40,8 +44,8 @@ Commandes (avec `godot` = l'exécutable Godot 4.6.3) :
 ```bash
 godot --headless --import                                              # importer le projet
 godot --headless -s addons/gut/gut_cmdln.gd -gconfig=res://.gutconfig.json   # tests
-gdformat --check autoload game sim ui view tests tools                 # formatage
-gdlint autoload game sim ui view tests tools                           # style
+gdformat --check ai autoload game net sim ui view tests tools                 # formatage
+gdlint ai autoload game net sim ui view tests tools                           # style
 godot --headless --export-release "Windows Desktop" build/windows/Mycelium.exe   # export
 ```
 

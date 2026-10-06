@@ -1,5 +1,6 @@
 extends GutTest
-## Cohérence des données : zones, modes, palettes et traductions.
+## Cohérence des données : zones, paliers, améliorations, mutations, capacités, bâtiments,
+## modes et traductions.
 
 # Chargées avec load() : un preload() en constante fausse ici la vérification des types.
 const ZONES_PATH: String = "res://data/zones.tres"
@@ -14,9 +15,34 @@ const SOURCES: Array[String] = [
 	"res://ui/menus/main_menu.gd",
 	"res://ui/settings/settings_screen.tscn",
 	"res://ui/settings/settings_screen.gd",
-	"res://game/forest_screen.tscn",
+	"res://ui/sandbox/sandbox_setup.tscn",
+	"res://ui/sandbox/sandbox_setup.gd",
+	"res://ui/hud/hud.tscn",
+	"res://ui/hud/hud.gd",
+	"res://ui/hud/cell_tooltip.gd",
+	"res://ui/hud/hud_journal.gd",
+	"res://ui/hud/buildings_card.gd",
+	"res://ui/hud/build_wheel.gd",
+	"res://ui/sandbox/sandbox_param.gd",
+	"res://ui/sandbox/settings_form.gd",
+	"res://ui/sandbox/settings_form.tscn",
+	"res://game/sandbox_recap.gd",
+	"res://game/game_screen.gd",
+	"res://view/input/map_input.gd",
+	"res://autoload/settings_store.gd",
+	"res://data/colors.tres",
 	"res://data/modes/duel.tres",
 	"res://data/modes/ffa.tres",
+	"res://ai/robot_catalog.gd",
+	"res://ai/profiles/gunner.tres",
+	"res://ai/profiles/builder.tres",
+	"res://ai/profiles/conqueror.tres",
+	"res://data/robots/game_robot.tres",
+	"res://data/robots/easy.tres",
+	"res://data/robots/normal.tres",
+	"res://data/robots/hard.tres",
+	"res://ui/play/play_setup.gd",
+	"res://ui/play/play_setup.tscn",
 ]
 
 
@@ -33,9 +59,8 @@ func test_zones_get_richer_and_harder_towards_the_center() -> void:
 		var previous: ZoneDef = zones.zones[i - 1]
 		var current: ZoneDef = zones.zones[i]
 		assert_gt(current.richness_pm, previous.richness_pm)
-		assert_gt(current.colonize_cost_pm, previous.colonize_cost_pm)
-		assert_gt(current.growth_time_pm, previous.growth_time_pm)
-		assert_gt(current.capture_time_pm, previous.capture_time_pm)
+		assert_gt(current.free_hp_pm, previous.free_hp_pm)
+		assert_gt(current.defense_pm, previous.defense_pm)
 
 
 func test_modes_have_equitable_colony_counts() -> void:
@@ -43,6 +68,123 @@ func test_modes_have_equitable_colony_counts() -> void:
 	for mode: ModeDef in MODES:
 		assert_has([2, 3, 6], mode.colonies, String(mode.id))
 		assert_gt(mode.rings_per_zone, 0)
+
+
+func test_tiers_double_production_at_growing_thresholds() -> void:
+	var tiers: TierTable = load("res://data/tiers.tres")
+	assert_eq(tiers.count(), 6)
+	var cells: int = MapGenerator.START_CELLS
+	var production: int = Fixed.ONE
+	for i: int in range(tiers.count()):
+		var tier: TierDef = tiers.tiers[i]
+		assert_eq(tier.tier, i + 1)
+		assert_gt(tier.cells, cells)
+		assert_gt(tier.production_pm, production)
+		assert_gt(tier.enzymes, 0)
+		cells = tier.cells
+		production = tier.production_pm
+
+
+func test_balance_values_are_usable() -> void:
+	for mode: ModeDef in MODES:
+		var defs: SimDefs = SimDefs.from_mode(mode)
+		assert_eq(defs.validate(), PackedStringArray(), String(mode.id))
+		assert_eq(defs.radius(), MapGenerator.generate(mode, 6).radius)
+	var balance: BalanceDef = load("res://data/balance.tres")
+	assert_gt(balance.unit_cost, 0)
+	assert_gt(balance.cell_yield, 0)
+	assert_gt(balance.turret_damage, 0)
+	assert_gt(balance.cell_hp, 0)
+	assert_lt(balance.protection_ticks, balance.match_ticks)
+
+
+func test_upgrades_match_the_catalogue() -> void:
+	var table: UpgradeTable = load("res://data/upgrades.tres")
+	var ids: Array[StringName] = []
+	for upgrade: UpgradeDef in table.upgrades:
+		assert_false(ids.has(upgrade.id), String(upgrade.id))
+		ids.append(upgrade.id)
+		assert_gt(upgrade.effect, 0, String(upgrade.id))
+		assert_gt(upgrade.base_cost_units, 0, String(upgrade.id))
+		assert_between(upgrade.unlock_tier, 0, 6, String(upgrade.id))
+	assert_eq(
+		ids,
+		[
+			&"damage",
+			&"rate",
+			&"range",
+			&"yield",
+			&"regen",
+			&"heal",
+			&"spores",
+			&"cell_hp",
+			&"splash",
+			&"crit",
+			&"turret_hp",
+			&"bounce",
+		]
+	)
+
+
+func test_every_mutation_changes_something() -> void:
+	var table: MutationTable = load("res://data/mutations.tres")
+	assert_eq(table.mutations.size(), 14)
+	var neutral := MutationDef.new()
+	for mutation: MutationDef in table.mutations:
+		var changes: int = 0
+		for property: Dictionary in mutation.get_property_list():
+			var name: String = property["name"]
+			if property["usage"] & PROPERTY_USAGE_SCRIPT_VARIABLE == 0:
+				continue
+			if name in ["id", "name_key", "desc_key"]:
+				continue
+			if mutation.get(name) != neutral.get(name):
+				changes += 1
+		assert_gt(changes, 0, String(mutation.id))
+
+
+func test_abilities_unlock_at_tiers_one_three_and_five() -> void:
+	var table: AbilityTable = load("res://data/abilities.tres")
+	var tiers: Array[int] = []
+	for ability: AbilityDef in table.abilities:
+		tiers.append(ability.unlock_tier)
+	assert_eq(tiers, [1, 3, 5])
+
+
+func test_three_buildings_unlock_at_tiers_one_two_and_three() -> void:
+	var table: BuildingTable = load("res://data/buildings.tres")
+	var ids: Array[StringName] = []
+	var kinds: Array[int] = []
+	var tiers: Array[int] = []
+	for building: BuildingDef in table.buildings:
+		ids.append(building.id)
+		kinds.append(building.kind)
+		tiers.append(building.unlock_tier)
+		assert_gt(building.cost_enzymes, 0, String(building.id))
+		assert_gt(building.hp, 0, String(building.id))
+		assert_gt(building.reach, 0, String(building.id))
+	assert_eq(ids, [&"swarmer", &"outpost", &"mortar"])
+	assert_eq(kinds, [BuildingDef.Kind.SWARMER, BuildingDef.Kind.OUTPOST, BuildingDef.Kind.MORTAR])
+	assert_eq(tiers, [1, 2, 3])
+
+
+func test_content_names_are_translated() -> void:
+	var rows: Dictionary[String, PackedStringArray] = _translation_rows()
+	var defs: SimDefs = SimDefs.from_mode(MODES[0])
+	var keys: Array[String] = []
+	for upgrade: SimUpgrade in defs.upgrades:
+		keys.append(upgrade.name_key)
+	for mutation: SimMutation in defs.mutations:
+		keys.append_array([mutation.name_key, mutation.desc_key])
+	for ability: SimAbility in defs.abilities:
+		keys.append(ability.name_key)
+	for building: SimBuilding in defs.buildings:
+		keys.append_array([building.name_key, building.name_key + "_DESC"])
+	for name: String in Refusal.Code.keys():
+		if name != "OK":
+			keys.append("REFUSAL_" + name)
+	for key: String in keys:
+		assert_true(rows.has(key), key)
 
 
 func test_every_translation_has_english_and_french() -> void:

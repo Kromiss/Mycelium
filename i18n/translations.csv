@@ -25,4 +25,412 @@ SETTINGS_RESOLUTION,Window size,Taille de la fenêtre
 SETTINGS_BACK,Back,Retour
 FOREST_MODE_DUEL,Duel forest,Forêt de Duel
 FOREST_MODE_FFA,FFA forest,Forêt de FFA
-FOREST_HINT,Right-click drag or screen edges: move · Wheel: zoom · Esc: menu,Clic droit maintenu ou bords de l'écran : déplacer · Molette : zoom · Échap : menu
+MENU_SANDBOX,Sandbox,Bac à sable
+SANDBOX_TITLE,Sandbox,Bac à sable
+SANDBOX_INTRO,"Alone or against robots, every number can be changed. Games last 30 minutes.","Seul ou contre des robots, tous les chiffres sont modifiables. Une partie dure 30 minutes."
+SANDBOX_FOREST,Forest,Forêt
+SANDBOX_SEED,Seed,Graine
+SANDBOX_NEW_SEED,New seed,Nouvelle graine
+SANDBOX_UNIT_COST,U: cost unit of upgrades,U : unité de coût des améliorations
+SANDBOX_CELL_YIELD,Yield of a zone 1 cell (nutrients/s),Rendement d'une case de zone 1 (nutriments/s)
+SANDBOX_START_STOCK,Starting stock (in U),Stock de départ (en U)
+SANDBOX_COST_GROWTH,Upgrade cost increase per level (×),Hausse du coût d'une amélioration par niveau (×)
+SANDBOX_COHESION,Cohesion: production per owned neighbour (%),Cohésion : production par voisine possédée (%)
+SANDBOX_ZONES,Zones,Zones
+SANDBOX_ZONE,Zone,Zone
+SANDBOX_RICHNESS,Richness ×,Richesse ×
+SANDBOX_TIERS,Colony tiers,Paliers de colonie
+SANDBOX_TIER,Tier,Palier
+SANDBOX_TIER_CELLS,Cells,Cases
+SANDBOX_TIER_PRODUCTION,Production ×,Production ×
+SANDBOX_DEFAULTS,Default values,Valeurs par défaut
+SANDBOX_LAUNCH,Start,Lancer
+SANDBOX_BACK,Back,Retour
+SANDBOX_INVALID,Invalid settings: %s,Réglages invalides : %s
+HUD_NUTRIENTS,Nutrients,Nutriments
+HUD_PER_SECOND,+%s /s,+%s /s
+HUD_BIOMASS,Biomass,Biomasse
+HUD_PRODUCTION,Production,Production
+HUD_TIER,Tier %d · %s,Palier %d · %s
+HUD_TIER_START,Start · ×1,Départ · ×1
+HUD_NEXT_TIER,%d / %d cells → %s,%d / %d cases → %s
+HUD_LAST_TIER,Last tier reached · %d cells,Dernier palier atteint · %d cases
+HUD_CLOCK,%s / %s,%s / %s
+HUD_PAUSE,Pause,Pause
+HUD_RESUME,Resume,Reprendre
+HUD_SPEED,Speed ×%d,Vitesse ×%d
+HUD_RECAP,Copy summary,Copier le récapitulatif
+HUD_COPIED,Summary copied to the clipboard,Récapitulatif copié dans le presse-papiers
+HUD_PAUSED,Paused,En pause
+HUD_PAUSED_NO_ORDERS,Paused: orders are blocked,En pause : les ordres sont bloqués
+HUD_HINT_SPECTATOR,Robot game · %s: pause · Speed: up to ×64,Partie de robots · %s : pause · Vitesse : jusqu'à ×64
+HUD_SPECTATOR_NO_ORDERS,Watching a robot game: no orders,Partie de robots regardée : aucun ordre
+HUD_TIER_BANNER,Tier %s!,Palier %s !
+HUD_HINT,Click: target · Right click: build,Clic : viser · Clic droit : construire
+TIP_ZONE,Zone %d,Zone %d
+TIP_FREE,Free cell,Case libre
+TIP_OWNED,Your colony,Ta colonie
+TIP_PRODUCTION,Production: %s /s,Production : %s /s
+GAME_MENU_TITLE,Game menu,Menu de partie
+GAME_MENU_RESUME,Resume,Reprendre
+GAME_MENU_RESTART,Restart,Recommencer
+GAME_MENU_QUIT,Quit to the main menu,Quitter vers le menu
+END_TITLE,Time's up!,Fin de la partie
+END_REPLAY,Play again with the same settings,Rejouer avec les mêmes réglages
+END_MENU,Main menu,Menu principal
+RECAP_HEADER,%s %s — Sandbox,%s %s — Bac à sable
+RECAP_SETTINGS,Settings,Réglages
+RECAP_FOREST,Forest: %s (radius %d) · seed %d,Forêt : %s (rayon %d) · graine %d
+RECAP_RESULTS,Results at %s,Résultats à %s
+RECAP_CELLS,Cells: %d · tier %d (%s),Cases : %d · palier %d (%s)
+RECAP_PRODUCTION,Production: %s/s (peak %s/s) · biomass: %s · nutrients: %s,Production : %s/s (record %s/s) · biomasse : %s · nutriments : %s
+RECAP_TIER_TIMES,Tiers reached: %s,Paliers atteints : %s
+RECAP_ZONE_TIMES,Zones reached: %s,Zones atteintes : %s
+RECAP_AT,%d at %s,%d à %s
+RECAP_NONE,none,aucun
+SETTINGS_CONTROLS,Controls,Commandes
+ACTION_RECENTER,Centre on the Sporophore,Recentrer sur le Sporophore
+ACTION_PAUSE,Pause (sandbox),Pause (Bac à sable)
+ACTION_MENU,Game menu / back,Menu de partie / retour
+CONTROLS_PRESS_KEY,Press a key…,Appuie sur une touche…
+CONTROLS_RESET,Default controls,Commandes par défaut
+CONTROLS_KEY_TAKEN,Key already used by: %s,Touche déjà utilisée par : %s
+COLOR_LAVENDER,Lavender,Lavande
+COLOR_CORAL,Coral,Corail
+COLOR_MINT,Mint,Menthe
+COLOR_SKY,Sky,Ciel
+COLOR_CANDY,Candy,Bonbon
+COLOR_LEMON,Lemon,Citron
+COLOR_APPLE,Apple,Pomme
+COLOR_APRICOT,Apricot,Abricot
+COLOR_PLUM,Plum,Prune
+COLOR_LAGOON,Lagoon,Lagon
+COLOR_RASPBERRY,Raspberry,Framboise
+COLOR_INDIGO,Indigo,Indigo
+KEY_SHIFT,Shift,Maj
+KEY_SPACE,Space,Espace
+KEY_ESCAPE,Esc,Échap
+KEY_ENTER,Enter,Entrée
+KEY_BACKSPACE,Backspace,Retour arrière
+KEY_TAB,Tab,Tab
+KEY_CTRL,Ctrl,Ctrl
+HUD_ENZYMES,Enzymes,Enzymes
+SANDBOX_GENERAL,General,Général
+SANDBOX_COHESION_CAP,Cohesion: production cap (%),Cohésion : plafond de production (%)
+SANDBOX_STRAIN,Armillaria: production bonus at 30:00 (%),Armillaire : bonus de production à 30:00 (%)
+SANDBOX_CELL_HP,Base cell HP,PV de base d'une case
+SANDBOX_COHESION_HP,Cohesion: HP per owned neighbour (%),Cohésion : PV par voisine possédée (%)
+SANDBOX_REGEN,Regeneration (% of max HP per second),Régénération (% des PV max par seconde)
+SANDBOX_CAPTURED_HP,HP of a captured enemy cell (% of max),PV d'une case adverse prise (% du max)
+SANDBOX_TURRET_DAMAGE,Sporophore: damage per spore,Sporophore : dégâts par spore
+SANDBOX_TURRET_RATE,Sporophore: shots per second,Sporophore : tirs par seconde
+SANDBOX_TURRET_RANGE,Sporophore: range (cells),Sporophore : portée (cases)
+SANDBOX_TURRET_SPORES,Sporophore: spores per shot,Sporophore : spores par tir
+SANDBOX_TURRET_HP,Sporophore: HP (in base cell HP),Sporophore : PV (en PV de base d'une case)
+SANDBOX_HEAL,Heal per spore (% of damage),Soin par spore (% des dégâts)
+SANDBOX_CRIT_DAMAGE,Critical hit damage (×),Dégâts d'un coup critique (×)
+SANDBOX_PROTECTION,Starting protection (s),Protection de départ (s)
+SANDBOX_TROPHY_PRODUCTION,Trophy: production bonus (%),Trophée : bonus de production (%)
+SANDBOX_TROPHY_ENZYMES,Trophy: Enzymes,Trophée : Enzymes
+SANDBOX_ENZYME_INCOME,Enzyme income (per lot),Revenu d'Enzymes (par lot)
+SANDBOX_ENZYME_INCOME_TICKS,Enzyme income: seconds between two lots (0: none),Revenu d'Enzymes : secondes entre deux lots (0 : aucun)
+SANDBOX_BUILDING_SLOTS,Building slots per tier,Places de bâtiment par palier
+SANDBOX_BUILDING_START_HP,Building site: starting HP (% of max),Chantier : PV de départ (% du max)
+SANDBOX_BUILDING_SLEEP,Fallen building: sleep (s),Bâtiment tombé : sommeil (s)
+SANDBOX_ZONE_FREE_HP,Free cell HP ×,PV d'une case libre ×
+SANDBOX_ZONE_DEFENSE,Owned cell HP ×,PV d'une case possédée ×
+SANDBOX_TIER_ENZYMES,Enzymes,Enzymes
+SANDBOX_UPGRADES,Upgrades,Améliorations
+SANDBOX_UPGRADE,Upgrade,Amélioration
+SANDBOX_UPGRADE_EFFECT,Effect per level,Effet par niveau
+SANDBOX_UPGRADE_COST,Base cost (U),Coût de base (U)
+SANDBOX_UPGRADE_GROWTH,Cost × per level (0: general),Coût × par niveau (0 : général)
+SANDBOX_UPGRADE_MAX,Maximum level (0: none),Niveau maximal (0 : aucun)
+SANDBOX_UNLOCK_TIER,Tier,Palier
+SANDBOX_ABILITIES,Abilities,Capacités
+SANDBOX_ABILITY,Ability,Capacité
+SANDBOX_ABILITY_COST,Enzymes,Enzymes
+SANDBOX_ABILITY_COOLDOWN,Cooldown (s),Recharge (s)
+SANDBOX_ABILITY_DURATION,Duration (s),Durée (s)
+SANDBOX_ABILITY_RATE,Rate ×,Cadence ×
+SANDBOX_ABILITY_RADIUS,Radius,Rayon
+SANDBOX_ABILITY_SHOTS,Shots of damage,Tirs de dégâts
+HUD_ELIMINATED,Your Sporophore has fallen,Ton Sporophore est tombé
+TIP_TURRET,Sporophore,Sporophore
+TIP_ENEMY,Enemy colony,Colonie adverse
+TIP_HP,HP: %s / %s,PV : %s / %s
+TIP_TARGETABLE,Click to target,Clic pour viser
+RECAP_PAIR,%s: %s,%s : %s
+RECAP_COMBAT,Enzymes: %s · cells captured: %d · trophies: %d,Enzymes : %s · cases prises : %d · trophées : %d
+RECAP_UPGRADES,Upgrades: %s,Améliorations : %s
+RECAP_MUTATIONS,Mutations: %s,Mutations : %s
+UPGRADE_DAMAGE,Damage,Dégâts
+UPGRADE_RATE,Fire rate,Cadence
+UPGRADE_RANGE,Range,Portée
+UPGRADE_YIELD,Yield,Rendement
+UPGRADE_REGEN,Regeneration,Régénération
+UPGRADE_HEAL,Healing,Soin
+UPGRADE_SPORES,Spores per shot,Spores par tir
+UPGRADE_CELL_HP,Cell HP,PV des cases
+UPGRADE_SPLASH,Splash,Éclaboussure
+UPGRADE_CRIT,Critical hit,Critique
+UPGRADE_TURRET_HP,Sporophore bark,Écorce du Sporophore
+UPGRADE_BOUNCE,Bounce,Rebond
+MUTATION_HEAVY_SPORES,Heavy spores,Spores lourdes
+MUTATION_HEAVY_SPORES_DESC,"Damage ×1.5, fire rate ×0.8","Dégâts ×1,5, cadence ×0,8"
+MUTATION_LIGHT_SPORES,Light spores,Spores légères
+MUTATION_LIGHT_SPORES_DESC,"Fire rate ×1.4, damage ×0.8","Cadence ×1,4, dégâts ×0,8"
+MUTATION_LONG_HYPHAE,Long hyphae,Hyphes longues
+MUTATION_LONG_HYPHAE_DESC,Range of your buildings +1,Portée de tes bâtiments +1
+MUTATION_COHESION,Cohesion,Cohésion
+MUTATION_COHESION_DESC,Cohesion counts double (production and HP),La Cohésion compte double (production et PV)
+MUTATION_TENACIOUS,Tenacious mycelium,Mycélium tenace
+MUTATION_TENACIOUS_DESC,Regeneration ×2,Régénération ×2
+MUTATION_DEEP_ROOTS,Deep roots,Racines profondes
+MUTATION_DEEP_ROOTS_DESC,Production in zones 4 to 6 ×1.3,"Production des zones 4 à 6 ×1,3"
+MUTATION_PIONEER,Pioneer,Pionnier
+MUTATION_PIONEER_DESC,Free cells take ×1.5 damage,"Les cases libres prennent ×1,5 dégâts"
+MUTATION_PREDATOR,Predator,Prédateur
+MUTATION_PREDATOR_DESC,Enemy cells take ×1.3 damage,"Les cases adverses prennent ×1,3 dégâts"
+MUTATION_HEALER,Healer,Guérisseur
+MUTATION_HEALER_DESC,Healing ×2,Soin ×2
+MUTATION_SPORE_BURST,Spore burst,Sporée
+MUTATION_SPORE_BURST_DESC,+1 spore per shot,+1 spore par tir
+MUTATION_GLAND,Gland,Glande
+MUTATION_GLAND_DESC,+50% Enzymes at the next tiers,+50 % d'Enzymes aux prochains paliers
+MUTATION_ARMORED,Armoured,Blindé
+MUTATION_ARMORED_DESC,Sporophore HP ×2,PV du Sporophore ×2
+MUTATION_TOXIC,Toxic,Toxique
+MUTATION_TOXIC_DESC,Cells you hit stop regenerating for 5 s,Les cases touchées ne se régénèrent plus pendant 5 s
+MUTATION_MISER,Miser,Avare
+MUTATION_MISER_DESC,Upgrades cost 15% less,Améliorations −15 % de coût
+ABILITY_SALVO,Salvo,Salve
+ABILITY_WALL,Mycelium wall,Mur de mycélium
+ABILITY_CLOUD,Toxic cloud,Nuage toxique
+REFUSAL_UNKNOWN_COLONY,This colony no longer plays,Cette colonie ne joue plus
+REFUSAL_UNKNOWN_COMMAND,Unknown order,Ordre inconnu
+REFUSAL_OUT_OF_MAP,Outside the forest,Hors de la forêt
+REFUSAL_GAME_OVER,The game is over,La partie est terminée
+REFUSAL_OUT_OF_RANGE,Out of your Sporophore's range,Hors de portée de ton Sporophore
+REFUSAL_NOT_ADJACENT,This cell does not touch your colony,Cette case ne touche pas ta colonie
+REFUSAL_PROTECTED,Not during the starting protection,Pas pendant la protection de départ
+REFUSAL_NOT_WOUNDED,This cell is at full health,Cette case est à pleine vie
+REFUSAL_TURRET_CELL,Your Sporophore stands on this cell,Ton Sporophore est sur cette case
+REFUSAL_NOT_OWNED,This cell is not yours,Cette case n'est pas à toi
+REFUSAL_UNKNOWN_PRIORITY,Unknown priority,Priorité inconnue
+REFUSAL_UNKNOWN_UPGRADE,Unknown upgrade,Amélioration inconnue
+REFUSAL_TIER_LOCKED,Your colony has not reached the required tier,Ta colonie n'a pas atteint le palier requis
+REFUSAL_MAX_LEVEL,Maximum level reached,Niveau maximal atteint
+REFUSAL_NOT_ENOUGH_NUTRIENTS,Not enough nutrients,Pas assez de nutriments
+REFUSAL_NO_MUTATION_OFFER,No mutation to choose,Aucune mutation à choisir
+REFUSAL_UNKNOWN_MUTATION,Unknown mutation,Mutation inconnue
+REFUSAL_UNKNOWN_ABILITY,Unknown ability,Capacité inconnue
+REFUSAL_COOLDOWN,This ability is recharging,Cette capacité se recharge
+REFUSAL_NOT_ENOUGH_ENZYMES,Not enough Enzymes,Pas assez d'Enzymes
+REFUSAL_UNKNOWN_BUILDING,Unknown building,Bâtiment inconnu
+REFUSAL_NO_BUILDING_SLOT,All your building slots are taken,Toutes tes places de bâtiment sont prises
+REFUSAL_CELL_OCCUPIED,This cell already has a building,Cette case a déjà un bâtiment
+REFUSAL_NO_BUILDING,None of your buildings stands here,Aucun de tes bâtiments ici
+REFUSAL_BUILDING_CELL,Your Sporophore cannot heal a building,Ton Sporophore ne peut pas soigner un bâtiment
+BUILDING_SWARMER,Swarmer,Essaimeur
+BUILDING_OUTPOST,Outpost,Avant-poste
+BUILDING_MORTAR,Mortar,Mortier
+BUILDING_SWARMER_DESC,Takes the nearest free cells,Prend les cases libres les plus proches
+BUILDING_OUTPOST_DESC,Small turret: takes enemy cells,Petite tourelle : prend les cases adverses
+BUILDING_MORTAR_DESC,"Siege: hits enemy buildings and Sporophores, even far away","Siège : frappe les bâtiments et Sporophores adverses, même loin"
+HUD_BUILDINGS,Buildings,Bâtiments
+HUD_BUILDING_SLOTS,%d / %d slots,%d / %d places
+HUD_BUILDING_COST,%d Enz.,%d Enz.
+HUD_BUILDING_LOCKED,Tier %d,Palier %d
+HUD_DEMOLISH,Demolish,Démolir
+HUD_HINT_BUILD,%s: click one of your cells · %s: cancel,%s : clique sur une de tes cases · %s : annuler
+TIP_BUILDING,%s · HP: %s / %s,%s · PV : %s / %s
+TIP_BUILDING_SITE,%s · being built: %s,%s · en chantier : %s
+TIP_BUILDING_ASLEEP,%s asleep · wakes in %s,%s endormi · réveil dans %s
+JOURNAL_BUILDING_DONE,%s ready,%s prêt
+JOURNAL_BUILDING_FELL,Your %s fell,Ton %s est tombé
+JOURNAL_BUILDING_WOKE,Building taken over: %s,Bâtiment récupéré : %s
+HUD_PROTECTION,Protection: %s,Protection : %s
+HUD_RANKING,Ranking · average production,Classement · prod. moyenne
+HUD_YOU,You,Toi
+HUD_KILLS,%d kills,%d élim.
+HUD_RATE_VALUE,%s/s,%s/s
+HUD_JOURNAL,Log,Journal
+HUD_JOURNAL_EMPTY,Nothing yet,Rien pour l'instant
+HUD_HINT_ABILITY,%s: click a cell · %s: cancel,%s : clique sur une case · %s : annuler
+HUD_ENZYMES_AMOUNT,Enzymes %s,Enzymes %s
+HUD_BIOMASS_AMOUNT,Biomass %s,Biomasse %s
+HUD_TIER_PROGRESS,Tier %d (%s) · %d / %d cells to tier %d,Palier %d (%s) · %d / %d cases vers le palier %d
+HUD_TURRET_TITLE,Sporophore,Sporophore
+HUD_TURRET_HP,HP %s / %s,PV %s / %s
+HUD_STAT_DAMAGE,Damage,Dégâts
+HUD_STAT_RATE,Fire rate,Cadence
+HUD_STAT_RANGE,Range,Portée
+HUD_STAT_SPORES,Spores,Spores
+HUD_SPORES_VALUE,×%d,×%d
+HUD_PRIORITY,Firing priority,Priorité de tir
+PRIORITY_CLOSEST,Closest,Plus proche
+PRIORITY_RICHEST,Richest,Plus riche
+PRIORITY_HEAL_FIRST,Heal,Soigner
+PRIORITY_ENEMIES_FIRST,Enemies,Ennemis
+HUD_MUTATIONS,My mutations,Mes mutations
+HUD_NO_MUTATION,None yet: one per tier reached,Aucune pour l'instant : une par palier atteint
+HUD_CHOOSE_MUTATION,Choose a mutation (%d),Choisir une mutation (%d)
+HUD_MUTATION_ENTRY,Tier %d · %s: %s,Palier %d · %s : %s
+TAB_ATTACK,Attack,Attaque
+TAB_DEFENSE,Defence,Défense
+TAB_ECONOMY,Economy,Économie
+BUY_ONE,×1,×1
+BUY_TEN,×10,×10
+BUY_MAX,Max,Max
+UPGRADE_LOCKED,Tier %d required · %d cells,Palier %d requis · %d cases
+UPGRADE_MAXED,Maximum level reached,Niveau maximal atteint
+UPGRADE_BUY_COUNT,+%d · %s,+%d · %s
+EFFECT_DAMAGE,+%s %% per level · %s → %s,+%s %% par niveau · %s → %s
+EFFECT_RATE,+%s %% per level · %s → %s shots/s,+%s %% par niveau · %s → %s tirs/s
+EFFECT_RANGE,+%s cell · %s → %s,+%s case · %s → %s
+EFFECT_YIELD,+%s %% per level · %s → %s /s,+%s %% par niveau · %s → %s /s
+EFFECT_REGEN,+%s %% of max HP per s · %s → %s %%,+%s %% des PV max par s · %s → %s %%
+EFFECT_HEAL,+%s %% healing · %s → %s per spore,+%s %% de soin · %s → %s par spore
+EFFECT_SPORES,+%s target per shot · %s → %s,+%s cible par tir · %s → %s
+EFFECT_CELL_HP,+%s %% cell HP · %s → %s,+%s %% de PV des cases · %s → %s
+EFFECT_SPLASH,+%s %% on neighbours · %s → %s %%,+%s %% sur les voisines · %s → %s %%
+EFFECT_CRIT,+%s %% chance of ×3 · %s → %s %%,+%s %% de chance de ×3 · %s → %s %%
+EFFECT_TURRET_HP,+%s %% Sporophore HP · %s → %s,+%s %% de PV du Sporophore · %s → %s
+EFFECT_BOUNCE,+%s cell hit when a cell falls · %s → %s,+%s case touchée à chaque prise · %s → %s
+ABILITY_READY,Ready · %d Enz. · %s,Prête · %d Enz. · %s
+ABILITY_COOLDOWN,Recharging %s · %s,Recharge %s · %s
+ABILITY_LOCKED,Tier %d · %s,Palier %d · %s
+ABILITY_PROTECTED,Starting protection · %s,Protection de départ · %s
+ABILITY_NO_ENZYMES,%d Enz. needed · %s,%d Enz. requis · %s
+MUTATION_BANNER,Tier %d · production %s · +%s Enzymes,Palier %d · production %s · +%s Enzymes
+MUTATION_TITLE,Choose a mutation,Choisis une mutation
+MUTATION_SUBTITLE,The game goes on while you choose.,La partie continue pendant le choix.
+MUTATION_KEY,Key %s,Touche %s
+MUTATION_HIDE,Hide the cards to see the map,Cacher les cartes pour voir la carte
+JOURNAL_PROTECTION,Starting protection over: enemy cells can be targeted,Fin de la protection : les cases adverses peuvent être visées
+JOURNAL_ATTACK,%s is attacking your cells,%s vise tes cases
+JOURNAL_LOST,%s took %d of your cells,%s a pris %d de tes cases
+JOURNAL_TIER,Tier %d reached: +%s Enzymes,Palier %d atteint : +%s Enzymes
+JOURNAL_MUTATION,Mutation chosen: %s,Mutation choisie : %s
+JOURNAL_ELIMINATED,%s took down %s,%s a abattu %s
+ACTION_ABILITY_1,Ability 1 (Salvo),Capacité 1 (Salve)
+ACTION_ABILITY_2,Ability 2 (Mycelium wall),Capacité 2 (Mur de mycélium)
+ACTION_ABILITY_3,Ability 3 (Toxic cloud),Capacité 3 (Nuage toxique)
+ACTION_MUTATION_1,Mutation card 1,Carte de mutation 1
+ACTION_MUTATION_2,Mutation card 2,Carte de mutation 2
+ACTION_MUTATION_3,Mutation card 3,Carte de mutation 3
+SANDBOX_MUTATIONS,Mutations,Mutations
+SANDBOX_MUT_DAMAGE,Damage ×,Dégâts ×
+SANDBOX_MUT_RATE,Fire rate ×,Cadence ×
+SANDBOX_MUT_RANGE,Range +,Portée +
+SANDBOX_MUT_COHESION,Cohesion ×,Cohésion ×
+SANDBOX_MUT_REGEN,Regeneration ×,Régénération ×
+SANDBOX_MUT_DEEP,Production of central zones ×,Production des zones centrales ×
+SANDBOX_MUT_FREE_DAMAGE,Damage to free cells ×,Dégâts aux cases libres ×
+SANDBOX_MUT_ENEMY_DAMAGE,Damage to enemy cells ×,Dégâts aux cases adverses ×
+SANDBOX_MUT_HEAL,Healing ×,Soin ×
+SANDBOX_MUT_SPORES,Spores per shot +,Spores par tir +
+SANDBOX_MUT_ENZYMES,Tier Enzymes ×,Enzymes des paliers ×
+SANDBOX_MUT_TURRET_HP,Sporophore HP ×,PV du Sporophore ×
+SANDBOX_MUT_TOXIC,No regeneration (s),Sans régénération (s)
+SANDBOX_MUT_COST,Upgrade cost ×,Coût des améliorations ×
+SANDBOX_OPPONENTS,Robot opponents,Adversaires robots
+SANDBOX_SECTOR,Sector %d,Secteur %d
+ROBOT_NONE,None,Aucun
+ROBOT_GUNNER,Gunner,Canonnier
+ROBOT_BUILDER,Builder,Bâtisseur
+ROBOT_CONQUEROR,Conqueror,Conquérant
+RECAP_OPPONENTS,Opponents: %s,Adversaires : %s
+RECAP_OPPONENT,%s (%s): %d cells · tier %d · %s,%s (%s) : %d cases · palier %d · %s
+RECAP_ALIVE,alive,en vie
+RECAP_ELIMINATED,eliminated at %s,éliminé à %s
+MENU_SIMULATIONS,Simulations (development),Simulations (développement)
+SIM_TITLE,Simulations,Simulations
+SIM_BACK,Back,Retour
+SIM_TAB_SETTINGS,Settings,Réglages
+SIM_TAB_LAUNCH,Launch,Lancement
+SIM_TAB_RESULTS,Results,Résultats
+SIM_COMPOSITIONS,Forest compositions (robot of each sector),Compositions de forêt (robot de chaque secteur)
+SIM_ADD_COMPOSITION,Add a composition,Ajouter une composition
+SIM_REMOVE_COMPOSITION,Remove,Retirer
+SIM_RUNS,Games per composition,Parties par composition
+SIM_DURATION,Simulated duration (min),Durée simulée (min)
+SIM_MODE,Launch,Lancement
+SIM_MODE_SIMPLE,Simple,Simple
+SIM_MODE_SWEEP,Sweep,Balayage
+SIM_SWEEP_VALUE,Swept value,Valeur balayée
+SIM_SWEEP_MIN,Minimum,Minimum
+SIM_SWEEP_MAX,Maximum,Maximum
+SIM_SWEEP_STEP,Step,Pas
+SIM_START,Run the simulations,Lancer les simulations
+SIM_RUNNING,%d / %d games,%d / %d parties
+SIM_DONE,Done: %d games in %s s,Terminé : %d parties en %s s
+SIM_NO_COMPOSITION,Add a composition with at least one robot,Ajoute une composition avec au moins un robot
+SIM_EXPORT,Export CSV,Exporter en CSV
+SIM_EXPORTED,Saved: %s,Enregistré : %s
+SIM_OPEN_FOLDER,Open the folder,Ouvrir le dossier
+SIM_WATCH,Watch on the map,Regarder sur la carte
+SIM_WATCH_RUN,Game ,Partie 
+SIM_WATCH_TITLE,"Robot game: %s, game %d","Partie de robots : %s, partie %d"
+SIM_NO_RESULTS,No results yet: run simulations from the Launch tab.,Pas encore de résultats : lance des simulations depuis l'onglet Lancement.
+SIM_CURVE_PRODUCTION,"Production per minute (average, log scale)","Production par minute (moyenne, échelle log)"
+SIM_CURVE_CELLS,Cells at the end of each minute (average),Cases à la fin de chaque minute (moyenne)
+SIM_SECTOR_SHORT,S%d · %s,S%d · %s
+SIM_M_ELIMINATIONS,Eliminations,Éliminations
+SIM_M_FIRST_ELIMINATION,First elimination (min),Première élimination (min)
+SIM_M_ENDED_AT_TIME,Games ended at time (%),Parties finies au temps (%)
+SIM_M_END,End of the game (min),Fin de la partie (min)
+SIM_M_WINS,Wins (%),Victoires (%)
+SIM_M_RANK,Final rank,Rang final
+SIM_M_ELIMINATED,Eliminated (%),Éliminée (%)
+SIM_M_ELIMINATED_AT,Eliminated at (min),Éliminée à (min)
+SIM_M_TROPHIES,Trophies,Trophées
+SIM_M_CELLS,Cells at the end,Cases à la fin
+SIM_M_CAPTURED,Cells captured,Cases prises
+SIM_M_CAPTURED_PER_MINUTE,Cells captured per minute,Cases prises par minute
+SIM_M_FINAL_TIER,Tier at the end,Palier à la fin
+SIM_M_PRODUCTION,Production at the end (/s),Production à la fin (/s)
+SIM_M_PEAK,Peak production (/s),Record de production (/s)
+SIM_M_BIOMASS,Biomass,Biomasse
+SIM_M_ZONE,Arrival in zone %d (min),Arrivée en zone %d (min)
+SIM_M_TIER,Tier %d reached (min),Palier %d atteint (min)
+SIM_M_LEVEL,Level: %s,Niveau : %s
+SIM_M_MINUTE,Production in minute %d (/s),Production à la minute %d (/s)
+SIM_M_MINUTE_CELLS,Cells at minute %d,Cases à la minute %d
+SIM_CSV_SERIES,Series,Série
+SIM_CSV_SECTOR,Sector,Secteur
+SIM_CSV_PROFILE,Robot,Robot
+SIM_CSV_MEASURE,Measure,Mesure
+SIM_STAT_MEAN,mean,moyenne
+SIM_STAT_MIN,min,min
+SIM_STAT_MAX,max,max
+SIM_STAT_STD,std dev,écart type
+SIM_STAT_COUNT,games,parties
+SIM_CELL_STATS,"%s (%s – %s, σ %s)","%s (%s – %s, σ %s)"
+SIM_NEVER,—,—
+ROBOT_GAME,Game robot,Robot de jeu
+ROBOT_GAME_LABEL,Game robot · %s,Robot de jeu · %s
+DIFFICULTY_EASY,Easy,Facile
+DIFFICULTY_NORMAL,Normal,Normal
+DIFFICULTY_HARD,Hard,Difficile
+GAME_MENU_ABANDON,Give up the game,Abandonner la partie
+GAME_MENU_ABANDON_CONFIRM,Give up this game?,Abandonner cette partie ?
+GAME_MENU_ABANDON_YES,"Yes, give up","Oui, abandonner"
+GAME_MENU_ABANDON_NO,"No, keep playing","Non, continuer"
+END_PLAY_AGAIN,Play again,Rejouer
+END_VICTORY,Victory!,Victoire !
+END_RANK,Rank %d of %d,Rang %d sur %d
+END_STAT_CELLS,Cells captured: %d,Cases prises : %d
+END_STAT_TROPHIES,Sporophores destroyed: %d,Sporophores abattus : %d
+END_STAT_SURVIVAL,Survival: %s,Durée de survie : %s
+END_STAT_PEAK,Peak production: %s/s,Pic de production : %s/s
+PLAY_DUEL_TITLE,Duel against a robot,Duel contre un robot
+PLAY_DUEL_INTRO,"Bring down the robot's Sporophore, or be ahead at 30:00. Your sector and colours are drawn at random.","Abats le Sporophore du robot, ou sois devant à 30:00. Ton secteur et les couleurs sont tirés au hasard."
+PLAY_FFA_TITLE,FFA against 5 robots,FFA contre 5 robots
+PLAY_FFA_INTRO,"Be the last colony alive, or the best at 30:00. Your sector and colours are drawn at random.","Sois la dernière colonie en vie, ou la meilleure à 30:00. Ton secteur et les couleurs sont tirés au hasard."
+PLAY_DIFFICULTY,Robot difficulty,Difficulté des robots
+PLAY_LAUNCH,Start,Lancer
+PLAY_EASY_HINT,"Acts every 3 seconds, sometimes buys at random, never uses the wall or the cloud and does not aim at your Sporophore.","Agit toutes les 3 secondes, achète parfois au hasard, ne lance ni Mur ni Nuage et ne vise pas ton Sporophore."
+PLAY_NORMAL_HINT,Acts every 2 seconds and makes no mistakes.,Agit toutes les 2 secondes et ne se trompe pas.
+PLAY_HARD_HINT,Acts every second and makes no mistakes.,Agit chaque seconde et ne se trompe pas.

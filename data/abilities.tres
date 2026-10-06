@@ -1,0 +1,42 @@
+[gd_resource type="Resource" script_class="AbilityTable" load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://sim/defs/ability_def.gd" id="1_item"]
+[ext_resource type="Script" path="res://sim/defs/ability_table.gd" id="2_table"]
+
+[sub_resource type="Resource" id="ability_1"]
+script = ExtResource("1_item")
+id = &"salvo"
+name_key = "ABILITY_SALVO"
+kind = 0
+cost_enzymes = 20
+cooldown_ticks = 90
+duration_ticks = 10
+unlock_tier = 1
+rate_pm = 5000
+
+[sub_resource type="Resource" id="ability_2"]
+script = ExtResource("1_item")
+id = &"wall"
+name_key = "ABILITY_WALL"
+kind = 1
+cost_enzymes = 40
+cooldown_ticks = 180
+duration_ticks = 15
+unlock_tier = 3
+radius = 3
+
+[sub_resource type="Resource" id="ability_3"]
+script = ExtResource("1_item")
+id = &"cloud"
+name_key = "ABILITY_CLOUD"
+kind = 2
+cost_enzymes = 60
+cooldown_ticks = 180
+duration_ticks = 30
+unlock_tier = 5
+radius = 1
+shots = 20
+
+[resource]
+script = ExtResource("2_table")
+abilities = Array[ExtResource("1_item")]([SubResource("ability_1"), SubResource("ability_2"), SubResource("ability_3")])

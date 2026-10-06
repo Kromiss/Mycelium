@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="RobotDifficulty" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://ai/robot_difficulty.gd" id="1_difficulty"]
+
+[resource]
+script = ExtResource("1_difficulty")
+id = &"easy"
+name_key = "DIFFICULTY_EASY"
+act_every_ticks = 3
+random_upgrade_one_in = 4
+random_mutation = true
+abilities = Array[StringName]([&"salvo"])
+hunts_turrets = false
+build_cooldown_ticks = 30
