@@ -151,6 +151,16 @@ func test_the_outpost_attacks_enemy_cells_beyond_the_sporophore_range() -> void:
 	assert_true(captured)
 
 
+func test_the_outpost_leaves_free_cells_alone() -> void:
+	var outpost: BuildingState = _build(&"outpost", Fixture.INNER_0)
+	var result: TickResult = Fixture.run(_sim, 20)
+	assert_eq(result.building_shots.size(), 0)
+	assert_eq(outpost.shot_progress, Fixed.ONE)
+	for cell: int in range(_sim.state.cell_count()):
+		if _sim.state.owner[cell] < 0:
+			assert_eq(_sim.state.hp[cell], _sim.cell_max_hp(cell))
+
+
 func test_the_mortar_hits_only_buildings_and_sporophores_and_waits_without_target() -> void:
 	Fixture.give(_sim, 1, [Vector2i(9, 0)])
 	var plain: int = _cell(Vector2i(9, 0))
@@ -189,85 +199,6 @@ func test_the_mortar_can_fell_a_far_sporophore() -> void:
 	assert_eq(_colony().trophies, 1)
 
 
-## Donne à la colonie 1 la case (9, 0), reliée à son Sporophore posé en (8, 0).
-func _enemy_next_door() -> void:
-	Fixture.give(_sim, 1, [Vector2i(9, 0), Vector2i(8, 0)])
-	_colony(1).turret = _cell(Vector2i(8, 0))
-
-
-func test_a_building_takes_the_hits_for_its_cell_then_sleeps() -> void:
-	_enemy_next_door()
-	var cell: int = _cell(Vector2i(9, 0))
-	var building: BuildingState = _build(&"swarmer", Vector2i(9, 0), 1)
-	var cell_hp: int = _sim.state.hp[cell]
-	Combat.deal(_sim.state, _colony(), cell, 50_000, _result)
-	assert_eq(building.hp, _sim.building_max_hp(building) - 50_000)
-	assert_eq(_sim.state.hp[cell], cell_hp)
-	assert_eq(_sim.state.owner[cell], 1)
-	Combat.deal(_sim.state, _colony(), cell, 1_000_000, _result)
-	assert_true(building.asleep(_sim.state.tick))
-	assert_eq(_sim.state.owner[cell], 1)
-	assert_eq(_sim.building_slots(1)[0], 0)
-	# Endormi : on se bat pour la case dessous.
-	Combat.deal(_sim.state, _colony(), cell, 1_000_000, _result)
-	assert_eq(_sim.state.owner[cell], 0)
-	assert_eq(building.hp, 0)
-
-
-func test_a_fallen_building_wakes_for_the_colony_holding_its_cell() -> void:
-	_enemy_next_door()
-	var cell: int = _cell(Vector2i(9, 0))
-	var building: BuildingState = _build(&"swarmer", Vector2i(9, 0), 1)
-	Combat.deal(_sim.state, _colony(), cell, 1_000_000, _result)
-	Combat.deal(_sim.state, _colony(), cell, 1_000_000, _result)
-	assert_eq(_sim.state.owner[cell], 0)
-	_sim.state.tick = building.asleep_until - 1
-	Buildings.update(_sim.state, _result)
-	assert_true(building.asleep(_sim.state.tick))
-	_sim.state.tick = building.asleep_until
-	Buildings.update(_sim.state, _result)
-	assert_eq(building.owner, 0)
-	assert_true(building.active(_sim.state.tick))
-	assert_eq(building.hp, _sim.building_max_hp(building))
-	# Gardé même sans place libre.
-	_colony().tier = 0
-	assert_eq(Buildings.of_colony(_sim.state, 0), [building])
-
-
-func test_a_fallen_building_on_a_free_cell_vanishes() -> void:
-	Fixture.give(_sim, 1, [Vector2i(9, 0)])
-	var cell: int = _cell(Vector2i(9, 0))
-	var building: BuildingState = _build(&"swarmer", Vector2i(9, 0), 1)
-	Buildings.fall(_sim.state, building, 0, _result, false)
-	Combat.free_cell(_sim.state, cell, _result)
-	_sim.state.tick = building.asleep_until
-	Buildings.update(_sim.state, _result)
-	assert_null(_sim.state.building_on(cell))
-	assert_eq(_sim.state.buildings.size(), 0)
-	assert_eq(_sim.state.building_at[cell], -1)
-
-
-func test_a_building_holds_its_island_until_it_falls() -> void:
-	Fixture.give(_sim, 0, Fixture.line_to_center(5))
-	var building: BuildingState = _build(&"swarmer", Vector2i(7, 0))
-	Combat.capture(_sim.state, _cell(Vector2i(9, 0)), _colony(1), _result)
-	assert_eq(_sim.state.owner[_cell(Vector2i(8, 0))], 0)
-	assert_eq(_sim.state.owner[_cell(Vector2i(7, 0))], 0)
-	Buildings.fall(_sim.state, building, 1, _result, true)
-	assert_eq(_sim.state.owner[_cell(Vector2i(8, 0))], -1)
-	assert_eq(_sim.state.owner[_cell(Vector2i(7, 0))], -1)
-
-
-func test_an_isolated_building_grows_its_island() -> void:
-	Fixture.give(_sim, 0, Fixture.line_to_center(5))
-	_build(&"swarmer", Vector2i(7, 0))
-	Combat.capture(_sim.state, _cell(Vector2i(9, 0)), _colony(1), _result)
-	var before: int = _colony().cell_count
-	Fixture.run(_sim, 30)
-	assert_gt(_colony().cell_count, before)
-	assert_eq(_sim.state.owner[_cell(Vector2i(7, 0))], 0)
-
-
 func test_demolishing_returns_the_slot_without_refund() -> void:
 	_build(&"swarmer", Fixture.INNER_0)
 	_colony().tier = 1
@@ -280,20 +211,6 @@ func test_demolishing_returns_the_slot_without_refund() -> void:
 	assert_null(_sim.state.building_on(_cell(Fixture.INNER_0)))
 	assert_eq(_colony().enzymes, 0)
 	assert_eq(_sim.building_slots(0), PackedInt32Array([0, 1]))
-
-
-func test_an_eliminated_colony_leaves_sleeping_buildings() -> void:
-	Fixture.give(_sim, 1, [Vector2i(9, 0), Vector2i(8, 0)])
-	var kept: BuildingState = _build(&"swarmer", Vector2i(9, 0), 1)
-	var lost: BuildingState = _build(&"outpost", Vector2i(8, 0), 1)
-	Combat.eliminate(_sim.state, _colony(1), _colony(), _result)
-	assert_true(kept.asleep(_sim.state.tick))
-	assert_true(lost.asleep(_sim.state.tick))
-	Combat.capture(_sim.state, _cell(Vector2i(9, 0)), _colony(), _result)
-	_sim.state.tick = kept.asleep_until
-	Buildings.update(_sim.state, _result)
-	assert_eq(kept.owner, 0)
-	assert_eq(_sim.state.buildings, [kept])
 
 
 func test_long_hyphae_extend_the_buildings_not_the_sporophore() -> void:

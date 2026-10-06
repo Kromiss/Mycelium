@@ -12,7 +12,7 @@ extends RefCounted
 ## - améliorations : meilleur rapport poids / coût (UpgradePlanner).
 ## Une difficulté (RobotDifficulty, robots de jeu) règle son rythme et ses erreurs : il n'agit
 ## qu'une seconde sur N, fait des achats ou prend des mutations au hasard, se prive de
-## capacités ou de la chasse aux Tourelles.
+## capacités ou de la chasse aux Tourelles, attend entre deux ordres de bâtiment.
 ## Son aléatoire est un SimRng dérivé de la graine : une partie de robots se rejoue à l'identique.
 
 ## Décalage du sel de l'aléatoire des robots (distinct des autres tirages de la partie).
@@ -26,6 +26,8 @@ var colony_id: int = 0
 var _rng: SimRng
 ## Tick jusqu'auquel (exclu) la priorité de défense est gardée.
 var _defense_until: int = 0
+## Tick à partir duquel le robot peut donner un nouvel ordre de bâtiment (difficulté).
+var _next_build: int = 0
 
 
 func _init(
@@ -53,8 +55,13 @@ func decide(simulation: Simulation) -> Array[Command]:
 	_add(simulation, commands, _mutation_command(state, colony))
 	_add(simulation, commands, _priority_command(state, colony, attacked))
 	_add(simulation, commands, _target_command(simulation, colony))
-	var building: Command = BuildPlanner.plan(state, colony, profile)
-	_add(simulation, commands, building)
+	var building: Command = null
+	if state.tick >= _next_build:
+		building = BuildPlanner.plan(state, colony, profile)
+	if building != null and simulation.check(building) == Refusal.Code.OK:
+		commands.append(building)
+		if difficulty != null:
+			_next_build = state.tick + difficulty.build_cooldown_ticks
 	# Les capacités n'utilisent que les Enzymes qui ne sont pas gardées pour un bâtiment.
 	var kept: int = BuildPlanner.reserve(state, colony, profile) if building == null else 0
 	if building is BuildCommand:

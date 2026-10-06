@@ -231,7 +231,7 @@ BUILDING_SWARMER,Swarmer,Essaimeur
 BUILDING_OUTPOST,Outpost,Avant-poste
 BUILDING_MORTAR,Mortar,Mortier
 BUILDING_SWARMER_DESC,Takes the nearest free cells,Prend les cases libres les plus proches
-BUILDING_OUTPOST_DESC,Small turret: takes free and enemy cells,Petite tourelle : prend les cases libres et adverses
+BUILDING_OUTPOST_DESC,Small turret: takes enemy cells,Petite tourelle : prend les cases adverses
 BUILDING_MORTAR_DESC,"Siege: hits enemy buildings and Sporophores, even far away","Siège : frappe les bâtiments et Sporophores adverses, même loin"
 HUD_BUILDINGS,Buildings,Bâtiments
 HUD_BUILDING_SLOTS,%d / %d slots,%d / %d places

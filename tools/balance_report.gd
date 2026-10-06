@@ -5,7 +5,8 @@ extends SceneTree
 ##
 ## godot --headless -s res://tools/balance_report.gd -- <duel|ffa> <parties> <robot,robot…> [graine]
 ##   [réglage=valeur…]
-## Exemple : -- duel 20 game_hard,game_hard 1   (un robot par secteur, dans l'ordre)
+## Exemple : -- duel 20 game_hard,game_hard 1   (un robot par secteur, dans l'ordre ;
+## « game_hard:mortar » : robot qui ne pose que des Mortiers)
 ## Réglages (essais sans toucher aux fichiers de data/) : « cell_hp=60000 » (constante de
 ## BalanceDef), « zone_free_hp_pm=1000,1400,… » (tableau des zones ou des paliers),
 ## « upgrade.damage.base_cost_units=2 », « building.swarmer.damage_pm=500 »,
@@ -96,7 +97,7 @@ func _play(defs: SimDefs, mode: ModeDef, game_seed: int, robots: PackedStringArr
 	var first_build := PackedInt32Array()
 	var actions := PackedInt32Array()
 	for colony: ColonyState in state.colonies:
-		players.append(RobotCatalog.make(StringName(robots[colony.id]), colony.id, game_seed))
+		players.append(_robot(robots[colony.id], colony.id, game_seed))
 		var types := PackedInt32Array()
 		types.resize(defs.buildings.size())
 		built.append(types)
@@ -162,6 +163,18 @@ func _play(defs: SimDefs, mode: ModeDef, game_seed: int, robots: PackedStringArr
 		"ms": Time.get_ticks_msec() - start,
 		"colonies": colonies,
 	}
+
+
+## Robot d'un identifiant du catalogue ; « game_hard:outpost » : le même robot qui ne pose que
+## ce type de bâtiment (mesure de la cible « bâtiments décisifs »).
+func _robot(spec: String, colony_id: int, game_seed: int) -> Robot:
+	var parts: PackedStringArray = spec.split(":")
+	var robot: Robot = RobotCatalog.make(StringName(parts[0]), colony_id, game_seed)
+	if parts.size() > 1:
+		robot.profile = robot.profile.duplicate()
+		var only: Dictionary[StringName, int] = {StringName(parts[1]): 1}
+		robot.profile.building_weights = only
+	return robot
 
 
 ## Colonie en tête : la plus grande (cases) ou la plus productive (Biomasse) ; en vie d'abord.

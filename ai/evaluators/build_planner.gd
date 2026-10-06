@@ -10,8 +10,6 @@ extends RefCounted
 ## Nombre de déplacements du bâtiment le plus cher que le robot garde de quoi payer, toutes
 ## places prises.
 const RELOCATIONS: int = 2
-## Score d'un Mortier sans cible à portée : il se rapproche du Sporophore adverse le plus proche.
-const MORTAR_FALLBACK: int = 1_000
 
 
 ## Rangs des types de bâtiment que le robot veut poser, du plus voulu au moins voulu : poids
@@ -123,7 +121,8 @@ static func best_cell(
 
 
 ## Score d'une case pour un Essaimeur ou un Avant-poste : les cases qu'il pourra prendre à
-## portée (libres collées à mon territoire, plus les zones riches ; adverses pour l'Avant-poste).
+## portée, collées à mon territoire (libres, plus les zones riches, pour l'Essaimeur ;
+## adverses pour l'Avant-poste).
 static func _front_score(
 	state: GameState,
 	colony: ColonyState,
@@ -137,7 +136,7 @@ static func _front_score(
 		var owner: int = state.owner[other]
 		if owner == colony.id:
 			continue
-		if owner >= 0 and kind == BuildingDef.Kind.SWARMER:
+		if (owner >= 0) == (kind == BuildingDef.Kind.SWARMER):
 			continue
 		if not state.touches_colony(other, colony.id):
 			continue
@@ -148,29 +147,23 @@ static func _front_score(
 	return score
 
 
-## Score d'une case pour un Mortier : les Sporophores et bâtiments adverses à portée ; sans
-## cible, plus il est près du Sporophore adverse le plus proche, mieux c'est.
+## Score d'une case pour un Mortier : les Sporophores et bâtiments adverses à portée (0 : aucune
+## cible, le Mortier n'est pas posé là).
 static func _mortar_score(
 	state: GameState, colony: ColonyState, profile: RobotProfile, cell: int, reach: int
 ) -> int:
 	var score: int = 0
-	var nearest: int = -1
 	for other: ColonyState in state.colonies:
 		if other.id == colony.id or not other.alive or other.turret < 0:
 			continue
-		var distance: int = state.distance(cell, other.turret)
-		if distance <= reach:
+		if state.distance(cell, other.turret) <= reach:
 			score += profile.enemy_turret_value
-		if nearest < 0 or distance < nearest:
-			nearest = distance
 	for building: BuildingState in state.buildings:
 		if building.owner == colony.id or not building.standing(state.tick):
 			continue
 		if state.distance(cell, building.cell) <= reach:
 			score += profile.enemy_building_value
-	if score > 0:
-		return MORTAR_FALLBACK + score
-	return maxi(1, MORTAR_FALLBACK - nearest) if nearest >= 0 else 0
+	return score
 
 
 ## Bâtiment actif qui n'a plus rien à viser à portée (null : aucun), du type le moins voulu

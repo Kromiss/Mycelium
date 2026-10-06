@@ -7,7 +7,7 @@ extends Resource
 enum Kind {
 	## Les cases libres collées à mon territoire (Essaimeur).
 	SWARMER,
-	## Les cases libres ou adverses collées à mon territoire (Avant-poste).
+	## Les cases adverses collées à mon territoire (Avant-poste, décidé le 6 octobre 2026).
 	OUTPOST,
 	## Les bâtiments et Sporophores adverses, même loin de mon territoire (Mortier).
 	MORTAR,

@@ -1,8 +1,9 @@
 class_name BuildingTargeting
 extends RefCounted
 ## Cibles des bâtiments (GDD §5 bis), fixes par type et comptées depuis la case du bâtiment :
-## Essaimeur, la case libre collée à mon territoire la plus proche ; Avant-poste, la case libre
-## ou adverse collée à mon territoire la plus proche ; Mortier, le bâtiment ou le Sporophore
+## Essaimeur, la case libre collée à mon territoire la plus proche ; Avant-poste, la case
+## adverse collée à mon territoire la plus proche (décidé le 6 octobre 2026 : plus de cases
+## libres) ; Mortier, le bâtiment ou le Sporophore
 ## adverse le plus proche, même loin de mon territoire. La cible désignée au clic passe d'abord
 ## si le bâtiment peut la frapper ; une cible est gardée tant qu'elle reste visable.
 
@@ -30,7 +31,8 @@ static func can_target(
 			if owner >= 0:
 				return false
 		_:
-			if owner == colony.id or (owner >= 0 and not state.protection_over()):
+			# Avant-poste : cases adverses seulement (décidé le 6 octobre 2026).
+			if owner < 0 or owner == colony.id or not state.protection_over():
 				return false
 	return state.touches_colony(cell, colony.id)
 
