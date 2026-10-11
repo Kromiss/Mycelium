@@ -21,7 +21,7 @@ id = &"vigor"
 name_key = "UPGRADE_VIGOR"
 tab = 0
 stat = 1
-effect = 200
+effect = 250
 base_cost_units = 2
 cost_growth_pm = 0
 max_level = 0
@@ -45,7 +45,7 @@ id = &"regen"
 name_key = "UPGRADE_REGEN"
 tab = 1
 stat = 3
-effect = 10
+effect = 5
 base_cost_units = 5
 cost_growth_pm = 0
 max_level = 3
@@ -60,7 +60,7 @@ stat = 4
 effect = 200
 base_cost_units = 20
 cost_growth_pm = 0
-max_level = 10
+max_level = 5
 unlock_tier = 2
 
 [sub_resource type="Resource" id="upgrade_6"]

@@ -13,7 +13,7 @@ func test_defaults_come_from_data() -> void:
 	assert_eq(defs.radius(), 17)
 	assert_eq(defs.unit_cost, 30_000)
 	assert_eq(defs.start_stock(), 0)
-	assert_eq(defs.push, 1_000)
+	assert_eq(defs.push, 3_000)
 	assert_eq(defs.push_cap, 8_000)
 	assert_eq(defs.hotspot_share_pm, 300)
 	assert_eq(defs.tier_cells, PackedInt32Array([5, 10, 20, 40, 80, 160]))

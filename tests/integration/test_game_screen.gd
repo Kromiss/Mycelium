@@ -59,8 +59,8 @@ func test_the_map_takes_the_left_part_of_the_screen() -> void:
 func test_the_propagation_card_shows_push_force_border_and_hotspots() -> void:
 	_session.step()
 	var card: PropagationCard = _hud.propagation_card()
-	assert_eq(card.stat_text(0), "1/s")
-	assert_eq(card.stat_text(1), "3 / 8")
+	assert_eq(card.stat_text(0), "3/s")
+	assert_eq(card.stat_text(1), "8 / 8")
 	assert_eq(card.stat_text(2), "3")
 	assert_eq(card.stat_text(3), "0 / 1")
 
@@ -199,8 +199,8 @@ func test_upgrade_effects_show_before_and_after() -> void:
 	var defs: SimDefs = simulation.state.defs
 	var push: SimUpgrade = defs.upgrades[defs.upgrade_index(&"push")]
 	var values: PackedInt64Array = simulation.upgrade_values(0, &"push", 2)
-	assert_eq(values, PackedInt64Array([1_000, 1_500]))
-	assert_eq(GameText.upgrade_effect(push, values), "+25 % per level · 1.0 → 1.5 HP/s per cell")
+	assert_eq(values, PackedInt64Array([3_000, 4_500]))
+	assert_eq(GameText.upgrade_effect(push, values), "+25 % per level · 3.0 → 4.5 HP/s per cell")
 	var vigor: SimUpgrade = defs.upgrades[defs.upgrade_index(&"vigor")]
 	var caps: PackedInt64Array = simulation.upgrade_values(0, &"vigor", 1)
-	assert_eq(GameText.upgrade_effect(vigor, caps), "+20 % per level · 8.0 → 9.6 HP/s at most")
+	assert_eq(GameText.upgrade_effect(vigor, caps), "+25 % per level · 8.0 → 10.0 HP/s at most")

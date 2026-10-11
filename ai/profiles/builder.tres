@@ -9,4 +9,4 @@ name_key = "ROBOT_BUILDER"
 upgrade_weights = Dictionary[StringName, int]({&"yield": 10, &"push": 5, &"vigor": 5, &"regen": 6, &"cell_hp": 6, &"turret_hp": 5})
 mutation_weights = Dictionary[StringName, int]({&"cohesion": 9, &"deep_roots": 8, &"tenacious": 8, &"armored": 6, &"miser": 6})
 hotspot_goals = Array[StringName]([&"rich"])
-rich_reach = 3
+rich_reach = 2

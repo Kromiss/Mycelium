@@ -2,11 +2,14 @@ class_name PropagationSystem
 extends RefCounted
 ## Étape 3 du tick : propagation automatique (GDD §5 bis, décidé le 11 octobre 2026). Toute la
 ## bordure de chaque colonie pousse sur ses voisines ; la force totale est la somme des poussées
-## des cases de bordure, ramenée au plafond de la colonie. Une part fixe va aux points chauds
-## (à parts égales entre ceux qui sont posés), par la bordure tournée vers eux ; le reste va à
-## toute la bordure. Chaque case de bordure partage ce qu'elle reçoit à parts égales entre ses
-## voisines libres et adverses (pas les adverses pendant la protection de départ).
-## Les colonies jouent l'une après l'autre, la première change à chaque tick ; les dégâts d'une
+## des cases de bordure, ramenée au plafond de la colonie ; elle va à toute la bordure. Les
+## points chauds reçoivent en plus un bonus (une part fixe de la force, partagée à parts égales
+## entre ceux qui sont posés), par la bordure tournée vers eux. Chaque case de bordure partage ce
+## qu'elle reçoit à parts égales entre ses voisines libres et adverses (pas les adverses pendant
+## la protection de départ).
+## Les colonies jouent l'une après l'autre, la première change à chaque tick (le tour de départ
+## est tiré de la graine, pour qu'aucun secteur ne soit avantagé d'une partie à l'autre) ; les
+## dégâts d'une
 ## colonie sont d'abord additionnés, puis appliqués une fois par case, dans l'ordre des cases,
 ## pour que le résultat ne dépende pas de l'ordre de calcul.
 
@@ -16,7 +19,9 @@ func run(state: GameState, result: TickResult) -> void:
 	damage.resize(state.cell_count())
 	var count: int = state.colonies.size()
 	for offset: int in range(count):
-		var colony: ColonyState = state.colonies[(state.tick + offset) % count]
+		var colony: ColonyState = state.colonies[posmod(
+			state.tick + state.game_seed + offset, count
+		)]
 		if colony.alive:
 			_push(state, colony, damage, result)
 
@@ -68,15 +73,14 @@ func _push(
 	if force <= 0:
 		return
 	var touched := PackedInt32Array()
-	var spare: int = force
 	if not colony.hotspots.is_empty():
+		# Bonus en plus de la force (décidé le 11 octobre 2026), au-delà du plafond.
 		@warning_ignore("integer_division")
 		var share: int = Fixed.mul(force, defs.hotspot_share_pm) / colony.hotspots.size()
 		for hotspot: int in colony.hotspots:
-			if _pull(state, hotspot, share, parts, damage, touched):
-				spare -= share
+			_pull(state, hotspot, share, parts, damage, touched)
 	@warning_ignore("integer_division")
-	var per_border: int = spare / borders.size()
+	var per_border: int = force / borders.size()
 	for i: int in range(borders.size()):
 		_spread(targets, starts[i], starts[i + 1], per_border, damage, touched)
 	touched.sort()
@@ -86,10 +90,9 @@ func _push(
 		Combat.deal(state, colony, cell, amount, result)
 
 
-## Envoie la part d'un point chaud par la bordure tournée vers lui : les cases de bordure qui
-## ont une cible plus proche du point chaud qu'elles se partagent la part, et chacune la partage
-## entre ces cibles-là. Renvoie faux si aucune case de bordure n'est tournée vers lui (la part
-## revient alors à toute la bordure).
+## Envoie le bonus d'un point chaud par la bordure tournée vers lui : les cases de bordure qui
+## ont une cible plus proche du point chaud qu'elles se partagent le bonus, et chacune le partage
+## entre ces cibles-là. Sans case de bordure tournée vers lui, le bonus est perdu.
 static func _pull(
 	state: GameState,
 	hotspot: int,
@@ -97,7 +100,7 @@ static func _pull(
 	parts: Array[PackedInt32Array],
 	damage: PackedInt64Array,
 	touched: PackedInt32Array,
-) -> bool:
+) -> void:
 	var borders: PackedInt32Array = parts[0]
 	var starts: PackedInt32Array = parts[1]
 	var targets: PackedInt32Array = parts[2]
@@ -115,14 +118,13 @@ static func _pull(
 		if closer.size() > first:
 			closer_starts.append(first)
 	if closer_starts.is_empty():
-		return false
+		return
 	closer_starts.append(closer.size())
 	var oriented: int = closer_starts.size() - 1
 	@warning_ignore("integer_division")
 	var per_border: int = share / oriented
 	for i: int in range(oriented):
 		_spread(closer, closer_starts[i], closer_starts[i + 1], per_border, damage, touched)
-	return true
 
 
 ## Partage « amount » à parts égales entre cells[first] et cells[last − 1].

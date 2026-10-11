@@ -68,32 +68,28 @@ func test_push_and_vigor_upgrades_raise_push_and_cap() -> void:
 	assert_eq(_colony().push_force, mini(cap, 2_000 * _colony().border_cells))
 
 
-func test_a_hotspot_pulls_the_growth_toward_it() -> void:
+func test_a_hotspot_adds_a_bonus_toward_it() -> void:
 	var other: Simulation = Fixture.duel(2, false)
 	_sim.tick([HotspotCommand.new(CENTER, 0)])
 	other.tick()
-	var toward: int = _lost(TOWARD)
-	var away: int = _lost(AWAY)
 	var cell_toward: int = other.cell_index(TOWARD)
 	var cell_away: int = other.cell_index(AWAY)
-	assert_gt(toward, other.cell_max_hp(cell_toward) - other.state.hp[cell_toward])
-	assert_lt(away, other.cell_max_hp(cell_away) - other.state.hp[cell_away])
+	assert_gt(_lost(TOWARD), other.cell_max_hp(cell_toward) - other.state.hp[cell_toward])
+	assert_eq(_lost(AWAY), other.cell_max_hp(cell_away) - other.state.hp[cell_away])
+	# Le bonus (30 % de la force) s'ajoute à la force, au-delà du plafond (11 octobre 2026) ;
+	# la colonie 1 pousse ses 3 000 millièmes de son côté.
+	assert_almost_eq(float(_total_lost()), 3_000.0 * 1.3 + 3_000.0, 20.0)
 
 
-func test_with_the_whole_share_only_cells_toward_the_hotspot_are_pushed() -> void:
-	_sim.state.defs.hotspot_share_pm = 1_000
-	_sim.tick([HotspotCommand.new(CENTER, 0)])
-	assert_eq(_lost(AWAY), 0)
-	assert_gt(_lost(TOWARD), 0)
-
-
-func test_hotspots_share_their_part_equally() -> void:
-	# Toute la force aux points chauds : avec un second point chaud, le premier n'en reçoit plus
-	# que la moitié (à un reste de division près).
+func test_hotspots_share_their_bonus_equally() -> void:
+	# Bonus égal à toute la force : avec un second point chaud, le premier n'en reçoit plus que
+	# la moitié (à un reste de division près).
 	var north: int = _cell(Vector2i(11, -6))
 	var south: int = _cell(Vector2i(4, 7))
 	var pulled := PackedInt32Array()
-	for hotspots: PackedInt32Array in [PackedInt32Array([north]), PackedInt32Array([north, south])]:
+	for hotspots: PackedInt32Array in [
+		PackedInt32Array(), PackedInt32Array([north]), PackedInt32Array([north, south])
+	]:
 		var sim: Simulation = Fixture.duel(2, false)
 		sim.state.defs.hotspot_share_pm = 1_000
 		sim.state.colonies[0].hotspots = hotspots
@@ -103,8 +99,10 @@ func test_hotspots_share_their_part_equally() -> void:
 			var cell: int = sim.cell_index(coords)
 			lost += sim.cell_max_hp(cell) - sim.state.hp[cell]
 		pulled.append(lost)
-	assert_gt(pulled[0], 0)
-	assert_almost_eq(float(pulled[1]), float(pulled[0]) * 0.5, 4.0)
+	var one: int = pulled[1] - pulled[0]
+	var two: int = pulled[2] - pulled[0]
+	assert_gt(one, 0)
+	assert_almost_eq(float(two), float(one) * 0.5, 4.0)
 
 
 func test_enemy_cells_are_not_pushed_during_the_protection() -> void:

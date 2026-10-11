@@ -26,6 +26,10 @@ static func duel_defs(regen: bool = true) -> SimDefs:
 	defs.zone_defense_pm = PackedInt32Array([1000, 1200, 1500, 1800, 2100, 2500])
 	defs.tier_enzymes = PackedInt32Array([20, 40, 60, 80, 100, 120])
 	defs.upgrade_cost_growth_pm = 1150
+	defs.regen_pm = 20
+	defs.cohesion_hp_pm = 150
+	defs.upgrades[defs.upgrade_index(&"vigor")].effect = 200
+	defs.upgrades[defs.upgrade_index(&"regen")].effect = 10
 	if not regen:
 		defs.regen_pm = 0
 	return defs
