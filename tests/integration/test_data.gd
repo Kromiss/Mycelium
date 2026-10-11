@@ -59,7 +59,8 @@ func test_zones_get_richer_and_harder_towards_the_center() -> void:
 		var current: ZoneDef = zones.zones[i]
 		assert_gt(current.richness_pm, previous.richness_pm)
 		assert_gt(current.free_hp_pm, previous.free_hp_pm)
-		assert_gt(current.defense_pm, previous.defense_pm)
+		# Défense des cases possédées : égale ou plus forte vers le centre (équilibrage de G6).
+		assert_gte(current.defense_pm, previous.defense_pm)
 
 
 func test_modes_have_equitable_colony_counts() -> void:

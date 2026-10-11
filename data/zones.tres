@@ -8,35 +8,35 @@ script = ExtResource("1_item")
 zone = 1
 richness_pm = 1000
 free_hp_pm = 1000
-defense_pm = 1200
+defense_pm = 2500
 
 [sub_resource type="Resource" id="zone_2"]
 script = ExtResource("1_item")
 zone = 2
 richness_pm = 1500
 free_hp_pm = 5000
-defense_pm = 1400
+defense_pm = 2500
 
 [sub_resource type="Resource" id="zone_3"]
 script = ExtResource("1_item")
 zone = 3
 richness_pm = 2000
 free_hp_pm = 20000
-defense_pm = 1700
+defense_pm = 2500
 
 [sub_resource type="Resource" id="zone_4"]
 script = ExtResource("1_item")
 zone = 4
 richness_pm = 2600
 free_hp_pm = 60000
-defense_pm = 2000
+defense_pm = 2500
 
 [sub_resource type="Resource" id="zone_5"]
 script = ExtResource("1_item")
 zone = 5
 richness_pm = 3300
 free_hp_pm = 150000
-defense_pm = 2300
+defense_pm = 2500
 
 [sub_resource type="Resource" id="zone_6"]
 script = ExtResource("1_item")

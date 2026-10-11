@@ -182,7 +182,7 @@ HUD_BIOMASS_AMOUNT,Biomass %s,Biomasse %s
 HUD_TIER_PROGRESS,Tier %d (%s) · %d / %d cells to tier %d,Palier %d (%s) · %d / %d cases vers le palier %d
 HUD_TURRET_HP,HP %s / %s,PV %s / %s
 HUD_MUTATIONS,My mutations,Mes mutations
-HUD_NO_MUTATION,None yet: one per tier reached,Aucune pour l'instant : une par palier atteint
+HUD_NO_MUTATION,None yet: one at tiers 2 4 and 6,Aucune pour l'instant : une aux paliers 2 4 et 6
 HUD_CHOOSE_MUTATION,Choose a mutation (%d),Choisir une mutation (%d)
 HUD_MUTATION_ENTRY,Tier %d · %s: %s,Palier %d · %s : %s
 TAB_ATTACK,Attack,Attaque
@@ -203,7 +203,7 @@ MUTATION_TITLE,Choose a mutation,Choisis une mutation
 MUTATION_SUBTITLE,The game goes on while you choose.,La partie continue pendant le choix.
 MUTATION_KEY,Key %s,Touche %s
 MUTATION_HIDE,Hide the cards to see the map,Cacher les cartes pour voir la carte
-JOURNAL_PROTECTION,Starting protection over: enemy cells can be targeted,Fin de la protection : les cases adverses peuvent être visées
+JOURNAL_PROTECTION,Starting protection over: your border now pushes on enemy cells,Fin de la protection : ta bordure pousse sur les cases adverses
 JOURNAL_ATTACK,%s is pushing on your cells,%s pousse sur tes cases
 JOURNAL_LOST,%s took %d of your cells,%s a pris %d de tes cases
 JOURNAL_TIER,Tier %d reached: +%s Enzymes,Palier %d atteint : +%s Enzymes

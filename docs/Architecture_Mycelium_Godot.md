@@ -63,20 +63,14 @@ res://
 │   ├── state/
 │   │   ├── forest_map.gd     Cases, zones, terrains, table des voisines et disques de cases (portée)
 │   │   ├── game_state.gd     État complet de la partie (tableaux compacts : propriétaire, PV…)
-│   │   ├── colony_state.gd   État d'une colonie (ressources, Tourelle, cibles, améliorations, mutations, capacités…)
-│   │   └── building_state.gd Un bâtiment posé (type, propriétaire, case, PV, chantier, sommeil, cibles) — G5
+│   │   ├── colony_state.gd   État d'une colonie (ressources, Sporophore, points chauds, améliorations, mutations…)
 │   ├── systems/              Un fichier par domaine de règles (G3 : le Sporophore)
 │   │   ├── command_system.gd   Validation et application des commandes
 │   │   ├── colony_stats.gd     Chiffres dérivés d'une colonie (dégâts, cadence, portée, PV, production, coûts), partagés avec les requêtes
-│   │   ├── shot_stats.gd       Chiffres de tir d'une colonie, calculés une fois par tick
-│   │   ├── targeting.gd        Cases visables, priorités de tir, cible au clic, cibles gardées
+│   │   ├── propagation_system.gd  Propagation automatique (G6) : bordure, force et plafond, bonus des points chauds
 │   │   ├── combat.gd           Dégâts, soin, prises, coupures, élimination, Trophée, Mur
-│   │   ├── turret_system.gd    Tirs des Tourelles, puis des bâtiments de chaque colonie
-│   │   ├── buildings.gd        Bâtiments (G5) : pose, démolition, chantier, chute, sommeil, réveil, régénération
-│   │   ├── building_targeting.gd  Cibles des bâtiments (Essaimeur, Avant-poste, Mortier), cible au clic partagée
-│   │   ├── regen_system.gd     Régénération des cases et des Tourelles
+│   │   ├── regen_system.gd     Régénération des cases et des Sporophores
 │   │   ├── upgrades.gd         Achat des améliorations (×1, ×10, Max)
-│   │   ├── abilities.gd        Capacités actives (Salve, Mur, Nuage)
 │   │   ├── tier_system.gd      Paliers, lots d'Enzymes, choix de mutations
 │   │   ├── economy_system.gd   Production, Biomasse
 │   │   ├── event_system.gd     Floraison collective, Arbre mourant (jalon G6)
@@ -88,11 +82,11 @@ res://
 │   ├── sim_rng.gd            Aléatoire à graine, propre à la simulation
 │   └── state_hash.gd         Empreinte de l'état (vérification de l'hôte, tests)
 ├── ai/                       Robots Canonnier, Bâtisseur et Conquérant (G3, étape 3)
-│   ├── robot.gd              Lit l'état, produit des commandes (mutation, priorité, cible, pas, capacités, achats)
-│   ├── robot_profile.gd      Profil d'un robot (poids des améliorations et des mutations, priorités, pas, capacités)
+│   ├── robot.gd              Lit l'état, produit des commandes (mutation, points chauds, achats)
+│   ├── robot_profile.gd      Profil d'un robot (poids des améliorations et des mutations, buts des points chauds)
 │   ├── robot_difficulty.gd   Difficulté d'un robot de jeu (rythme, achats et mutations au hasard, capacités, chasse) — G4
 │   ├── robot_catalog.gd      Profils, robot de jeu et difficultés ; identifiants (« gunner », « game_normal ») et make()
-│   ├── evaluators/           upgrade_planner.gd (achats au meilleur rapport poids / coût), threats.gd (mes cases visées), build_planner.gd (bâtiments : type, case sur le front, déplacements — G5)
+│   ├── evaluators/           upgrade_planner.gd (achats au meilleur rapport poids / coût), hotspot_planner.gd (cases des points chauds selon le but : Sporophore adverse, cases riches, centre — G6)
 │   └── profiles/             gunner.tres, builder.tres, conqueror.tres (robot de jeu et difficultés : data/robots/)
 ├── net/                      Transport des commandes et des différences
 │   ├── transport.gd          Interface commune
@@ -111,22 +105,20 @@ res://
 │   ├── colony/               Colonies (G3 : états des cases des maquettes, Sporophore en trois stades — turret_art.gd —, portée, cibles, spores) ; plus tard taches arrondies
 │   ├── effects/              Ondes de palier, particules, Floraison
 │   ├── camera/               Caméra 2D (déplacement, zoom)
-│   └── input/                Gestes : clic (cible), capacité + clic (Mur, Nuage), roue au clic droit, bâtiment + clic -> commandes
+│   └── input/                Gestes : clic gauche (poser ou retirer un point chaud), clic droit (retirer) -> commandes
 ├── ui/                       Écrans et HUD (nœuds Control)
 │   ├── menus/  hud/  sandbox/  play/  lobby/  settings/  results/  tutorial/  admin/
 │   │                         (play/ en G4 : lancement d'une partie contre les robots, mode et difficulté)
-│   │                         (hud/ en G3 : écran des maquettes — frise, classement, journal, cartes de mutation sur la carte ; ressources, Tourelle, mutations, améliorations, capacités dans le panneau)
+│   │                         (hud/ en G3 : écran des maquettes — frise, classement, journal, cartes de mutation sur la carte ; ressources, propagation, mutations, améliorations dans le panneau)
 │   ├── number_format.gd      Grands nombres (K, M, B, T), multiplicateurs, horloge
 │   ├── controls_text.gd      Nom des touches liées aux actions
 │   └── theme_factory.gd      Construit le thème de l'interface à partir d'une palette
 ├── data/                     Équilibrage et contenu (ressources .tres)
-│   ├── balance.tres          Constantes générales (économie, cases, Tourelle, partie, Trophée)
+│   ├── balance.tres          Constantes générales (économie, cases, Sporophore, propagation, partie, Trophée)
 │   ├── zones.tres            Les 6 zones (richesse, PV d'une case libre, défense d'une case possédée)
 │   ├── tiers.tres            Paliers (seuils, multiplicateurs, lots d'Enzymes)
 │   ├── upgrades.tres         Les 12 améliorations du panneau (G3)
 │   ├── mutations.tres        Les 15 mutations (G3)
-│   ├── abilities.tres        Les 3 capacités actives (G3)
-│   ├── buildings.tres        Les 3 bâtiments (G5)
 │   ├── robots/               Robot de jeu équilibré (game_robot.tres) et ses difficultés easy, normal, hard (G4)
 │   ├── events/               Un .tres par événement
 │   ├── modes/                Duel, FFA, valeurs par défaut des parties personnalisées
@@ -138,7 +130,7 @@ res://
 ├── tools/
 │   ├── capture.gd            Captures d'écran d'un écran du jeu (menus, Bac à sable, partie jouée N secondes, menu de partie, fin), pour validation visuelle
 │   ├── sim_runner.gd         Lots de parties de robots (compositions de forêt, simples ou balayages), en parallèle
-│   ├── balance_report.gd     Équilibrage (G5) : parties de robots en ligne de commande, une ligne JSON par partie, réglages surchargés
+│   ├── balance_report.gd     Équilibrage (G5, G6) : parties de robots en ligne de commande, une ligne JSON par partie, réglages surchargés
 │   ├── simulation/           Une partie mesurée (sim_run), ses mesures (partie, puis chaque secteur), statistiques, tableaux et CSV
 │   └── simulation_panel/     Panneau de simulations (éditeur seulement) : compositions, résultats, courbes
 ├── tests/
@@ -154,8 +146,8 @@ res://
 
 ### 4.1 L'état
 - `GameState` contient tout ce qui définit la partie à un instant donné : numéro du tick, graine, carte, colonies, classement final.
-- La carte est stockée en **tableaux compacts** indexés par numéro de case (`PackedInt32Array`, `PackedInt64Array`) : propriétaire, PV (millièmes), dernière colonie qui a entamé la case, tick de fin de l'arrêt de régénération (Toxique, Nuage), et un rang tiré de la graine pour départager les cases à égalité.
-- Les colonies sont des objets `ColonyState` : ressources, palier, Tourelle (case, PV, priorité, cible désignée, cibles gardées, tirs accumulés), niveaux d'amélioration, mutations et choix en attente, recharges et effets des capacités, Trophées, élimination, statistiques. Les PV de la case d'une Tourelle sont ceux de la Tourelle (`turret_hp`).
+- La carte est stockée en **tableaux compacts** indexés par numéro de case (`PackedInt32Array`, `PackedInt64Array`) : propriétaire, PV (millièmes), dernière colonie qui a entamé la case, et un rang tiré de la graine pour départager les cases à égalité.
+- Les colonies sont des objets `ColonyState` : ressources, palier, Sporophore (case, PV), points chauds (du plus ancien au plus récent), bordure et force du dernier tick, niveaux d'amélioration, mutations et choix en attente, Trophées, élimination, statistiques. Les PV de la case d'un Sporophore sont ceux du Sporophore (`turret_hp`).
 - **Aucune référence vers un nœud**, aucune dépendance à l'affichage.
 
 ### 4.2 Le tick
@@ -164,37 +156,31 @@ res://
 | Ordre | Système | Rôle |
 |---|---|---|
 | 1 | `CommandSystem` | Trie les commandes (joueur, puis ordre d'arrivée), les valide, applique les valides, refuse les autres avec une raison |
-| 2 | `Buildings.update()` | Fins de chantier (PV au maximum), réveils des bâtiments tombés (à la colonie qui tient la case, sinon ils disparaissent) — G5 |
-| 3 | `TurretSystem` | Tirs : pour chaque colonie, le Sporophore (`Targeting`) puis ses bâtiments actifs (`BuildingTargeting`) ; dégâts, soin, prises, coupures, chutes de bâtiments, éliminations (`Combat`, `Buildings`) |
-| 4 | `RegenSystem` | Régénération des cases, des Tourelles et des bâtiments (chantier compris) |
-| 5 | `TierSystem` | Paliers, lots d'Enzymes, choix de mutations |
-| 6 | `EconomySystem` | Production, nutriments, Biomasse, revenu lent d'Enzymes |
-| 7 | `EventSystem` | Événements de la frise (jalon G6) |
-| 8 | `VictorySystem` | Fin de partie (dernière colonie en vie ou 30:00), classement |
-| 9 | `StateHash` | Calcule l'empreinte de l'état (bâtiments compris) |
+| 2 | `PropagationSystem` | Propagation (G6) : pour chaque colonie, bordure, force, bonus des points chauds ; dégâts, prises, coupures, éliminations (`Combat`) |
+| 3 | `RegenSystem` | Régénération des cases et des Sporophores |
+| 4 | `TierSystem` | Paliers, lots d'Enzymes, choix de mutations (paliers 2, 4 et 6), points chauds en trop retirés |
+| 5 | `EconomySystem` | Production, nutriments, Biomasse |
+| 6 | `EventSystem` | Événements de la frise (jalon G7) |
+| 7 | `VictorySystem` | Fin de partie (dernière colonie en vie ou 30:00), classement |
+| 8 | `StateHash` | Calcule l'empreinte de l'état |
 
-Dans `TurretSystem`, les colonies jouent l'une après l'autre et la première change à chaque tick (tick modulo nombre de colonies). Une Tourelle accumule ses tirs en millièmes (cadence non entière) ; avant chaque tir, ses cibles sont remises à jour (une par spore ; la cible désignée d'abord ; une cible est gardée tant qu'elle reste visable). Un pas de N secondes commencé au tick t se termine à la fin du tick t + N − 1 ; pendant le pas, la Tourelle ne tire pas et reste sur sa case de départ.
+Dans `PropagationSystem`, les colonies jouent l'une après l'autre et la première change à chaque tick (tick + graine, modulo le nombre de colonies : le tour de départ est tiré de la graine pour qu'aucun secteur ne soit avantagé). Les dégâts d'une colonie sont d'abord additionnés dans un tableau par case, puis appliqués une fois par case, dans l'ordre des cases (`Combat.deal()`), pour que le résultat ne dépende pas de l'ordre de calcul.
 
-`TickResult` contient les **différences** (cases et colonies modifiées, spores tirées, prises, cases perdues par coupure, éliminations, capacités lancées, paliers, nouveaux choix de mutations, commandes refusées) et l'**empreinte**.
+`TickResult` contient les **différences** (cases et colonies modifiées, prises, cases perdues par coupure, éliminations, paliers, nouveaux choix de mutations, commandes refusées) et l'**empreinte**.
 
 ### 4.3 Les commandes
-- Classe de base `Command` : `tick`, `colony_id`, `type`. Les commandes qui visent une case héritent de `CellCommand` (case en coordonnées axiales). Une sous-classe par action (G3) : `TargetCommand` (cible au clic), `SetPriorityCommand`, `BuyUpgradeCommand` (1, 10 ou le maximum), `ChooseMutationCommand`, `UseAbilityCommand` ; en G5, `BuildCommand` (bâtiment et case) et `DemolishCommand`. `MoveTurretCommand` a été retirée le 5 octobre 2026 (Sporophore fixe) : les replays enregistrés avant la 0.5.2 ne se rejouent plus ; ceux d'avant la 0.6.0 non plus (format 4 : bâtiments dans les définitions et l'empreinte).
-- **Ordres du joueur local au clic** *(décidé le 5 octobre 2026)* : en partie locale, une commande du joueur est jouée tout de suite, entre deux ticks, par `Simulation.apply_now(commandes)` (étape des commandes seule : ni tir ni production) ; le tick suivant se déroule ensuite normalement. Les commandes des robots restent jouées au début du tick. Le `Replay` (format 2 ; 3 depuis la 0.5.2, sans commande de pas) note ces commandes « early » et les rejoue juste avant leur tick (`Replay.batch_at()`), ce qui redonne la même partie. En ligne (G7), l'hôte décidera : ce point sera revu à ce moment-là.
+- Classe de base `Command` : `tick`, `colony_id`, `type`. Les commandes qui visent une case héritent de `CellCommand` (case en coordonnées axiales). Trois commandes depuis G6 : `HotspotCommand` (pose un point chaud sur une case qui n'est pas à la colonie, ou le retire s'il y est ; au-delà du maximum, le plus ancien est remplacé), `BuyUpgradeCommand` (1, 10 ou le maximum) et `ChooseMutationCommand`. Les replays d'avant la 0.7.0 ne se rejouent plus (format 5 : propagation et points chauds).
+- **Ordres du joueur local au clic** *(décidé le 5 octobre 2026)* : en partie locale, une commande du joueur est jouée tout de suite, entre deux ticks, par `Simulation.apply_now(commandes)` (étape des commandes seule : ni propagation ni production) ; le tick suivant se déroule ensuite normalement. Les commandes des robots restent jouées au début du tick. Le `Replay` (format 2 ; 3 depuis la 0.5.2, sans commande de pas) note ces commandes « early » et les rejoue juste avant leur tick (`Replay.batch_at()`), ce qui redonne la même partie. En ligne (G7), l'hôte décidera : ce point sera revu à ce moment-là.
 - Chaque commande sait se **convertir en dictionnaire et inversement** (`to_dict()`, `from_dict()`), pour le réseau et les replays.
-- La validation renvoie un code de refus explicite (`Refusal.Code` : `OUT_OF_RANGE`, `NOT_ADJACENT`, `PROTECTED`, `TIER_LOCKED`, `NOT_ENOUGH_NUTRIENTS`, `COOLDOWN`…) que l'interface traduit en message. L'interface peut demander à l'avance si une commande serait acceptée (`Simulation.check(commande)`), ainsi que les PV max d'une case (`cell_max_hp()`), la portée (`in_range()`, `is_target()`) et le coût d'une amélioration (`upgrade_cost()`, `upgrade_preview()` pour ×10 et Max). Les chiffres d'une colonie (dégâts, cadence, portée, PV, production…) viennent de `ColonyStats`.
+- La validation renvoie un code de refus explicite (`Refusal.Code` : `OWN_CELL`, `OUT_OF_MAP`, `TIER_LOCKED`, `NOT_ENOUGH_NUTRIENTS`…) que l'interface traduit en message. L'interface peut demander à l'avance si une commande serait acceptée (`Simulation.check(commande)`), ainsi que les PV max d'une case (`cell_max_hp()`), les points chauds permis (`max_hotspots()`), la poussée par case et le plafond (`push_values()`) et le coût d'une amélioration (`upgrade_cost()`, `upgrade_preview()` pour ×10 et Max). Les chiffres d'une colonie (poussée, plafond, PV, production…) viennent de `ColonyStats`.
 
-### 4.3 bis Le Sporophore *(G3)*
-- Une **Tourelle** par colonie, sur une case de la colonie (`ColonyState.turret`) ; ses PV sont à part (`turret_hp`). Les autres cases ont des PV (`GameState.hp`) : une case libre a ceux de sa zone, une case possédée ceux de sa zone × Cohésion × améliorations.
-- **Prise** : une case libre ou adverse **collée au territoire** de l'attaquant passe à lui quand ses PV tombent à 0 (libre : à pleine vie ; adverse : à 25 %). Les dégâts sur une case qui ne touche pas le territoire de l'attaquant (Éclaboussure, Rebond, Nuage) la laissent à 1 millième de PV au moins. Après une prise, les cases de l'ancien propriétaire qui ne sont plus reliées à sa Tourelle redeviennent libres (`Combat.cut_off`, sauté quand les voisines de la case prise forment une seule suite, `Combat.may_split`).
-- **Élimination** : quand les PV d'une Tourelle tombent à 0 (par un attaquant dont le territoire la touche), toutes les cases de la colonie redeviennent libres et l'attaquant reçoit un Trophée.
-- Les données de contenu (`SimUpgrade`, `SimMutation`, `SimAbility`) sont copiées champ par champ (`SimRecord`) ; une mutation est un ensemble de modificateurs (multiplicateurs en pour-mille, ajouts) que `ColonyStats` applique.
-
-### 4.3 bis bis Les bâtiments *(G5)*
-- `GameState.buildings` (dans l'ordre de construction) et `GameState.building_at` (rang du bâtiment de chaque case, −1 : aucun) ; `BuildingState` : type (rang dans `SimDefs.buildings`), propriétaire, case, PV, `ready_tick` (fin du chantier), `asleep_until` (réveil d'un bâtiment tombé), cibles gardées, tirs accumulés. Un bâtiment est **debout** (en chantier ou actif) ou **endormi**.
-- `Combat.deal()` : un bâtiment debout prend les dégâts de sa case à sa place (`Buildings.damage()`) ; s'il tombe, il s'endort (`Buildings.fall()`). `siege` (Mortier) permet d'abattre un bâtiment ou un Sporophore loin du territoire.
-- `Combat.cut_off()` part du Sporophore **et** de chaque bâtiment debout de la colonie : les cases reliées à un bâtiment restent à elle (îlots).
-- Chiffres : `ColonyStats.building_slots()`, `building_reach()` (Hyphes longues), `building_max_hp()` (× PV des cases), `building_rate_pm()` (cadence sans la Salve × celle du bâtiment). Requêtes pour l'interface : `Simulation.building_slots()`, `building_on()`, `building_max_hp()`, `building_reach()`, `check_building_type()`.
-- La cible désignée au clic est acceptée si le Sporophore **ou** un bâtiment actif peut la viser (`Targeting.check_designation()`).
+### 4.3 bis Le Sporophore et la propagation *(G6)*
+- Un **Sporophore** par colonie, sur une case de la colonie (`ColonyState.turret`) ; ses PV sont à part (`turret_hp`). Il ne tire plus : c'est une case de la colonie qui pousse comme les autres. Les autres cases ont des PV (`GameState.hp`) : une case libre a ceux de sa zone, une case possédée ceux de sa zone × Cohésion × améliorations.
+- **Propagation** (`PropagationSystem`, GDD §5 bis) : `border()` donne la bordure (cases de la colonie qui touchent une case qui n'est pas à elle) et, pour chacune, ses cibles (voisines pas à elle ; pas les adverses pendant la protection). Force = min(bordure × `ColonyStats.push_per_cell()`, `ColonyStats.push_cap()`), partagée à parts égales entre les cases de bordure puis entre leurs cibles. Chaque point chaud ajoute un bonus (`hotspot_share_pm` de la force ÷ nombre de points chauds), partagé entre les cases de bordure qui ont une cible plus proche de lui, et par chacune entre ces cibles-là.
+- **Prise** : une case libre ou adverse **collée au territoire** de l'attaquant passe à lui quand ses PV tombent à 0 (libre : à pleine vie ; adverse : à 25 %) ; un point chaud de l'attaquant sur la case disparaît. Après une prise, les cases de l'ancien propriétaire qui ne sont plus reliées à son Sporophore redeviennent libres (`Combat.cut_off`, sauté quand les voisines de la case prise forment une seule suite, `Combat.may_split`).
+- **Élimination** : quand les PV d'un Sporophore tombent à 0 (par un attaquant dont le territoire le touche), toutes les cases de la colonie redeviennent libres, les points chauds posés sur ce Sporophore disparaissent et l'attaquant reçoit un Trophée.
+- Les données de contenu (`SimUpgrade`, `SimMutation`) sont copiées champ par champ (`SimRecord`) ; une mutation est un ensemble de modificateurs (multiplicateurs en pour-mille) que `ColonyStats` applique.
+- Supprimés en G6 : `TurretSystem`, `Targeting`, `TargetCache`, `ShotStats`, `Buildings`, `BuildingTargeting`, `BuildingState`, `Abilities` et leurs données (`abilities.tres`, `buildings.tres`).
 
 ### 4.3 ter Performances du tick *(5 octobre 2026)*
 Un tick doit rester court : il est joué sur le fil principal, entre deux images. Mesures après optimisation (FFA, 6 robots) : ~20 ms par tick en moyenne, ~60 ms au pire (contre ~35 et ~155 ms avant) ; en Duel, ~5 ms. Les recettes, qui ne changent aucun résultat (même empreinte) :
@@ -218,9 +204,9 @@ Fin de partie visée : ~1e6 nutriments/s, soit ~1e9 en millièmes par seconde ; 
 
 ## 5. Les données (`data/`)
 
-- Chaque élément de contenu est une **ressource typée** : `ZoneDef`, `TierDef`, `UpgradeDef`, `MutationDef`, `AbilityDef`, `EventDef`, `ModeDef` (classes déclarées dans `sim/defs/`, champs exportés).
+- Chaque élément de contenu est une **ressource typée** : `ZoneDef`, `TierDef`, `UpgradeDef`, `MutationDef`, `EventDef`, `ModeDef` (classes déclarées dans `sim/defs/`, champs exportés).
 - Exemple : une entrée de `data/upgrades.tres` contient l'identifiant, l'onglet, la statistique, l'effet par niveau, le coût de base en U, le facteur de coût, le niveau maximal et le palier de déblocage.
-- La simulation reçoit les définitions **au démarrage de la partie**, sous la forme d'un `SimDefs` : une copie en entiers de tous les chiffres (`SimDefs.from_mode()` lit `zones.tres`, `tiers.tres`, `balance.tres`, `upgrades.tres`, `mutations.tres`, `abilities.tres` et le mode). Elle ne charge rien elle-même pendant les ticks. `SimDefs.prepare()` calcule les valeurs dérivées (tables de coût des améliorations) ; `validate()` signale les réglages absurdes ; `to_dict()` / `from_dict()` servent aux replays et au récapitulatif du Bac à sable.
+- La simulation reçoit les définitions **au démarrage de la partie**, sous la forme d'un `SimDefs` : une copie en entiers de tous les chiffres (`SimDefs.from_mode()` lit `zones.tres`, `tiers.tres`, `balance.tres`, `upgrades.tres`, `mutations.tres` et le mode). Elle ne charge rien elle-même pendant les ticks. `SimDefs.prepare()` calcule les valeurs dérivées (tables de coût des améliorations) ; `validate()` signale les réglages absurdes ; `to_dict()` / `from_dict()` servent aux replays et au récapitulatif du Bac à sable.
 - Les paramètres d'une partie personnalisée ou du **Bac à sable** **surchargent** les valeurs du mode, sans jamais modifier les fichiers.
 - Changer un chiffre d'équilibrage = modifier un `.tres`, relancer les tests et le `sim_runner`.
 
@@ -229,12 +215,12 @@ Fin de partie visée : ~1e6 nutriments/s, soit ~1e9 en millièmes par seconde ; 
 ## 6. Les robots (`ai/`)
 
 - Un robot reçoit l'état (en lecture seule) et renvoie une liste de commandes, **à la même fréquence et avec les mêmes limites qu'un joueur**.
-- `Robot.decide(simulation)` (G3, étape 3) renvoie les commandes du prochain tick ; chacune est d'abord vérifiée par `Simulation.check()`, si bien qu'un robot n'envoie que des commandes acceptées. Ordre : choix de mutation (la plus lourde du profil), priorité de tir (habituelle, ou de défense tant que `Threats.attacked_cells()` trouve des cases visées, gardée `defense_hold_ticks`), cible désignée (Tourelle adverse visable), pas vers le centre (Conquérant), capacités (Enzymes partagées entre elles), achats (`UpgradePlanner.plan()` : meilleur rapport poids / coût du prochain niveau, en entiers, économie pour la meilleure si elle n'est pas payable).
-- **Profil** (`RobotProfile`, `ai/profiles/*.tres`) = poids des améliorations et des mutations, priorités, chasse des Tourelles, pas, capacités : Canonnier, Bâtisseur, Conquérant (GDD §2.5), réservés au panneau de simulations et au Bac à sable.
-- **Robot de jeu** (G4) : le profil équilibré `data/robots/game_robot.tres` avec une **difficulté** (`RobotDifficulty`, `data/robots/easy|normal|hard.tres`) : `act_every_ticks` (le robot n'agit qu'une seconde sur N, décalée selon la colonie : `Robot.acts_at()`), `random_upgrade_one_in` (un achat sur N au hasard parmi les améliorations payables, `UpgradePlanner`), `random_mutation`, `abilities` (capacités permises), `hunts_turrets`. `RobotCatalog.make(id, colonie, graine)` crée le robot d'un identifiant : un profil (« conqueror ») ou le robot de jeu (« game_hard »).
+- `Robot.decide(simulation)` renvoie les commandes du prochain tick ; chacune est d'abord vérifiée par `Simulation.check()`, si bien qu'un robot n'envoie que des commandes acceptées. Ordre : choix de mutation (la plus lourde du profil), un point chaud sur une place libre (G6, `HotspotPlanner` : le but de la place qui manque parmi `hotspot_goals` ; un point chaud n'est reposé que quand le sien a disparu), achats (`UpgradePlanner.plan()` : meilleur rapport poids / coût du prochain niveau, en entiers, économie pour la meilleure si elle n'est pas payable).
+- **Profil** (`RobotProfile`, `ai/profiles/*.tres`) = poids des améliorations et des mutations, buts des points chauds (`hotspot_goals` : `turret`, `rich`, `center`) et portée du but « cases riches » (`rich_reach`) : Canonnier, Bâtisseur, Conquérant (GDD §2.5), réservés au panneau de simulations et au Bac à sable.
+- **Robot de jeu** (G4) : le profil équilibré `data/robots/game_robot.tres` avec une **difficulté** (`RobotDifficulty`, `data/robots/easy|normal|hard.tres`) : `act_every_ticks` (le robot n'agit qu'une seconde sur N, décalée selon la colonie : `Robot.acts_at()`), `random_upgrade_one_in` (un achat sur N au hasard parmi les améliorations payables, `UpgradePlanner`), `random_mutation`, `hunts_turrets` (faux : jamais de point chaud sur un Sporophore adverse). `RobotCatalog.make(id, colonie, graine)` crée le robot d'un identifiant : un profil (« conqueror ») ou le robot de jeu (« game_hard »).
 - Les robots utilisent leur propre `SimRng` dérivé de la graine (`derive(7001 + colonie)`, pour départager les mutations) et ne lisent ni l'heure ni l'aléatoire global : une partie de robots est donc **rejouable à l'identique** (même graine, mêmes réglages).
-- **Bâtiments** (G5, `BuildPlanner`) : le type voulu est celui de plus fort poids du profil (`building_weights`) rapporté au nombre déjà posé ; la case, celle où il aura le plus à viser (`free_cell_value`, `rich_zone_value`, `enemy_cell_value`, `enemy_turret_value`, `enemy_building_value`) ; toutes places prises, un bâtiment sans cible est démoli pour reconstruire là où il sert. Le robot garde des Enzymes pour ses bâtiments (`BuildPlanner.reserve()`), les capacités n'utilisent que le reste. `RobotDifficulty.build_cooldown_ticks` : délai entre deux ordres de bâtiment (Facile : 30 s).
-- Les estimations passent par `ColonyStats`, `Targeting` et les requêtes de `Simulation` : les règles restent dans `sim/`.
+- Supprimés en G6 : `BuildPlanner` et `Threats` (bâtiments, priorités et capacités).
+- Les estimations passent par `ColonyStats` et les requêtes de `Simulation` : les règles restent dans `sim/`.
 
 ---
 
@@ -254,15 +240,15 @@ Fin de partie visée : ~1e6 nutriments/s, soit ~1e9 en millièmes par seconde ; 
 
 - `Session` (`game/session.gd`) assemble une partie : crée la simulation et le transport, inscrit les robots, cadence les ticks (1 par seconde, ×2 ou ×4 en Bac à sable), met à jour `LocalViewState` et émet des **signaux** (`ticked`, `paused_changed`, `speed_changed` en G1 ; `cell_changed`, `tier_reached`, `colony_eliminated`… quand l'affichage en aura besoin). `start_local(defs, graine, colonies, time_control, secteurs)` lance une partie locale (« secteurs » : secteur de chaque colonie, vide pour les premiers) ; `add_robot(robot)` inscrit un robot, appelé par `step()` avant chaque tick sur l'état du tick précédent (ses commandes passent par le transport, donc dans le `Replay`). `stop()` arrête la partie pour le joueur (éliminé contre les robots) ; `colors` donne la couleur de chaque colonie (rangs dans `GameText.COLONY_COLORS`, tirés de la graine contre les robots). `set_spectator()` (ou `start_replay()`) : plus aucun ordre accepté, vitesses ×1, ×4, ×16, ×64 (jusqu'à 64 ticks par image), et `viewer_colony()` vaut −1 pour que chaque colonie garde le nom de sa couleur ; la pause et la vitesse ne répondent que si `time_control` est vrai (Bac à sable). `send_command()` joue l'ordre du joueur tout de suite (signal `commands_applied`, que le HUD et la carte écoutent) et renvoie faux, sans rien envoyer, pendant la pause ou une fois la partie finie ; `game_finished` est émis quand la simulation atteint sa durée maximale (`VictorySystem`, 30:00), après quoi plus aucun tick n'est joué. `production_history` garde la production de la colonie locale à chaque tick (courbe du HUD). En G1, l'affichage lit directement l'état de la simulation locale ; `LocalViewState` arrive avec le jeu en ligne. `advance_time()` joue les ticks dus (8 au plus par image) et `tick_fraction()` donne l'avancement vers le prochain tick, pour interpoler l'affichage.
 - **Singletons limités à trois** : `Settings`, `SceneRouter` et, au jalon G8, `SteamService`. `SteamService` est **facultatif** : les modes locaux (joueur et robots : Bac à sable, Duel et FFA contre robots, tutoriel) sont **isolés des modes en ligne** et fonctionnent sans Steam ni GodotSteam. Aucun code de `sim/`, `ai/`, `game/` ni des écrans des modes locaux ne dépend de `SteamService` ou de `SteamTransport` ; seuls `net/steam_transport.gd` et les écrans du multijoueur (salons, invitations, file d'attente) y touchent. L'état de la partie n'est **jamais** dans un singleton : il appartient à la `Session` en cours.
-- Une scène par écran (`ui/menus/main_menu.tscn`, `ui/hud/hud.tscn`…), une scène par élément réutilisable (bouton de bâtiment, ligne de classement).
+- Une scène par écran (`ui/menus/main_menu.tscn`, `ui/hud/hud.tscn`…), une scène par élément réutilisable (ligne de classement…).
 
 ---
 
 ## 9. Affichage et interface (`view/`, `ui/`)
 
 - L'affichage **écoute** les signaux de la `Session` et lit `LocalViewState`. Il ne modifie jamais l'état.
-- G5 : `view/colony/building_art.gd` dessine un bâtiment (pastille, pictogramme de `HudIcons.draw_building()`, chantier, sommeil, barre de PV) ; `ColonyLayer` dessine aussi les spores des bâtiments (`TickResult.building_shots`) et la portée d'un bâtiment survolé ou à poser. `MapInput` a un mode `BUILD` (bouton du panneau puis clic) et émet `wheel_requested` au clic droit ; `ui/hud/build_wheel.gd` (roue) et `ui/hud/buildings_card.gd` (carte « Bâtiments » du panneau). La caméra glisse au clic du milieu.
-- G3 : écran des maquettes. La carte occupe la partie gauche de l'écran (`Hud.map_rect()`, ~62 %) : `MapCamera.view_rect` y centre, y cadre et y fait glisser la caméra (décalage `offset`). `view/input/map_input.gd` (modes `TARGET`, `MOVE`, `ABILITY`), `view/colony/colony_layer.gd` (états des cases, Sporophores dessinés par `TurretArt`, portée, cibles, soins, spores interpolées), `ui/hud/` : `Hud` assemble des composants construits en code (`TimelineCard`, `RankingCard`, `JournalCard` et `HudJournal`, `MutationOverlay`, `ResourcesCard`, `TurretCard`, `MutationsCard`, `UpgradesCard`, `AbilityBar`), avec `HudStyle` (pastilles et barres aux couleurs de la colonie), `HudIcons` (pictogrammes en trait) et `GameText` (noms des colonies, effets des améliorations). Avant d'envoyer une commande, l'interface demande à la simulation si elle serait acceptée (`Simulation.check()`) ; l'effet « avant → après » d'une amélioration vient de `Simulation.upgrade_values()` (copie des chiffres de la colonie) : les règles restent dans `sim/`.
+- G6 : `ColonyLayer` dessine la bordure de chaque colonie (anneau qui pulse) et les points chauds du joueur (marqueur numéroté relié à sa case de bordure la plus proche) ; plus de spores, de portée ni de bâtiments. `MapInput` n'a plus de modes : clic gauche (poser ou retirer un point chaud), clic droit (retirer). `ui/hud/propagation_card.gd` (carte « Propagation » : PV du Sporophore, poussée par case, force / plafond, bordure, points chauds) remplace `TurretCard`, `BuildingsCard`, `BuildWheel` et `AbilityBar`. La caméra glisse au clic du milieu.
+- G3 : écran des maquettes. La carte occupe la partie gauche de l'écran (`Hud.map_rect()`, ~62 %) : `MapCamera.view_rect` y centre, y cadre et y fait glisser la caméra (décalage `offset`). `view/input/map_input.gd`, `view/colony/colony_layer.gd` (états des cases, Sporophores dessinés par `TurretArt`), `ui/hud/` : `Hud` assemble des composants construits en code (`TimelineCard`, `RankingCard`, `JournalCard` et `HudJournal`, `MutationOverlay`, `ResourcesCard`, `PropagationCard`, `MutationsCard`, `UpgradesCard`), avec `HudStyle` (pastilles et barres aux couleurs de la colonie), `HudIcons` (pictogrammes en trait) et `GameText` (noms des colonies, effets des améliorations). Avant d'envoyer une commande, l'interface demande à la simulation si elle serait acceptée (`Simulation.check()`) ; l'effet « avant → après » d'une amélioration vient de `Simulation.upgrade_values()` (copie des chiffres de la colonie) : les règles restent dans `sim/`.
 - Entre deux ticks, l'affichage **interpole** (jauges qui se remplissent, compteurs qui défilent) pour que le jeu reste fluide à 60 images/s malgré une simulation à 1 tick/s.
 - Thèmes : deux palettes (`data/palettes/light.tres` et `dark.tres`, classe `Palette`) ; `ThemeFactory` en construit le thème de l'interface et `Settings` l'applique à la fenêtre. Les contrôles placés dans un `CanvasLayer` n'héritent pas du thème de la fenêtre : l'écran doit le leur appliquer (`Settings.ui_theme`).
 - Thème au premier lancement : **Système** (suit le réglage clair ou sombre de Windows).
@@ -362,10 +348,10 @@ Le `sim_runner` est piloté par le **panneau de simulations** (GDD §18.5), une 
 
 C'est l'outil qui répond aux questions « À simuler » du GDD.
 
-**`tools/balance_report.gd`** (G5, équilibrage du GDD §5 ter) : les mêmes parties en ligne de commande, sans éditeur ni affichage, une ligne JSON par partie (durée, éliminations, bâtiments posés par type, meneur à 10:00, zones et paliers atteints, ordres par minute). Les réglages se surchargent sans toucher à `data/` (`cell_hp=60000`, `zone_free_hp_pm=1000,5000,…`, `upgrade.regen.max_level=3`, `building.mortar.cost_enzymes=20`), et `game_hard:outpost` désigne un robot qui ne pose qu'un type de bâtiment :
+**`tools/balance_report.gd`** (G5 et G6, équilibrage du GDD §5 ter et §5 quater) : les mêmes parties en ligne de commande, sans éditeur ni affichage, une ligne JSON par partie (durée, éliminations, points chauds posés et atteints, premier point chaud atteint, meneur à 10:00, zones et paliers atteints, ordres par minute). Les réglages se surchargent sans toucher à `data/` (`cell_hp=60000`, `zone_free_hp_pm=1000,5000,…`, `upgrade.regen.max_level=3`), et `game_hard:nohot` désigne un robot qui ne pose jamais de point chaud :
 
 ```bash
-godot --headless -s res://tools/balance_report.gd -- duel 20 game_hard,game_hard 1 enzyme_income_ticks=5
+godot --headless -s res://tools/balance_report.gd -- duel 20 game_hard,game_hard 1 push=2000
 ```
 
 ### 11.4 Ce qui n'est pas couvert par les tests automatiques
@@ -413,6 +399,7 @@ Le ressenti (rythme, plaisir des gestes, lisibilité), le rendu visuel, les perf
 | G3 | Le Sporophore (refonte du 4 octobre 2026). Trois étapes : 1) `sim/` et tests (**livrée le 4 octobre 2026** : `TurretSystem`, `Targeting`, `Combat`, `RegenSystem`, `Upgrades`, `Abilities`, `ColonyStats`, `ShotStats`, `TierSystem` et `VictorySystem` réécrits, six commandes, `data/upgrades.tres`, `mutations.tres`, `abilities.tres` ; suppression de la colonisation, des bâtiments, des robots de G1 et G2, du panneau de simulations et de leur affichage ; affichage et HUD provisoires, Bac à sable avec tous les réglages) ; 2) écran des maquettes (**livrée le 4 octobre 2026** : composants de `ui/hud/`, `TurretArt`, `MapCamera.view_rect`, gestes des capacités, réglages des mutations dans le Bac à sable, `ColonyState.mutation_tiers` et `pending_tiers`, `Simulation.upgrade_values()`) ; 3) robots et panneau de simulations à plusieurs robots (**livrée le 5 octobre 2026**, version 0.4.0 : `Robot`, `RobotProfile`, `RobotCatalog`, `UpgradePlanner`, `Threats`, `ai/profiles/`, adversaires du Bac à sable, `Session.add_robot()` et spectateur, `ReplayTransport`, `SimRunner`, `SimRun`, `SimReport`, `CompositionList`, `CurvesChart`) |
 | G4 | Combattre des robots (décidé le 5 octobre 2026 ; **livré le 5 octobre 2026**, version 0.5.0) : `RobotDifficulty`, `data/robots/` (robot de jeu équilibré, Facile / Normal / Difficile), `RobotCatalog.make()`, `GameConfig` (ancien `SandboxConfig` : sorte de partie, secteur du joueur et couleurs tirés de la graine, `replay_config()`), `game_screen.tscn` (ancien `sandbox_screen.tscn`), `ui/play/play_setup.tscn` (mode et difficulté), `Session.stop()` et `colors`, HUD : abandon confirmé et fin de partie minimale ; robot de jeu au choix dans le Bac à sable |
 | G5 | Bâtiments (GDD §5 bis) : Essaimeur, Avant-poste, Mortier, places par palier, bâtiment endormi ; sans maquettes (décidé le 5 octobre 2026) |
-| G6 | `EventSystem` (Floraison collective, Arbre mourant), frise, journal et alertes complets, écran de résultats complet, spectateur après élimination ; version 0.6.0 |
-| G7 | Tutoriel, audio, traduction, profil (sans Steam) |
-| G8 | `SteamService` et GodotSteam, `SteamTransport`, salons et invitations, partie personnalisée (salon, surcharge des paramètres, préréglages ; ancien G5), vérification par empreinte, interface d'administration. **Première étape : tests entre amis avec l'App ID 480** (Spacewar) : l'App ID est lu depuis la configuration (jamais écrit en dur), les salons portent une clé de métadonnée propre au jeu et à sa version et la recherche filtre dessus (l'App ID 480 est partagé avec d'autres développeurs), et `steam_appid.txt` est réservé aux builds de test, jamais inclus dans l'export final |
+| G6 | Propagation automatique (GDD §5 bis, livrée le 11 octobre 2026, version 0.7.0) : `PropagationSystem`, `HotspotCommand`, `ColonyStats` (poussée, plafond, points chauds), `HotspotPlanner`, `PropagationCard`, gestes et dessin des points chauds ; suppression du tir, des bâtiments et des capacités ; `balance_report` mesure les points chauds atteints (« game_hard:nohot » : robot sans point chaud) |
+| G7 | `EventSystem` (Floraison collective, Arbre mourant), frise, journal et alertes complets, écran de résultats complet, spectateur après élimination ; version 0.6.0 |
+| G8 | Tutoriel, audio, traduction, profil (sans Steam) |
+| G9 | `SteamService` et GodotSteam, `SteamTransport`, salons et invitations, partie personnalisée (salon, surcharge des paramètres, préréglages ; ancien G5), vérification par empreinte, interface d'administration. **Première étape : tests entre amis avec l'App ID 480** (Spacewar) : l'App ID est lu depuis la configuration (jamais écrit en dur), les salons portent une clé de métadonnée propre au jeu et à sa version et la recherche filtre dessus (l'App ID 480 est partagé avec d'autres développeurs), et `steam_appid.txt` est réservé aux builds de test, jamais inclus dans l'export final |

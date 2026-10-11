@@ -6,6 +6,38 @@ L'historique de l'ancienne version web est dans la branche `archive/web`.
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-10-11
+
+G6 — Propagation automatique.
+
+### Ajouté
+- **Propagation automatique** : toute la bordure d'une colonie pousse sur ses voisines libres et
+  adverses, à parts égales. Force = poussée par case × cases de bordure, ramenée à un plafond qui
+  monte avec les paliers et l'amélioration Vigueur. Le Sporophore pousse comme une case.
+- **Points chauds** : jusqu'à 3 (1 au départ, 2 au palier 1, 3 au palier 2), posés au clic gauche
+  sur n'importe quelle case qui n'est pas à soi (Sporophore adverse compris), retirés au clic (gauche
+  ou droit) ; un 4e remplace le plus ancien, un point chaud pris disparaît. Ils reçoivent en plus de
+  la force un bonus de 30 %, envoyé par la bordure tournée vers eux.
+- Améliorations **Poussée** (remplace Dégâts et Cadence) et **Vigueur** (plafond).
+- Carte « Propagation » dans le panneau (PV du Sporophore, poussée, force / plafond, bordure,
+  points chauds) ; bordure qui pulse et points chauds numérotés sur la carte.
+- Robots : points chauds selon le profil (Sporophore adverse, cases riches, centre ; robot de jeu :
+  un de chaque).
+- `balance_report` : points chauds posés et atteints, robot sans point chaud (`game_hard:nohot`).
+
+### Modifié
+- Une mutation aux paliers 2, 4 et 6 seulement ; *Glande* retirée du tirage.
+- Équilibrage complet (GDD §5 quater) : poussée 3 PV/s, plafonds des paliers, PV des zones,
+  défense des cases, régénération 0,5 %, Cohésion des PV 10 %.
+- Le tour de départ de la propagation est tiré de la graine (aucun secteur avantagé).
+- Replays : format 5 (ceux d'avant la 0.7.0 ne se rejouent plus).
+
+### Supprimé
+- Tir du Sporophore (portée, priorités, cible au clic, soin), bâtiments (Essaimeur, Avant-poste,
+  Mortier), capacités (Salve, Mur, Nuage) et leurs touches, revenu lent d'Enzymes.
+- Améliorations Portée, Soin, Spores par tir, Éclaboussure, Critique, Rebond ; mutations Spores
+  lourdes et légères, Hyphes longues, Guérisseur, Sporée, Pionnier, Prédateur, Toxique.
+
 ## [0.6.0] - 2026-10-06
 
 G5 — Bâtiments, et premier équilibrage du jeu.

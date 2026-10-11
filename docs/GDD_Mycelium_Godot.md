@@ -1,24 +1,24 @@
-# MYCÉLIUM : LAST COLONY — Document de conception, portage Godot (v0.6.0 : bâtiments et équilibrage)
+# MYCÉLIUM : LAST COLONY — Document de conception, portage Godot (v0.7.0 : propagation automatique)
 
-> Jeu incrémental compétitif en parties de **30 minutes maximum**. Chaque joueur incarne une colonie de champignons dont le **cœur est une tourelle** : elle lance des spores qui colorent les cases d'une carte d'hexagones. Plus la colonie a de cases, plus elle produit ; ce qu'elle produit sert à **améliorer sa tourelle** (dégâts, cadence, portée…), qui prend alors encore plus de cases. Le centre de la forêt est le plus riche et le plus disputé : **le but est d'être la dernière colonie vivante.** Trois façons de jouer : **Duel**, **FFA** (jusqu'à 6 colonies) et **Partie personnalisée**. Cible : un **projet Godot exporté en .exe (Windows), distribué sur Steam**.
+> Jeu incrémental compétitif en parties de **30 minutes maximum**. Chaque joueur incarne une colonie de champignons qui **se propage toute seule** sur une carte d'hexagones : toute la bordure de son territoire pousse sur les cases voisines. Plus la colonie a de cases, plus elle produit ; ce qu'elle produit sert à **améliorer sa propagation** (poussée, plafond…), qui prend alors encore plus de cases. Le joueur **oriente** la croissance en posant jusqu'à **3 points chauds**. Son cœur, le **Sporophore**, est la case à protéger : s'il tombe, la colonie est éliminée. Le centre de la forêt est le plus riche et le plus disputé : **le but est d'être la dernière colonie vivante.** Trois façons de jouer : **Duel**, **FFA** (jusqu'à 6 colonies) et **Partie personnalisée**. Cible : un **projet Godot exporté en .exe (Windows), distribué sur Steam**.
 
-**Vocabulaire.** Dans le jeu, la tourelle s'appelle **le Sporophore** ; ce document dit « la Tourelle ». Les valeurs chiffrées sont des **points de départ à simuler**. Les décisions ont été prises avec le propriétaire le 4 octobre 2026 (questions en QCM, maquettes validées).
+**Vocabulaire.** Dans le jeu, le cœur de la colonie s'appelle **le Sporophore** ; ce document dit aussi « la Tourelle » (nom historique : depuis le 11 octobre 2026, il ne tire plus). Les valeurs chiffrées sont des **points de départ à simuler**. Les décisions ont été prises avec le propriétaire le 4 octobre 2026 (questions en QCM, maquettes validées).
 
 ---
 
 ## 1. Pitch
 
 - **Genre** : jeu incrémental compétitif en temps réel (« tower idle »), type dernier survivant.
-- **Fantasy** : tu es un réseau fongique dont le cœur est un champignon qui crache des spores. Tu le regardes conquérir la forêt case après case, tu le rends de plus en plus puissant et tu le mesures aux champignons voisins.
-- **Boucle courte (5 à 30 s)** : acheter une amélioration, changer la priorité de tir, désigner une case à prendre, lancer une capacité.
-- **Boucle moyenne (2 à 5 min)** : atteindre un palier et choisir une mutation, placer un bâtiment pour avancer le front (§5 bis, à venir), choisir sa cible parmi les voisins.
-- **Boucle longue (30 min)** : survivre, abattre les tourelles adverses, finir dernier vivant.
+- **Fantasy** : tu es un réseau fongique qui envahit la forêt. Tu le regardes déborder case après case, tu le rends de plus en plus vigoureux, tu le guides vers les endroits qui t'intéressent et tu le mesures aux champignons voisins.
+- **Boucle courte (5 à 30 s)** : acheter une amélioration, poser ou déplacer un point chaud.
+- **Boucle moyenne (2 à 5 min)** : atteindre un palier (et une mutation tous les deux paliers), choisir où porter la croissance et quel voisin attaquer.
+- **Boucle longue (30 min)** : survivre, abattre les Sporophores adverses, finir dernier vivant.
 
 ### Piliers de design
-1. **L'espace est la ressource principale.** Plus de cases = plus de production = une meilleure tourelle.
+1. **L'espace est la ressource principale.** Plus de cases = plus de production = une propagation plus forte.
 2. **La colonie explose.** Chaque minute, le joueur doit sentir que ses chiffres changent d'échelle.
-3. **La tourelle est l'identité.** Ses améliorations et ses mutations font ta façon de jouer.
-4. **L'affrontement, c'est la meilleure tourelle.** Pas de micro-gestion : on gagne par ses choix d'améliorations, de priorités et de placement.
+3. **La colonie est l'identité.** Ses améliorations, ses mutations et ses points chauds font ta façon de jouer.
+4. **L'affrontement, c'est la meilleure colonie.** Pas de micro-gestion : la propagation est automatique, on gagne par ses choix d'améliorations et de points chauds.
 5. **Départ équitable, centre risqué.** Mêmes chances au départ ; plus on avance vers le centre, plus on gagne et plus on s'expose.
 6. **Lisibilité** : on comprend en 5 secondes qui domine, qui est menacé et ce qui arrive ensuite.
 
@@ -34,7 +34,7 @@
 - **Purement local** : fonctionne **sans Steam ni GodotSteam**.
 - Le joueur est sur une forêt de **Duel ou de FFA, au choix**, avec la couleur **Menthe**, seul ou avec des **adversaires robots** : l'écran de réglages propose, pour **chaque secteur libre** (1 en Duel, 5 en FFA), un robot **Canonnier**, **Bâtisseur** ou **Conquérant**, le **robot de jeu** en **Facile**, **Normal** ou **Difficile** (G4), ou **Aucun** (par défaut) ; le récapitulatif liste les adversaires et leur résultat (décidé le 4 octobre 2026, étape 3 de G3).
 - **Pause et vitesse uniquement en Bac à sable** : pause par la touche **P** ou un bouton du HUD ; vitesse par un **bouton du HUD** qui passe de ×1 à ×2 puis ×4.
-- **Le plus paramétrable possible** : un écran de réglages avant de lancer (forêt et graine, adversaires, et **tous les chiffres** du jeu : tourelle de départ, PV des cases, régénération, améliorations, paliers, Enzymes, capacités, événements, protection de départ, Trophée). Un bouton **remet les valeurs par défaut** ; les réglages **ne sont pas gardés** d'une partie à l'autre.
+- **Le plus paramétrable possible** : un écran de réglages avant de lancer (forêt et graine, adversaires, et **tous les chiffres** du jeu : poussée et plafond de départ, part des points chauds, PV des cases, régénération, améliorations, paliers, Enzymes, événements, protection de départ, Trophée). Un bouton **remet les valeurs par défaut** ; les réglages **ne sont pas gardés** d'une partie à l'autre.
 - **Récapitulatif à tout moment** : un bouton copie dans le presse-papiers un texte lisible avec les **réglages** et les **résultats** de la partie.
 - La partie **s'arrête à 30:00** : la carte reste visible et un **panneau de fin** propose **Copier le récapitulatif**, **Rejouer avec les mêmes réglages** et **Menu**. **Échap** met en pause et ouvre le **menu de partie** (Reprendre, Copier le récapitulatif, Recommencer, Quitter vers le menu) ; pendant la pause, **aucun ordre** n'est accepté.
 - Éliminé en Bac à sable : **spectateur** (vitesse et pause possibles), avec un bouton vers l'écran de fin.
@@ -68,13 +68,16 @@ Permet de créer **tout type de partie** : le type (Duel ou FFA), les joueurs, l
 | Durée maximale | 30 min | 5 à **30 min** (plafond fixe) |
 
 ### 2.5 Robots
-- Les robots jouent **avec les mêmes règles et les mêmes commandes que les joueurs** : pas de triche. Ils choisissent leurs **améliorations**, leur **priorité de tir**, leurs **mutations**, et leurs **capacités**.
-- **Profils** : *Canonnier* (dégâts et cadence d'abord), *Bâtisseur* (rendement et défense d'abord), *Conquérant* (portée et ennemis d'abord). Depuis le 5 octobre 2026, **aucun robot ne déplace sa Tourelle** (elle est fixe, §5.5).
-- **Comportement (G3, étape 3)** : à chaque seconde, un robot prend la mutation la plus lourde pour son profil, garde sa priorité de tir habituelle ou passe à sa priorité de défense quand ses cases sont visées, désigne la Tourelle adverse dès qu'il peut la viser (Canonnier et Conquérant), lance la Salve quand il tire, le Mur sur une case attaquée et le Nuage sur les cases adverses, et achète l'amélioration au meilleur rapport poids / coût (en économisant pour elle si elle n'est pas encore payable). Les poids de chaque profil sont dans `ai/profiles/` (voir « Choix de l'étape 3 de G3, à confirmer », §17).
-- **Robot de jeu** *(G4, décidé le 5 octobre 2026)* : en Duel et en FFA, les adversaires sont des **robots de jeu**, sans profil visible : un réglage interne **équilibré** (dégâts, rendement et portée à parts égales). Les **profils** (Canonnier, Bâtisseur, Conquérant) restent réservés au panneau de simulations et au Bac à sable. Trois difficultés, dont les valeurs sont dans `data/` :
-  - **Difficile** : le comportement actuel (il agit chaque seconde, sans erreur) ;
+- Les robots jouent **avec les mêmes règles et les mêmes commandes que les joueurs** : pas de triche. Ils choisissent leurs **améliorations**, leurs **mutations** et leurs **points chauds** (décidé le 11 octobre 2026 : plus de priorité de tir, de capacités ni de bâtiments).
+- **Profils** (panneau de simulations et Bac à sable) et **points chauds** *(décidé le 11 octobre 2026, QCM)* :
+  - *Canonnier* : Poussée d'abord ; ses points chauds visent **le Sporophore adverse le plus proche** (dès la fin de la protection), puis les cases adverses sur le chemin.
+  - *Bâtisseur* : Rendement et défense d'abord ; ses points chauds visent les **cases libres les plus riches** (zone la plus centrale à 2 cases au plus de son territoire, la plus proche).
+  - *Conquérant* : Vigueur et Poussée d'abord ; ses points chauds visent **le centre**, puis l'ennemi le plus proche une fois la zone 5 atteinte.
+- **Comportement** : à chaque action, un robot prend la mutation la plus lourde pour son profil, repose un point chaud dès qu'un des siens est pris ou disparaît, et achète l'amélioration au meilleur rapport poids / coût (en économisant pour elle si elle n'est pas encore payable). Les poids sont dans `ai/profiles/`.
+- **Robot de jeu** *(G4, décidé le 5 octobre 2026)* : en Duel et en FFA, les adversaires sont des **robots de jeu**, sans profil visible : un réglage interne **équilibré** ; ses points chauds sont **un mélange** des trois profils (un de chaque quand il en a trois). Trois difficultés, dont les valeurs sont dans `data/` :
+  - **Difficile** : il agit chaque seconde, sans erreur ;
   - **Normal** : le même, mais il n'agit que toutes les **2 s** ;
-  - **Facile** : il agit toutes les **3 s**, fait **1 achat sur 4 au hasard**, prend sa **mutation au hasard**, ne lance **jamais le Mur ni le Nuage** et **ne vise pas la Tourelle adverse**.
+  - **Facile** : il agit toutes les **3 s**, fait **1 achat sur 4 au hasard**, prend sa **mutation au hasard** et **ne vise pas le Sporophore adverse** avec ses points chauds.
   Le nombre d'ordres d'un robot dépend donc de sa difficulté (« mêmes limites qu'un joueur »).
 - Ils servent aussi à compléter les salons, à remplacer un joueur déconnecté et à équilibrer les valeurs par simulation (§18.5).
 
@@ -85,18 +88,16 @@ Permet de créer **tout type de partie** : le type (Duel ou FFA), les joueurs, l
 - **Résultat** : rang de partie = ordre d'élimination ; statistiques de fin (cases conquises, tourelles abattues, durée de survie, pic de production).
 
 ### 2.7 Tutoriel
-Une **courte partie scénarisée (~10 min)** contre un robot passif, sur une petite forêt de Duel ; **proposée au premier lancement**, passable et rejouable (jalon G7). Étapes :
+Une **courte partie scénarisée (~10 min)** contre un robot passif, sur une petite forêt de Duel ; **proposée au premier lancement**, passable et rejouable (jalon G8). Étapes *(revues et validées le 11 octobre 2026)* :
 
 | Étape | Objectif | Ce qu'on apprend |
 |---|---|---|
-| 1 | Regarder la tourelle prendre 5 cases | Tir automatique, PV des cases |
+| 1 | Regarder la colonie prendre 5 cases | Propagation automatique, PV des cases |
 | 2 | Acheter 2 améliorations | Panneau, coûts qui montent |
-| 3 | Changer la priorité de tir | Priorités |
-| 4 | Désigner une case à prendre | Cible prioritaire au clic |
-| 5 | Atteindre 10 cases et choisir une mutation | Paliers, production qui double, mutations |
-| 6 | Déplacer la tourelle d'une case | Déplacement |
-| 7 | Soigner une case attaquée par le robot | Défense, soin |
-| 8 | Abattre la Tourelle du robot | Élimination et trophée |
+| 3 | Poser un point chaud et le voir attirer la croissance | Points chauds |
+| 4 | Atteindre 10 cases et choisir une mutation | Paliers, production qui monte, mutations |
+| 5 | Tenir une frontière attaquée par le robot | Défense (PV, régénération) |
+| 6 | Abattre le Sporophore du robot | Point chaud sur un Sporophore, élimination et trophée |
 
 ---
 
@@ -104,8 +105,8 @@ Une **courte partie scénarisée (~10 min)** contre un robot passif, sur une pet
 
 ### 3.1 Départ
 - Chaque colonie démarre avec **3 cases, Tourelle comprise** : la Tourelle sur un **coin de la forêt** (le milieu exact de son secteur, zone 1), la case collée à elle **vers le centre**, et une case collée à elle **sur le bord**. Les départs des autres colonies s'en déduisent par rotation, donc tous identiques.
-- **Stock de départ** : 0 (la Tourelle commence à tirer tout de suite ; les premières améliorations se paient avec la production).
-- **Protection de départ : 2:00.** Pendant la protection, **aucune case adverse ne peut être visée et aucune capacité ne peut être lancée** (décision du 4 octobre 2026 pour les actions, reprise ici).
+- **Stock de départ** : 0 (la colonie pousse tout de suite ; les premières améliorations se paient avec la production).
+- **Protection de départ : 2:00.** Pendant la protection, la propagation **ne pousse pas sur les cases adverses** ; la part qui leur reviendrait va aux voisines libres de la même case de bordure (s'il n'y en a pas, elle est perdue ; validé le 11 octobre 2026).
 
 ### 3.2 Frise de la partie
 La partie est rythmée par des **événements scriptés** (§13), à la même heure à chaque partie.
@@ -150,87 +151,83 @@ Six anneaux concentriques de **même épaisseur** : **2 anneaux d'hexagones par 
 
 | Zone | Richesse | PV d'une case libre | Défense d'une case possédée |
 |---|---|---|---|
-| 1 (bord) | ×1,0 | ×1 | ×1,5 |
-| 2 | ×1,5 | ×5 | ×1,8 |
-| 3 | ×2,0 | ×25 | ×2,25 |
-| 4 | ×2,6 | ×100 | ×2,7 |
-| 5 | ×3,3 | ×350 | ×3,15 |
-| 6 (Clairière) | ×4,0 | ×1 000 | ×3,75 |
+| 1 (bord) | ×1,0 | ×1 | ×2,5 |
+| 2 | ×1,5 | ×5 | ×2,5 |
+| 3 | ×2,0 | ×20 | ×2,5 |
+| 4 | ×2,6 | ×60 | ×2,5 |
+| 5 | ×3,3 | ×150 | ×2,5 |
+| 6 (Clairière) | ×4,0 | ×400 | ×2,7 |
 
-*(PV des cases libres et défense des zones changés à l'équilibrage du 6 octobre 2026, §5 ter : avant, ×1 à ×5 et ×1 à ×2,5.)*
+*(Valeurs de l'équilibrage de G6, 11 octobre 2026, §5 quater : avant, PV des cases libres ×1 ; 5 ; 25 ; 100 ; 350 ; 1 000 et défense ×1,5 à ×3,75. La défense des cases possédées est désormais la même partout, sauf la Clairière.)*
 
 Cible : une colonie moyenne atteint la zone N vers la minute 3,5 × N.
 
 ---
 
-## 5. La Tourelle *(décidé le 4 octobre 2026)*
+## 5. Le Sporophore *(revu le 11 octobre 2026 : cœur seulement)*
 
 ### 5.1 Principe
-- La Tourelle est le **cœur de la colonie** : elle occupe sa case de départ (§3.1). C'est un champignon qui lance des spores, appelé **le Sporophore** dans le jeu.
-- Elle **tire toute seule**, en continu. Chaque spore inflige des **dégâts** à la case visée (§6).
-- Elle a ses propres **PV** : si elle tombe, la colonie est éliminée (§3.3).
-- Il y a **une seule Tourelle** par colonie.
-
-### 5.2 Portée et cibles
-- La Tourelle a une **portée** : un **cercle de N cases** autour d'elle (**2 au départ, 4 au plus avec l'amélioration**, décidé le 5 octobre 2026). Elle ne vise que des cases dans ce cercle.
-- Dans le cercle, elle ne peut viser qu'une **case collée à mon territoire** (libre ou adverse) : le territoire reste d'un seul tenant. Elle peut aussi viser **une de mes cases blessées pour la soigner** (§7.3).
-- L'amélioration **Portée** agrandit le cercle.
-
-### 5.3 Priorité de tir
-La Tourelle choisit seule sa cible selon une **priorité** que le joueur règle dans le panneau :
-
-| Priorité | La Tourelle vise d'abord… |
-|---|---|
-| **Plus proche** (par défaut) | la case visable la plus proche d'elle |
-| **Plus riche** | la case visable de la zone la plus riche |
-| **Soigner d'abord** | mes cases blessées, puis la case la plus proche |
-| **Ennemis d'abord** | les cases adverses, puis la case la plus proche |
-
-Départage entre cases à égalité : la plus proche de la Tourelle, puis un tirage tiré de la graine. Une cible est **gardée jusqu'à sa prise** (ou jusqu'à ce qu'elle ne soit plus visable) : la Tourelle ne papillonne pas. C'est vrai aussi pour **Soigner d'abord** et **Ennemis d'abord** : si une case qui passe avant apparaît pendant une prise, la Tourelle **finit sa prise d'abord** (décidé le 4 octobre 2026).
-
-### 5.4 Cible désignée au clic
-Un **clic gauche** sur une case visable en fait la **cible prioritaire** : la Tourelle la vise **jusqu'à ce qu'elle soit prise**, puis reprend la priorité choisie. Un nouveau clic remplace la cible désignée ; un clic sur une de mes cases blessées la désigne pour le soin, jusqu'à ce qu'elle soit à pleine vie.
-
-### 5.5 Pas de déplacement *(décidé le 5 octobre 2026)*
-- **La Tourelle ne bouge pas** : elle reste toute la partie sur sa case de départ. Avec sa petite portée (§5.2), ce sont les **bâtiments** (§5 bis) qui font avancer le front et vont attaquer les autres colonies.
-- Supprimés avec le déplacement : la touche **D**, la mutation *Rapide* et les pas des robots.
-- *Ancienne règle (4 octobre 2026), pour mémoire :* pas d'une case vers une de mes cases voisines, 10 s sans tirer.
+- Le Sporophore est le **cœur de la colonie** : il occupe sa case de départ (§3.1) et **ne bouge pas**. Il y en a **un seul** par colonie.
+- **Il ne tire plus** *(décidé le 11 octobre 2026)* : plus de spores, de portée, de cercle de portée, de priorité de tir, de cible au clic ni de soin. C'est la **propagation** de toute la colonie qui prend les cases (§5 bis).
+- Il a ses propres **PV** (§7.4) : s'il tombe, la colonie est éliminée (§3.3).
+- Il est **une case de mon territoire** comme les autres : il compte pour les paliers, produit, et **pousse s'il est sur la bordure**, comme une case (validé le 11 octobre 2026).
+- Il prend des dégâts **comme une case** quand une colonie voisine pousse sur lui (§5 bis.5).
+- *Supprimé le 11 octobre 2026, pour mémoire :* tir automatique, portée 2 à 4, priorités Plus proche / Plus riche / Soigner d'abord / Ennemis d'abord, cible désignée au clic, soin des cases (§5.2 à §5.4 et §7.3 de la v0.6).
 
 ---
 
-## 5 bis. Les bâtiments *(décidé le 5 octobre 2026, QCM ; jalon G5)*
+## 5 bis. La propagation automatique *(décidé le 11 octobre 2026, QCM ; jalon G6)*
 
-La Tourelle est fixe et porte loin seulement à 4 cases : **ce sont les bâtiments qui font gagner du terrain et vont attaquer les autres colonies**. Il y en a **3** :
+> Remplace les **bâtiments** (Essaimeur, Avant-poste, Mortier) de la v0.6 et le tir du Sporophore. **Toute la bordure pousse**, sa force dépend du niveau de la colonie (améliorations, paliers), et le joueur oriente la croissance avec **3 points chauds**. Toutes les valeurs chiffrées sont des points de départ à simuler.
 
-| Bâtiment | Rôle | Cible (fixe par type) | Palier | Prix | Chantier | Portée | Dégâts | Cadence | PV |
-|---|---|---|---|---|---|---|---|---|---|
-| **Essaimeur** | Prend les **cases libres** en tirant des spores ; rien contre l'adversaire | la case libre **la plus proche de lui**, collée à mon territoire | 1 | **5 Enzymes** | 5 s | 2 | ×1 | ×1 | 120 |
-| **Avant-poste** | Petite tourelle **d'attaque** | la case **adverse** la plus proche, collée à mon territoire (**plus de cases libres**, décidé le 6 octobre 2026) | 2 | **10 Enzymes** | 15 s | 2 | ×1 | ×1 | 200 |
-| **Mortier** | Arme de **siège** | **uniquement** bâtiments et Sporophores adverses à portée, **même loin de mon territoire** ; il ne prend pas de case ; sans cible, il **attend** | 3 | **20 Enzymes** | 30 s | 5 | ×4 | ÷4 | 120 |
+### 5 bis.1 La bordure
+- Une **case de bordure** est une de mes cases qui a **au moins une voisine qui n'est pas à moi** (libre ou adverse).
+- Chaque seconde (1 tick), chaque case de bordure **pousse** sur ses voisines qui ne sont pas à moi : elle leur retire des PV, **à parts égales entre toutes ces voisines, libres ou adverses** (pas de priorité).
+- Une case visée par plusieurs de mes cases de bordure **additionne** les poussées reçues.
+- Pas de portée : on ne pousse **que sur une case collée** à mon territoire. Le territoire reste d'un seul tenant.
 
-Dégâts et cadence sont donnés en multiple de ceux du Sporophore (5 dégâts, 0,2 tir/s au départ, cadence **sans la Salve**) : un Essaimeur tire donc 5 dégâts toutes les 5 s au départ. Prix divisés par deux à l'équilibrage du 6 octobre 2026 (§5 ter).
+### 5 bis.2 Force : poussée par case et plafond global (« mixte »)
+- **Poussée par case** : chaque case de bordure pousse avec **3 PV/s** de base (1 avant l'équilibrage de G6) × amélioration **Poussée** × mutations.
+- **Plafond global** : la colonie ne peut pas dépasser une **force totale** = **8 PV/s** de base × multiplicateur de **palier** × amélioration **Vigueur**.
+- **Force totale** = somme des poussées de toutes les cases de bordure, **ramenée au plafond** si elle le dépasse (toutes les poussées sont alors réduites dans la même proportion).
+- Effet voulu : grandir accélère la conquête (plus de bordure), mais le plafond, qui suit le niveau, empêche l'emballement ; c'est en montant Vigueur et les paliers qu'on relève la limite.
 
-- **Places** : le nombre total de bâtiments est limité : **1 place au palier 1, +1 par palier**.
-- **Où** : sur **n'importe laquelle de mes cases**, sauf celle du Sporophore et une case qui a déjà un bâtiment.
-- **Chantier** : pendant sa durée, le bâtiment ne fait rien et **peut être frappé** ; ses PV partent de **10 %** de leur maximum et montent jusqu'au maximum à la fin du chantier (décidé le 6 octobre 2026).
-- **Gestes** :
-  - **clic droit sur une de mes cases** : une **roue** s'affiche pour choisir le bâtiment (ceux qui ne sont pas débloqués ou payables sont grisés) ; clic droit sur un de mes bâtiments : la roue propose **Démolir** ;
-  - ou **bouton** du bâtiment dans le panneau de droite, puis **clic** sur une de mes cases ;
-  - **Échap** ou un **clic droit hors de mes cases** annule ou ferme la roue ;
-  - la carte **glisse au clic du milieu** (maintenu) et par les bords de l'écran ; le clic droit ne la fait plus glisser.
-- **Puissance** : les **améliorations de tir** du panneau s'appliquent aussi aux bâtiments : **Dégâts, Cadence, Critique, Éclaboussure, Rebond, Spores par tir**. Pas la Portée ni l'Écorce (Sporophore seul). Les **mutations de tir** aussi (Spores lourdes et légères, Pionnier, Prédateur, Sporée, Toxique), mais **pas la Salve** (décidé le 6 octobre 2026). Le **Mortier n'a ni Éclaboussure ni Rebond** (décidé le 6 octobre 2026). La mutation **Hyphes longues** donne **+1 portée à tous mes bâtiments** et plus au Sporophore.
-- **Cible au clic** : la case désignée au clic gauche (§5.4) est aussi visée en priorité par les bâtiments **qui peuvent la frapper** (le Mortier seulement si c'est un bâtiment ou un Sporophore).
-- **Défense** : un bâtiment a **ses propres PV**, multipliés par l'amélioration **PV des cases** (décidé le 6 octobre 2026) ; la case sous lui ne peut être prise qu'une fois le bâtiment tombé. Il **se régénère** comme une case, mais le Sporophore **ne peut pas le soigner**.
-- **Mortier et Sporophores** : le Mortier **peut abattre** un Sporophore ou un bâtiment **même loin de mon territoire** (décidé le 6 octobre 2026 ; les autres tirs laissent une Tourelle qui ne touche pas mon territoire à 1 PV au moins).
-- **Bâtiment tombé** : il devient **endormi pendant 60 s** (il ne fait rien et **ne peut pas être frappé** : on se bat pour la case dessous). Au bout des 60 s, **la colonie qui tient alors la case sous lui l'obtient** : l'attaquant s'il a pris la case entre-temps, sinon son propriétaire le récupère. Il se **réveille à pleine vie**. La colonie qui l'obtient le **garde même sans place libre** (les places ne comptent que pour construire). (Le propriétaire ne doit pas le récupérer « en l'état » trop facilement : c'est ce délai qui laisse une chance aux deux camps.)
-- **Bâtiment coupé du Sporophore** : il **reste actif** et garde sa case, même isolé (exception à la règle des cases coupées, §12). **Îlot qui grandit** (décidé le 6 octobre 2026) : les cases qu'il prend autour de lui restent à moi et produisent ; toutes les cases reliées à un de mes bâtiments (en chantier ou actif) restent à moi, même si une prise les coupe à nouveau du Sporophore. Quand ce bâtiment tombe ou est démoli, les cases qui ne sont plus reliées ni au Sporophore ni à un bâtiment redeviennent libres.
-- **Colonie éliminée** : ses bâtiments **s'endorment 60 s**, puis vont à la colonie qui tient alors leur case ; sur une case libre, ils disparaissent (décidé le 6 octobre 2026).
-- **Démolir** : par la roue ; le bâtiment disparaît et sa **place est rendue**, sans remboursement.
-- **Aspect** : un **pictogramme simple** par type dans une pastille à la couleur de la colonie, avec barre de PV ; l'habillage viendra en G7.
-- **Robots** : ils construisent **selon leur profil** : Conquérant, Mortiers et Avant-postes vers l'ennemi ; Bâtisseur, Essaimeurs vers les cases libres riches ; Canonnier, Avant-postes ; robot de jeu, un peu de tout (poids Essaimeur 4, Avant-poste 3, Mortier 2). Toujours sur le front : un bâtiment est posé là où il aura le plus de cases à viser (un Mortier seulement s'il a une cible à portée) ; toutes places prises, un bâtiment qui n'a plus rien à viser est démoli pour reconstruire là où il sert, et le robot garde de quoi payer deux déplacements. Facile attend 30 s entre deux ordres de bâtiment.
-- **Livraison** : **en une fois**, version **0.6.0**.
+### 5 bis.3 Points chauds
+- Le joueur peut poser **jusqu'à 3 points chauds** (**1 au départ, 2 au palier 1, 3 au palier 2**, §8.3).
+- **Sur n'importe quelle tuile** qui n'est pas à moi : libre ou adverse, **Sporophore adverse compris**, **même loin** de mon territoire ; un clic sur **une de mes cases est refusé** (validé le 11 octobre 2026).
+- **Bonus en plus de la force** *(décidé le 11 octobre 2026, QCM, pendant l'équilibrage)* : toute la force va à la bordure comme au §5 bis.1, et les points chauds reçoivent **en plus** un bonus de **30 % de la force**, **partagé à parts égales entre les points chauds posés** (1 point chaud = 30 % ; 2 = 15 % chacun ; 3 = 10 % chacun). Ce bonus dépasse le plafond. *Avant : les 30 % étaient pris sur la force ; en simulation, un robot qui posait des points chauds perdait alors 23 parties sur 24 contre un robot identique qui n'en posait jamais.*
+- **Attraction, « bordure orientée »** : le bonus d'un point chaud est répartie à parts égales entre mes cases de bordure **tournées vers lui**, c'est-à-dire celles qui ont au moins une voisine pas à moi **plus proche du point chaud** (distance en cases) qu'elles-mêmes. Chacune pousse ce bonus, à parts égales, sur ces voisines-là seulement ; sans case tournée vers lui, le bonus est perdu.
+- **Fin d'un point chaud** : quand sa case est **prise**, il **disparaît** tout seul ; son bonus revient aux autres points chauds.
+- Un point chaud **ne coûte rien** (les Enzymes n'ont pas d'usage, §8.1).
 
-### 5 ter. Équilibrage de G5 *(attendus décidés le 5 octobre 2026, QCM)*
+### 5 bis.4 Prendre une case
+- **Case libre** : PV = base **40** × PV de sa zone (§4.3). À **0 PV**, elle devient mienne **à pleine vie**. Entamée puis plus poussée, elle **reprend ses PV** peu à peu (même régénération que les cases possédées).
+- **Case adverse** : ses PV dépendent de son propriétaire (§7). À 0 PV, elle passe à moi **avec 25 % de ses PV max**. Elle **se régénère** seule ; la prise est une **course** entre ma poussée et sa défense (PV, régénération).
+- Si deux colonies poussent sur la même case libre, celle qui la fait tomber à 0 la prend ; les colonies sont traitées l'une après l'autre et la première change à chaque tick (règle reprise de la v0.6) ; le tour de départ est tiré de la graine, pour qu'aucun secteur ne soit avantagé d'une partie à l'autre (11 octobre 2026 : sinon, entre deux robots identiques, le secteur 1 gagnait ~70 % des parties).
+- **Territoire coupé** : mes cases qui ne sont plus reliées à mon Sporophore **redeviennent libres** tout de suite (§12). Sans bâtiments, il n'y a plus d'îlots.
+
+### 5 bis.5 Le Sporophore adverse
+- Une case de bordure qui touche un Sporophore adverse **pousse sur lui comme sur une case** : il perd des PV. À 0 PV, sa colonie est éliminée et le **Trophée** va à la colonie dont la poussée l'a fait tomber (§12).
+- Un point chaud posé sur un Sporophore adverse oriente la croissance jusqu'à lui ; il ne disparaît que quand le Sporophore tombe.
+
+### 5 bis.6 Gestes
+- **Clic gauche** sur une tuile qui n'est pas à moi : **pose** un point chaud. S'il y en a déjà le maximum, le **plus ancien** est remplacé.
+- **Clic gauche sur un point chaud** : il est **retiré**.
+- **Clic droit sur un point chaud** : il est aussi **retiré** (validé le 11 octobre 2026) ; la carte glisse toujours au clic du milieu et par les bords.
+
+### 5 bis.7 Affichage *(provisoire, dans le style actuel ; l'habillage viendra en G8)*
+- **Point chaud** : un marqueur à la couleur de la colonie sur sa tuile, numéroté 1 à 3, avec un trait léger vers la bordure orientée.
+- **Bordure** : les cases de bordure **pulsent** doucement ; une case poussée se remplit de la couleur de l'attaquant comme une jauge circulaire (état « entamée » des maquettes).
+- Plus de spores en vol, de cercle de portée ni de cible désignée.
+
+### 5 bis.8 Ce qui est supprimé *(décidé le 11 octobre 2026)*
+- **Bâtiments** : Essaimeur, Avant-poste, Mortier, places, chantiers, roue au clic droit, sommeil de 60 s, îlots (§5 bis de la v0.6).
+- **Tir du Sporophore** : portée, priorités, cible au clic, soin.
+- **Capacités** : Salve, Mur de mycélium, Nuage toxique (§11).
+- **Revenu lent d'Enzymes** (retour à avant G5).
+- **Améliorations** et **mutations** liées au tir (§9.2, §10).
+
+### 5 ter. Équilibrage de G5 *(attendus décidés le 5 octobre 2026, QCM ; historique : mesuré avec les bâtiments, à refaire en G6)*
 
 G5 inclut un **équilibrage** du jeu (le choix du 4 octobre de ne pas équilibrer tout de suite est levé).
 
@@ -287,37 +284,65 @@ Inchangés : Sporophore (5 dégâts, 0,2 tir/s, portée 2, 400 PV), protection 2
 
 ---
 
+### 5 quater. Équilibrage de G6 *(11 octobre 2026, version 0.7.0)*
+
+Mêmes cibles que le §5 ter, sauf « premier bâtiment vers 1:00 » et « bâtiments décisifs », remplacées par **premier point chaud atteint vers 1:00** et **points chauds décisifs** (un robot qui n'en pose jamais perd nettement contre un qui en pose). Mesures avec `tools/balance_report.gd` (robot de jeu, graines 1 à 20 en Duel, 1 à 10 en FFA ; 1 tick = 1 s, sans affichage).
+
+**Décisions prises pendant l'équilibrage (QCM du 11 octobre 2026)** : le bonus des points chauds s'ajoute à la force au lieu d'être pris dessus (§5 bis.3). Sans QCM, faute de règle : le tour de départ de la propagation est tiré de la graine (§5 bis.4).
+
+| Valeur (`data/`) | Spécifiée | Après |
+|---|---|---|
+| Poussée de base par case | 1 PV/s | **3 PV/s** |
+| Plafond des paliers 1 → 6 | ×1,5 ; 2,25 ; 3,4 ; 5 ; 7,5 ; 11 | **×1,3 ; 1,8 ; 2,5 ; 4 ; 10 ; 18** |
+| Vigueur, par niveau | +20 % | **+25 %** |
+| Régénération de base / amélioration Régénération | 2 % / +1 % par niveau | **0,5 % / +0,5 %** |
+| PV des cases (amélioration) : niveaux au plus | 10 | **5** |
+| Cohésion : PV par voisine | +15 % | **+10 %** |
+| PV des cases libres, zones 1 → 6 | ×1 ; 5 ; 25 ; 100 ; 350 ; 1 000 | **×1 ; 5 ; 20 ; 60 ; 150 ; 400** |
+| Défense des cases possédées, zones 1 → 6 | ×1,5 ; 1,8 ; 2,25 ; 2,7 ; 3,15 ; 3,75 | **×2,5 partout, ×2,7 en Clairière** |
+| Robot de jeu et Bâtisseur : portée du but « cases riches » | 3 cases | **2 cases** |
+
+Inchangés : 30 % de bonus aux points chauds, plafond de départ 8 PV/s, PV du Sporophore (400), protection 2:00, paliers (seuils, production, Enzymes), mutations, Trophée.
+
+| Cible | Mesure | |
+|---|---|---|
+| 1. Duel Difficile : élimination entre 12 et 20 min | **11 sur 20** (médiane 13:30, toutes entre 12:06 et 15:06) ; 9 parties sans élimination à 30:00 | atteinte de justesse |
+| 1 bis. Duel Normal | **10 sur 20** (médiane 13:36, de 12:12 à 15:06) | atteinte de justesse |
+| 2. FFA (6) : 1re élimination 8-12 min | **7:36** en médiane (5:18 à 9:36) | un peu tôt |
+| 2 bis. FFA : un seul survivant avant 30:00 | 3 sur 10 ; 2 survivants dans 6 parties, 3 dans 1 | 2-3 survivants acceptés |
+| 3. Premier point chaud atteint vers 1:00 | **0:42** (Duel), 0:48 (FFA) | atteinte |
+| 4. Points chauds décisifs | robot de jeu contre le même sans point chaud : **20 victoires sur 20** | atteinte |
+| 5. Le meneur à 10:00 gagne 80-90 % | Duel Difficile 90 %, Normal 75 %, FFA 90 % | atteinte |
+| 6. Zone N vers 3,5 × N min | zones 2 à 6 : 0:42, 2:12, 4:00, 8:00, 27:36 (Duel) | trop rapide au début, Clairière rarement prise |
+| 6 bis. Production ×10 000 à ×100 000 | pic médian **6e4/s** (×6 000), max 1,2e5/s | un peu bas |
+| 7. 8 à 10 actions par minute | robots : 9 (Difficile), 7 (Normal) | à vérifier en jouant |
+| Facile perd contre Normal ≥ 80 % | **60 %** (12 sur 20) | **non atteinte** |
+
+À reprendre : Facile trop proche de Normal (ses points chauds le rendent presque aussi fort ; jouer sur son rythme ou ses achats au hasard n'a rien changé), la Clairière presque jamais prise, la 1re élimination un peu tôt en FFA, et environ la moitié des Duels qui se figent jusqu'à 30:00.
+
+---
+
 ## 6. Prendre une case
+*Depuis le 11 octobre 2026, voir §5 bis.4 (propagation automatique).*
 
-### 6.1 Cases libres
-- Chaque case libre a des **PV** : base **40** × PV de sa zone (§4.3).
-- Chaque spore lui retire les **dégâts** de la Tourelle. À **0 PV**, la case devient mienne, **à pleine vie** (décidé le 4 octobre 2026 ; une case adverse prise arrive à 25 %, §6.2).
-- Une case libre entamée puis abandonnée **reprend ses PV** peu à peu (même régénération que les cases possédées).
-
-### 6.2 Cases adverses
-- Une case possédée a des **PV** qui dépendent de son propriétaire (§7). Mes spores lui retirent mes dégâts ; à 0 PV, elle passe à moi, **avec 25 % de ses PV max**.
-- Son propriétaire peut la **soigner** en la visant avec sa propre Tourelle (§7.3), et elle **se régénère** seule.
-- La prise est donc une **course** entre mes dégâts et sa défense (PV, régénération, soin).
-
-### 6.3 Cadence et dégâts
-- **Tourelle de départ** *(décidé le 5 octobre 2026)* : **0,2 spore par seconde** (un tir toutes les 5 s), **5 dégâts**, portée **2** (avant : 1 tir/s, 10 dégâts, portée 3). Avec 1 dégât par seconde, une case libre de 40 PV se prend en 40 s, et une case adverse bien entourée ne peut plus être prise par la Tourelle seule : **c'est voulu**, il faut des améliorations ou les bâtiments.
-- La simulation avance d'**1 tick par seconde** : une cadence de 2,5 tirs/s donne 2 ou 3 tirs selon le tick (reste cumulé), toujours de façon déterministe. L'animation des spores est interpolée à l'écran.
+### 6.1 Rythme de la simulation
+La simulation avance d'**1 tick par seconde** ; les poussées sont continues (PV par seconde) et calculées de façon déterministe. L'animation des cases entamées est interpolée à l'écran.
 
 ---
 
 ## 7. Défense
 
 ### 7.1 PV d'une case possédée
-PV max = base **40** × défense de la zone (§4.3) × (1 + **15 %** par voisine possédée, la Cohésion) × améliorations de défense × mutations.
+PV max = base **40** × défense de la zone (§4.3) × (1 + **10 %** par voisine possédée, la Cohésion ; 15 % avant G6) × améliorations de défense × mutations.
 
 ### 7.2 Régénération
-Chaque case possédée **regagne ses PV** seule : 2 % de ses PV max par seconde, plus l'amélioration **Régénération**.
+Chaque case **regagne ses PV** seule : **0,5 %** de ses PV max par seconde (2 % avant G6), plus l'amélioration **Régénération** pour une case possédée.
 
-### 7.3 Soin par la Tourelle
-Ma Tourelle peut **tirer sur une de mes cases** (à portée) pour la **soigner** : chaque spore lui rend **50 %** de mes dégâts, plus l'amélioration **Soin**. C'est la priorité **Soigner d'abord** ou un clic qui l'y envoie.
+### 7.3 Soin
+*Supprimé le 11 octobre 2026* : le Sporophore ne soigne plus. La défense passe par les PV (Cohésion, PV des cases), la régénération et la mutation *Mycélium tenace*.
 
 ### 7.4 La Tourelle
-PV de la Tourelle = **400** (10 × les PV de base d'une case, 40) : seules l'amélioration **Écorce du Sporophore** et la mutation *Blindé* les augmentent (décidé le 4 octobre 2026 : ni la Cohésion ni l'amélioration PV des cases). Elle se régénère comme une case. Une Tourelle ne peut être visée que si elle est **collée au territoire** de l'attaquant et **à sa portée**, comme toute case.
+PV du Sporophore = **400** (10 × les PV de base d'une case, 40) : seules l'amélioration **Écorce du Sporophore** et la mutation *Blindé* les augmentent (décidé le 4 octobre 2026 : ni la Cohésion ni l'amélioration PV des cases). Il se régénère comme une case. Il ne prend des dégâts que d'une colonie dont le territoire **le touche** (§5 bis.5).
 
 ---
 
@@ -327,39 +352,41 @@ PV de la Tourelle = **400** (10 × les PV de base d'une case, 40) : seules l'am�
 | Ressource | Rôle | Source |
 |---|---|---|
 | **Nutriments** | Achat des améliorations | Toutes mes cases |
-| **Enzymes** | Capacités actives (§11) et bâtiments (§5 bis) | **Paliers de colonie** (un lot à chaque palier atteint, décidé le 4 octobre 2026), **Trophées**, et un **revenu lent** : 1 Enzyme toutes les 3 s pour chaque colonie en vie (décidé le 6 octobre 2026 ; valeurs de l'équilibrage) |
+| **Enzymes** | **Aucun usage pour le moment** (décidé le 11 octobre 2026 : on les garde pour plus tard ; capacités et bâtiments supprimés) | **Paliers de colonie** (un lot à chaque palier atteint) et **Trophées** ; **plus de revenu lent** (retour à avant G5) |
 | **Biomasse** | Total des nutriments produits : départage à 30:00 et statistiques | Production |
 
 - **Pas de plafond de stock** : tout se dépense en améliorations.
-- Lots d'Enzymes : 40 au palier 1, puis 80, 120, 160, 200 et 240 (doublés à l'équilibrage du 6 octobre 2026). Un palier perdu puis retrouvé ne redonne pas son lot.
+- Lots d'Enzymes : 40 au palier 1, puis 80, 120, 160, 200 et 240. Un palier perdu puis retrouvé ne redonne pas son lot. Le compteur **reste affiché** dans le panneau (validé le 11 octobre 2026).
 
 ### 8.2 Production
 Une case de zone 1 rapporte **≈ 3,33 nutriments/s**, multipliée par la **richesse de sa zone**, la **Cohésion** (+5 % par voisine possédée, +30 % au plus), les **paliers**, l'**Armillaire** (×1,00 → ×1,25 sur 30 min) et les événements. Les multiplicateurs se **multiplient** entre eux.
 
 ### 8.3 Paliers de colonie
-Quand le **nombre de cases** franchit un seuil, **la production de la colonie monte** (×2 par palier avant l'équilibrage du 6 octobre 2026, désormais ×1,3 environ), la colonie reçoit son **lot d'Enzymes**, **une place de bâtiment** et le joueur **choisit une mutation** (§10) :
+Quand le **nombre de cases** franchit un seuil, **la production de la colonie monte**, le **plafond de propagation** est multiplié, la colonie reçoit son **lot d'Enzymes** et débloque des améliorations ou des points chauds. **Une mutation tous les deux paliers** : paliers 2, 4 et 6 (décidé le 11 octobre 2026, QCM).
 
-| Palier | Cases | Production | Débloque |
-|---|---|---|---|
-| Départ | 3 | ×1 | Dégâts, Cadence, Portée, Rendement |
-| 1 | 5 | ×1,3 | Régénération, Soin, capacité **Salve**, **Essaimeur** |
-| 2 | 10 | ×1,7 | Spores par tir, PV des cases, **Avant-poste** |
-| 3 | 20 | ×2,2 | Éclaboussure, capacité **Mur de mycélium**, **Mortier** |
-| 4 | 40 | ×2,85 | Critique, Écorce du Sporophore |
-| 5 | 80 | ×3,7 | Rebond, capacité **Nuage toxique** |
-| 6 | 160 | ×4,8 | (le prestige du conquérant) |
+**Répartition validée le 11 octobre 2026 (QCM)** ; plafonds de l'équilibrage de G6 (§5 quater) :
 
-- Seules les cases possédées comptent, Tourelle comprise.
-- Le multiplicateur suit le **nombre de cases actuel** : perdre des cases peut faire perdre un palier. Les niveaux déjà achetés d'une amélioration dont le palier est perdu **restent actifs** ; on ne peut simplement plus en acheter avant de retrouver le palier.
+| Palier | Cases | Production | Plafond | Débloque | Mutation |
+|---|---|---|---|---|---|
+| Départ | 3 | ×1 | ×1 | Poussée, Vigueur, Rendement ; **1 point chaud** | — |
+| 1 | 5 | ×1,3 | ×1,3 | Régénération ; **2e point chaud** | — |
+| 2 | 10 | ×1,7 | ×1,8 | PV des cases ; **3e point chaud** | oui |
+| 3 | 20 | ×2,2 | ×2,5 | — | — |
+| 4 | 40 | ×2,85 | ×4 | Écorce du Sporophore | oui |
+| 5 | 80 | ×3,7 | ×10 | — | — |
+| 6 | 160 | ×4,8 | ×18 | (le prestige du conquérant) | oui |
+
+- Seules les cases possédées comptent, Sporophore compris.
+- Le multiplicateur suit le **nombre de cases actuel** : perdre des cases peut faire perdre un palier (production, plafond et points chauds débloqués). Un point chaud en trop après un palier perdu disparaît (le plus ancien). Les niveaux déjà achetés d'une amélioration dont le palier est perdu **restent actifs**.
 
 ### 8.4 Ordre de grandeur
 Cible : **~10 nutriments/s au départ → 1e5 à 1e6 nutriments/s en fin de partie**. Les nombres s'écrivent avec des suffixes (K, M, B, T).
 
 ### 8.5 Retour visuel (le « boum »)
-- La Tourelle **pulse à chaque tir** ; les spores volent jusqu'à leur case ; une case prise **éclot** à la couleur de la colonie.
-- Au franchissement d'un **palier** : message « Palier ×2 ! », la Tourelle grossit un instant, puis la carte des mutations s'ouvre.
-- Les **compteurs défilent**. La **courbe de production**, absente des maquettes validées, n'est plus affichée dans le panneau depuis l'étape 2 de G3 (place des améliorations) : elle reviendra sur l'écran de résultats (G6), à confirmer.
-- La Tourelle **change d'aspect** avec ses améliorations (plus grande, plus de chapeaux, plus de spores), pour que sa puissance se lise sur la carte.
+- Les cases de bordure **pulsent** ; une case poussée se remplit de la couleur de l'attaquant ; une case prise **éclot** à la couleur de la colonie.
+- Au franchissement d'un **palier** : message « Palier ! », le Sporophore grossit un instant, puis (paliers 2, 4 et 6) la carte des mutations s'ouvre.
+- Les **compteurs défilent**. La **courbe de production**, absente des maquettes validées, n'est plus affichée dans le panneau depuis l'étape 2 de G3 (place des améliorations) : elle reviendra sur l'écran de résultats (G7), à confirmer.
+- Le Sporophore **change d'aspect** avec le palier, pour que la puissance de la colonie se lise sur la carte.
 
 ---
 
@@ -367,77 +394,63 @@ Cible : **~10 nutriments/s au départ → 1e5 à 1e6 nutriments/s en fin de part
 
 ### 9.1 Principe
 - Le côté incrémental est un **panneau à droite de l'écran** ; la **carte est à gauche**.
-- On y achète des **améliorations à niveaux** avec les nutriments : dégâts de la tourelle, vitesse d'attaque, etc.
+- On y achète des **améliorations à niveaux** avec les nutriments : poussée, plafond, rendement, défense.
 - Coût d'un niveau = coût de base × **1,35 ^ niveau** (1,15 avant l'équilibrage du 6 octobre 2026) ; chaque niveau ajoute le même effet (pas de jalons tous les 25 niveaux, idée non retenue). Bouton **×1 / ×10 / Max** pour acheter plusieurs niveaux d'un coup.
 
-### 9.2 Catalogue
+### 9.2 Catalogue *(revu le 11 octobre 2026, QCM)*
 
 | Amélioration | Effet par niveau | Coût de base | Palier |
 |---|---|---|---|
-| **Dégâts** | +25 % des dégâts de base | 1 U | Départ |
-| **Cadence** | +10 % de tirs par seconde | 2 U | Départ |
-| **Portée** | +1 case de rayon (**2 niveaux au plus** : portée 4, décidé le 5 octobre 2026) | 10 U, ×3 par niveau | Départ |
+| **Poussée** *(fusion de Dégâts et Cadence)* | +25 % de poussée par case de bordure | 1 U | Départ |
+| **Vigueur** *(nouvelle)* | +25 % du plafond global de propagation | 2 U | Départ |
 | **Rendement** | +10 % de production de mes cases | 2 U | Départ |
-| **Régénération** | +1 % des PV max par seconde (**3 niveaux au plus**, 6 octobre 2026) | 5 U | 1 |
-| **Soin** | +25 % de soin par spore (**8 niveaux au plus**) | 5 U | 1 |
-| **Spores par tir** | +1 cible visée à chaque tir (5 au plus) : les spores en plus visent **d'autres cases**, dans l'ordre de la priorité, chacune gardée jusqu'à sa prise (décidé le 4 octobre 2026) | 50 U, ×4 par niveau | 2 |
-| **PV des cases** | +20 % des PV max de mes cases et de mes bâtiments (**10 niveaux au plus**) | 20 U | 2 |
-| **Éclaboussure** | +10 % des dégâts aussi infligés aux voisines de la case touchée (**5 niveaux au plus**) | 100 U | 3 |
-| **Critique** | +5 % de chance de dégâts ×3 (50 % au plus) | 300 U | 4 |
-| **Écorce du Sporophore** | +25 % des PV de la Tourelle (**10 niveaux au plus**) | 300 U | 4 |
-| **Rebond** | quand une spore prend une case, +1 case voisine touchée avec le reste des dégâts (**3 niveaux au plus**) | 1 000 U | 5 |
+| **Régénération** | +0,5 % des PV max par seconde (**3 niveaux au plus**) | 5 U | 1 |
+| **PV des cases** | +20 % des PV max de mes cases (**5 niveaux au plus**) | 20 U | 2 |
+| **Écorce du Sporophore** | +25 % des PV du Sporophore (**10 niveaux au plus**) | 300 U | 4 |
 
-U = 30 nutriments, comme avant.
+U = 30 nutriments, comme avant. Paliers de déblocage : §8.3.
+
+**Supprimées le 11 octobre 2026** : Dégâts et Cadence (fusionnées dans Poussée), Portée, Soin, Spores par tir, Éclaboussure, Critique, Rebond.
+
+**Onglets** : Attaque (Poussée, Vigueur), Défense (Régénération, PV des cases, Écorce), Économie (Rendement).
 
 ---
 
-## 10. Mutations au palier *(décidé le 4 octobre 2026)*
+## 10. Mutations au palier *(revu le 11 octobre 2026)*
 
-À chaque **palier atteint pour la première fois**, le joueur **choisit 1 mutation parmi 3** tirées au hasard (graine). Elles sont permanentes pour la partie.
+Aux paliers **2, 4 et 6** atteints pour la première fois, le joueur **choisit 1 mutation parmi 3** tirées au hasard (graine), sans remise parmi celles pas encore prises. Elles sont permanentes pour la partie. **La partie continue pendant le choix**, sans limite de temps ; si un nouveau palier à mutation arrive avant le choix, **les choix s'empilent**.
 
-Liste (14 mutations ; *Rapide* supprimée le 5 octobre 2026 avec le déplacement ; les 3 proposées sont tirées sans remise parmi celles pas encore prises). **La partie continue pendant le choix**, sans limite de temps. Si un nouveau palier arrive avant le choix, **les choix s'empilent** : on choisit le premier, puis les 3 cartes du suivant s'affichent (décidé le 4 octobre 2026).
-- *Spores lourdes* : dégâts ×1,5, cadence ×0,8.
-- *Spores légères* : cadence ×1,4, dégâts ×0,8.
-- *Hyphes longues* : portée +1 de **tous mes bâtiments** (plus du Sporophore, décidé le 5 octobre 2026).
+Liste (5 mutations tirables ; *Glande* retirée du tirage le 11 octobre 2026 tant que les Enzymes ne servent à rien) :
 - *Cohésion* : la Cohésion compte double (production et PV).
 - *Mycélium tenace* : régénération ×2.
 - *Racines profondes* : production des zones 4 à 6 ×1,3.
-- *Pionnier* : les cases libres prennent ×1,5 dégâts.
-- *Prédateur* : les cases adverses prennent ×1,3 dégâts.
-- *Guérisseur* : soin ×2.
-- *Sporée* : +1 spore par tir.
-- *Glande* : +50 % d'Enzymes aux prochains paliers.
-- *Blindé* : PV de la Tourelle ×2.
-- *Toxique* : les cases touchées perdent leur régénération pendant 5 s.
+- *Blindé* : PV du Sporophore ×2.
 - *Avare* : améliorations −15 % de coût.
+
+Avec 5 mutations, les 3 tirages (paliers 2, 4, 6) ont toujours 3 cartes.
+
+**Retirées le 11 octobre 2026** : *Glande* (reviendra avec un usage des Enzymes) ; supprimées : Spores lourdes, Spores légères, Hyphes longues, Guérisseur, Sporée, Pionnier, Prédateur, Toxique (et *Rapide* le 5 octobre 2026).
 
 ---
 
-## 11. Capacités actives *(décidé le 4 octobre 2026)*
-
-Boutons à **recharge**, payés en **Enzymes**, débloqués par les paliers (§8.3). Aucune n'est utilisable pendant la protection de départ.
-
-| Capacité | Coût | Recharge | Effet |
-|---|---|---|---|
-| **Salve** | 20 Enzymes | 90 s | Cadence ×5 pendant 10 s |
-| **Mur de mycélium** | 40 Enzymes | 3 min | Mes cases à 3 cases ou moins d'une case choisie ne perdent aucun PV pendant 15 s |
-| **Nuage toxique** | 60 Enzymes | 3 min | Une case choisie à portée et ses voisines : dégâts égaux à 20 tirs, et plus de régénération pendant 30 s |
+## 11. Capacités actives
+*Supprimées le 11 octobre 2026 (QCM)* : Salve, Mur de mycélium et Nuage toxique n'existent plus. Les touches Q, W, E sont libérées.
 
 ---
 
 ## 12. Conflit
 
-- **Aucune pression automatique** au contact : on prend une case adverse en la visant (priorité ou clic), on la garde en la soignant et grâce à sa défense.
-- **Territoire coupé** : quand une prise adverse coupe mon territoire, mes cases qui ne sont plus reliées à ma Tourelle **redeviennent libres** tout de suite (décidé le 4 octobre 2026). Toutes les cases d'une colonie produisent donc.
-- On ne vise que des cases **collées à son territoire** et **à portée**.
-- Pas d'attaque avant **2:00**.
-- **Élimination** *(décidé le 4 octobre 2026)* : quand une Tourelle tombe, **toutes les cases de la colonie redeviennent libres**. La colonie qui l'a abattue reçoit un **Trophée** :
+- **Pression automatique au contact** *(11 octobre 2026)* : une case de bordure qui touche une case adverse pousse sur elle (§5 bis.1) ; les points chauds concentrent la poussée sur une colonie choisie. On garde ses cases grâce à leur défense (PV, Cohésion, régénération).
+- **Territoire coupé** : quand une prise adverse coupe mon territoire, mes cases qui ne sont plus reliées à mon Sporophore **redeviennent libres** tout de suite (décidé le 4 octobre 2026).
+- On ne pousse que sur des cases **collées à son territoire**.
+- Pas de poussée sur les cases adverses avant **2:00**.
+- **Élimination** *(décidé le 4 octobre 2026)* : quand un Sporophore tombe, **toutes les cases de la colonie redeviennent libres**. La colonie qui l'a abattu reçoit un **Trophée** :
   - **production de nutriments +25 %** jusqu'à la fin de la partie, **cumulable** (2 Trophées = +50 %) ; cette production compte dans la production moyenne ;
-  - **+100 Enzymes** d'un coup ;
+  - **+100 Enzymes** d'un coup (sans usage pour le moment) ;
   - une ligne dans les statistiques et le profil.
 - **Départage à 30:00** : les éliminations comptent **avant** la production moyenne (§3.3).
-- La colonie qui abat la Tourelle est celle dont le tir la fait tomber à 0 PV.
-- **Pas de seconde vie** : une Tourelle abattue élimine la colonie.
+- La colonie qui abat le Sporophore est celle dont la poussée le fait tomber à 0 PV.
+- **Pas de seconde vie** : un Sporophore abattu élimine la colonie.
 - Pas de plancher de cases ni de protection contre un joueur plus petit.
 
 ---
@@ -447,7 +460,7 @@ Boutons à **recharge**, payés en **Enzymes**, débloqués par les paliers (§8
 *Décidé le 4 octobre 2026 : seulement les deux événements scriptés ; les événements aléatoires sont des idées pour plus tard (§17).* Ils sont annoncés **20 s avant** et figurent sur la frise. Chacun peut être activé ou non dans une partie personnalisée et dans le Bac à sable.
 
 - **Floraison collective** (8:00, 16:00, 24:00) : production **×2** pendant 30 s pour toutes les colonies.
-- **Arbre mourant** (12:00 et 20:00) : 7 cases libres d'un tenant dans la zone du moment, avec **beaucoup de PV** (valeur à fixer en G6) ; chaque colonie qui le vise y inflige ses dégâts. Quand il tombe, récompense en nutriments (≈ 2 min de production moyenne) et 100 Enzymes **au prorata des dégâts**, +25 % au meilleur ; ses 7 cases redeviennent libres. Disparaît au bout de 3 min.
+- **Arbre mourant** (12:00 et 20:00) : 7 cases libres d'un tenant dans la zone du moment, avec **beaucoup de PV** (valeur à fixer en G7) ; chaque colonie qui pousse dessus y inflige ses dégâts. Quand il tombe, récompense en nutriments (≈ 2 min de production moyenne) et 100 Enzymes **au prorata des dégâts**, +25 % au meilleur ; ses 7 cases redeviennent libres. Disparaît au bout de 3 min.
 
 **Zone du moment** : pour chaque colonie, sa zone la plus au centre ; on prend la plus fréquente (à égalité, la plus centrale) ; seul en Bac à sable, sa zone la plus avancée.
 
@@ -459,7 +472,7 @@ Boutons à **recharge**, payés en **Enzymes**, débloqués par les paliers (§8
 Chat de partie (en ligne) ; amis et messages privés via Steam ; sourdine et signalement, modération minimale.
 
 ### 14.2 Déconnexion et abandon
-- **Un joueur se déconnecte** : **pilote automatique** (sa Tourelle continue de tirer avec sa priorité, sans achat), reprise possible à tout moment ; après 3 min sans retour, un robot en prend le contrôle.
+- **Un joueur se déconnecte** : **pilote automatique** (sa colonie continue de se propager avec ses points chauds, sans achat), reprise possible à tout moment ; après 3 min sans retour, un robot en prend le contrôle.
 - **L'hôte se déconnecte** : dans la première version, **la partie s'arrête** pour tout le monde ; elle n'est pas comptée dans les statistiques des autres joueurs, et l'hôte qui quitte volontairement prend une défaite. **Migration d'hôte** prévue plus tard.
 
 ### 14.3 Pactes (idée pour plus tard)
@@ -481,14 +494,18 @@ production_totale  = Σ production_case (cases reliées) × mult_palier × bonus
                      × (1 + 0,10 × niveau_Rendement) × (1 + 0,25 × trophées) × mutations
 bonus_souche(t)    = 1,00 + 0,25 × t / 30 min
 pv_case_libre      = 40 × pv_zone
-pv_case_possédée   = 40 × défense_zone × (1 + 0,15 × voisines) × (1 + 0,20 × niveau_PV) × mutations
-régénération       = pv_max × (2 % + 1 % × niveau_Régénération) par seconde
-dégâts_tir         = 10 × (1 + 0,25 × niveau_Dégâts) × mutations (× 3 si critique)
-tirs_par_seconde   = 1 × (1 + 0,10 × niveau_Cadence) × mutations
-soin_tir           = dégâts_tir × 50 % × (1 + 0,25 × niveau_Soin)
-coût_niveau        = coût_base × 1,35 ^ niveau   (1,15 avant le 6 octobre 2026)
+pv_case_possédée   = 40 × défense_zone × (1 + 0,10 × voisines) × (1 + 0,20 × niveau_PV) × mutations
+régénération       = pv_max × (0,5 % + 0,5 % × niveau_Régénération) par seconde
+
+poussée_case       = 3 PV/s × (1 + 0,25 × niveau_Poussée)
+plafond            = 8 PV/s × mult_plafond_palier × (1 + 0,25 × niveau_Vigueur)
+force              = min(Σ poussée_case (cases de bordure), plafond)
+bordure            = force   (à parts égales entre cases de bordure,
+                     puis à parts égales entre leurs voisines pas à moi)
+bonus_point_chaud  = 30 % de force ÷ nombre de points chauds   (en plus, par la bordure orientée)
+coût_niveau        = coût_base × 1,35 ^ niveau
 ```
-Chiffres décidés le 4 octobre 2026, comme points de départ à simuler.
+Valeurs après l'équilibrage de G6 (11 octobre 2026, §5 quater).
 
 ---
 
@@ -498,15 +515,13 @@ Chiffres décidés le 4 octobre 2026, comme points de départ à simuler.
 Menu principal, **mode Duel**, **mode FFA**, **salon de partie personnalisée**, **partie** (carte à gauche, panneau à droite), spectateur, résultats, profil, **paramètres**, et l'**interface d'administration** cachée (§18.4).
 
 ### 16.2 Écran de partie *(maquettes validées le 4 octobre 2026 : canevas « Mycélium — maquettes de la Tourelle (G3) »)*
-- **Carte (à gauche, ~62 % de la largeur)** : la forêt, le cercle de portée de ma Tourelle (pointillé), les spores en vol, la cible en cours ; en haut à gauche, la **frise** (horloge, prochains événements ; jusqu'à G6, horloge et fin de la protection de départ seulement, décidé le 4 octobre 2026 ; en Bac à sable, boutons pause, vitesse et récapitulatif) ; en haut à droite, le **mini-classement** (colonies en vie, cases, éliminations, production moyenne) ; en bas à gauche, le **journal et les alertes**, avec un rappel du geste (clic : viser).
+- **Carte (à gauche, ~62 % de la largeur)** : la forêt, mes points chauds (marqueurs numérotés), la bordure qui pulse et les cases entamées ; en haut à gauche, la **frise** (horloge, prochains événements ; jusqu'à G7, horloge et fin de la protection de départ seulement, décidé le 4 octobre 2026 ; en Bac à sable, boutons pause, vitesse et récapitulatif) ; en haut à droite, le **mini-classement** (colonies en vie, cases, éliminations, production moyenne) ; en bas à gauche, le **journal et les alertes**, avec un rappel du geste (clic : poser / retirer un point chaud).
 - **Panneau (à droite, ~38 %)**, de haut en bas :
   1. **Ressources** : nutriments (qui défilent) et production, Enzymes, Biomasse, barre du prochain palier ;
-  2. **Tourelle** : PV, dégâts, cadence, portée, spores par tir, et les 4 boutons de **priorité de tir** ;
+  2. **Propagation** *(11 octobre 2026)* : PV du Sporophore, poussée par case, **force utilisée / plafond** (une barre), nombre de cases de bordure, points chauds posés (x / 3) ;
   3. **Mes mutations** : une **seule ligne** d'icônes, une par mutation prise, avec son palier ; nom et effet dans l'info-bulle (décidé le 5 octobre 2026 : le cadre ne grandit plus) ;
   4. **Améliorations**, en onglets *Attaque*, *Défense*, *Économie*, avec le niveau, l'effet (avant → après), le coût et le choix ×1 / ×10 / Max ; une amélioration verrouillée indique le palier requis. Elles prennent toute la hauteur restante, en **lignes compactes** (54 px, décidé le 5 octobre 2026) ; les cadences s'écrivent au centième (0,22 tir/s) ;
-  5. **Capacités** : boutons ronds avec recharge, coût et touche.
-- **Mutation** : au palier, trois cartes s'affichent sur la carte assombrie (touches 1 à 3) ; la partie **ne s'arrête pas** pendant le choix ; les mutations prises sont listées dans le panneau (une icône par mutation, palier et effet dans l'info-bulle). Un **bouton avec un œil** cache les cartes pour voir la carte ; un bouton du panneau (« Choisir une mutation ») les rouvre (décidé le 4 octobre 2026).
-- **Gestes des capacités** : la Salve part tout de suite ; le Mur et le Nuage attendent un clic sur une case (touche ou bouton, puis clic), Échap ou clic droit annulent.
+- **Mutation** : aux paliers 2, 4 et 6, trois cartes s'affichent sur la carte assombrie (touches 1 à 3) ; la partie **ne s'arrête pas** pendant le choix ; les mutations prises sont listées dans le panneau (une icône par mutation, palier et effet dans l'info-bulle). Un **bouton avec un œil** cache les cartes pour voir la carte ; un bouton du panneau (« Choisir une mutation ») les rouvre (décidé le 4 octobre 2026).
 
 ### 16.3 Direction artistique « Pastille ronde »
 - **Thème clair** : fond crème `#FBF6EE`, cartes `#FFFDF8`, texte prune `#3B3340`, texte secondaire `#6E6475`, filets `#EADFD0`. Polices **Fredoka** (titres) et **Nunito** (texte).
@@ -524,7 +539,7 @@ Menu principal, **mode Duel**, **mode FFA**, **salon de partie personnalisée**,
 - Une colonie se dessine comme **une seule tache arrondie**. *Version simple d'abord* : cases colorées une par une.
 - **La Tourelle** : un champignon avec deux petits yeux, dans la teinte foncée de la colonie, qui grossit et se pare en trois stades **selon le palier** (décidé le 4 octobre 2026) : chapeau uni (paliers 0 à 2), chapeau tacheté (paliers 3 et 4), petits chapeaux au pied (paliers 5 et 6).
 - **États d'une case** (maquettes validées) : libre (couleur de la zone) ; entamée (se remplit de la couleur de l'attaquant, comme une jauge circulaire) ; visée (contour plein) ; cible désignée (contour pointillé et halo) ; à moi ; blessée (pâlit, contour de la couleur de l'attaquant) ; soignée (halo de ma couleur) ; hors de ma portée (atténuée).
-- **Spores** : petites boules de la couleur de la colonie, en arc de la Tourelle à la case visée.
+- **Spores** : *supprimées le 11 octobre 2026* (plus de tir) ; remplacées par la pulsation de la bordure et le marqueur des points chauds (§5 bis.7).
 
 ### 16.4 Mode sombre
 Un réglage **Thème : Clair / Sombre / Système** dans les **Paramètres** (appliqué à toute l'interface et à la carte). **Au premier lancement : Système.**
@@ -543,10 +558,10 @@ Un réglage **Thème : Clair / Sombre / Système** dans les **Paramètres** (app
 Les couleurs de colonie sont **éclaircies si besoin** en mode sombre pour garder le contraste (Indigo et Prune en particulier), à vérifier y compris pour le daltonisme. Le choix est enregistré dans la configuration locale du joueur.
 
 ### 16.5 Caméra et commandes
-- **Déplacement** : **clic du milieu** maintenu (clic droit jusqu'à la 0.5.2 ; le clic droit sert aux bâtiments en G5, §5 bis) et souris contre les **bords de l'écran** ; **zoom** à la molette, centré sur la souris.
-- **Clic gauche** : désigne une case comme cible prioritaire (§5.4), du Sporophore et des bâtiments qui peuvent la frapper.
-- **Clic droit** sur une de mes cases : roue des bâtiments (§5 bis) ; ailleurs, il annule le geste en cours et ferme la roue.
-- **Raccourcis par défaut** : **Espace** recentre sur la Tourelle ; **P** pause (Bac à sable) ; **Échap** ferme la roue des bâtiments, annule le geste en cours ou ouvre le menu de partie ; **Q, W, E** capacités ; **1 à 3** choisissent une mutation quand les cartes sont affichées. **Pas de touches pour les priorités de tir** (souris seulement, décidé le 4 octobre 2026). Tous modifiables dans les Paramètres ; une touche ne sert qu'à une action ; un bouton remet les touches par défaut.
+- **Déplacement** : **clic du milieu** maintenu et souris contre les **bords de l'écran** ; **zoom** à la molette, centré sur la souris.
+- **Clic gauche** : pose un point chaud sur une tuile qui n'est pas à moi, ou retire un point chaud (§5 bis.6).
+- **Clic droit** sur un point chaud : le retire.
+- **Raccourcis par défaut** : **Espace** recentre sur le Sporophore ; **P** pause (Bac à sable) ; **Échap** ouvre le menu de partie ; **1 à 3** choisissent une mutation quand les cartes sont affichées. Plus de touches de capacités (Q, W, E) depuis le 11 octobre 2026. Tous modifiables dans les Paramètres ; une touche ne sert qu'à une action ; un bouton remet les touches par défaut.
 
 ### 16.6 Paramètres
 Affichage (plein écran, fenêtré, résolution, **thème clair / sombre / système**), audio, langue (français et anglais), commandes (raccourcis modifiables), accessibilité (taille de l'interface, palette adaptée au daltonisme).
@@ -563,10 +578,10 @@ Deux petits points repris du brouillon sans question dédiée, à signaler si be
 Le code de G1 et G2 qui ne sert plus est supprimé dès l'étape 1, avec un affichage provisoire du Bac à sable jusqu'à l'étape 2 ; cases coupées de la Tourelle : libres (§12) ; case libre prise : pleine vie (§6.1) ; la Tourelle finit sa prise avant de changer de cible (§5.3) ; spores en plus : d'autres cases (§9.2) ; pendant un pas, la Tourelle est visée sur sa case de départ (§5.5) ; choix de mutations empilés (§10) ; PV de la Tourelle : 400 fixes (§7.4).
 
 ### Décisions de l'étape 2 de G3 (4 octobre 2026, QCM)
-Pas de touches pour les priorités de tir, 1 à 3 pour les cartes de mutation (§16.5) ; cartes de mutation cachées par un bouton œil et rouvertes depuis le panneau (§16.2) ; frise : horloge et fin de la protection jusqu'à G6 (§16.2) ; stades de la Tourelle liés au palier (§16.3).
+Pas de touches pour les priorités de tir, 1 à 3 pour les cartes de mutation (§16.5) ; cartes de mutation cachées par un bouton œil et rouvertes depuis le panneau (§16.2) ; frise : horloge et fin de la protection jusqu'à G7 (§16.2) ; stades de la Tourelle liés au palier (§16.3).
 
 ### Réactivité (5 octobre 2026, QCM)
-En partie locale, un ordre du joueur (achat, priorité, cible, pas, capacité, mutation) prend effet **au clic**, sans attendre le tick suivant ; les boutons d'action réagissent dès l'appui. Les à-coups de l'affichage à chaque tick sont réduits (calcul du tir et rafraîchissement du HUD plus rapides). En ligne (G8), la façon de faire sera revue.
+En partie locale, un ordre du joueur (achat, priorité, cible, pas, capacité, mutation) prend effet **au clic**, sans attendre le tick suivant ; les boutons d'action réagissent dès l'appui. Les à-coups de l'affichage à chaque tick sont réduits (calcul du tir et rafraîchissement du HUD plus rapides). En ligne (G9), la façon de faire sera revue.
 
 ### Décisions de G4 « Combattre des robots » (5 octobre 2026, QCM)
 Prochain jalon limité au combat contre les robots, les événements passent en G5 (§19) ; robot de jeu à part, sans profil visible, équilibré, avec trois difficultés dans `data/` (Difficile = robots actuels, Normal agit toutes les 2 s, Facile toutes les 3 s et maladroit) (§2.5) ; en FFA, une difficulté pour les 5 robots, les profils sont réservés à la simulation (§2.3) ; secteur du joueur et couleurs de toutes les colonies tirés au hasard (graine) ; écrans dans le style actuel, sans maquette ; livraison en une fois ; menu Jouer → Duel ou FFA → difficulté, graine tirée au hasard ; quitter une partie en cours demande une confirmation ; éliminé en FFA : fin tout de suite avec son rang ; fin de partie minimale : rang, cases, Tourelles abattues, durée de survie, pic de production, boutons Rejouer (nouvelle partie, mêmes choix) et Menu ; Bac à sable : profils et robot de jeu (Facile, Normal, Difficile) au choix sur chaque secteur libre.
@@ -604,6 +619,12 @@ Sporophore **fixe** : plus de déplacement, de touche D, de mutation *Rapide* (1
 ### Décisions de G5 (6 octobre 2026, QCM)
 Le Mortier peut abattre de loin un Sporophore ou un bâtiment ; un bâtiment coupé du Sporophore tient son îlot, qui grandit et reste à moi tant qu'il est relié à un de mes bâtiments ; les bâtiments d'une colonie éliminée s'endorment 60 s ; mutations de tir pour les bâtiments, sans la Salve ; chantier à 10 % de ses PV ; PV des bâtiments × amélioration PV des cases ; Mortier sans Éclaboussure ni Rebond ; revenu lent d'Enzymes ; Avant-poste sur les cases adverses seulement ; FFA à 2-3 survivants accepté (§5 bis, §5 ter, §8.1).
 
+### Décisions du 11 octobre 2026 : propagation automatique (QCM ; jalon G6, rien de codé)
+Les **bâtiments** sont supprimés et le Sporophore **ne tire plus** : c'est **toute la bordure qui pousse**, automatiquement (§5 bis). Force **mixte** : chaque case de bordure pousse seule, avec un **plafond global** qui monte avec l'amélioration *Vigueur* et les paliers ; le niveau de l'incrémental passe par les améliorations, les paliers et la nouvelle amélioration. Une case de bordure répartit sa poussée **à parts égales** entre ses voisines libres et adverses. **3 points chauds** posés au clic gauche (un 4e remplace le plus ancien, clic sur un point chaud pour le retirer, un point chaud pris disparaît), sur **toute tuile** (Sporophore adverse compris) ; ils reçoivent une **part fixe de 30 %** de la force, partagée entre les points chauds posés, et l'appliquent par la **bordure orientée** vers eux. Le Sporophore devient **un cœur seulement** et prend des dégâts **comme une case**. Améliorations : Dégâts et Cadence **fusionnées** en *Poussée* ; Portée, Soin, Spores par tir, Éclaboussure, Critique et Rebond **supprimées**. Mutations : Spores lourdes et légères, Hyphes longues, Guérisseur, Sporée, Pionnier, Prédateur et Toxique **supprimées** ; **une mutation tous les deux paliers**. **Toutes les capacités** supprimées. Enzymes **gardées sans usage** pour le moment, sans revenu lent. Robots : points chauds **selon leur profil**. Spécification dans le GDD, **nouveau jalon G6** (événements G7, habillage G8, multijoueur G9), équilibrage inclus.
+
+### Décisions de G6 (11 octobre 2026, QCM)
+Le Sporophore **pousse** comme une case de bordure (§5.1) ; points chauds **1 au départ, 2 au palier 1, 3 au palier 2**, et répartition des paliers **validée** telle que proposée (§8.3) ; valeurs de départ **validées** : poussée 1 PV/s par case, plafond 8 PV/s, Vigueur +20 % par niveau pour 2 U (§5 bis.2, §9.2) ; point chaud **refusé sur une de mes cases** ; pendant la protection, la part vers l'adversaire va **aux voisines libres** de la case de bordure (§3.1) ; *Glande* **retirée du tirage**, compteur d'Enzymes **affiché** ; **clic droit sur un point chaud** : le retire (§5 bis.6) ; tutoriel en 6 étapes **validé** (§2.7) ; cibles d'équilibrage : celles du §5 ter sauf « premier bâtiment » et « bâtiments décisifs », **plus** « **premier point chaud atteint vers 1:00** » et « **points chauds décisifs** » (un robot qui n'en pose jamais perd nettement contre un qui en pose) ; G6 **livré en une fois** (0.7.0). Pendant l'équilibrage (QCM) : le bonus des points chauds **s'ajoute** à la force au lieu d'être pris dessus (§5 bis.3) ; valeurs au §5 quater.
+
 ### Questions ouvertes
 - **Triche de l'hôte** : la vérification par empreinte suffit-elle pour un classement du Duel ?
 - **Statistiques d'administration** : statistiques globales Steam, ou petit service de collecte ?
@@ -636,10 +657,10 @@ Autres terrains et souches, pactes, mode par équipes, forêts thématiques, cla
 - Configuration et profil enregistrés dans `user://` (thème, résolution, langue, raccourcis, préréglages de parties).
 
 ### 18.2 Architecture
-- **Simulation autoritaire intégrée** : une seule simulation fait foi ; les joueurs envoient des **commandes** qu'elle valide : **acheter une amélioration**, **régler la priorité de tir**, **désigner une cible**, **choisir une mutation**, **lancer une capacité**.
+- **Simulation autoritaire intégrée** : une seule simulation fait foi ; les joueurs envoient des **commandes** qu'elle valide : **acheter une amélioration**, **poser ou retirer un point chaud**, **choisir une mutation** (11 octobre 2026).
 - **Solo (robots)** : la simulation tourne **dans l'exécutable**, sans réseau.
 - **En ligne : hébergé par un joueur.** Pas de serveur à nous : l'**hôte** fait tourner la simulation, les autres s'y connectent par **Steam Networking Sockets** (relais Steam), via le `MultiplayerPeer` de GodotSteam. Hôte : le créateur du salon en partie personnalisée ; pour le Duel et le FFA publics, le propriétaire du salon Steam formé par la file d'attente.
-- **Simulation à pas fixe : 1 tick par seconde** ; interpolation côté client pour l'animation (dont le vol des spores). L'hôte envoie les **différences** par tick.
+- **Simulation à pas fixe : 1 tick par seconde** ; interpolation côté client pour l'animation (cases entamées, pulsation de la bordure). L'hôte envoie les **différences** par tick.
 - **Steam** fournit l'identité des joueurs, la liste d'amis, les invitations, les salons et la file d'attente. Aucun système de comptes à développer.
 - **Triche de l'hôte** : la simulation est **déterministe** ; chaque client la rejoue à partir des commandes et compare une **empreinte de l'état** à chaque tick ; un écart arrête la partie.
 - **Replay** : graine + commandes, rejeu déterministe.
@@ -676,9 +697,10 @@ Outil d'équilibrage disponible **uniquement quand le jeu est lancé depuis l'é
 | **G3 : Le Sporophore et l'affrontement** *(livré, 0.4.0 : étapes 1 et 2 le 4 octobre 2026, étape 3 le 5 octobre 2026)* | **Suppression** du code de G1 et G2 qui ne sert plus ; Tourelle (tir automatique, portée, priorités, cible au clic, déplacement pas à pas) ; PV, régénération et soin ; panneau d'améliorations à droite ; paliers avec Enzymes et mutations ; capacités ; Armillaire ; **affrontement entre Tourelles, élimination et Trophée** ; écran carte + panneau ; Bac à sable avec adversaires robots. Maquettes **validées le 4 octobre 2026**. Livré en **trois étapes** : 1) simulation et tests ; 2) affichage, panneau et Bac à sable ; 3) robots Canonnier, Bâtisseur et Conquérant (adversaires du Bac à sable et panneau de simulations à plusieurs robots) ; version **0.4.0** |
 | **G4 : Combattre des robots** *(décidé le 5 octobre 2026 : uniquement le combat contre les robots ; livré le 5 octobre 2026, 0.5.0)* | Duel et FFA contre robots : menus Jouer, robots de jeu (3 difficultés, profils), **fin de partie minimale** (rang, statistiques de base, retour au menu) ; version **0.5.0** |
 | **G5 : Bâtiments** *(décidé le 5 octobre 2026, sans maquettes ; livré le 6 octobre 2026, 0.6.0)* | Essaimeur, Avant-poste, Mortier (§5 bis) : simulation et tests, affichage et gestes de construction dans le style actuel, robots qui construisent ; version **0.6.0** |
-| **G6 : Événements et fin de partie** | Floraison collective et Arbre mourant, frise, journal et alertes complets, écran de résultats complet, spectateur après élimination ; version **0.7.0** |
-| **G7 : Habillage et bêta solo** | Tutoriel (8 étapes, §2.7), audio, profil et statistiques, traduction, essais avec de vrais joueurs (sans Steam) |
-| **G8 : Multijoueur** | Étape 1 : tests entre amis avec l'App ID 480 (Steam, salons, invitations, relais, hébergement par un joueur, empreinte, déconnexion). Étape 2 : file d'attente, FFA et Duel entre joueurs, partie personnalisée complète, chat, interface d'administration |
+| **G6 : Propagation automatique** *(décidée le 11 octobre 2026, livrée le même jour en une fois, 0.7.0)* | **Suppression** des bâtiments, du tir du Sporophore, des capacités et des améliorations et mutations liées au tir ; propagation par la bordure (poussée par case, plafond global), **3 points chauds**, panneau Propagation, robots qui posent des points chauds selon leur profil ; **équilibrage** par simulations ; version **0.7.0** |
+| **G7 : Événements et fin de partie** | Floraison collective et Arbre mourant, frise, journal et alertes complets, écran de résultats complet, spectateur après élimination ; version **0.8.0** |
+| **G8 : Habillage et bêta solo** | Tutoriel (8 étapes, §2.7), audio, profil et statistiques, traduction, essais avec de vrais joueurs (sans Steam) |
+| **G9 : Multijoueur** | Étape 1 : tests entre amis avec l'App ID 480 (Steam, salons, invitations, relais, hébergement par un joueur, empreinte, déconnexion). Étape 2 : file d'attente, FFA et Duel entre joueurs, partie personnalisée complète, chat, interface d'administration |
 
 **Hors feuille de route** : page Steam, App ID réel (Steam Direct, 100 $), succès et Steam Playtest, dès que le propriétaire décide de payer.
 
@@ -686,14 +708,21 @@ La simulation ne reçoit que des **commandes** depuis G1 : le passage en ligne c
 
 Le 5 octobre 2026, les **bâtiments** deviennent **G5** ; les jalons suivants sont décalés d'un cran (événements G6, habillage G7, multijoueur G8).
 
+Le 11 octobre 2026, la **propagation automatique** devient **G6** (elle remplace les bâtiments) ; les jalons suivants sont à nouveau décalés d'un cran (événements G7, habillage G8, multijoueur G9).
+
 ---
 
 ## 20. Questions en attente des jalons suivants
 
 Elles seront posées sous forme de QCM au début du jalon concerné.
 
-### G5 : Bâtiments (§5 bis)
-*Toutes tranchées le 5 et le 6 octobre 2026 (QCM), voir §5 bis et §5 ter.* Pas encore fait : les réglages des bâtiments (prix, PV, portée…) dans le Bac à sable ; les constantes (places, chantier, sommeil, revenu d'Enzymes) y sont.
+### G6 : Propagation automatique (§5 bis)
+*Toutes tranchées le 11 octobre 2026 (QCM), voir §17 « Décisions de G6 ».* Restent, après l'équilibrage (§5 quater) :
+1. Le robot Facile gagne 40 % de ses Duels contre Normal (cible : 20 % au plus) : comment l'affaiblir (moins de points chauds, points chauds au hasard, autre chose) ?
+2. La Clairière (zone 6) n'est presque jamais prise : est-ce voulu ?
+
+### G5 : Bâtiments
+*Caduc depuis le 11 octobre 2026 : les bâtiments sont supprimés.*
 
 ### G4 : Combattre des robots
 *Questions 1 à 8 et 10 tranchées le 5 octobre 2026 (§17, « Décisions de G4 ») ; restent 9 et 11.*
@@ -703,13 +732,13 @@ Elles seront posées sous forme de QCM au début du jalon concerné.
 4. FFA contre robots : une difficulté pour tous ou une par robot (« mélange ») ? Profils choisis ou tirés au hasard ?
 5. Secteur et couleur du joueur en Duel et en FFA : choisis ou tirés au hasard ? Ordre des couleurs pour 2 et 6 colonies (daltonisme compris) ?
 6. Quitter une partie en cours : défaite enregistrée ? Confirmation demandée ?
-7. Éliminé en FFA contre robots, sans accélération possible : on attend la fin en spectateur ou on quitte avec son rang (le spectateur complet arrive en G6) ?
-8. Fin de partie minimale : quelles statistiques de base (cases, Tourelles abattues, durée de survie, pic de production) et quels boutons (rejouer, menu) ? L'écran de résultats complet arrive en G6.
+7. Éliminé en FFA contre robots, sans accélération possible : on attend la fin en spectateur ou on quitte avec son rang (le spectateur complet arrive en G7) ?
+8. Fin de partie minimale : quelles statistiques de base (cases, Tourelles abattues, durée de survie, pic de production) et quels boutons (rejouer, menu) ? L'écran de résultats complet arrive en G7.
 9. Replay en timelapse (§14.4) : dans quel jalon ?
 10. Robots dans le Bac à sable : leur ajoute-t-on une difficulté ?
 11. Panneau de simulations : ajoute-t-on d'autres mesures de combat (éliminations avant 26:00, effet des Trophées, mutations prises) ?
 
-### G7 : Habillage et bêta solo
+### G8 : Habillage et bêta solo
 1. Tutoriel : quelle forêt (« petite forêt de Duel » : rayon 5 ?) ? Faut-il d'autres étapes que les 8 du §2.7 ?
 2. Audio : style de la musique et des bruitages ; qui les produit (banques libres de droits, compositeur, autre) et sous quelle licence ?
 3. Profil et statistiques : enregistrés sur le PC (`user://`), liés au compte Steam ? Sauvegarde Steam Cloud ?
@@ -718,7 +747,7 @@ Elles seront posées sous forme de QCM au début du jalon concerné.
 6. Icône définitive et logo : qui les fait ?
 7. Numéro de version de la bêta solo.
 
-### G8 : Multijoueur
+### G9 : Multijoueur
 1. File d'attente : en Duel, au bout de combien de temps proposer un robot s'il n'y a personne ? En FFA, que faire avec moins de 4 joueurs après 2 min ?
 2. Classement du Duel (rang, classements Steam) : le fait-on ? Il dépend de la question sur la triche de l'hôte (§17).
 3. Hôte en file d'attente : le propriétaire du salon Steam, ou le joueur qui a la meilleure connexion ?
