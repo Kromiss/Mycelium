@@ -3,7 +3,7 @@ extends RefCounted
 ## à une colonie, ticks joués avec des commandes.
 
 const DUEL: ModeDef = preload("res://data/modes/duel.tres")
-## Cases de départ de la colonie 0 en Duel (rayon 11) : Tourelle, case vers le centre, case
+## Cases de départ de la colonie 0 en Duel (rayon 11) : Sporophore, case vers le centre, case
 ## sur le bord.
 const TURRET_0 := Vector2i(11, 0)
 const INNER_0 := Vector2i(10, 0)
@@ -11,21 +11,21 @@ const EDGE_0 := Vector2i(11, -1)
 
 
 ## Définitions de Duel, sans régénération si « regen » est faux (calculs de PV plus simples).
-## La Tourelle, les PV des zones, les lots d'Enzymes, le facteur de coût et les prix des
-## bâtiments gardent des valeurs fixes (10 dégâts, 1 tir/s, portée 3…), sans revenu d'Enzymes :
-## les tests de mécanique ne dépendent pas de l'équilibrage de data/.
+## La propagation, les PV des zones, les lots d'Enzymes et le facteur de coût gardent des
+## valeurs fixes (poussée 1 PV/s par case, plafond 8 PV/s, 30 % aux points chauds) : les tests de
+## mécanique ne dépendent pas de l'équilibrage de data/.
 static func duel_defs(regen: bool = true) -> SimDefs:
 	var defs: SimDefs = SimDefs.from_mode(DUEL)
-	defs.turret_damage = 10_000
-	defs.turret_rate_pm = 1000
-	defs.turret_range = 3
+	defs.push = 1_000
+	defs.push_cap = 8_000
+	defs.hotspot_share_pm = 300
+	defs.start_hotspots = 1
+	defs.tier_hotspots = PackedInt32Array([2, 3, 3, 3, 3, 3])
+	defs.tier_cap_pm = PackedInt32Array([1500, 2250, 3400, 5000, 7500, 11000])
 	defs.zone_free_hp_pm = PackedInt32Array([1000, 1400, 2000, 2800, 3800, 5000])
 	defs.zone_defense_pm = PackedInt32Array([1000, 1200, 1500, 1800, 2100, 2500])
 	defs.tier_enzymes = PackedInt32Array([20, 40, 60, 80, 100, 120])
 	defs.upgrade_cost_growth_pm = 1150
-	defs.enzyme_income_ticks = 0
-	for building: SimBuilding in defs.buildings:
-		building.cost_enzymes = [10, 20, 40][defs.buildings.find(building)]
 	if not regen:
 		defs.regen_pm = 0
 	return defs
@@ -70,7 +70,7 @@ static func run(sim: Simulation, count: int, commands: Array[Command] = []) -> T
 	return result
 
 
-## Ligne de cases de la colonie 0 qui part de la Tourelle vers le centre (q décroît), de
+## Ligne de cases de la colonie 0 qui part du Sporophore vers le centre (q décroît), de
 ## longueur « length » (cases de départ comprises).
 static func line_to_center(length: int) -> Array[Vector2i]:
 	var cells: Array[Vector2i] = []

@@ -9,6 +9,9 @@ tier = 1
 cells = 5
 production_pm = 1300
 enzymes = 40
+cap_pm = 1500
+hotspots = 2
+mutation = false
 
 [sub_resource type="Resource" id="tier_2"]
 script = ExtResource("1_item")
@@ -16,6 +19,9 @@ tier = 2
 cells = 10
 production_pm = 1700
 enzymes = 80
+cap_pm = 2250
+hotspots = 3
+mutation = true
 
 [sub_resource type="Resource" id="tier_3"]
 script = ExtResource("1_item")
@@ -23,6 +29,9 @@ tier = 3
 cells = 20
 production_pm = 2200
 enzymes = 120
+cap_pm = 3400
+hotspots = 3
+mutation = false
 
 [sub_resource type="Resource" id="tier_4"]
 script = ExtResource("1_item")
@@ -30,6 +39,9 @@ tier = 4
 cells = 40
 production_pm = 2850
 enzymes = 160
+cap_pm = 5000
+hotspots = 3
+mutation = true
 
 [sub_resource type="Resource" id="tier_5"]
 script = ExtResource("1_item")
@@ -37,6 +49,9 @@ tier = 5
 cells = 80
 production_pm = 3700
 enzymes = 200
+cap_pm = 7500
+hotspots = 3
+mutation = false
 
 [sub_resource type="Resource" id="tier_6"]
 script = ExtResource("1_item")
@@ -44,6 +59,9 @@ tier = 6
 cells = 160
 production_pm = 4800
 enzymes = 240
+cap_pm = 11000
+hotspots = 3
+mutation = true
 
 [resource]
 script = ExtResource("2_table")

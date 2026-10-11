@@ -4,15 +4,12 @@ extends RefCounted
 ## à chaque tick, les commandes qu'un joueur pourrait envoyer : mêmes règles, mêmes commandes,
 ## pas de triche. Son profil (RobotProfile) oriente ses choix :
 ## - mutation : la plus lourde des cartes proposées (tirage à graine en cas d'égalité) ;
-## - priorité de tir : celle du profil, ou sa priorité de défense quand ses cases sont visées ;
-## - cible : la Tourelle adverse dès qu'il peut la viser, s'il chasse les Tourelles ;
-## - bâtiments : selon son profil, toujours sur le front (BuildPlanner) ;
-## - capacités : Salve quand il tire, Mur sur une case attaquée, Nuage sur les cases adverses
-##   (avec les Enzymes qui ne sont pas gardées pour le prochain bâtiment) ;
+## - points chauds : un par place libre, selon le but de la place (HotspotPlanner) ; un point
+##   chaud n'est reposé que quand le sien a disparu (case prise, Sporophore abattu) ;
 ## - améliorations : meilleur rapport poids / coût (UpgradePlanner).
 ## Une difficulté (RobotDifficulty, robots de jeu) règle son rythme et ses erreurs : il n'agit
-## qu'une seconde sur N, fait des achats ou prend des mutations au hasard, se prive de
-## capacités ou de la chasse aux Tourelles, attend entre deux ordres de bâtiment.
+## qu'une seconde sur N, fait des achats ou prend des mutations au hasard, ne vise pas les
+## Sporophores adverses.
 ## Son aléatoire est un SimRng dérivé de la graine : une partie de robots se rejoue à l'identique.
 
 ## Décalage du sel de l'aléatoire des robots (distinct des autres tirages de la partie).
@@ -24,10 +21,8 @@ var difficulty: RobotDifficulty
 var colony_id: int = 0
 
 var _rng: SimRng
-## Tick jusqu'auquel (exclu) la priorité de défense est gardée.
-var _defense_until: int = 0
-## Tick à partir duquel le robot peut donner un nouvel ordre de bâtiment (difficulté).
-var _next_build: int = 0
+## But de chacun de ses points chauds (case → but de HotspotPlanner).
+var _goals: Dictionary[int, StringName] = {}
 
 
 func _init(
@@ -51,23 +46,8 @@ func decide(simulation: Simulation) -> Array[Command]:
 		return commands
 	if not acts_at(state.tick):
 		return commands
-	var attacked: PackedInt32Array = Threats.attacked_cells(state, colony)
 	_add(simulation, commands, _mutation_command(state, colony))
-	_add(simulation, commands, _priority_command(state, colony, attacked))
-	_add(simulation, commands, _target_command(simulation, colony))
-	var building: Command = null
-	if state.tick >= _next_build:
-		building = BuildPlanner.plan(state, colony, profile)
-	if building != null and simulation.check(building) == Refusal.Code.OK:
-		commands.append(building)
-		if difficulty != null:
-			_next_build = state.tick + difficulty.build_cooldown_ticks
-	# Les capacités n'utilisent que les Enzymes qui ne sont pas gardées pour un bâtiment.
-	var kept: int = BuildPlanner.reserve(state, colony, profile) if building == null else 0
-	if building is BuildCommand:
-		kept = BuildPlanner.cost_of(state, building as BuildCommand)
-	for command: Command in _ability_commands(state, colony, attacked, kept):
-		_add(simulation, commands, command)
+	_add(simulation, commands, _hotspot_command(simulation, colony))
 	var random_one_in: int = difficulty.random_upgrade_one_in if difficulty != null else 0
 	var plan: Dictionary[int, int] = UpgradePlanner.plan(
 		state, colony, profile, _rng, random_one_in
@@ -117,105 +97,23 @@ func _mutation_command(state: GameState, colony: ColonyState) -> Command:
 	return ChooseMutationCommand.new(picked, colony_id)
 
 
-## Priorité de tir voulue : celle de défense tant que ses cases sont visées (et un peu après).
-func _priority_command(
-	state: GameState, colony: ColonyState, attacked: PackedInt32Array
-) -> Command:
-	var wanted: int = profile.priority
-	if profile.defense_priority >= 0:
-		if not attacked.is_empty():
-			_defense_until = state.tick + profile.defense_hold_ticks
-		if state.tick < _defense_until:
-			wanted = profile.defense_priority
-	if wanted == colony.priority:
-		return null
-	return SetPriorityCommand.new(wanted, colony_id)
-
-
-## Désigne la Tourelle adverse visable la plus proche, s'il chasse les Tourelles.
-func _target_command(simulation: Simulation, colony: ColonyState) -> Command:
-	if not profile.hunts_turrets or (difficulty != null and not difficulty.hunts_turrets):
-		return null
+## Pose un point chaud sur une place libre, selon le but qui manque.
+func _hotspot_command(simulation: Simulation, colony: ColonyState) -> Command:
 	var state: GameState = simulation.state
-	if colony.designated >= 0 and state.is_turret_cell(colony.designated):
+	for cell: int in _goals.keys():
+		if not colony.hotspots.has(cell):
+			_goals.erase(cell)
+	var goals: Array[StringName] = []
+	for cell: int in colony.hotspots:
+		goals.append(_goals.get(cell, &""))
+	var goal: StringName = HotspotPlanner.next_goal(
+		profile, simulation.max_hotspots(colony_id), goals
+	)
+	if goal == &"":
 		return null
-	var best: int = -1
-	var best_distance: int = 0
-	for other: ColonyState in state.colonies:
-		if other.id == colony.id or not other.alive or other.turret < 0:
-			continue
-		if not simulation.is_target(colony.id, other.turret):
-			continue
-		var distance: int = state.distance(colony.turret, other.turret)
-		if best < 0 or distance < best_distance:
-			best = other.turret
-			best_distance = distance
-	if best < 0:
+	var hunts: bool = difficulty == null or difficulty.hunts_turrets
+	var cell: int = HotspotPlanner.pick(state, colony, profile, goal, hunts, colony.hotspots)
+	if cell < 0:
 		return null
-	return TargetCommand.new(state.map.cells[best], colony_id)
-
-
-## Capacités prêtes et payables (Enzymes partagées entre elles), chacune sur sa case.
-func _ability_commands(
-	state: GameState, colony: ColonyState, attacked: PackedInt32Array, kept: int
-) -> Array[Command]:
-	var commands: Array[Command] = []
-	if colony.turret < 0:
-		return commands
-	var enzymes: int = colony.enzymes - kept
-	for id: StringName in profile.abilities:
-		if difficulty != null and not difficulty.abilities.has(id):
-			continue
-		var index: int = state.defs.ability_index(id)
-		if index < 0:
-			continue
-		var ability: SimAbility = state.defs.abilities[index]
-		var cost: int = Fixed.from_units(ability.cost_enzymes)
-		if cost > enzymes:
-			continue
-		# La case de la Tourelle sert à tout vérifier sauf la case choisie.
-		if Abilities.check_use(state, colony, index, colony.turret) != Refusal.Code.OK:
-			continue
-		var cell: int = -1
-		match ability.kind:
-			AbilityDef.Kind.SALVO:
-				if colony.designated >= 0 or not colony.targets.is_empty():
-					cell = colony.turret
-			AbilityDef.Kind.WALL:
-				cell = Threats.closest_to_turret(state, colony, attacked)
-			AbilityDef.Kind.CLOUD:
-				cell = _cloud_cell(state, colony, ability)
-		if cell < 0:
-			continue
-		enzymes -= cost
-		commands.append(UseAbilityCommand.new(id, state.map.cells[cell], colony_id))
-	return commands
-
-
-## Case adverse à portée dont la zone du Nuage touche une Tourelle adverse, sinon le plus de
-## cases adverses (−1 : aucune case adverse à portée).
-func _cloud_cell(state: GameState, colony: ColonyState, ability: SimAbility) -> int:
-	var reach: int = ColonyStats.turret_range(state.defs, colony)
-	var best: int = -1
-	var best_turret: bool = false
-	var best_count: int = 0
-	for cell: int in state.map.disk(colony.turret, reach):
-		var owner: int = state.owner[cell]
-		if owner < 0 or owner == colony.id:
-			continue
-		var count: int = 0
-		var turret: bool = false
-		for other: int in state.map.disk(cell, ability.radius):
-			var other_owner: int = state.owner[other]
-			if other_owner >= 0 and other_owner != colony.id:
-				count += 1
-				turret = turret or state.is_turret_cell(other)
-		if (
-			best < 0
-			or (turret and not best_turret)
-			or (turret == best_turret and count > best_count)
-		):
-			best = cell
-			best_turret = turret
-			best_count = count
-	return best
+	_goals[cell] = goal
+	return HotspotCommand.new(state.map.cells[cell], colony_id)

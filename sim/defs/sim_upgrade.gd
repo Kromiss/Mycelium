@@ -5,7 +5,7 @@ extends SimRecord
 var id: StringName = &""
 var name_key: String = ""
 var tab: int = UpgradeDef.Tab.ATTACK
-var stat: int = UpgradeDef.Stat.DAMAGE
+var stat: int = UpgradeDef.Stat.PUSH
 var effect: int = 0
 var base_cost_units: int = 1
 var cost_growth_pm: int = 0

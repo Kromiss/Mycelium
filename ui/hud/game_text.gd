@@ -1,7 +1,7 @@
 class_name GameText
 extends RefCounted
 ## Textes de l'écran de partie construits à partir de l'état (noms des colonies, effets des
-## améliorations, état des capacités). Les chiffres viennent de la simulation.
+## améliorations). Les chiffres viennent de la simulation.
 
 const COLORS: ColonyColors = preload("res://data/colors.tres")
 ## Couleurs des colonies, dans l'ordre des numéros de colonie (la première est celle du joueur
@@ -39,15 +39,13 @@ static func upgrade_effect(upgrade: SimUpgrade, values: PackedInt64Array) -> Str
 ## niveau (en pour-cent pour les statistiques en pour-mille).
 static func _stat_text(stat: int, value: int, per_level: bool) -> String:
 	match stat:
-		UpgradeDef.Stat.DAMAGE, UpgradeDef.Stat.HEAL, UpgradeDef.Stat.TURRET_HP:
+		UpgradeDef.Stat.TURRET_HP:
 			return percent(value) if per_level else NumberFormat.amount(value)
-		UpgradeDef.Stat.RATE:
-			return percent(value) if per_level else NumberFormat.decimal(round_hundredth(value))
-		UpgradeDef.Stat.YIELD:
+		UpgradeDef.Stat.PUSH, UpgradeDef.Stat.VIGOR, UpgradeDef.Stat.YIELD:
 			return percent(value) if per_level else NumberFormat.rate(value)
 		UpgradeDef.Stat.CELL_HP:
 			return percent(value) if per_level else NumberFormat.multiplier(value)
-		UpgradeDef.Stat.REGEN, UpgradeDef.Stat.SPLASH, UpgradeDef.Stat.CRIT:
+		UpgradeDef.Stat.REGEN:
 			return percent(value)
 	return str(value)
 
@@ -55,12 +53,6 @@ static func _stat_text(stat: int, value: int, per_level: bool) -> String:
 ## Pour-mille écrits en pour-cent (« 25 », « 2,5 »).
 static func percent(per_mille: int) -> String:
 	return NumberFormat.decimal(per_mille * 100)
-
-
-## Arrondi au centième d'une valeur en millièmes (cadences : à 0,2 tir/s, un niveau de Cadence
-## ajoute 0,02 tir/s).
-static func round_hundredth(milli: int) -> int:
-	return Fixed.div_round(milli, 10) * 10
 
 
 static func _t(key: String) -> String:

@@ -25,14 +25,10 @@ static func compute(state: GameState) -> int:
 	_update(context, state.owner.to_byte_array())
 	_update(context, state.hp.to_byte_array())
 	_update(context, state.last_hitter.to_byte_array())
-	_update(context, state.no_regen_until.to_byte_array())
 	_update(context, state.cell_rank.to_byte_array())
 	_update(context, state.ranking.to_byte_array())
 	for colony: ColonyState in state.colonies:
 		_update(context, colony.hash_values().to_byte_array())
-	_update(context, PackedInt64Array([state.buildings.size()]).to_byte_array())
-	for building: BuildingState in state.buildings:
-		_update(context, building.hash_values().to_byte_array())
 	var digest: PackedByteArray = context.finish()
 	return digest.decode_s64(0) & 0x7FFFFFFFFFFFFFFF
 

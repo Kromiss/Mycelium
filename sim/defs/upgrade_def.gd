@@ -5,19 +5,17 @@ extends Resource
 
 ## Onglet du panneau.
 enum Tab { ATTACK, DEFENSE, ECONOMY }
-## Ce que l'amélioration change. L'unité de « effect » dépend de la statistique :
-## pour-mille pour DAMAGE, RATE, YIELD, HEAL, CELL_HP, SPLASH, CRIT, TURRET_HP ; pour-mille des
-## PV max par seconde pour REGEN ; nombre entier pour RANGE (cases), SPORES et BOUNCE (cases).
-enum Stat {
-	DAMAGE, RATE, RANGE, YIELD, REGEN, HEAL, SPORES, CELL_HP, SPLASH, CRIT, TURRET_HP, BOUNCE
-}
+## Ce que l'amélioration change (G6, décidé le 11 octobre 2026). « effect » est en pour-mille
+## pour PUSH (poussée par case), VIGOR (plafond de propagation), YIELD, CELL_HP et TURRET_HP ; en
+## pour-mille des PV max par seconde pour REGEN.
+enum Stat { PUSH, VIGOR, YIELD, REGEN, CELL_HP, TURRET_HP }
 
-## Identifiant technique (« damage », « rate »…).
+## Identifiant technique (« push », « vigor »…).
 @export var id: StringName = &""
 ## Clés de traduction du nom et de l'effet.
 @export var name_key: String = ""
 @export var tab: Tab = Tab.ATTACK
-@export var stat: Stat = Stat.DAMAGE
+@export var stat: Stat = Stat.PUSH
 ## Effet d'un niveau.
 @export var effect: int = 0
 ## Coût du premier niveau, en U (GDD §9.2).

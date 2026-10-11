@@ -1,8 +1,8 @@
 class_name ColonyStats
 extends RefCounted
 ## Chiffres d'une colonie qui découlent de ses améliorations, de ses mutations et des données
-## (GDD §5 à §10, §15) : dégâts, cadence, portée, PV, soin, production, coûts. Partagés par les
-## systèmes, les requêtes de l'interface et, plus tard, les robots : les règles restent ici.
+## (GDD §5 à §10, §15) : poussée, plafond, points chauds, PV, production, coûts. Partagés par les
+## systèmes, les requêtes de l'interface et les robots : les règles restent ici.
 
 
 ## Bonus cumulé des améliorations d'une statistique (UpgradeDef.Stat) : niveau × effet.
@@ -32,90 +32,39 @@ static func mutation_sum(defs: SimDefs, colony: ColonyState, field: StringName) 
 	return total
 
 
-# --- Tourelle ---
+# --- Propagation (GDD §5 bis) ---
 
 
-## Dégâts d'une spore, en millièmes, avant critique et sans tenir compte de la case touchée.
-static func damage(defs: SimDefs, colony: ColonyState) -> int:
-	var base: int = Fixed.mul(
-		defs.turret_damage, Fixed.ONE + upgrade_bonus(defs, colony, UpgradeDef.Stat.DAMAGE)
-	)
-	return Fixed.mul(base, mutation_product(defs, colony, &"damage_pm"))
+## Poussée d'une case de bordure, en millièmes de PV par seconde (amélioration Poussée).
+static func push_per_cell(defs: SimDefs, colony: ColonyState) -> int:
+	return Fixed.mul(defs.push, Fixed.ONE + upgrade_bonus(defs, colony, UpgradeDef.Stat.PUSH))
 
 
-## Dégâts d'une spore sur une case donnée (Pionnier, Prédateur), avant critique.
-static func damage_on(state: GameState, colony: ColonyState, cell: int) -> int:
-	var amount: int = damage(state.defs, colony)
-	if state.owner[cell] < 0:
-		return Fixed.mul(amount, mutation_product(state.defs, colony, &"free_damage_pm"))
-	return Fixed.mul(amount, mutation_product(state.defs, colony, &"enemy_damage_pm"))
+## Plafond global de la force de propagation, en millièmes de PV par seconde : celui du départ
+## × le multiplicateur du palier × l'amélioration Vigueur.
+static func push_cap(defs: SimDefs, colony: ColonyState) -> int:
+	var cap: int = Fixed.mul(defs.push_cap, tier_cap_pm(defs, colony.tier))
+	return Fixed.mul(cap, Fixed.ONE + upgrade_bonus(defs, colony, UpgradeDef.Stat.VIGOR))
 
 
-## Tirs par seconde, en pour-mille, Salve comprise si elle est active à ce tick.
-static func rate_pm(state: GameState, colony: ColonyState) -> int:
-	var rate: int = base_rate_pm(state.defs, colony)
-	if state.tick < colony.salvo_until:
-		rate = Fixed.mul(rate, colony.salvo_rate_pm)
-	return rate
+## Multiplicateur du plafond de propagation d'un palier, en pour-mille (×1 au départ).
+static func tier_cap_pm(defs: SimDefs, tier: int) -> int:
+	if tier <= 0:
+		return Fixed.ONE
+	return defs.tier_cap_pm[mini(tier, defs.tier_count()) - 1]
 
 
-## Tirs par seconde, en pour-mille, sans la Salve (améliorations et mutations).
-static func base_rate_pm(defs: SimDefs, colony: ColonyState) -> int:
-	var rate: int = Fixed.mul(
-		defs.turret_rate_pm, Fixed.ONE + upgrade_bonus(defs, colony, UpgradeDef.Stat.RATE)
-	)
-	return Fixed.mul(rate, mutation_product(defs, colony, &"rate_pm"))
+## Nombre de points chauds permis à la colonie (palier actuel).
+static func max_hotspots(defs: SimDefs, colony: ColonyState) -> int:
+	if colony.tier <= 0:
+		return defs.start_hotspots
+	return defs.tier_hotspots[mini(colony.tier, defs.tier_count()) - 1]
 
 
-## Portée de la Tourelle, en cases.
-static func turret_range(defs: SimDefs, colony: ColonyState) -> int:
-	return (
-		defs.turret_range
-		+ upgrade_bonus(defs, colony, UpgradeDef.Stat.RANGE)
-		+ mutation_sum(defs, colony, &"range_add")
-	)
+# --- Sporophore ---
 
 
-## Spores par tir (une cible différente chacune).
-static func spores(defs: SimDefs, colony: ColonyState) -> int:
-	return (
-		defs.turret_spores
-		+ upgrade_bonus(defs, colony, UpgradeDef.Stat.SPORES)
-		+ mutation_sum(defs, colony, &"spores_add")
-	)
-
-
-## Part des dégâts infligée aux voisines de la case touchée (Éclaboussure), en pour-mille.
-static func splash_pm(defs: SimDefs, colony: ColonyState) -> int:
-	return upgrade_bonus(defs, colony, UpgradeDef.Stat.SPLASH)
-
-
-## Chance de coup critique, en pour-mille (1000 au plus).
-static func crit_pm(defs: SimDefs, colony: ColonyState) -> int:
-	return mini(upgrade_bonus(defs, colony, UpgradeDef.Stat.CRIT), Fixed.ONE)
-
-
-## Nombre de cases voisines touchées par le reste des dégâts quand une spore prend une case.
-static func bounce(defs: SimDefs, colony: ColonyState) -> int:
-	return upgrade_bonus(defs, colony, UpgradeDef.Stat.BOUNCE)
-
-
-## Soin d'une spore sur une de mes cases, en millièmes.
-static func heal(defs: SimDefs, colony: ColonyState) -> int:
-	var amount: int = Fixed.mul(damage(defs, colony), defs.heal_pm)
-	amount = Fixed.mul(amount, Fixed.ONE + upgrade_bonus(defs, colony, UpgradeDef.Stat.HEAL))
-	return Fixed.mul(amount, mutation_product(defs, colony, &"heal_pm"))
-
-
-## Secondes de blocage de la régénération des cases touchées (Toxique ; 0 : aucun).
-static func toxic_ticks(defs: SimDefs, colony: ColonyState) -> int:
-	var ticks: int = 0
-	for index: int in colony.mutations:
-		ticks = maxi(ticks, defs.mutations[index].toxic_ticks)
-	return ticks
-
-
-## PV max de la Tourelle, en millièmes (10 × PV de base d'une case, Écorce, Blindé).
+## PV max du Sporophore, en millièmes (10 × PV de base d'une case, Écorce, Blindé).
 static func turret_max_hp(defs: SimDefs, colony: ColonyState) -> int:
 	var hp: int = defs.cell_hp * defs.turret_hp_cells
 	hp = Fixed.mul(hp, Fixed.ONE + upgrade_bonus(defs, colony, UpgradeDef.Stat.TURRET_HP))
@@ -123,68 +72,31 @@ static func turret_max_hp(defs: SimDefs, colony: ColonyState) -> int:
 
 
 ## Valeur actuelle d'une statistique d'amélioration (UpgradeDef.Stat), pour l'affichage :
-## dégâts (millièmes), tirs par seconde (pour-mille, sans Salve), portée (cases), production
-## (millièmes par seconde), régénération (pour-mille des PV max par seconde), soin (millièmes),
-## spores, multiplicateur des PV des cases (pour-mille), Éclaboussure et critique (pour-mille),
-## PV de la Tourelle (millièmes), Rebond (cases).
+## poussée par case et plafond (millièmes de PV par seconde), production (millièmes par
+## seconde), régénération (pour-mille des PV max par seconde), multiplicateur des PV des cases
+## (pour-mille), PV du Sporophore (millièmes).
 static func stat_value(state: GameState, colony: ColonyState, stat: int) -> int:
 	var defs: SimDefs = state.defs
 	match stat:
-		UpgradeDef.Stat.DAMAGE:
-			return damage(defs, colony)
-		UpgradeDef.Stat.RATE:
-			return base_rate_pm(defs, colony)
-		UpgradeDef.Stat.RANGE:
-			return turret_range(defs, colony)
+		UpgradeDef.Stat.PUSH:
+			return push_per_cell(defs, colony)
+		UpgradeDef.Stat.VIGOR:
+			return push_cap(defs, colony)
 		UpgradeDef.Stat.YIELD:
 			return colony_production(state, colony)
 		UpgradeDef.Stat.REGEN:
 			return regen_pm(defs, colony)
-		UpgradeDef.Stat.HEAL:
-			return heal(defs, colony)
-		UpgradeDef.Stat.SPORES:
-			return spores(defs, colony)
 		UpgradeDef.Stat.CELL_HP:
 			return cell_hp_factor(defs, colony)
-		UpgradeDef.Stat.SPLASH:
-			return splash_pm(defs, colony)
-		UpgradeDef.Stat.CRIT:
-			return crit_pm(defs, colony)
 		UpgradeDef.Stat.TURRET_HP:
 			return turret_max_hp(defs, colony)
-		UpgradeDef.Stat.BOUNCE:
-			return bounce(defs, colony)
 	return 0
-
-
-# --- Bâtiments (GDD §5 bis) ---
-
-
-## Places de bâtiment de la colonie : 1 au palier 1, +1 par palier (palier actuel).
-static func building_slots(defs: SimDefs, colony: ColonyState) -> int:
-	return colony.tier * defs.building_slots_per_tier
-
-
-## Portée d'un bâtiment (rang dans SimDefs.buildings), en cases : la sienne, plus Hyphes
-## longues (la Portée du panneau ne compte pas).
-static func building_reach(defs: SimDefs, colony: ColonyState, type: int) -> int:
-	return defs.buildings[type].reach + mutation_sum(defs, colony, &"building_range_add")
-
-
-## PV max d'un bâtiment, en millièmes : les siens × l'amélioration PV des cases.
-static func building_max_hp(defs: SimDefs, colony: ColonyState, type: int) -> int:
-	return Fixed.mul(defs.buildings[type].hp, cell_hp_factor(defs, colony))
-
-
-## Tirs par seconde d'un bâtiment, en pour-mille : cadence du Sporophore sans la Salve × la sienne.
-static func building_rate_pm(defs: SimDefs, colony: ColonyState, type: int) -> int:
-	return Fixed.mul(base_rate_pm(defs, colony), defs.buildings[type].rate_pm)
 
 
 # --- Cases ---
 
 
-## Régénération des cases et de la Tourelle de la colonie, en pour-mille des PV max par seconde.
+## Régénération des cases et du Sporophore de la colonie, en pour-mille des PV max par seconde.
 static func regen_pm(defs: SimDefs, colony: ColonyState) -> int:
 	var rate: int = defs.regen_pm + upgrade_bonus(defs, colony, UpgradeDef.Stat.REGEN)
 	return Fixed.mul(rate, mutation_product(defs, colony, &"regen_pm"))

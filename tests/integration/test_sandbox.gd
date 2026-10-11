@@ -66,7 +66,7 @@ func test_setup_refuses_invalid_settings() -> void:
 	var setup: Node = SETUP.instantiate()
 	add_child_autofree(setup)
 	var config: GameConfig = setup.call("config")
-	config.defs.turret_range = 0
+	config.defs.hotspot_share_pm = 5_000
 	setup.call("_on_launch")
 	var error: Label = setup.get_node("%ErrorLabel")
 	assert_string_contains(error.text, "General")
@@ -125,17 +125,17 @@ func test_game_against_robots_puts_them_on_their_sectors() -> void:
 	assert_string_contains(text, "Sky (Conqueror)")
 
 
-func test_click_targets_a_cell_and_refusals_show_a_message() -> void:
+func test_click_places_a_hotspot_and_refusals_show_a_message() -> void:
 	var screen: Node = _game()
 	var session: Session = screen.get_node("%Session")
 	var input: MapInput = screen.get_node("%MapInput")
 	var messages: Array[String] = []
 	input.message.connect(func(text: String) -> void: messages.append(text))
+	input.click(_index(session, Vector2i(11, 0)))
+	assert_eq(messages, ["This cell is already yours"])
 	input.click(_index(session, BEYOND))
-	assert_eq(messages, ["This cell does not touch your colony"])
-	input.click(_index(session, ABOVE))
 	session.step()
-	assert_eq(session.colony().designated, _index(session, ABOVE))
+	assert_eq(session.colony().hotspots, PackedInt32Array([_index(session, BEYOND)]))
 
 
 func test_orders_are_blocked_while_paused() -> void:
@@ -147,10 +147,10 @@ func test_orders_are_blocked_while_paused() -> void:
 	session.set_paused(true)
 	input.click(_index(session, ABOVE))
 	assert_eq(messages, ["Paused: orders are blocked"])
-	assert_false(session.send_command(TargetCommand.new(ABOVE)))
+	assert_false(session.send_command(HotspotCommand.new(ABOVE)))
 	session.set_paused(false)
 	session.step()
-	assert_eq(session.colony().designated, -1)
+	assert_true(session.colony().hotspots.is_empty())
 
 
 func test_game_menu_pauses_and_resumes() -> void:
@@ -193,11 +193,10 @@ func test_recap_lists_settings_and_results() -> void:
 		"Opponents: Sector 2: None",
 		"Duel forest (radius 11) · seed 42",
 		"U: cost unit of upgrades: 30",
-		"Sporophore: damage per spore: 5",
-		"Sporophore: range (cells): 2",
+		"Push per border cell (HP/s): 1",
+		"Share to hot spots (%): 30",
 		"Zone 2 — Richness ×: 1.5, Free cell HP ×: 5, Owned cell HP ×: 1.8",
-		"Damage — Effect per level: 250",
-		"Salvo — Enzymes: 20",
+		"Push — Effect per level: 250",
 		"Results at 00:05",
 		"Cells: 3 · tier 0 (×1)",
 		"cells captured: 0",
@@ -207,13 +206,16 @@ func test_recap_lists_settings_and_results() -> void:
 		assert_string_contains(text, expected)
 
 
-func test_tooltip_shows_owner_health_zone_and_whether_it_can_be_targeted() -> void:
+func test_tooltip_shows_owner_health_zone_and_hotspot() -> void:
 	var screen: Node = _game()
 	var session: Session = screen.get_node("%Session")
 	var hud: Hud = screen.get_node("%Hud")
 	hud.set_tooltip_cell(_index(session, ABOVE))
 	var label: Label = hud.get_node("%TooltipLabel")
-	assert_eq(label.text, "Free cell\nHP: 40 / 40\nZone 1\nClick to target")
+	assert_eq(label.text, "Free cell\nHP: 40 / 40\nZone 1")
+	session.send_command(HotspotCommand.new(ABOVE))
+	hud.set_tooltip_cell(_index(session, ABOVE))
+	assert_eq(label.text, "Free cell\nHP: 40 / 40\nZone 1\nYour hot spot")
 	hud.set_tooltip_cell(session.colony().turret)
 	assert_string_contains(label.text, "Sporophore\nHP: 400 / 400")
 	hud.show_message("x")

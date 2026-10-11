@@ -23,12 +23,11 @@ const PROBLEM_KEYS: Dictionary[String, String] = {
 	"tier_cells": "SANDBOX_TIER_CELLS",
 	"economy": "SANDBOX_GENERAL",
 	"hp": "SANDBOX_GENERAL",
-	"turret": "SANDBOX_GENERAL",
+	"propagation": "SANDBOX_GENERAL",
 	"upgrade_cost_growth_pm": "SANDBOX_COST_GROWTH",
 	"match_ticks": "SANDBOX_PROTECTION",
 	"mutation_choices": "SANDBOX_GENERAL",
 	"upgrades": "SANDBOX_UPGRADES",
-	"abilities": "SANDBOX_ABILITIES",
 }
 
 var _config: GameConfig
@@ -44,7 +43,6 @@ var _opponents_visible: bool = true
 @onready var _zones_grid: GridContainer = %ZonesGrid
 @onready var _tiers_grid: GridContainer = %TiersGrid
 @onready var _upgrades_grid: GridContainer = %UpgradesGrid
-@onready var _abilities_grid: GridContainer = %AbilitiesGrid
 @onready var _opponents_grid: GridContainer = %OpponentsGrid
 @onready var _opponents_title: Label = %OpponentsTitle
 
@@ -165,13 +163,11 @@ func _build_fields() -> void:
 		SandboxParam.Group.ZONES: _zones_grid,
 		SandboxParam.Group.TIERS: _tiers_grid,
 		SandboxParam.Group.UPGRADES: _upgrades_grid,
-		SandboxParam.Group.ABILITIES: _abilities_grid,
 	}
 	var first_column: Dictionary[SandboxParam.Group, String] = {
 		SandboxParam.Group.ZONES: "SANDBOX_ZONE",
 		SandboxParam.Group.TIERS: "SANDBOX_TIER",
 		SandboxParam.Group.UPGRADES: "SANDBOX_UPGRADE",
-		SandboxParam.Group.ABILITIES: "SANDBOX_ABILITY",
 	}
 	for group: SandboxParam.Group in grids:
 		var keys: Array[String] = [first_column[group]]
@@ -197,10 +193,7 @@ func _build_fields() -> void:
 			last_group = param.group
 			_add_row_label(grid, _row_name(defs, param))
 		var spin: SpinBox = _field(param)
-		if (
-			param.group == SandboxParam.Group.UPGRADES
-			or param.group == SandboxParam.Group.ABILITIES
-		):
+		if param.group == SandboxParam.Group.UPGRADES:
 			spin.custom_minimum_size = Vector2(TABLE_FIELD_WIDTH, 0.0)
 		grid.add_child(spin)
 
@@ -226,14 +219,12 @@ func _add_mutations_card() -> GridContainer:
 	return grid
 
 
-## Nom d'une ligne de tableau : numéro de la zone ou du palier, nom de l'amélioration ou de
-## la capacité (clé de traduction).
+## Nom d'une ligne de tableau : numéro de la zone ou du palier, nom de l'amélioration (clé de
+## traduction).
 func _row_name(defs: SimDefs, param: SandboxParam) -> String:
 	match param.group:
 		SandboxParam.Group.UPGRADES:
 			return defs.upgrades[param.index].name_key
-		SandboxParam.Group.ABILITIES:
-			return defs.abilities[param.index].name_key
 	return str(param.index + 1)
 
 

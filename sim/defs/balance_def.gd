@@ -31,41 +31,27 @@ extends Resource
 ## pleine vie (décidé le 4 octobre 2026).
 @export var captured_hp_pm: int = 250
 
-# --- Tourelle (§5, §6.3, §7.3, §7.4) ---
-## Dégâts d'une spore, en millièmes (5, décidé le 5 octobre 2026).
-@export var turret_damage: int = 5_000
-## Tirs par seconde, en pour-mille (0,2 tir/s : un tir toutes les 5 s, décidé le 5 octobre 2026).
-@export var turret_rate_pm: int = 200
-## Portée de départ, en cases (2, décidé le 5 octobre 2026).
-@export var turret_range: int = 2
-## Spores par tir au départ.
-@export var turret_spores: int = 1
-## PV de la Tourelle, en nombre de PV de base d'une case (10 × 40 = 400, décidé le 4 octobre 2026).
+# --- Sporophore (§5, §7.4) ---
+## PV du Sporophore, en nombre de PV de base d'une case (10 × 40 = 400, décidé le 4 octobre 2026).
 @export var turret_hp_cells: int = 10
-## Soin d'une spore, en part des dégâts (50 %).
-@export var heal_pm: int = 500
-## Multiplicateur des dégâts d'un coup critique (×3).
-@export var crit_damage_pm: int = 3000
+
+# --- Propagation (§5 bis, décidé le 11 octobre 2026) ---
+## Poussée d'une case de bordure, en millièmes de PV par seconde (1 PV/s).
+@export var push: int = 1_000
+## Plafond global de la force de propagation au départ, en millièmes de PV par seconde (8 PV/s).
+@export var push_cap: int = 8_000
+## Part de la force envoyée aux points chauds, en pour-mille (30 %).
+@export var hotspot_share_pm: int = 300
+## Points chauds au départ (les paliers en donnent plus, TierDef.hotspots).
+@export var start_hotspots: int = 1
 
 # --- Partie (§3, §12) ---
 ## Durée maximale d'une partie, en secondes (ticks) : 30 min.
 @export var match_ticks: int = 1800
-## Protection de départ, en secondes : aucune case adverse visée, aucune capacité.
+## Protection de départ, en secondes : aucune poussée sur une case adverse.
 @export var protection_ticks: int = 120
 ## Trophée : production en plus par Tourelle abattue (+25 %) et Enzymes reçues (100).
 @export var trophy_production_pm: int = 250
 @export var trophy_enzymes: int = 100
-## Nombre de mutations proposées à chaque palier.
+## Nombre de mutations proposées à chaque palier qui en donne une.
 @export var mutation_choices: int = 3
-
-# --- Bâtiments (§5 bis) ---
-## Places de bâtiment gagnées à chaque palier (1 au palier 1, +1 par palier).
-@export var building_slots_per_tier: int = 1
-## PV d'un bâtiment au début de son chantier, en part de ses PV max (10 %).
-@export var building_start_hp_pm: int = 100
-## Durée du sommeil d'un bâtiment tombé, en secondes (60).
-@export var building_sleep_ticks: int = 60
-## Revenu lent d'Enzymes (décidé le 6 octobre 2026) : chaque colonie en vie reçoit
-## « enzyme_income » Enzymes entières toutes les « enzyme_income_ticks » secondes (0 : aucun).
-@export var enzyme_income: int = 1
-@export var enzyme_income_ticks: int = 10

@@ -1,5 +1,5 @@
 extends GutTest
-## Dégâts, prises, coupures, élimination et Trophée (GDD §6, §7, §12).
+## Dégâts, prises, coupures, élimination et Trophée (GDD §5 bis.4, §5 bis.5, §7, §12).
 
 const Fixture = preload("res://tests/fixtures/sim_fixture.gd")
 
@@ -78,34 +78,21 @@ func test_cells_cut_off_from_their_turret_become_free() -> void:
 	assert_eq(_result.cells_lost.size(), 4)
 
 
-func test_a_wall_keeps_cells_from_losing_health() -> void:
-	Fixture.give(_sim, 1, [Vector2i(10, 1)])
+func test_capturing_a_hotspot_removes_it() -> void:
 	var cell: int = _cell(Vector2i(10, 1))
-	_colony(1).wall_center = cell
-	_colony(1).wall_radius = 3
-	_colony(1).wall_until = _sim.state.tick + 1
-	var before: int = _sim.state.hp[cell]
-	Combat.deal(_sim.state, _colony(0), cell, 10_000, _result)
-	assert_eq(_sim.state.hp[cell], before)
-	_sim.state.tick += 1
-	Combat.deal(_sim.state, _colony(0), cell, 10_000, _result)
-	assert_eq(_sim.state.hp[cell], before - 10_000)
-
-
-func test_healing_never_goes_above_the_maximum() -> void:
-	var cell: int = _cell(Fixture.INNER_0)
-	_sim.state.hp[cell] = 10_000
-	Combat.heal(_sim.state, cell, 5_000, _result)
-	assert_eq(_sim.state.hp[cell], 15_000)
-	Combat.heal(_sim.state, cell, 1_000_000, _result)
-	assert_eq(_sim.state.hp[cell], _sim.cell_max_hp(cell))
+	var other: int = _cell(Vector2i(5, 0))
+	_colony(0).hotspots = PackedInt32Array([other, cell])
+	Combat.deal(_sim.state, _colony(0), cell, 1_000_000, _result)
+	assert_eq(_colony(0).hotspots, PackedInt32Array([other]))
 
 
 func test_downing_a_turret_eliminates_the_colony_and_gives_a_trophy() -> void:
-	# La Tourelle de la colonie 1 est collée au territoire de la colonie 0.
+	# Le Sporophore de la colonie 1 est collé au territoire de la colonie 0, qui y a un point
+	# chaud.
 	Fixture.give(_sim, 0, [Vector2i(-10, 0)])
 	var turret: int = _colony(1).turret
 	var enzymes: int = _colony(0).enzymes
+	_colony(0).hotspots = PackedInt32Array([turret])
 	Combat.deal(_sim.state, _colony(0), turret, 1_000_000_000, _result)
 	assert_false(_colony(1).alive)
 	assert_eq(_colony(1).killer, 0)
@@ -115,6 +102,7 @@ func test_downing_a_turret_eliminates_the_colony_and_gives_a_trophy() -> void:
 	assert_eq(_colony(0).trophies, 1)
 	assert_eq(_colony(0).enzymes, enzymes + 100_000)
 	assert_eq(_result.eliminations, PackedInt32Array([1, 0]))
+	assert_true(_colony(0).hotspots.is_empty())
 
 
 func test_a_trophy_adds_a_quarter_to_production() -> void:

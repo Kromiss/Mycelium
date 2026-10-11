@@ -21,12 +21,12 @@ static func check(state: GameState, command: Command) -> Refusal.Code:
 	if state.finished:
 		return Refusal.Code.GAME_OVER
 	match command.type:
-		Command.Type.TARGET:
-			return Targeting.check_designation(state, colony, _cell(state, command))
-		Command.Type.SET_PRIORITY:
-			var priority: int = (command as SetPriorityCommand).priority
-			if not ColonyState.Priority.values().has(priority):
-				return Refusal.Code.UNKNOWN_PRIORITY
+		Command.Type.HOTSPOT:
+			var cell: int = _cell(state, command)
+			if cell < 0:
+				return Refusal.Code.OUT_OF_MAP
+			if state.owner[cell] == colony.id:
+				return Refusal.Code.OWN_CELL
 			return Refusal.Code.OK
 		Command.Type.BUY_UPGRADE:
 			var id: StringName = (command as BuyUpgradeCommand).upgrade
@@ -34,14 +34,6 @@ static func check(state: GameState, command: Command) -> Refusal.Code:
 		Command.Type.CHOOSE_MUTATION:
 			var choice: int = (command as ChooseMutationCommand).choice
 			return TierSystem.check_choose(state, colony, choice)
-		Command.Type.USE_ABILITY:
-			var ability: int = state.defs.ability_index((command as UseAbilityCommand).ability)
-			return Abilities.check_use(state, colony, ability, _cell(state, command))
-		Command.Type.BUILD:
-			var building: int = state.defs.building_index((command as BuildCommand).building)
-			return Buildings.check_build(state, colony, building, _cell(state, command))
-		Command.Type.DEMOLISH:
-			return Buildings.check_demolish(state, colony, _cell(state, command))
 	return Refusal.Code.UNKNOWN_COMMAND
 
 
@@ -51,29 +43,33 @@ func _apply(state: GameState, command: Command, result: TickResult) -> Refusal.C
 		return code
 	var colony: ColonyState = state.colony(command.colony_id)
 	match command.type:
-		Command.Type.TARGET:
-			colony.designated = _cell(state, command)
-			colony.targets.erase(colony.designated)
-		Command.Type.SET_PRIORITY:
-			# Nouvelle priorité : les cibles gardées sont lâchées, la cible désignée reste.
-			colony.priority = (command as SetPriorityCommand).priority
-			colony.targets = PackedInt32Array()
+		Command.Type.HOTSPOT:
+			_toggle_hotspot(state, colony, _cell(state, command))
 		Command.Type.BUY_UPGRADE:
 			var buy := command as BuyUpgradeCommand
 			Upgrades.buy(state, colony, state.defs.upgrade_index(buy.upgrade), buy.count)
 		Command.Type.CHOOSE_MUTATION:
 			TierSystem.choose(state, colony, (command as ChooseMutationCommand).choice)
-		Command.Type.USE_ABILITY:
-			var use := command as UseAbilityCommand
-			var ability: int = state.defs.ability_index(use.ability)
-			Abilities.use(state, colony, ability, _cell(state, command), result)
-		Command.Type.BUILD:
-			var building: int = state.defs.building_index((command as BuildCommand).building)
-			Buildings.build(state, colony, building, _cell(state, command), result)
-		Command.Type.DEMOLISH:
-			Buildings.demolish(state, colony, _cell(state, command), result)
 	result.colony_changed(colony.id)
 	return Refusal.Code.OK
+
+
+## Pose un point chaud sur la case, ou le retire s'il y en a déjà un ; au-delà du maximum
+## permis par le palier, le plus ancien est remplacé (GDD §5 bis.3, §5 bis.6).
+static func _toggle_hotspot(state: GameState, colony: ColonyState, cell: int) -> void:
+	var position: int = colony.hotspots.find(cell)
+	if position >= 0:
+		colony.hotspots.remove_at(position)
+		return
+	colony.hotspots.append(cell)
+	trim_hotspots(state.defs, colony)
+
+
+## Retire les points chauds les plus anciens au-delà du maximum permis par le palier.
+static func trim_hotspots(defs: SimDefs, colony: ColonyState) -> void:
+	var excess: int = colony.hotspots.size() - ColonyStats.max_hotspots(defs, colony)
+	if excess > 0:
+		colony.hotspots = colony.hotspots.slice(excess)
 
 
 ## Case visée par une commande (−1 hors de la forêt, ou si la commande ne vise pas de case).

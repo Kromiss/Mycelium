@@ -1,10 +1,7 @@
 class_name ColonyState
 extends RefCounted
-## État d'une colonie : ressources, Tourelle, palier, améliorations, mutations, capacités et
+## État d'une colonie : ressources, Sporophore, propagation, palier, améliorations, mutations et
 ## statistiques. Les quantités sont en millièmes.
-
-## Priorité de tir de la Tourelle (GDD §5.3).
-enum Priority { CLOSEST, RICHEST, HEAL_FIRST, ENEMIES_FIRST }
 
 ## Numéro de la colonie (son rang dans GameState.colonies).
 var id: int = 0
@@ -34,21 +31,21 @@ var tier_ticks: PackedInt32Array = PackedInt32Array()
 ## (index 0 = zone 1 ; −1 jamais ; 0 pour la zone de départ).
 var zone_ticks: PackedInt32Array = PackedInt32Array()
 
-# --- Tourelle (GDD §5) ---
-## Case de la Tourelle (−1 une fois la colonie éliminée).
+# --- Sporophore (GDD §5) ---
+## Case du Sporophore (−1 une fois la colonie éliminée).
 var turret: int = -1
-## PV de la Tourelle, en millièmes.
+## PV du Sporophore, en millièmes.
 var turret_hp: int = 0
-## Priorité de tir (Priority).
-var priority: int = Priority.CLOSEST
-## Cible désignée au clic (−1 : aucune). Elle passe avant les cibles de la priorité.
-var designated: int = -1
-## Cibles gardées, une par spore, dans l'ordre (la cible désignée n'y figure pas).
-var targets: PackedInt32Array = PackedInt32Array()
-## Tirs accumulés, en millièmes de tir (la cadence n'est pas un nombre entier de tirs par tick).
-var shot_progress: int = 0
 
-# --- Améliorations, mutations, capacités ---
+# --- Propagation (GDD §5 bis) ---
+## Points chauds, du plus ancien au plus récent (numéros de case).
+var hotspots: PackedInt32Array = PackedInt32Array()
+## Cases de bordure au dernier tick.
+var border_cells: int = 0
+## Force de propagation utilisée au dernier tick, en millièmes de PV par seconde.
+var push_force: int = 0
+
+# --- Améliorations, mutations ---
 ## Niveau de chaque amélioration (rang dans SimDefs.upgrades).
 var upgrade_levels: PackedInt32Array = PackedInt32Array()
 ## Mutations prises, dans l'ordre (rangs dans SimDefs.mutations), et palier de chacune.
@@ -59,18 +56,9 @@ var mutation_tiers: PackedInt32Array = PackedInt32Array()
 var pending_offers: PackedInt32Array = PackedInt32Array()
 ## Palier qui a donné chaque choix en attente (un par bloc).
 var pending_tiers: PackedInt32Array = PackedInt32Array()
-## Tick à partir duquel chaque capacité peut à nouveau être lancée.
-var ability_ready: PackedInt32Array = PackedInt32Array()
-## Salve : tick jusqu'auquel (exclu) la cadence est multipliée, et le multiplicateur.
-var salvo_until: int = 0
-var salvo_rate_pm: int = 1000
-## Mur de mycélium : case au centre, rayon et tick jusqu'auquel (exclu) il protège.
-var wall_center: int = -1
-var wall_radius: int = 0
-var wall_until: int = 0
 
 # --- Conflit et statistiques ---
-## Trophées gagnés (Tourelles abattues, GDD §12).
+## Trophées gagnés (Sporophores abattus, GDD §12).
 var trophies: int = 0
 ## Tick de l'élimination (−1 : en vie) et colonie qui a abattu la Tourelle (−1 : aucune).
 var eliminated_tick: int = -1
@@ -91,7 +79,7 @@ func pending_choice_count(choices: int) -> int:
 
 
 ## Copie de ce dont dépendent les chiffres de la colonie (ColonyStats) : améliorations,
-## mutations, palier, Trophées, Salve. Sert à prévoir l'effet d'un achat sans toucher à l'état.
+## mutations, palier, Trophées. Sert à prévoir l'effet d'un achat sans toucher à l'état.
 func stats_copy() -> ColonyState:
 	var copy := ColonyState.new()
 	copy.id = id
@@ -99,8 +87,6 @@ func stats_copy() -> ColonyState:
 	copy.tier = tier
 	copy.trophies = trophies
 	copy.turret = turret
-	copy.salvo_until = salvo_until
-	copy.salvo_rate_pm = salvo_rate_pm
 	copy.upgrade_levels = upgrade_levels.duplicate()
 	copy.mutations = mutations.duplicate()
 	return copy
@@ -122,14 +108,8 @@ func hash_values() -> PackedInt64Array:
 			tier,
 			turret,
 			turret_hp,
-			priority,
-			designated,
-			shot_progress,
-			salvo_until,
-			salvo_rate_pm,
-			wall_center,
-			wall_radius,
-			wall_until,
+			border_cells,
+			push_force,
 			trophies,
 			eliminated_tick,
 			killer,
@@ -139,13 +119,12 @@ func hash_values() -> PackedInt64Array:
 	for array: PackedInt32Array in [
 		tier_ticks,
 		zone_ticks,
-		targets,
+		hotspots,
 		upgrade_levels,
 		mutations,
 		mutation_tiers,
 		pending_offers,
 		pending_tiers,
-		ability_ready,
 	]:
 		values.append(array.size())
 		for value: int in array:

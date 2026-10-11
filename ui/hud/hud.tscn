@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3]
+[gd_scene load_steps=10 format=3]
 
 [ext_resource type="Script" path="res://ui/hud/hud.gd" id="1_hud"]
 [ext_resource type="Script" path="res://ui/hud/timeline_card.gd" id="2_timeline"]
@@ -6,11 +6,9 @@
 [ext_resource type="Script" path="res://ui/hud/journal_card.gd" id="4_journal"]
 [ext_resource type="Script" path="res://ui/hud/mutation_overlay.gd" id="5_overlay"]
 [ext_resource type="Script" path="res://ui/hud/resources_card.gd" id="6_resources"]
-[ext_resource type="Script" path="res://ui/hud/turret_card.gd" id="7_turret"]
+[ext_resource type="Script" path="res://ui/hud/propagation_card.gd" id="7_propagation"]
 [ext_resource type="Script" path="res://ui/hud/mutations_card.gd" id="8_mutations"]
 [ext_resource type="Script" path="res://ui/hud/upgrades_card.gd" id="9_upgrades"]
-[ext_resource type="Script" path="res://ui/hud/ability_bar.gd" id="10_abilities"]
-[ext_resource type="Script" path="res://ui/hud/buildings_card.gd" id="11_buildings"]
 
 [node name="Hud" type="Control"]
 anchors_preset = 15
@@ -168,31 +166,21 @@ unique_name_in_owner = true
 layout_mode = 2
 script = ExtResource("6_resources")
 
-[node name="TurretCard" type="PanelContainer" parent="SidePanel/Side"]
+[node name="PropagationCard" type="PanelContainer" parent="SidePanel/Side"]
 unique_name_in_owner = true
 layout_mode = 2
-script = ExtResource("7_turret")
+script = ExtResource("7_propagation")
 
 [node name="MutationsCard" type="PanelContainer" parent="SidePanel/Side"]
 unique_name_in_owner = true
 layout_mode = 2
 script = ExtResource("8_mutations")
 
-[node name="BuildingsCard" type="PanelContainer" parent="SidePanel/Side"]
-unique_name_in_owner = true
-layout_mode = 2
-script = ExtResource("11_buildings")
-
 [node name="UpgradesCard" type="PanelContainer" parent="SidePanel/Side"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 3
 script = ExtResource("9_upgrades")
-
-[node name="AbilityBar" type="PanelContainer" parent="SidePanel/Side"]
-unique_name_in_owner = true
-layout_mode = 2
-script = ExtResource("10_abilities")
 
 [node name="Tooltip" type="PanelContainer" parent="."]
 unique_name_in_owner = true

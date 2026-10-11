@@ -9,6 +9,4 @@ name_key = "DIFFICULTY_EASY"
 act_every_ticks = 3
 random_upgrade_one_in = 4
 random_mutation = true
-abilities = Array[StringName]([&"salvo"])
 hunts_turrets = false
-build_cooldown_ticks = 30
