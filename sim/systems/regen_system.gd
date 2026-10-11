@@ -1,10 +1,9 @@
 class_name RegenSystem
 extends RefCounted
-## Étape 4 du tick : régénération (GDD §5 bis, §6.1, §7.2, §7.4). Chaque case regagne une part
-## de ses PV max par seconde : 2 % pour une case libre, la régénération de sa colonie pour une
-## case possédée ; la Tourelle et les bâtiments de même (un chantier monte vers ses PV max).
-## Une case touchée par Toxique ou un Nuage toxique ne se régénère pas pendant l'effet. Les PV
-## qui dépassent un maximum qui a baissé (Cohésion perdue) sont ramenés au maximum.
+## Étape 4 du tick : régénération (GDD §5 bis.4, §7.2, §7.4). Chaque case regagne une part de
+## ses PV max par seconde : 2 % pour une case libre, la régénération de sa colonie pour une case
+## possédée ; le Sporophore de même. Les PV qui dépassent un maximum qui a baissé (Cohésion
+## perdue) sont ramenés au maximum.
 
 
 func run(state: GameState, result: TickResult) -> void:
@@ -43,7 +42,6 @@ func run(state: GameState, result: TickResult) -> void:
 	for colony: ColonyState in state.colonies:
 		if colony.alive:
 			_regenerate_turret(state, colony, rates[colony.id], result)
-	Buildings.regenerate(state, rates, result)
 
 
 func _regenerate(state: GameState, cell: int, maximum: int, rate: int, result: TickResult) -> void:
@@ -52,7 +50,7 @@ func _regenerate(state: GameState, cell: int, maximum: int, rate: int, result: T
 		state.hp[cell] = maximum
 		result.cell_changed(cell)
 		return
-	if current == maximum or state.no_regen_until[cell] > state.tick:
+	if current == maximum:
 		return
 	state.hp[cell] = mini(maximum, current + Fixed.mul(maximum, rate))
 	if state.hp[cell] >= maximum:
@@ -66,7 +64,7 @@ func _regenerate_turret(
 	var maximum: int = ColonyStats.turret_max_hp(state.defs, colony)
 	if colony.turret_hp > maximum:
 		colony.turret_hp = maximum
-	elif colony.turret_hp < maximum and state.no_regen_until[colony.turret] <= state.tick:
+	elif colony.turret_hp < maximum:
 		colony.turret_hp = mini(maximum, colony.turret_hp + Fixed.mul(maximum, rate))
 	else:
 		return

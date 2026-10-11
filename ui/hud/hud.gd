@@ -4,17 +4,10 @@ extends Control
 ## - sur la carte, à gauche : frise (horloge, protection ; pause, vitesse et récapitulatif en
 ##   Bac à sable), mini-classement, journal, rappel des gestes, messages, annonce des paliers,
 ##   cartes de mutation ;
-## - panneau de droite : ressources, Tourelle et priorité de tir, mutations prises, bâtiments,
-##   améliorations, capacités ;
-## - roue des bâtiments au clic droit sur une de mes cases (GDD §5 bis) ;
+## - panneau de droite : ressources, propagation (GDD §5 bis), mutations prises, améliorations ;
 ## - info-bulle d'une case, menu de partie (Échap) et panneau de fin.
 ## Les ordres passent par la Session, après avoir demandé à la simulation s'ils seraient
 ## acceptés : les règles restent dans sim/.
-
-## Le joueur a cliqué sur une capacité (le geste continue sur la carte pour le Mur et le Nuage).
-signal ability_requested(index: int)
-## Le joueur a cliqué sur un bâtiment du panneau (le geste continue sur la carte).
-signal building_requested(index: int)
 
 ## Durée d'affichage d'un message, en secondes.
 const TOAST_TIME: float = 2.6
@@ -24,9 +17,6 @@ const BANNER_TIME: float = 1.6
 const TOOLTIP_OFFSET := Vector2(22.0, 22.0)
 ## Délai minimal entre deux alertes d'attaque d'une même colonie dans le journal, en secondes.
 const ATTACK_ALERT_TICKS: int = 20
-
-## Roue des bâtiments, ouverte au clic droit sur une de mes cases (GDD §5 bis).
-var wheel: BuildWheel
 
 var _session: Session
 var _config: GameConfig
@@ -42,25 +32,21 @@ var _offer_hidden: bool = false
 var _mutation_count: int = 0
 ## Dernière alerte d'attaque de chaque colonie (tick).
 var _last_alert: Dictionary[int, int] = {}
-var _hint_mode: MapInput.Mode = MapInput.Mode.TARGET
-var _hint_ability: int = -1
 
 ## Confirmation de l'abandon (contre les robots), construite en code dans le menu de partie.
 var _confirm_label: Label
 var _confirm_yes: Button
 var _confirm_no: Button
 
-@onready var buildings: BuildingsCard = %BuildingsCard
 @onready var _map_area: Control = %MapArea
 @onready var _timeline: TimelineCard = %TimelineCard
 @onready var _ranking: RankingCard = %RankingCard
 @onready var _journal: JournalCard = %JournalCard
 @onready var _overlay: MutationOverlay = %MutationOverlay
 @onready var _resources: ResourcesCard = %ResourcesCard
-@onready var _turret: TurretCard = %TurretCard
+@onready var _propagation: PropagationCard = %PropagationCard
 @onready var _mutations: MutationsCard = %MutationsCard
 @onready var _upgrades: UpgradesCard = %UpgradesCard
-@onready var _abilities: AbilityBar = %AbilityBar
 @onready var _paused_label: Label = %PausedLabel
 @onready var _banner: Label = %Banner
 @onready var _toast: PanelContainer = %Toast
@@ -95,17 +81,7 @@ func _ready() -> void:
 	_replay_button.pressed.connect(_restart)
 	_end_menu_button.pressed.connect(SceneRouter.leave_game)
 	_build_confirm()
-	wheel = BuildWheel.new()
-	add_child(wheel)
-	# Sous l'info-bulle et les menus.
-	move_child(wheel, _tooltip.get_index())
-	wheel.build_chosen.connect(_on_build_chosen)
-	wheel.demolish_chosen.connect(_on_demolish_chosen)
-	wheel.refused.connect(show_message)
-	buildings.building_pressed.connect(func(index: int) -> void: building_requested.emit(index))
-	_turret.priority_chosen.connect(_on_priority_chosen)
 	_upgrades.buy_requested.connect(_on_buy_requested)
-	_abilities.ability_pressed.connect(func(index: int) -> void: ability_requested.emit(index))
 	_overlay.chosen.connect(choose_mutation)
 	_overlay.hide_requested.connect(hide_offer)
 	_mutations.reopen_requested.connect(show_offer)
@@ -123,12 +99,9 @@ func setup(session: Session, config: GameConfig, main: Array[Color], dark: Array
 	_timeline.setup(session, main[local])
 	_ranking.setup(session, main)
 	_resources.setup(session, main[local], dark[local])
-	_turret.setup(session, dark[local])
+	_propagation.setup(session, main[local], dark[local])
 	_mutations.setup(session, main[local], dark[local])
-	buildings.setup(session, dark[local])
-	wheel.setup(session, dark[local])
 	_upgrades.setup(session, main[local], dark[local])
-	_abilities.setup(session, dark[local])
 	_overlay.setup(session, main[local], dark[local])
 	_mutation_count = session.colony().mutations.size()
 	_session.ticked.connect(_on_ticked)
@@ -155,7 +128,7 @@ func show_message(text: String) -> void:
 	_toast_left = TOAST_TIME
 
 
-## Annonce un palier atteint (« Palier ×2 ! »).
+## Annonce un palier atteint (« Palier ×1,3 ! »).
 func announce_tier(tier: int) -> void:
 	var multiplier: String = NumberFormat.multiplier(
 		ColonyStats.tier_production_pm(_session.simulation.state.defs, tier)
@@ -177,17 +150,6 @@ func set_tooltip_cell(cell: int) -> void:
 	_update_tooltip()
 
 
-## Geste en cours sur la carte (rappel des gestes en bas de la carte, bouton du bâtiment en
-## cours de pose).
-func set_input_mode(mode: MapInput.Mode, ability: int) -> void:
-	_hint_mode = mode
-	_hint_ability = ability
-	buildings.set_pending(ability if mode == MapInput.Mode.BUILD else -1)
-	if mode != MapInput.Mode.TARGET:
-		wheel.close()
-	_update_hint()
-
-
 ## Copie le récapitulatif dans le presse-papiers.
 func copy_recap() -> void:
 	var state: GameState = _session.simulation.state
@@ -199,7 +161,6 @@ func copy_recap() -> void:
 func open_game_menu() -> void:
 	if _end_panel.visible:
 		return
-	wheel.close()
 	_menu_paused = not _session.paused
 	_show_confirm(false)
 	_game_menu.visible = true
@@ -253,16 +214,12 @@ func journal() -> JournalCard:
 	return _journal
 
 
-func turret_card() -> TurretCard:
-	return _turret
+func propagation_card() -> PropagationCard:
+	return _propagation
 
 
 func upgrades_card() -> UpgradesCard:
 	return _upgrades
-
-
-func ability_bar() -> AbilityBar:
-	return _abilities
 
 
 func mutation_overlay() -> MutationOverlay:
@@ -307,21 +264,8 @@ func _send(command: Command) -> void:
 	_session.send_command(command)
 
 
-func _on_priority_chosen(priority: int) -> void:
-	_send(SetPriorityCommand.new(priority))
-
-
 func _on_buy_requested(upgrade: StringName, count: int) -> void:
 	_send(BuyUpgradeCommand.new(upgrade, count))
-
-
-func _on_build_chosen(index: int, cell: int) -> void:
-	var state: GameState = _session.simulation.state
-	_send(BuildCommand.new(state.defs.buildings[index].id, state.map.cells[cell]))
-
-
-func _on_demolish_chosen(cell: int) -> void:
-	_send(DemolishCommand.new(_session.simulation.state.map.cells[cell]))
 
 
 # --- Mise à jour ---
@@ -378,32 +322,20 @@ func _update_offer(result: TickResult) -> void:
 
 ## Tout ce qui ne change qu'à chaque tick.
 func _update_state() -> void:
-	wheel.refresh()
 	_timeline.refresh()
 	_ranking.refresh()
 	_resources.refresh()
-	_turret.refresh()
+	_propagation.refresh()
 	_mutations.refresh(_offer_hidden)
-	buildings.refresh()
 	_upgrades.refresh()
-	_abilities.refresh()
 	_update_tooltip()
 
 
 func _update_hint() -> void:
-	var cancel: String = ControlsText.action_key("back_to_menu")
 	if _session.is_spectator():
 		_hint_label.text = tr("HUD_HINT_SPECTATOR") % ControlsText.action_key("toggle_pause")
 		return
-	match _hint_mode:
-		MapInput.Mode.ABILITY:
-			var ability: SimAbility = _session.simulation.state.defs.abilities[_hint_ability]
-			_hint_label.text = tr("HUD_HINT_ABILITY") % [tr(ability.name_key), cancel]
-		MapInput.Mode.BUILD:
-			var building: SimBuilding = _session.simulation.state.defs.buildings[_hint_ability]
-			_hint_label.text = tr("HUD_HINT_BUILD") % [tr(building.name_key), cancel]
-		_:
-			_hint_label.text = tr("HUD_HINT")
+	_hint_label.text = tr("HUD_HINT")
 
 
 func _update_tooltip() -> void:
@@ -457,7 +389,6 @@ func _on_speed_changed(speed: int) -> void:
 
 
 func _on_game_finished() -> void:
-	wheel.close()
 	_game_menu.visible = false
 	_overlay.visible = false
 	_paused_label.visible = false
@@ -556,7 +487,7 @@ func _show_confirm(asking: bool) -> void:
 
 
 ## Fin de partie minimale contre les robots (GDD §2.6, décidé le 5 octobre 2026) : rang, cases
-## prises, Tourelles abattues, durée de survie, pic de production.
+## prises, Sporophores abattus, durée de survie, pic de production.
 func _show_versus_end() -> void:
 	var state: GameState = _session.simulation.state
 	var colony: ColonyState = _session.colony()

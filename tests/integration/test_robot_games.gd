@@ -39,7 +39,7 @@ func test_robot_games_are_accepted_and_replay_identically() -> void:
 		kinds[DictRead.get_int(data, "type", -1)] = true
 	assert_true(kinds.has(Command.Type.BUY_UPGRADE))
 	assert_true(kinds.has(Command.Type.CHOOSE_MUTATION))
-	assert_true(kinds.has(Command.Type.SET_PRIORITY))
+	assert_true(kinds.has(Command.Type.HOTSPOT))
 
 
 func test_session_plays_robots_on_their_sectors() -> void:

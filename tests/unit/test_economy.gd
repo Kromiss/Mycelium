@@ -65,19 +65,3 @@ func test_production_follows_the_tier_multiplier() -> void:
 	_colony().tier = 3
 	var expected: int = _sim.state.defs.tier_production_pm[2]
 	assert_eq(ColonyStats.production_factor(_sim.state, _colony()), expected)
-
-
-func test_colonies_get_a_slow_enzyme_income() -> void:
-	# La Tourelle ne tire pas : pas de palier ni de lot d'Enzymes pendant le test.
-	var defs: SimDefs = Fixture.duel_defs()
-	defs.turret_rate_pm = 0
-	defs.enzyme_income = 2
-	defs.enzyme_income_ticks = 5
-	var sim := Simulation.new(defs, 1, 2)
-	Fixture.run(sim, 4)
-	assert_eq(sim.state.colonies[0].enzymes, 0)
-	sim.tick()
-	assert_eq(sim.state.colonies[0].enzymes, Fixed.from_units(2))
-	assert_eq(sim.state.colonies[1].enzymes, Fixed.from_units(2))
-	Fixture.run(sim, 5)
-	assert_eq(sim.state.colonies[0].enzymes, Fixed.from_units(4))

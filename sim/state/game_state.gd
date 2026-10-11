@@ -15,12 +15,10 @@ var defs: SimDefs
 var map: ForestMap
 ## Colonie propriétaire de chaque case (−1 = libre).
 var owner: PackedInt32Array = PackedInt32Array()
-## PV de chaque case, en millièmes (pour la case d'une Tourelle, voir ColonyState.turret_hp).
+## PV de chaque case, en millièmes (pour la case d'un Sporophore, voir ColonyState.turret_hp).
 var hp: PackedInt64Array = PackedInt64Array()
 ## Dernière colonie qui a entamé la case, tant qu'elle n'est pas revenue à pleine vie (−1 : aucune).
 var last_hitter: PackedInt32Array = PackedInt32Array()
-## Tick jusqu'auquel (exclu) la case ne se régénère pas (Toxique, Nuage toxique).
-var no_regen_until: PackedInt32Array = PackedInt32Array()
 ## Rang de chaque case dans un ordre tiré de la graine, pour départager les cases à égalité.
 var cell_rank: PackedInt32Array = PackedInt32Array()
 ## Case de chaque rang (inverse de cell_rank, pour retrouver vite une case à partir de son rang).
@@ -31,10 +29,6 @@ var start_colonies: int = 0
 var ranking: PackedInt32Array = PackedInt32Array()
 ## Colonies, par numéro.
 var colonies: Array[ColonyState] = []
-## Bâtiments posés, dans l'ordre de construction (GDD §5 bis).
-var buildings: Array[BuildingState] = []
-## Rang dans « buildings » du bâtiment de chaque case (−1 : aucun). Tenu à jour par Buildings.
-var building_at: PackedInt32Array = PackedInt32Array()
 ## Aléatoire de la partie.
 var rng: SimRng
 
@@ -61,29 +55,15 @@ func is_owned_by(cell: int, colony_id: int) -> bool:
 	return owner[cell] == colony_id
 
 
-## Vrai si une Tourelle (vivante) occupe la case.
+## Vrai si un Sporophore (vivant) occupe la case.
 func is_turret_cell(cell: int) -> bool:
 	var holder: ColonyState = owner_of(cell)
 	return holder != null and holder.turret == cell
 
 
-## Bâtiment posé sur la case (endormi compris), ou null.
-func building_on(cell: int) -> BuildingState:
-	var index: int = building_at[cell]
-	return buildings[index] if index >= 0 else null
-
-
-## Bâtiment qui tient la case (en chantier ou actif, pas endormi), ou null.
-func standing_building(cell: int) -> BuildingState:
-	var index: int = building_at[cell]
-	if index < 0 or not buildings[index].standing(tick):
-		return null
-	return buildings[index]
-
-
 ## Nombre de voisines de la case qui appartiennent à la colonie (0 à 6).
 func owned_neighbors(cell: int, colony_id: int) -> int:
-	# Lecture directe de la table des voisines : appelée très souvent (tirs, PV, production).
+	# Lecture directe de la table des voisines : appelée très souvent (propagation, PV, production).
 	var table: PackedInt32Array = map.neighbor_table
 	var total: int = 0
 	for slot: int in range(cell * 6, cell * 6 + 6):
@@ -103,12 +83,22 @@ func touches_colony(cell: int, colony_id: int) -> bool:
 	return false
 
 
+## Vrai si une voisine de la case n'appartient pas à la colonie (case de bordure, GDD §5 bis.1).
+func touches_other(cell: int, colony_id: int) -> bool:
+	var table: PackedInt32Array = map.neighbor_table
+	for slot: int in range(cell * 6, cell * 6 + 6):
+		var other: int = table[slot]
+		if other >= 0 and owner[other] != colony_id:
+			return true
+	return false
+
+
 ## Distance (en cases) entre deux cases.
 func distance(a: int, b: int) -> int:
 	return Hex.distance(map.cells[a], map.cells[b])
 
 
-## Vrai si la protection de départ est terminée (cases adverses et capacités permises).
+## Vrai si la protection de départ est terminée (poussée sur les cases adverses permise).
 func protection_over() -> bool:
 	return tick >= defs.protection_ticks
 

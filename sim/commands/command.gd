@@ -3,14 +3,14 @@ extends RefCounted
 ## Commande envoyée à la simulation par un joueur, un robot ou un script (Architecture §4.3).
 ## Seule la simulation modifie l'état ; une commande n'est qu'une demande, qu'elle valide.
 
-enum Type { TARGET, SET_PRIORITY, BUY_UPGRADE, CHOOSE_MUTATION, USE_ABILITY, BUILD, DEMOLISH }
+enum Type { HOTSPOT, BUY_UPGRADE, CHOOSE_MUTATION }
 
 ## Tick auquel la commande a été appliquée (renseigné par la simulation).
 var tick: int = -1
 ## Colonie qui envoie la commande.
 var colony_id: int = 0
 ## Type de commande.
-var type: Type = Type.TARGET
+var type: Type = Type.HOTSPOT
 
 
 ## Conversion en dictionnaire, pour le réseau et les replays.
@@ -22,20 +22,12 @@ func to_dict() -> Dictionary:
 static func from_dict(data: Dictionary) -> Command:
 	var command: Command = null
 	match DictRead.get_int(data, "type", -1):
-		Type.TARGET:
-			command = TargetCommand.new(Vector2i.ZERO)
-		Type.SET_PRIORITY:
-			command = SetPriorityCommand.new(0)
+		Type.HOTSPOT:
+			command = HotspotCommand.new(Vector2i.ZERO)
 		Type.BUY_UPGRADE:
 			command = BuyUpgradeCommand.new(&"")
 		Type.CHOOSE_MUTATION:
 			command = ChooseMutationCommand.new(0)
-		Type.USE_ABILITY:
-			command = UseAbilityCommand.new(&"")
-		Type.BUILD:
-			command = BuildCommand.new(&"")
-		Type.DEMOLISH:
-			command = DemolishCommand.new()
 		_:
 			return null
 	command.tick = DictRead.get_int(data, "tick", -1)

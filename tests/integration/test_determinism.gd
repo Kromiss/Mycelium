@@ -38,25 +38,18 @@ func _random_commands(simulation: Simulation, colony: ColonyState, rng: SimRng) 
 	var upgrades: Array[SimUpgrade] = state.defs.upgrades
 	commands.append(BuyUpgradeCommand.new(upgrades[rng.range_int(upgrades.size())].id, 1))
 	match rng.range_int(12):
-		0:
-			commands.append(SetPriorityCommand.new(rng.range_int(4)))
-		1:
-			commands.append(TargetCommand.new(_random_cell_near(state, colony, rng)))
+		0, 1:
+			commands.append(HotspotCommand.new(_random_cell(state, rng)))
 		3:
 			commands.append(ChooseMutationCommand.new(rng.range_int(3)))
-		4:
-			var abilities: Array[SimAbility] = state.defs.abilities
-			var ability: StringName = abilities[rng.range_int(abilities.size())].id
-			commands.append(UseAbilityCommand.new(ability, _random_cell_near(state, colony, rng)))
 	for command: Command in commands:
 		command.colony_id = colony.id
 	return commands
 
 
-## Une case au hasard à 4 cases ou moins de la Tourelle.
-func _random_cell_near(state: GameState, colony: ColonyState, rng: SimRng) -> Vector2i:
-	var cells: PackedInt32Array = state.map.disk(colony.turret, 4)
-	return state.map.cells[cells[rng.range_int(cells.size())]]
+## Une case de la forêt au hasard.
+func _random_cell(state: GameState, rng: SimRng) -> Vector2i:
+	return state.map.cells[rng.range_int(state.cell_count())]
 
 
 func _transport(mode: ModeDef, game_seed: int, colonies: int = -1) -> LocalTransport:
@@ -101,11 +94,9 @@ func test_replay_rejects_unknown_format() -> void:
 
 func test_commands_survive_a_round_trip() -> void:
 	for command: Command in [
-		TargetCommand.new(Vector2i(3, -4), 2),
-		SetPriorityCommand.new(ColonyState.Priority.ENEMIES_FIRST, 3),
-		BuyUpgradeCommand.new(&"damage", 10, 4),
+		HotspotCommand.new(Vector2i(3, -4), 2),
+		BuyUpgradeCommand.new(&"push", 10, 4),
 		ChooseMutationCommand.new(2, 5),
-		UseAbilityCommand.new(&"cloud", Vector2i(2, 2), 1),
 	]:
 		command.tick = 42
 		var data: Dictionary = JSON.parse_string(JSON.stringify(command.to_dict()))

@@ -13,20 +13,8 @@ enum Code {
 	OUT_OF_MAP,
 	## La partie est terminée.
 	GAME_OVER,
-	## La case n'est pas dans le cercle de portée de la Tourelle.
-	OUT_OF_RANGE,
-	## La case ne touche pas le territoire de la colonie.
-	NOT_ADJACENT,
-	## Case adverse ou capacité pendant la protection de départ.
-	PROTECTED,
-	## La case est à la colonie et à pleine vie : rien à soigner.
-	NOT_WOUNDED,
-	## La case est celle de la Tourelle.
-	TURRET_CELL,
-	## La case n'est pas à la colonie.
-	NOT_OWNED,
-	## Cette priorité de tir n'existe pas.
-	UNKNOWN_PRIORITY,
+	## La case est déjà à la colonie (point chaud refusé, décidé le 11 octobre 2026).
+	OWN_CELL,
 	## Cette amélioration n'existe pas.
 	UNKNOWN_UPGRADE,
 	## Le palier de colonie qui la débloque n'est pas atteint.
@@ -39,20 +27,4 @@ enum Code {
 	NO_MUTATION_OFFER,
 	## Ce choix de mutation n'existe pas.
 	UNKNOWN_MUTATION,
-	## Cette capacité n'existe pas.
-	UNKNOWN_ABILITY,
-	## La capacité se recharge.
-	COOLDOWN,
-	## Pas assez d'Enzymes.
-	NOT_ENOUGH_ENZYMES,
-	## Ce bâtiment n'existe pas.
-	UNKNOWN_BUILDING,
-	## Toutes les places de bâtiment sont prises.
-	NO_BUILDING_SLOT,
-	## La case a déjà un bâtiment.
-	CELL_OCCUPIED,
-	## Aucun de mes bâtiments sur cette case.
-	NO_BUILDING,
-	## Un bâtiment ne peut pas être soigné par le Sporophore.
-	BUILDING_CELL,
 }

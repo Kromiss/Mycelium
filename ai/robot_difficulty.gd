@@ -13,9 +13,5 @@ extends Resource
 @export var random_upgrade_one_in: int = 0
 ## Vrai s'il prend sa mutation au hasard parmi les cartes proposées.
 @export var random_mutation: bool = false
-## Capacités qu'il a le droit de lancer (parmi celles de son profil).
-@export var abilities: Array[StringName] = [&"salvo", &"wall", &"cloud"]
-## Faux s'il ne désigne jamais la Tourelle adverse, même si son profil le fait.
+## Faux s'il ne vise jamais le Sporophore adverse avec ses points chauds (Facile).
 @export var hunts_turrets: bool = true
-## Délai minimal entre deux ordres de bâtiment (pose ou démolition), en secondes (0 : aucun).
-@export var build_cooldown_ticks: int = 0

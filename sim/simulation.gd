@@ -8,7 +8,7 @@ extends RefCounted
 var state: GameState
 
 var _commands := CommandSystem.new()
-var _turrets := TurretSystem.new()
+var _propagation := PropagationSystem.new()
 var _regen := RegenSystem.new()
 var _tiers := TierSystem.new()
 var _economy := EconomySystem.new()
@@ -16,7 +16,7 @@ var _victory := VictorySystem.new()
 
 
 ## Crée une partie : forêt de « defs », « colony_count » colonies (une par secteur, dans
-## l'ordre des secteurs ; moins de colonies que de secteurs en Bac à sable), Tourelles sur
+## l'ordre des secteurs ; moins de colonies que de secteurs en Bac à sable), Sporophores sur
 ## les coins de la forêt. « sector_list » : secteur de chaque colonie, dans l'ordre des
 ## colonies (vide : les premiers secteurs ; il fixe alors le nombre de colonies).
 func _init(
@@ -41,9 +41,6 @@ func _init(
 	state.hp.resize(size)
 	state.last_hitter.resize(size)
 	state.last_hitter.fill(-1)
-	state.no_regen_until.resize(size)
-	state.building_at.resize(size)
-	state.building_at.fill(-1)
 	state.cell_rank = _shuffled_ranks(size)
 	state.cell_by_rank.resize(size)
 	for cell: int in range(size):
@@ -75,8 +72,7 @@ func tick(commands: Array[Command] = []) -> TickResult:
 		result.state_hash = StateHash.compute(state)
 		return result
 	_commands.run(state, commands, result)
-	Buildings.update(state, result)
-	_turrets.run(state, result)
+	_propagation.run(state, result)
 	_regen.run(state, result)
 	_tiers.run(state, result)
 	_economy.run(state, result)
@@ -88,7 +84,7 @@ func tick(commands: Array[Command] = []) -> TickResult:
 
 ## Joue tout de suite, entre deux ticks, des commandes du joueur local (décidé le 5 octobre
 ## 2026 : en partie locale, un ordre prend effet au clic). Seule l'étape des commandes est jouée
-## (pas de tir, de production…) ; le tick suivant se déroule ensuite normalement. Le rejeu
+## (ni propagation, ni production…) ; le tick suivant se déroule ensuite normalement. Le rejeu
 ## rejoue ces commandes au même moment (Replay.record_early()).
 func apply_now(commands: Array[Command]) -> TickResult:
 	var result := TickResult.new()
@@ -127,64 +123,20 @@ func cell_max_hp(cell: int) -> int:
 	return ColonyStats.cell_max_hp(state, cell)
 
 
-## Vrai si la case est dans le cercle de portée de la Tourelle de la colonie.
-func in_range(colony_id: int, cell: int) -> bool:
+## Points chauds permis à la colonie à son palier actuel (0 si elle n'existe pas).
+func max_hotspots(colony_id: int) -> int:
 	var colony: ColonyState = state.colony(colony_id)
-	return colony != null and colony.alive and Targeting.in_range(state, colony, cell)
+	return ColonyStats.max_hotspots(state.defs, colony) if colony != null else 0
 
 
-## Vrai si la colonie peut désigner la case au clic : son Sporophore (prise ou soin) ou un de
-## ses bâtiments actifs peut la viser.
-func is_target(colony_id: int, cell: int) -> bool:
-	var colony: ColonyState = state.colony(colony_id)
-	if colony == null or not colony.alive:
-		return false
-	return Targeting.check_designation(state, colony, cell) == Refusal.Code.OK
-
-
-## Raison pour laquelle la colonie ne pourrait poser ce bâtiment nulle part (OK si elle le
-## pourrait sur une case convenable) : débloqué, une place libre, payable.
-func check_building_type(colony_id: int, building: StringName) -> Refusal.Code:
-	var colony: ColonyState = state.colony(colony_id)
-	if colony == null or not colony.alive:
-		return Refusal.Code.UNKNOWN_COLONY
-	if state.finished:
-		return Refusal.Code.GAME_OVER
-	return Buildings.check_type(state, colony, state.defs.building_index(building))
-
-
-## Places de bâtiment de la colonie : [prises, total] (GDD §5 bis).
-func building_slots(colony_id: int) -> PackedInt32Array:
+## Poussée par case de bordure et plafond de la colonie, en millièmes de PV par seconde.
+func push_values(colony_id: int) -> PackedInt64Array:
 	var colony: ColonyState = state.colony(colony_id)
 	if colony == null:
-		return PackedInt32Array([0, 0])
-	return PackedInt32Array(
-		[
-			Buildings.standing_count(state, colony_id),
-			ColonyStats.building_slots(state.defs, colony),
-		]
+		return PackedInt64Array([0, 0])
+	return PackedInt64Array(
+		[ColonyStats.push_per_cell(state.defs, colony), ColonyStats.push_cap(state.defs, colony)]
 	)
-
-
-## Bâtiment posé sur une case (endormi compris), ou null.
-func building_on(cell: int) -> BuildingState:
-	return state.building_on(cell) if cell >= 0 else null
-
-
-## PV max d'un bâtiment, en millièmes (pour son propriétaire actuel).
-func building_max_hp(building: BuildingState) -> int:
-	var owner: ColonyState = state.colony(building.owner)
-	if owner == null:
-		return state.defs.buildings[building.type].hp
-	return ColonyStats.building_max_hp(state.defs, owner, building.type)
-
-
-## Portée d'un bâtiment, en cases (pour son propriétaire actuel).
-func building_reach(building: BuildingState) -> int:
-	var owner: ColonyState = state.colony(building.owner)
-	if owner == null:
-		return state.defs.buildings[building.type].reach
-	return ColonyStats.building_reach(state.defs, owner, building.type)
 
 
 ## Coût du prochain niveau d'une amélioration pour la colonie, en millièmes
@@ -231,7 +183,6 @@ func _place_colony(sector: int) -> void:
 	colony.zone_ticks.resize(defs.zone_count())
 	colony.zone_ticks.fill(-1)
 	colony.upgrade_levels.resize(defs.upgrades.size())
-	colony.ability_ready.resize(defs.abilities.size())
 	for cell: Vector2i in MapGenerator.start_cells(state.map.radius, sector, defs.sectors):
 		var index: int = state.map.index_of(cell)
 		state.owner[index] = colony.id

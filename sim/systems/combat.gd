@@ -1,47 +1,28 @@
 class_name Combat
 extends RefCounted
-## Dégâts, soin, prises et éliminations (GDD §6, §7, §12). Partagé par le tir des Tourelles et
-## les capacités. Une case n'est prise (ou une Tourelle abattue) que si elle touche le
-## territoire de l'attaquant : sinon ses PV ne descendent pas sous 1 millième.
+## Dégâts, prises et éliminations (GDD §5 bis.4, §5 bis.5, §7, §12), utilisés par la
+## propagation. Une case n'est prise (ou un Sporophore abattu) que si elle touche le territoire
+## de l'attaquant : sinon ses PV ne descendent pas sous 1 millième.
 
 
 ## Inflige « amount » millièmes de dégâts à une case qui n'est pas à l'attaquant. Renvoie le
-## reste des dégâts si la case a été prise (0 sinon). Rien pendant la protection de départ
-## pour une case adverse, ni sur une case protégée par un Mur de mycélium. « toxic » : secondes
-## sans régénération infligées (Toxique ; −1 : les calculer). Un bâtiment qui tient la case
-## prend les dégâts à sa place (la case ne peut être prise qu'une fois le bâtiment tombé).
-## « siege » (Mortier) : un Sporophore ou un bâtiment peut tomber même loin du territoire de
-## l'attaquant (décidé le 6 octobre 2026).
+## reste des dégâts si la case a été prise (0 sinon). Rien sur une case adverse pendant la
+## protection de départ.
 static func deal(
-	state: GameState,
-	attacker: ColonyState,
-	cell: int,
-	amount: int,
-	result: TickResult,
-	toxic: int = -1,
-	siege: bool = false,
+	state: GameState, attacker: ColonyState, cell: int, amount: int, result: TickResult
 ) -> int:
 	var owner: int = state.owner[cell]
 	if owner == attacker.id or amount <= 0:
 		return 0
 	var victim: ColonyState = state.colonies[owner] if owner >= 0 else null
-	if victim != null and (not state.protection_over() or is_walled(state, victim, cell)):
+	if victim != null and not state.protection_over():
 		return 0
-	if toxic < 0:
-		toxic = ColonyStats.toxic_ticks(state.defs, attacker)
-	if toxic > 0:
-		state.no_regen_until[cell] = maxi(state.no_regen_until[cell], state.tick + toxic)
 	result.cell_changed(cell)
-	if state.building_at[cell] >= 0:
-		var building: BuildingState = state.standing_building(cell)
-		if building != null:
-			Buildings.damage(state, building, attacker, amount, result, siege)
-			return 0
-	# « Collée à mon territoire » n'est regardé que si la case (ou la Tourelle) tomberait.
+	# « Collée à mon territoire » n'est regardé que si la case (ou le Sporophore) tomberait.
 	if victim != null and victim.turret == cell:
 		result.colony_changed(victim.id)
 		var left: int = victim.turret_hp - amount
-		if left <= 0 and (siege or state.touches_colony(cell, attacker.id)):
+		if left <= 0 and state.touches_colony(cell, attacker.id):
 			eliminate(state, victim, attacker, result)
 		else:
 			victim.turret_hp = maxi(left, 1)
@@ -55,43 +36,18 @@ static func deal(
 	return 0
 
 
-## Rend « amount » millièmes de PV à une de mes cases (sans dépasser ses PV max).
-## « factor » et « cohesion » : chiffres de la colonie déjà calculés (−1 : les calculer).
-static func heal(
-	state: GameState,
-	cell: int,
-	amount: int,
-	result: TickResult,
-	factor: int = -1,
-	cohesion: int = -1
-) -> void:
-	var maximum: int = ColonyStats.cell_max_hp(state, cell, factor, cohesion)
-	state.hp[cell] = mini(state.hp[cell] + amount, maximum)
-	result.key_changes.append(cell)
-	if state.hp[cell] >= maximum:
-		state.last_hitter[cell] = -1
-	result.cell_changed(cell)
-
-
-## Vrai si un Mur de mycélium de la colonie protège la case à ce tick.
-static func is_walled(state: GameState, colony: ColonyState, cell: int) -> bool:
-	if state.tick >= colony.wall_until or colony.wall_center < 0:
-		return false
-	return state.distance(colony.wall_center, cell) <= colony.wall_radius
-
-
 ## La case passe à l'attaquant : à pleine vie si elle était libre, à 25 % de ses PV max si
-## elle était adverse (GDD §6.2, décidé le 4 octobre 2026). L'ancien propriétaire perd les
-## cases qui ne sont plus reliées à sa Tourelle.
+## elle était adverse (GDD §5 bis.4). Un point chaud de l'attaquant sur la case disparaît.
+## L'ancien propriétaire perd les cases qui ne sont plus reliées à son Sporophore.
 static func capture(state: GameState, cell: int, attacker: ColonyState, result: TickResult) -> void:
 	var previous: ColonyState = state.owner_of(cell)
 	state.owner[cell] = attacker.id
-	result.key_changes.append(cell)
 	var maximum: int = ColonyStats.cell_max_hp(state, cell)
 	state.hp[cell] = maximum if previous == null else Fixed.mul(maximum, state.defs.captured_hp_pm)
 	state.last_hitter[cell] = -1
 	attacker.cell_count += 1
 	attacker.cells_captured += 1
+	_drop_hotspot(attacker, cell)
 	var zone: int = state.map.zones[cell] - 1
 	if attacker.zone_ticks[zone] < 0:
 		attacker.zone_ticks[zone] = state.tick
@@ -124,9 +80,8 @@ static func may_split(state: GameState, cell: int, colony_id: int) -> bool:
 	return runs > 1
 
 
-## Les cases de la colonie qui ne sont plus reliées à sa Tourelle ni à un de ses bâtiments
-## (en chantier ou actif) redeviennent libres (décidé le 4 octobre 2026 ; les bâtiments tiennent
-## leur îlot, décidé le 6 octobre 2026).
+## Les cases de la colonie qui ne sont plus reliées à son Sporophore redeviennent libres
+## (décidé le 4 octobre 2026).
 static func cut_off(state: GameState, colony: ColonyState, result: TickResult) -> void:
 	if colony.turret < 0:
 		return
@@ -136,11 +91,6 @@ static func cut_off(state: GameState, colony: ColonyState, result: TickResult) -
 	linked.resize(state.cell_count())
 	linked[colony.turret] = 1
 	var frontier := PackedInt32Array([colony.turret])
-	for building: BuildingState in state.buildings:
-		if building.owner == colony.id and building.standing(state.tick):
-			if owners[building.cell] == colony.id and linked[building.cell] == 0:
-				linked[building.cell] = 1
-				frontier.append(building.cell)
 	var next: int = 0
 	while next < frontier.size():
 		var cell: int = frontier[next]
@@ -160,24 +110,25 @@ static func cut_off(state: GameState, colony: ColonyState, result: TickResult) -
 			result.cells_lost.append_array(PackedInt32Array([colony.id, cell]))
 
 
-## La Tourelle de « victim » tombe : la colonie est éliminée, toutes ses cases redeviennent
-## libres et « killer » reçoit un Trophée (GDD §3.3, §12).
+## Le Sporophore de « victim » tombe : la colonie est éliminée, toutes ses cases redeviennent
+## libres, les points chauds posés sur ce Sporophore disparaissent et « killer » reçoit un
+## Trophée (GDD §3.3, §5 bis.5, §12).
 static func eliminate(
 	state: GameState, victim: ColonyState, killer: ColonyState, result: TickResult
 ) -> void:
+	var heart: int = victim.turret
 	victim.alive = false
 	victim.eliminated_tick = state.tick
 	victim.killer = killer.id
 	victim.turret = -1
 	victim.turret_hp = 0
-	victim.designated = -1
-	victim.targets = PackedInt32Array()
+	victim.hotspots = PackedInt32Array()
 	victim.production = 0
-	# Ses bâtiments s'endorment : à leur réveil, ils iront à qui tiendra leur case (décidé le
-	# 6 octobre 2026).
-	for building: BuildingState in state.buildings:
-		if building.owner == victim.id and building.standing(state.tick):
-			Buildings.fall(state, building, -1, result, false)
+	victim.border_cells = 0
+	victim.push_force = 0
+	for colony: ColonyState in state.colonies:
+		if _drop_hotspot(colony, heart):
+			result.colony_changed(colony.id)
 	for cell: int in range(state.cell_count()):
 		if state.owner[cell] == victim.id:
 			free_cell(state, cell, result)
@@ -192,7 +143,15 @@ static func eliminate(
 ## Rend une case libre, avec les PV d'une case libre de sa zone.
 static func free_cell(state: GameState, cell: int, result: TickResult) -> void:
 	state.owner[cell] = -1
-	result.key_changes.append(cell)
 	state.hp[cell] = ColonyStats.free_max_hp(state, cell)
 	state.last_hitter[cell] = -1
 	result.cell_changed(cell)
+
+
+## Retire le point chaud de la colonie posé sur la case, s'il existe (vrai s'il y en avait un).
+static func _drop_hotspot(colony: ColonyState, cell: int) -> bool:
+	var position: int = colony.hotspots.find(cell)
+	if position < 0:
+		return false
+	colony.hotspots.remove_at(position)
+	return true

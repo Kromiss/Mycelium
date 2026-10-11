@@ -1,6 +1,5 @@
 extends GutTest
-## Cohérence des données : zones, paliers, améliorations, mutations, capacités, bâtiments,
-## modes et traductions.
+## Cohérence des données : zones, paliers, améliorations, mutations, modes et traductions.
 
 # Chargées avec load() : un preload() en constante fausse ici la vérification des types.
 const ZONES_PATH: String = "res://data/zones.tres"
@@ -60,7 +59,8 @@ func test_zones_get_richer_and_harder_towards_the_center() -> void:
 		var current: ZoneDef = zones.zones[i]
 		assert_gt(current.richness_pm, previous.richness_pm)
 		assert_gt(current.free_hp_pm, previous.free_hp_pm)
-		assert_gt(current.defense_pm, previous.defense_pm)
+		# Défense des cases possédées : égale ou plus forte vers le centre (équilibrage de G6).
+		assert_gte(current.defense_pm, previous.defense_pm)
 
 
 func test_modes_have_equitable_colony_counts() -> void:
@@ -70,11 +70,14 @@ func test_modes_have_equitable_colony_counts() -> void:
 		assert_gt(mode.rings_per_zone, 0)
 
 
-func test_tiers_double_production_at_growing_thresholds() -> void:
+func test_tiers_raise_production_cap_and_hotspots_at_growing_thresholds() -> void:
 	var tiers: TierTable = load("res://data/tiers.tres")
 	assert_eq(tiers.count(), 6)
 	var cells: int = MapGenerator.START_CELLS
 	var production: int = Fixed.ONE
+	var cap: int = Fixed.ONE
+	var hotspots: Array[int] = []
+	var mutations: Array[bool] = []
 	for i: int in range(tiers.count()):
 		var tier: TierDef = tiers.tiers[i]
 		assert_eq(tier.tier, i + 1)
@@ -83,6 +86,14 @@ func test_tiers_double_production_at_growing_thresholds() -> void:
 		assert_gt(tier.enzymes, 0)
 		cells = tier.cells
 		production = tier.production_pm
+		assert_gt(tier.cap_pm, cap)
+		cap = tier.cap_pm
+		hotspots.append(tier.hotspots)
+		mutations.append(tier.mutation)
+	# Décidé le 11 octobre 2026 : 1 point chaud au départ, 2 au palier 1, 3 au palier 2 ; une
+	# mutation aux paliers 2, 4 et 6.
+	assert_eq(hotspots, [2, 3, 3, 3, 3, 3])
+	assert_eq(mutations, [false, true, false, true, false, true])
 
 
 func test_balance_values_are_usable() -> void:
@@ -93,7 +104,9 @@ func test_balance_values_are_usable() -> void:
 	var balance: BalanceDef = load("res://data/balance.tres")
 	assert_gt(balance.unit_cost, 0)
 	assert_gt(balance.cell_yield, 0)
-	assert_gt(balance.turret_damage, 0)
+	assert_gt(balance.push, 0)
+	assert_gt(balance.push_cap, 0)
+	assert_between(balance.hotspot_share_pm, 0, 1000)
 	assert_gt(balance.cell_hp, 0)
 	assert_lt(balance.protection_ticks, balance.match_ticks)
 
@@ -107,28 +120,12 @@ func test_upgrades_match_the_catalogue() -> void:
 		assert_gt(upgrade.effect, 0, String(upgrade.id))
 		assert_gt(upgrade.base_cost_units, 0, String(upgrade.id))
 		assert_between(upgrade.unlock_tier, 0, 6, String(upgrade.id))
-	assert_eq(
-		ids,
-		[
-			&"damage",
-			&"rate",
-			&"range",
-			&"yield",
-			&"regen",
-			&"heal",
-			&"spores",
-			&"cell_hp",
-			&"splash",
-			&"crit",
-			&"turret_hp",
-			&"bounce",
-		]
-	)
+	assert_eq(ids, [&"push", &"vigor", &"yield", &"regen", &"cell_hp", &"turret_hp"])
 
 
 func test_every_mutation_changes_something() -> void:
 	var table: MutationTable = load("res://data/mutations.tres")
-	assert_eq(table.mutations.size(), 14)
+	assert_eq(table.mutations.size(), 5)
 	var neutral := MutationDef.new()
 	for mutation: MutationDef in table.mutations:
 		var changes: int = 0
@@ -143,31 +140,6 @@ func test_every_mutation_changes_something() -> void:
 		assert_gt(changes, 0, String(mutation.id))
 
 
-func test_abilities_unlock_at_tiers_one_three_and_five() -> void:
-	var table: AbilityTable = load("res://data/abilities.tres")
-	var tiers: Array[int] = []
-	for ability: AbilityDef in table.abilities:
-		tiers.append(ability.unlock_tier)
-	assert_eq(tiers, [1, 3, 5])
-
-
-func test_three_buildings_unlock_at_tiers_one_two_and_three() -> void:
-	var table: BuildingTable = load("res://data/buildings.tres")
-	var ids: Array[StringName] = []
-	var kinds: Array[int] = []
-	var tiers: Array[int] = []
-	for building: BuildingDef in table.buildings:
-		ids.append(building.id)
-		kinds.append(building.kind)
-		tiers.append(building.unlock_tier)
-		assert_gt(building.cost_enzymes, 0, String(building.id))
-		assert_gt(building.hp, 0, String(building.id))
-		assert_gt(building.reach, 0, String(building.id))
-	assert_eq(ids, [&"swarmer", &"outpost", &"mortar"])
-	assert_eq(kinds, [BuildingDef.Kind.SWARMER, BuildingDef.Kind.OUTPOST, BuildingDef.Kind.MORTAR])
-	assert_eq(tiers, [1, 2, 3])
-
-
 func test_content_names_are_translated() -> void:
 	var rows: Dictionary[String, PackedStringArray] = _translation_rows()
 	var defs: SimDefs = SimDefs.from_mode(MODES[0])
@@ -176,10 +148,6 @@ func test_content_names_are_translated() -> void:
 		keys.append(upgrade.name_key)
 	for mutation: SimMutation in defs.mutations:
 		keys.append_array([mutation.name_key, mutation.desc_key])
-	for ability: SimAbility in defs.abilities:
-		keys.append(ability.name_key)
-	for building: SimBuilding in defs.buildings:
-		keys.append_array([building.name_key, building.name_key + "_DESC"])
 	for name: String in Refusal.Code.keys():
 		if name != "OK":
 			keys.append("REFUSAL_" + name)

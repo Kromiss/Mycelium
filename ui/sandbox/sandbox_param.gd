@@ -3,7 +3,7 @@ extends RefCounted
 ## Un réglage chiffré du Bac à sable (GDD §2.1 bis) : où il se range dans SimDefs, comment
 ## l'afficher et ses bornes. Sert à l'écran de réglages.
 
-enum Group { GENERAL, ZONES, TIERS, UPGRADES, ABILITIES, MUTATIONS }
+enum Group { GENERAL, ZONES, TIERS, UPGRADES, MUTATIONS }
 
 ## Réglages généraux : champ de SimDefs, clé du libellé, unités de la simulation par unité
 ## affichée, minimum, maximum et pas.
@@ -19,21 +19,14 @@ const GENERAL_FIELDS: Array[Array] = [
 	["cohesion_hp_pm", "SANDBOX_COHESION_HP", 10.0, 0.0, 1000.0, 0.1],
 	["regen_pm", "SANDBOX_REGEN", 10.0, 0.0, 100.0, 0.1],
 	["captured_hp_pm", "SANDBOX_CAPTURED_HP", 10.0, 0.0, 100.0, 0.1],
-	["turret_damage", "SANDBOX_TURRET_DAMAGE", 1000.0, 0.0, 1_000_000.0, 0.001],
-	["turret_rate_pm", "SANDBOX_TURRET_RATE", 1000.0, 0.0, 100.0, 0.001],
-	["turret_range", "SANDBOX_TURRET_RANGE", 1.0, 1.0, 50.0, 1.0],
-	["turret_spores", "SANDBOX_TURRET_SPORES", 1.0, 1.0, 20.0, 1.0],
 	["turret_hp_cells", "SANDBOX_TURRET_HP", 1.0, 1.0, 1000.0, 1.0],
-	["heal_pm", "SANDBOX_HEAL", 10.0, 0.0, 1000.0, 0.1],
-	["crit_damage_pm", "SANDBOX_CRIT_DAMAGE", 1000.0, 1.0, 100.0, 0.001],
+	["push", "SANDBOX_PUSH", 1000.0, 0.0, 1_000_000.0, 0.001],
+	["push_cap", "SANDBOX_PUSH_CAP", 1000.0, 0.0, 1_000_000_000.0, 0.001],
+	["hotspot_share_pm", "SANDBOX_HOTSPOT_SHARE", 10.0, 0.0, 100.0, 0.1],
+	["start_hotspots", "SANDBOX_START_HOTSPOTS", 1.0, 0.0, 10.0, 1.0],
 	["protection_ticks", "SANDBOX_PROTECTION", 1.0, 0.0, 1800.0, 1.0],
 	["trophy_production_pm", "SANDBOX_TROPHY_PRODUCTION", 10.0, 0.0, 1000.0, 0.1],
 	["trophy_enzymes", "SANDBOX_TROPHY_ENZYMES", 1.0, 0.0, 100_000.0, 1.0],
-	["enzyme_income", "SANDBOX_ENZYME_INCOME", 1.0, 0.0, 10_000.0, 1.0],
-	["enzyme_income_ticks", "SANDBOX_ENZYME_INCOME_TICKS", 1.0, 0.0, 1800.0, 1.0],
-	["building_slots_per_tier", "SANDBOX_BUILDING_SLOTS", 1.0, 0.0, 100.0, 1.0],
-	["building_start_hp_pm", "SANDBOX_BUILDING_START_HP", 10.0, 0.0, 100.0, 0.1],
-	["building_sleep_ticks", "SANDBOX_BUILDING_SLEEP", 1.0, 0.0, 1800.0, 1.0],
 ]
 ## Colonnes des zones et des paliers : champ (tableau de SimDefs), clé, unités, min, max, pas.
 const ZONE_FIELDS: Array[Array] = [
@@ -45,9 +38,11 @@ const TIER_FIELDS: Array[Array] = [
 	["tier_cells", "SANDBOX_TIER_CELLS", 1.0, 1.0, 10_000.0, 1.0],
 	["tier_production_pm", "SANDBOX_TIER_PRODUCTION", 1000.0, 0.0, 1_000_000.0, 0.001],
 	["tier_enzymes", "SANDBOX_TIER_ENZYMES", 1.0, 0.0, 100_000.0, 1.0],
+	["tier_cap_pm", "SANDBOX_TIER_CAP", 1000.0, 0.0, 1_000_000.0, 0.001],
+	["tier_hotspots", "SANDBOX_TIER_HOTSPOTS", 1.0, 0.0, 10.0, 1.0],
+	["tier_mutation", "SANDBOX_TIER_MUTATION", 1.0, 0.0, 1.0, 1.0],
 ]
-## Colonnes des améliorations et des capacités : champ de SimUpgrade ou de SimAbility, clé,
-## unités, min, max, pas.
+## Colonnes des améliorations : champ de SimUpgrade, clé, unités, min, max, pas.
 const UPGRADE_FIELDS: Array[Array] = [
 	["effect", "SANDBOX_UPGRADE_EFFECT", 1.0, 0.0, 100_000.0, 1.0],
 	["base_cost_units", "SANDBOX_UPGRADE_COST", 1.0, 0.0, 1_000_000.0, 1.0],
@@ -55,32 +50,14 @@ const UPGRADE_FIELDS: Array[Array] = [
 	["max_level", "SANDBOX_UPGRADE_MAX", 1.0, 0.0, 1000.0, 1.0],
 	["unlock_tier", "SANDBOX_UNLOCK_TIER", 1.0, 0.0, 6.0, 1.0],
 ]
-const ABILITY_FIELDS: Array[Array] = [
-	["cost_enzymes", "SANDBOX_ABILITY_COST", 1.0, 0.0, 100_000.0, 1.0],
-	["cooldown_ticks", "SANDBOX_ABILITY_COOLDOWN", 1.0, 0.0, 1800.0, 1.0],
-	["duration_ticks", "SANDBOX_ABILITY_DURATION", 1.0, 0.0, 1800.0, 1.0],
-	["unlock_tier", "SANDBOX_UNLOCK_TIER", 1.0, 0.0, 6.0, 1.0],
-	["rate_pm", "SANDBOX_ABILITY_RATE", 1000.0, 0.0, 100.0, 0.001],
-	["radius", "SANDBOX_ABILITY_RADIUS", 1.0, 0.0, 50.0, 1.0],
-	["shots", "SANDBOX_ABILITY_SHOTS", 1.0, 0.0, 10_000.0, 1.0],
-]
-
 ## Modificateurs des mutations : champ de SimMutation, clé, unités, min, max, pas. Seuls ceux
 ## qu'une mutation change (valeur différente de la valeur neutre) sont proposés pour elle.
 const MUTATION_FIELDS: Array[Array] = [
-	["damage_pm", "SANDBOX_MUT_DAMAGE", 1000.0, 0.0, 100.0, 0.001],
-	["rate_pm", "SANDBOX_MUT_RATE", 1000.0, 0.0, 100.0, 0.001],
-	["range_add", "SANDBOX_MUT_RANGE", 1.0, 0.0, 50.0, 1.0],
 	["cohesion_pm", "SANDBOX_MUT_COHESION", 1000.0, 0.0, 100.0, 0.001],
 	["regen_pm", "SANDBOX_MUT_REGEN", 1000.0, 0.0, 100.0, 0.001],
 	["deep_production_pm", "SANDBOX_MUT_DEEP", 1000.0, 0.0, 100.0, 0.001],
-	["free_damage_pm", "SANDBOX_MUT_FREE_DAMAGE", 1000.0, 0.0, 100.0, 0.001],
-	["enemy_damage_pm", "SANDBOX_MUT_ENEMY_DAMAGE", 1000.0, 0.0, 100.0, 0.001],
-	["heal_pm", "SANDBOX_MUT_HEAL", 1000.0, 0.0, 100.0, 0.001],
-	["spores_add", "SANDBOX_MUT_SPORES", 1.0, 0.0, 20.0, 1.0],
 	["enzymes_pm", "SANDBOX_MUT_ENZYMES", 1000.0, 0.0, 100.0, 0.001],
 	["turret_hp_pm", "SANDBOX_MUT_TURRET_HP", 1000.0, 0.0, 100.0, 0.001],
-	["toxic_ticks", "SANDBOX_MUT_TOXIC", 1.0, 0.0, 600.0, 1.0],
 	["cost_pm", "SANDBOX_MUT_COST", 1000.0, 0.0, 100.0, 0.001],
 ]
 
@@ -107,13 +84,10 @@ static func all(defs: SimDefs) -> Array[SandboxParam]:
 	list.append_array(_rows(ZONE_FIELDS, Group.ZONES, defs.zone_count()))
 	list.append_array(_rows(TIER_FIELDS, Group.TIERS, defs.tier_count()))
 	list.append_array(_rows(UPGRADE_FIELDS, Group.UPGRADES, defs.upgrades.size()))
-	list.append_array(_rows(ABILITY_FIELDS, Group.ABILITIES, defs.abilities.size()))
 	list.append_array(_mutation_params(defs))
 	for param: SandboxParam in list:
 		if param.group == Group.UPGRADES:
 			param.id = "%s.%s" % [defs.upgrades[param.index].id, param.property]
-		elif param.group == Group.ABILITIES:
-			param.id = "%s.%s" % [defs.abilities[param.index].id, param.property]
 		elif param.group == Group.MUTATIONS:
 			param.id = "%s.%s" % [defs.mutations[param.index].id, param.property]
 	return list
@@ -141,8 +115,6 @@ static func columns(group: Group) -> Array[String]:
 			fields = TIER_FIELDS
 		Group.UPGRADES:
 			fields = UPGRADE_FIELDS
-		Group.ABILITIES:
-			fields = ABILITY_FIELDS
 	var keys: Array[String] = []
 	for field: Array in fields:
 		var key: String = field[1]
@@ -150,7 +122,7 @@ static func columns(group: Group) -> Array[String]:
 	return keys
 
 
-## Nom traduit de la ligne du réglage (zone, palier, amélioration, capacité ou mutation ;
+## Nom traduit de la ligne du réglage (zone, palier, amélioration ou mutation ;
 ## vide pour un réglage général).
 func row_name(defs: SimDefs) -> String:
 	match group:
@@ -160,8 +132,6 @@ func row_name(defs: SimDefs) -> String:
 			return "%s %d" % [_t("SANDBOX_TIER"), index + 1]
 		Group.UPGRADES:
 			return _t(defs.upgrades[index].name_key)
-		Group.ABILITIES:
-			return _t(defs.abilities[index].name_key)
 		Group.MUTATIONS:
 			return _t(defs.mutations[index].name_key)
 	return ""
@@ -196,13 +166,11 @@ func write(defs: SimDefs, value: float) -> void:
 	_target(defs).set(property, raw)
 
 
-## Objet qui porte le champ : les définitions, une amélioration ou une capacité.
+## Objet qui porte le champ : les définitions, une amélioration ou une mutation.
 func _target(defs: SimDefs) -> Object:
 	match group:
 		Group.UPGRADES:
 			return defs.upgrades[index]
-		Group.ABILITIES:
-			return defs.abilities[index]
 		Group.MUTATIONS:
 			return defs.mutations[index]
 	return defs

@@ -101,7 +101,7 @@ func test_report_rows_and_csv() -> void:
 		labels.append(row.label)
 	assert_has(labels, "Arrival in zone 2 (min)")
 	assert_has(labels, "Tier 6 reached (min)")
-	assert_has(labels, "Level: Damage")
+	assert_has(labels, "Level: Push")
 	assert_eq(SimReport.mean_curve(one, 1, SimReport.CurveKind.CELLS).size(), 3)
 	var csv: String = SimReport.to_csv(runner.series)
 	var lines: PackedStringArray = csv.strip_edges().split("\n")
@@ -166,7 +166,7 @@ func test_panel_runs_shows_results_and_opens_a_robot_game() -> void:
 	session.set_process(false)
 	assert_eq(session.robots.size(), 2)
 	assert_true(session.is_spectator())
-	assert_false(session.send_command(TargetCommand.new(Vector2i(10, -1))))
+	assert_false(session.send_command(HotspotCommand.new(Vector2i(10, -1))))
 	for i: int in range(60):
 		session.step()
 	assert_false(session.is_running())

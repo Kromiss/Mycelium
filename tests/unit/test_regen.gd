@@ -1,5 +1,5 @@
 extends GutTest
-## Régénération des cases et de la Tourelle (GDD §6.1, §7.2, §7.4).
+## Régénération des cases et du Sporophore (GDD §5 bis.4, §7.2, §7.4).
 
 const Fixture = preload("res://tests/fixtures/sim_fixture.gd")
 
@@ -40,17 +40,6 @@ func test_full_cells_forget_their_attacker() -> void:
 	_regen.run(_sim.state, _result)
 	assert_eq(_sim.state.hp[free], 40_000)
 	assert_eq(_sim.state.last_hitter[free], -1)
-
-
-func test_toxic_cells_do_not_regenerate() -> void:
-	var free: int = _cell(Vector2i(10, 1))
-	_sim.state.hp[free] = 10_000
-	_sim.state.no_regen_until[free] = 1
-	_regen.run(_sim.state, _result)
-	assert_eq(_sim.state.hp[free], 10_000)
-	_sim.state.tick = 1
-	_regen.run(_sim.state, _result)
-	assert_eq(_sim.state.hp[free], 10_800)
 
 
 func test_health_above_a_lowered_maximum_is_brought_down() -> void:

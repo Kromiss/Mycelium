@@ -1,16 +1,15 @@
 extends SceneTree
-## Équilibrage (GDD §5 ter) : joue des parties de robots sans affichage et écrit une ligne JSON
-## par partie (durée, éliminations, bâtiments posés par type, meneur à 10:00, rythme…), pour
+## Équilibrage (GDD §5 ter, G6) : joue des parties de robots sans affichage et écrit une ligne
+## JSON par partie (durée, éliminations, points chauds atteints, meneur à 10:00, rythme…), pour
 ## mesurer les cibles d'équilibrage. Outil de développement, exclu de l'export.
 ##
 ## godot --headless -s res://tools/balance_report.gd -- <duel|ffa> <parties> <robot,robot…> [graine]
 ##   [réglage=valeur…]
 ## Exemple : -- duel 20 game_hard,game_hard 1   (un robot par secteur, dans l'ordre ;
-## « game_hard:mortar » : robot qui ne pose que des Mortiers)
+## « game_hard:nohot » : robot qui ne pose jamais de point chaud)
 ## Réglages (essais sans toucher aux fichiers de data/) : « cell_hp=60000 » (constante de
 ## BalanceDef), « zone_free_hp_pm=1000,1400,… » (tableau des zones ou des paliers),
-## « upgrade.damage.base_cost_units=2 », « building.swarmer.damage_pm=500 »,
-## « mutation.pioneer.free_damage_pm=1200 », « ability.salvo.rate_pm=3000 ».
+## « upgrade.push.base_cost_units=2 », « mutation.cohesion.cohesion_pm=1500 ».
 
 const MODES: Dictionary[String, String] = {
 	"duel": "res://data/modes/duel.tres",
@@ -60,12 +59,8 @@ func _override(defs: SimDefs, setting: String) -> bool:
 	match path[0]:
 		"upgrade":
 			records = defs.upgrades
-		"building":
-			records = defs.buildings
 		"mutation":
 			records = defs.mutations
-		"ability":
-			records = defs.abilities
 	for record: SimRecord in records:
 		if str(record.get("id")) == path[1] and record.get(path[2]) is int:
 			record.set(path[2], parts[1].to_int())
@@ -93,16 +88,16 @@ func _play(defs: SimDefs, mode: ModeDef, game_seed: int, robots: PackedStringArr
 	var state: GameState = simulation.state
 	var players: Array[Robot] = []
 	var count: int = state.colonies.size()
-	var built: Array[PackedInt32Array] = []
-	var first_build := PackedInt32Array()
+	var reached := PackedInt32Array()
+	var first_reach := PackedInt32Array()
+	var placed := PackedInt32Array()
 	var actions := PackedInt32Array()
 	for colony: ColonyState in state.colonies:
 		players.append(_robot(robots[colony.id], colony.id, game_seed))
-		var types := PackedInt32Array()
-		types.resize(defs.buildings.size())
-		built.append(types)
-	first_build.resize(count)
-	first_build.fill(-1)
+	reached.resize(count)
+	placed.resize(count)
+	first_reach.resize(count)
+	first_reach.fill(-1)
 	actions.resize(count)
 	var leader_cells: int = -1
 	var leader_biomass: int = -1
@@ -112,19 +107,20 @@ func _play(defs: SimDefs, mode: ModeDef, game_seed: int, robots: PackedStringArr
 		for robot: Robot in players:
 			commands.append_array(robot.decide(simulation))
 		for command: Command in commands:
-			if command is BuildCommand or command is BuyUpgradeCommand:
-				actions[command.colony_id] += 1
-			elif command is UseAbilityCommand or command is DemolishCommand:
-				actions[command.colony_id] += 1
+			actions[command.colony_id] += 1
+			if command is HotspotCommand:
+				placed[command.colony_id] += 1
+		var before: Array[PackedInt32Array] = []
+		for colony: ColonyState in state.colonies:
+			before.append(colony.hotspots.duplicate())
 		var result: TickResult = simulation.tick(commands)
-		for i: int in range(0, result.building_events.size(), 3):
-			if result.building_events[i] != TickResult.BuildingEvent.BUILT:
-				continue
-			var colony_id: int = result.building_events[i + 2]
-			var building: BuildingState = state.building_on(result.building_events[i + 1])
-			built[colony_id][building.type] += 1
-			if first_build[colony_id] < 0:
-				first_build[colony_id] = result.tick
+		# Point chaud atteint : sa case est prise par la colonie qui l'avait posé.
+		for i: int in range(0, result.captures.size(), 3):
+			var colony_id: int = result.captures[i]
+			if before[colony_id].has(result.captures[i + 1]):
+				reached[colony_id] += 1
+				if first_reach[colony_id] < 0:
+					first_reach[colony_id] = result.tick
 		if state.tick == LEADER_TICK:
 			leader_cells = _leader(state, true)
 			leader_biomass = _leader(state, false)
@@ -146,8 +142,9 @@ func _play(defs: SimDefs, mode: ModeDef, game_seed: int, robots: PackedStringArr
 					"biomass": colony.biomass / 1000.0,
 					"zones": Array(colony.zone_ticks),
 					"tiers": Array(colony.tier_ticks),
-					"built": Array(built[colony.id]),
-					"first_build": first_build[colony.id],
+					"hotspots_placed": placed[colony.id],
+					"hotspots_reached": reached[colony.id],
+					"first_reach": first_reach[colony.id],
 					"actions": actions[colony.id],
 					"upgrades": Array(colony.upgrade_levels),
 				}
@@ -165,15 +162,15 @@ func _play(defs: SimDefs, mode: ModeDef, game_seed: int, robots: PackedStringArr
 	}
 
 
-## Robot d'un identifiant du catalogue ; « game_hard:outpost » : le même robot qui ne pose que
-## ce type de bâtiment (mesure de la cible « bâtiments décisifs »).
+## Robot d'un identifiant du catalogue ; « game_hard:nohot » : le même robot qui ne pose jamais
+## de point chaud (mesure de la cible « points chauds décisifs »).
 func _robot(spec: String, colony_id: int, game_seed: int) -> Robot:
 	var parts: PackedStringArray = spec.split(":")
 	var robot: Robot = RobotCatalog.make(StringName(parts[0]), colony_id, game_seed)
-	if parts.size() > 1:
+	if parts.size() > 1 and parts[1] == "nohot":
 		robot.profile = robot.profile.duplicate()
-		var only: Dictionary[StringName, int] = {StringName(parts[1]): 1}
-		robot.profile.building_weights = only
+		var none: Array[StringName] = []
+		robot.profile.hotspot_goals = none
 	return robot
 
 

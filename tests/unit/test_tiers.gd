@@ -1,5 +1,6 @@
 extends GutTest
-## Paliers de colonie, lots d'Enzymes et mutations (GDD §8.3, §10, décidé le 4 octobre 2026).
+## Paliers de colonie, lots d'Enzymes, points chauds et mutations (GDD §8.3, §10 ; une mutation
+## aux paliers 2, 4 et 6 depuis le 11 octobre 2026).
 
 const Fixture = preload("res://tests/fixtures/sim_fixture.gd")
 
@@ -14,23 +15,43 @@ func _colony() -> ColonyState:
 	return _sim.state.colonies[0]
 
 
-func test_tier_follows_the_cell_count_and_doubles_production() -> void:
+func test_tier_follows_the_cell_count_and_raises_production() -> void:
 	_sim.tick()
 	var before: int = _colony().production
 	Fixture.give(_sim, 0, Fixture.line_to_center(5))
 	var result: TickResult = _sim.tick()
 	assert_eq(_colony().tier, 1)
 	assert_eq(result.tier_changes, PackedInt32Array([0, 0, 1]))
-	assert_gt(_colony().production, 2 * before)
+	assert_gt(_colony().production, before)
 
 
-func test_first_reach_gives_enzymes_and_a_choice_of_three_mutations() -> void:
+func test_first_reach_gives_enzymes_and_only_even_tiers_a_mutation() -> void:
 	Fixture.give(_sim, 0, Fixture.line_to_center(5))
 	var result: TickResult = _sim.tick()
 	assert_eq(_colony().enzymes, 20_000)
+	assert_true(result.mutation_offers.is_empty())
+	assert_eq(_colony().tier_ticks[0], 0)
+	Fixture.give(_sim, 0, Fixture.line_to_center(10))
+	result = _sim.tick()
+	assert_eq(_colony().tier, 2)
 	assert_eq(result.mutation_offers, PackedInt32Array([0]))
 	assert_eq(_colony().pending_offers.size(), 3)
-	assert_eq(_colony().tier_ticks[0], 0)
+
+
+func test_hotspots_follow_the_tier_and_a_lost_tier_drops_the_oldest() -> void:
+	assert_eq(_sim.max_hotspots(0), 1)
+	Fixture.give(_sim, 0, Fixture.line_to_center(10))
+	_sim.tick()
+	assert_eq(_sim.max_hotspots(0), 3)
+	var cells := PackedInt32Array()
+	for coords: Vector2i in [Vector2i(0, 0), Vector2i(-1, 0), Vector2i(-2, 0)]:
+		cells.append(Fixture.cell(_sim, coords))
+		_sim.tick([HotspotCommand.new(coords, 0)])
+	assert_eq(_colony().hotspots, cells)
+	_colony().cell_count = 5
+	_sim.tick()
+	assert_eq(_colony().tier, 1)
+	assert_eq(_colony().hotspots, cells.slice(1))
 
 
 func test_losing_and_regaining_a_tier_gives_no_second_lot() -> void:
@@ -43,13 +64,16 @@ func test_losing_and_regaining_a_tier_gives_no_second_lot() -> void:
 	_sim.tick()
 	assert_eq(_colony().tier, 1)
 	assert_eq(_colony().enzymes, 20_000)
-	assert_eq(_colony().pending_offers.size(), 3)
 
 
 func test_choices_stack_and_are_taken_in_order() -> void:
-	Fixture.give(_sim, 0, Fixture.line_to_center(10))
+	Fixture.give(_sim, 0, Fixture.line_to_center(18))
+	var row: Array[Vector2i] = []
+	for q: int in range(10, -12, -1):
+		row.append(Vector2i(q, 1))
+	Fixture.give(_sim, 0, row)
 	_sim.tick()
-	assert_eq(_colony().tier, 2)
+	assert_eq(_colony().tier, 4)
 	assert_eq(_colony().pending_offers.size(), 6)
 	var first: int = _colony().pending_offers[1]
 	_sim.tick([ChooseMutationCommand.new(1, 0)])
@@ -70,8 +94,9 @@ func test_a_mutation_is_never_offered_twice() -> void:
 		seen.append(index)
 
 
-func test_gland_adds_half_to_later_lots() -> void:
-	_colony().mutations.append(_sim.state.defs.mutation_index(&"gland"))
+func test_an_enzyme_mutation_adds_to_later_lots() -> void:
+	_sim.state.defs.mutations[0].enzymes_pm = 1_500
+	_colony().mutations.append(0)
 	Fixture.give(_sim, 0, Fixture.line_to_center(5))
 	_sim.tick()
 	assert_eq(_colony().enzymes, 30_000)
@@ -80,6 +105,6 @@ func test_gland_adds_half_to_later_lots() -> void:
 func test_offers_are_drawn_from_the_seed() -> void:
 	var other: Simulation = Fixture.duel(1, false)
 	for sim: Simulation in [_sim, other]:
-		Fixture.give(sim, 0, Fixture.line_to_center(5))
+		Fixture.give(sim, 0, Fixture.line_to_center(10))
 		sim.tick()
 	assert_eq(_colony().pending_offers, other.state.colonies[0].pending_offers)

@@ -6,12 +6,10 @@ extends Node2D
 ##   jeu sur tous les autres secteurs, ni pause ni vitesse ; éliminé, le joueur a fini ;
 ## - spectateur : une partie de robots du panneau de simulations, sans joueur.
 ## Relie la session, les robots, la carte, les colonies, les gestes, la caméra et le HUD.
-## Touches : P pause (Bac à sable), Espace recentre sur la Tourelle, Q W E lancent les
-## capacités, 1 à 3 choisissent une mutation quand les cartes sont affichées, Échap ferme la
-## roue des bâtiments, annule le geste en cours ou ouvre le menu de partie.
+## Touches : P pause (Bac à sable), Espace recentre sur le Sporophore, 1 à 3 choisissent une
+## mutation quand les cartes sont affichées, Échap ouvre le menu de partie.
 
-## Actions des capacités et des cartes de mutation, dans l'ordre.
-const ABILITY_ACTIONS: Array[StringName] = [&"ability_1", &"ability_2", &"ability_3"]
+## Actions des cartes de mutation, dans l'ordre.
 const MUTATION_ACTIONS: Array[StringName] = [&"mutation_1", &"mutation_2", &"mutation_3"]
 ## Zoom utilisé pour recentrer sur la Tourelle, en multiple du zoom qui montre toute la forêt.
 const TURRET_ZOOM_FACTOR: float = 1.6
@@ -63,14 +61,8 @@ func _ready() -> void:
 	_camera.frame(_forest_view.bounds())
 	_session.ticked.connect(_on_ticked)
 	_session.commands_applied.connect(_colony_layer.refresh)
-	_session.game_finished.connect(func() -> void: _input.cancel())
 	_input.hovered.connect(_on_hovered)
 	_input.message.connect(_hud.show_message)
-	_input.mode_changed.connect(_on_mode_changed)
-	_input.wheel_requested.connect(_on_wheel_requested)
-	_input.wheel_open = _hud.wheel.is_open
-	_hud.ability_requested.connect(_input.use_ability)
-	_hud.building_requested.connect(_input.start_build)
 	get_viewport().size_changed.connect(_on_viewport_resized)
 	Settings.palette_changed.connect(_on_palette_changed)
 	recenter()
@@ -93,9 +85,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("back_to_menu"):
 		if _hud.is_game_menu_open():
 			_hud.close_game_menu()
-		elif _hud.wheel.is_open():
-			_hud.wheel.close()
-		elif not _input.cancel():
+		else:
 			_hud.open_game_menu()
 		get_viewport().set_input_as_handled()
 		return
@@ -118,10 +108,6 @@ func _shortcut(event: InputEvent) -> bool:
 			if event.is_action_pressed(MUTATION_ACTIONS[choice]):
 				_hud.choose_mutation(choice)
 				return true
-	for index: int in range(ABILITY_ACTIONS.size()):
-		if event.is_action_pressed(ABILITY_ACTIONS[index]):
-			_input.use_ability(index)
-			return true
 	return false
 
 
@@ -131,19 +117,6 @@ func _on_ticked(result: TickResult) -> void:
 	# (décidé le 5 octobre 2026).
 	if _config.is_versus() and _session.is_running() and not _session.colony().alive:
 		_session.stop()
-
-
-## Clic droit sur une de mes cases : la roue des bâtiments s'ouvre (−1 : elle se ferme).
-func _on_wheel_requested(cell: int, screen_position: Vector2) -> void:
-	if cell < 0:
-		_hud.wheel.close()
-	else:
-		_hud.wheel.open(cell, screen_position, _hud.map_rect())
-
-
-func _on_mode_changed(mode: MapInput.Mode, choice: int) -> void:
-	_hud.set_input_mode(mode, choice)
-	_colony_layer.set_build_preview(choice if mode == MapInput.Mode.BUILD else -1)
 
 
 func _on_hovered(cell: int) -> void:

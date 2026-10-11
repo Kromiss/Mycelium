@@ -2,8 +2,9 @@ class_name TierSystem
 extends RefCounted
 ## Étape 5 du tick : paliers de colonie (GDD §8.3, §10). Le palier suit le nombre de cases
 ## actuel (il peut redescendre). La première fois qu'un palier est atteint, la colonie reçoit
-## son lot d'Enzymes et un choix de mutations ; les choix non faits s'empilent (décidé le
-## 4 octobre 2026) et la partie continue pendant le choix.
+## son lot d'Enzymes et, aux paliers qui en portent une (2, 4 et 6), un choix de mutations ;
+## les choix non faits s'empilent (décidé le 4 octobre 2026) et la partie continue pendant le
+## choix. Un palier perdu retire les points chauds en trop, les plus anciens d'abord.
 
 
 func run(state: GameState, result: TickResult) -> void:
@@ -18,6 +19,7 @@ func run(state: GameState, result: TickResult) -> void:
 			result.tier_changes.append_array(PackedInt32Array([colony.id, colony.tier, tier]))
 			result.colony_changed(colony.id)
 			colony.tier = tier
+			CommandSystem.trim_hotspots(state.defs, colony)
 
 
 ## Raison pour laquelle le choix serait refusé (OK s'il serait accepté) : « choice » est le
@@ -43,6 +45,9 @@ static func choose(state: GameState, colony: ColonyState, choice: int) -> void:
 func _first_reach(state: GameState, colony: ColonyState, tier: int, result: TickResult) -> void:
 	colony.tier_ticks[tier - 1] = state.tick
 	colony.enzymes += ColonyStats.tier_enzymes(state.defs, colony, tier)
+	result.colony_changed(colony.id)
+	if state.defs.tier_mutation[tier - 1] == 0:
+		return
 	var offer: PackedInt32Array = _draw_offer(state, colony)
 	if not offer.is_empty():
 		colony.pending_offers.append_array(offer)
